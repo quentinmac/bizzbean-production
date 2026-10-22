@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="512" height="512" fill="none">
+  <!-- Bizzbean Favicon: Exact match to bizzbean favicon.jpg -->
+  <defs>
+    <!-- Clip path or mask if needed -->
+  </defs>
+
+  <!-- Background is transparent in SVG, but for JPG we composite white or #FAF8F5 -->
+
+  <!-- Center Lime Green Leaf -->
+  <path
+    d="M 100 68
+       C 78 84, 78 116, 100 132
+       C 122 116, 122 84, 100 68 Z"
+    fill="#94BD16"
+  />
+
+  <!-- Blue Upper-Left Ribbon -->
+  <path
+    d="M 109 11
+       L 64 56
+       C 48 72, 38 88, 36 108
+       L 36 122
+       C 36 142, 46 160, 64 174
+       A 14 14 0 0 0 84 154
+       C 70 142, 64 130, 64 120
+       L 64 108
+       C 64 96, 72 84, 84 72
+       L 91 65
+       L 91 29
+       Z"
+    fill="#5584B4"
+  />
+
+  <!-- Grey Lower-Right Ribbon (180 deg rotation around 100, 100) -->
+  <path
+    d="M 109 11
+       L 64 56
+       C 48 72, 38 88, 36 108
+       L 36 122
+       C 36 142, 46 160, 64 174
+       A 14 14 0 0 0 84 154
+       C 70 142, 64 130, 64 120
+       L 64 108
+       C 64 96, 72 84, 84 72
+       L 91 65
+       L 91 29
+       Z"
+    fill="#D5D8DD"
+    transform="rotate(180 100 100)"
+  />
+</svg>

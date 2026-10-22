@@ -1,0 +1,1 @@
+export { GrowthStrategyApp } from './GrowthStrategyApp';

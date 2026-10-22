@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
+  <rect width="200" height="200" fill="white" />
+  <g id="bizzbean-logo">
+    <!-- Blue Ribbon (Top-Left) -->
+    <path
+      d="M 106 14
+         L 52 68
+         C 38 82, 34 98, 34 116
+         C 34 134, 40 148, 52 160
+         C 60 168, 70 172, 78 168
+         C 86 164, 88 154, 84 146
+         C 78 136, 68 126, 64 114
+         C 60 102, 64 88, 74 78
+         L 96 56
+         C 102 50, 106 44, 106 14 Z"
+      fill="#5584B4"
+    />
+
+    <!-- Grey Ribbon (Bottom-Right, 180 deg rotation around 100, 100) -->
+    <path
+      d="M 106 14
+         L 52 68
+         C 38 82, 34 98, 34 116
+         C 34 134, 40 148, 52 160
+         C 60 168, 70 172, 78 168
+         C 86 164, 88 154, 84 146
+         C 78 136, 68 126, 64 114
+         C 60 102, 64 88, 74 78
+         L 96 56
+         C 102 50, 106 44, 106 14 Z"
+      fill="#D0D5DB"
+      transform="rotate(180 100 100)"
+    />
+
+    <!-- Center Lime Green Leaf -->
+    <path
+      d="M 100 70
+         C 80 84, 80 116, 100 130
+         C 120 116, 120 84, 100 70 Z"
+      fill="#94BD16"
+    />
+  </g>
+</svg>

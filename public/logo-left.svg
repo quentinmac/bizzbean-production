@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 240" width="600" height="240" fill="none">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@100;300&amp;display=swap');
+      .bizz-text {
+        font-family: 'Raleway', 'URW Gothic', 'Century Gothic', sans-serif;
+        font-weight: 300;
+        font-size: 185px;
+        fill: #707070;
+        letter-spacing: -2px;
+      }
+    </style>
+  </defs>
+  <!-- Favicon Logo Icon (Exact Bizzbean Favicon) -->
+  <g transform="translate(45, 10) scale(1.05)">
+    <!-- Center Lime Green Leaf -->
+    <path
+      d="M 100 68
+         C 78 82, 78 118, 100 132
+         C 122 118, 122 82, 100 68 Z"
+      fill="#94BD16"
+    />
+    <!-- Blue Upper-Left Ribbon -->
+    <path
+      d="M 112 14
+         L 54 72
+         C 38 88, 32 104, 32 120
+         L 32 126
+         C 32 146, 44 164, 64 172
+         A 13 13 0 0 0 82 154
+         C 68 144, 58 132, 58 118
+         L 58 106
+         C 58 94, 68 82, 78 72
+         L 112 14 Z"
+      fill="#5584B4"
+    />
+    <!-- Grey Lower-Right Ribbon (180 deg rotation) -->
+    <path
+      d="M 112 14
+         L 54 72
+         C 38 88, 32 104, 32 120
+         L 32 126
+         C 32 146, 44 164, 64 172
+         A 13 13 0 0 0 82 154
+         C 68 144, 58 132, 58 118
+         L 58 106
+         C 58 94, 68 82, 78 72
+         L 112 14 Z"
+      fill="#D5D8DD"
+      transform="rotate(180 100 100)"
+    />
+  </g>
+  <!-- 'bizz' in Raleway Light (font-weight: 300) -->
+  <text x="280" y="182" class="bizz-text">bizz</text>
+</svg>

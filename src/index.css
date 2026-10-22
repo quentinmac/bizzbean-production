@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-logo: 'Raleway', -apple-system, sans-serif;
+  --font-outfit: 'Outfit', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --color-sand-50: #FAF8F5;
+  --color-sand-100: #F4EFE6;
+  --color-sand-200: #EAE3D4;
+  --color-sand-300: #D8CEBC;
+  --color-sand-gold: #C59B63;
+  --color-sand-amber: #D4A373;
+  
+  --color-midnight: #12172A;
+  --color-midnight-light: #1E2338;
+
+  --color-bizz-blue: #2E5E88;
+  --color-bizz-total: #2E5E88;
+}
+
+/* Millimeter Architectural Grid Paper Pattern */
+.bg-architectural-grid {
+  background-color: #FAF8F5;
+  background-image: 
+    linear-gradient(to right, rgba(28, 35, 56, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(28, 35, 56, 0.04) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.bg-architectural-grid-dark {
+  background-color: #0A0D14;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Custom smooth behavior */
+html {
+  scroll-behavior: smooth;
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background-color: rgba(197, 155, 99, 0.3);
+  color: #12172A;
+}

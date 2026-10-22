@@ -1,0 +1,6 @@
+{
+  "name": "the bizzbean website v2",
+  "description": "Bizzbean v2 bizz-DESK: An AI-driven virtual workspace featuring the 3-panel interface, GIM business coach, financial modeling engines, and the 4-Stage venture ecosystem.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

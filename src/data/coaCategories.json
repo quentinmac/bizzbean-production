@@ -1,0 +1,1352 @@
+[
+  {
+    "primaryCode": 1,
+    "primaryName": "income",
+    "categoryCode": 1,
+    "categoryName": "revenue",
+    "subCategoryCode": 1,
+    "subCategoryName": "revenue",
+    "reportCode": "1-1-1"
+  },
+  {
+    "primaryCode": 1,
+    "primaryName": "income",
+    "categoryCode": 2,
+    "categoryName": "income adjustments",
+    "subCategoryCode": 1,
+    "subCategoryName": "commission received",
+    "reportCode": "1-2-1"
+  },
+  {
+    "primaryCode": 1,
+    "primaryName": "income",
+    "categoryCode": 2,
+    "categoryName": "income adjustments",
+    "subCategoryCode": 2,
+    "subCategoryName": "discounts received",
+    "reportCode": "1-2-2"
+  },
+  {
+    "primaryCode": 1,
+    "primaryName": "income",
+    "categoryCode": 2,
+    "categoryName": "income adjustments",
+    "subCategoryCode": 3,
+    "subCategoryName": "incentive kickbacks",
+    "reportCode": "1-2-3"
+  },
+  {
+    "primaryCode": 1,
+    "primaryName": "income",
+    "categoryCode": 2,
+    "categoryName": "income adjustments",
+    "subCategoryCode": 4,
+    "subCategoryName": "sundry income",
+    "reportCode": "1-2-4"
+  },
+  {
+    "primaryCode": 1,
+    "primaryName": "income",
+    "categoryCode": 3,
+    "categoryName": "income - non-trading",
+    "subCategoryCode": 1,
+    "subCategoryName": "interest received",
+    "reportCode": "1-3-1"
+  },
+  {
+    "primaryCode": 1,
+    "primaryName": "income",
+    "categoryCode": 3,
+    "categoryName": "income - non-trading",
+    "subCategoryCode": 2,
+    "subCategoryName": "dividends - received",
+    "reportCode": "1-3-2"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 1,
+    "categoryName": "gross profit adjustments",
+    "subCategoryCode": 1,
+    "subCategoryName": "inventory adjustments",
+    "reportCode": "2-1-1"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 1,
+    "categoryName": "gross profit adjustments",
+    "subCategoryCode": 2,
+    "subCategoryName": "manufacturing variances",
+    "reportCode": "2-1-2"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 1,
+    "categoryName": "gross profit adjustments",
+    "subCategoryCode": 3,
+    "subCategoryName": "price adjustments",
+    "reportCode": "2-1-3"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 1,
+    "categoryName": "gross profit adjustments",
+    "subCategoryCode": 4,
+    "subCategoryName": "revaluation adjustments",
+    "reportCode": "2-1-4"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 1,
+    "categoryName": "gross profit adjustments",
+    "subCategoryCode": 5,
+    "subCategoryName": "commission paid",
+    "reportCode": "2-1-5"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 1,
+    "categoryName": "gross profit adjustments",
+    "subCategoryCode": 6,
+    "subCategoryName": "incentive discounts",
+    "reportCode": "2-1-6"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 1,
+    "categoryName": "gross profit adjustments",
+    "subCategoryCode": 7,
+    "subCategoryName": "sundry expenses",
+    "reportCode": "2-1-7"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 2,
+    "categoryName": "cost of sales - variable",
+    "subCategoryCode": 1,
+    "subCategoryName": "trading",
+    "reportCode": "2-2-1"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 2,
+    "categoryName": "cost of sales - variable",
+    "subCategoryCode": 2,
+    "subCategoryName": "production materials",
+    "reportCode": "2-2-2"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 2,
+    "categoryName": "cost of sales - variable",
+    "subCategoryCode": 3,
+    "subCategoryName": "production variables",
+    "reportCode": "2-2-3"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 3,
+    "categoryName": "cost of sales - fixed",
+    "subCategoryCode": 4,
+    "subCategoryName": "production fixed",
+    "reportCode": "2-3-4"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 3,
+    "categoryName": "cost of sales - fixed",
+    "subCategoryCode": 5,
+    "subCategoryName": "share of overheads",
+    "reportCode": "2-3-5"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 4,
+    "categoryName": "cost of sales - variable",
+    "subCategoryCode": 6,
+    "subCategoryName": "revenue share",
+    "reportCode": "2-4-6"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 5,
+    "categoryName": "expenses - variable",
+    "subCategoryCode": 1,
+    "subCategoryName": "distribution",
+    "reportCode": "2-5-1"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 5,
+    "categoryName": "expenses - variable",
+    "subCategoryCode": 2,
+    "subCategoryName": "other variable",
+    "reportCode": "2-5-2"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 5,
+    "categoryName": "expenses - variable",
+    "subCategoryCode": 3,
+    "subCategoryName": "employment variable",
+    "reportCode": "2-5-3"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 5,
+    "categoryName": "expenses - variable",
+    "subCategoryCode": 4,
+    "subCategoryName": "selling",
+    "reportCode": "2-5-4"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 5,
+    "categoryName": "expenses - variable",
+    "subCategoryCode": 5,
+    "subCategoryName": "subcontracting",
+    "reportCode": "2-5-5"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 6,
+    "categoryName": "expenses - fixed",
+    "subCategoryCode": 1,
+    "subCategoryName": "fixed asset related",
+    "reportCode": "2-6-1"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 6,
+    "categoryName": "expenses - fixed",
+    "subCategoryCode": 2,
+    "subCategoryName": "data processing",
+    "reportCode": "2-6-2"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 6,
+    "categoryName": "expenses - fixed",
+    "subCategoryCode": 3,
+    "subCategoryName": "employment",
+    "reportCode": "2-6-3"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 6,
+    "categoryName": "expenses - fixed",
+    "subCategoryCode": 4,
+    "subCategoryName": "occupancy",
+    "reportCode": "2-6-4"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 6,
+    "categoryName": "expenses - fixed",
+    "subCategoryCode": 5,
+    "subCategoryName": "other fixed",
+    "reportCode": "2-6-5"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 6,
+    "categoryName": "expenses - fixed",
+    "subCategoryCode": 6,
+    "subCategoryName": "startup",
+    "reportCode": "2-6-6"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 7,
+    "categoryName": "extraordinary expenses",
+    "subCategoryCode": 1,
+    "subCategoryName": "extraordinary expenses",
+    "reportCode": "2-7-1"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 7,
+    "categoryName": "interest paid",
+    "subCategoryCode": 2,
+    "subCategoryName": "interest paid",
+    "reportCode": "2-7-2"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 7,
+    "categoryName": "taxation",
+    "subCategoryCode": 3,
+    "subCategoryName": "taxation",
+    "reportCode": "2-7-3"
+  },
+  {
+    "primaryCode": 2,
+    "primaryName": "expenses",
+    "categoryCode": 7,
+    "categoryName": "dividends",
+    "subCategoryCode": 4,
+    "subCategoryName": "dividends",
+    "reportCode": "2-7-4"
+  },
+  {
+    "primaryCode": 3,
+    "primaryName": "assets",
+    "categoryCode": 1,
+    "categoryName": "fixed assets",
+    "subCategoryCode": 1,
+    "subCategoryName": "fixed assets",
+    "reportCode": "3-1-1"
+  },
+  {
+    "primaryCode": 3,
+    "primaryName": "assets",
+    "categoryCode": 2,
+    "categoryName": "other fixed assets",
+    "subCategoryCode": 1,
+    "subCategoryName": "investments",
+    "reportCode": "3-2-1"
+  },
+  {
+    "primaryCode": 3,
+    "primaryName": "assets",
+    "categoryCode": 2,
+    "categoryName": "other fixed assets",
+    "subCategoryCode": 2,
+    "subCategoryName": "asset replacements",
+    "reportCode": "3-2-2"
+  },
+  {
+    "primaryCode": 3,
+    "primaryName": "assets",
+    "categoryCode": 3,
+    "categoryName": "current assets",
+    "subCategoryCode": 1,
+    "subCategoryName": "inventory",
+    "reportCode": "3-3-1"
+  },
+  {
+    "primaryCode": 3,
+    "primaryName": "assets",
+    "categoryCode": 3,
+    "categoryName": "current assets",
+    "subCategoryCode": 2,
+    "subCategoryName": "accounts receivable",
+    "reportCode": "3-3-2"
+  },
+  {
+    "primaryCode": 3,
+    "primaryName": "assets",
+    "categoryCode": 3,
+    "categoryName": "current assets",
+    "subCategoryCode": 3,
+    "subCategoryName": "related company accounts",
+    "reportCode": "3-3-3"
+  },
+  {
+    "primaryCode": 3,
+    "primaryName": "assets",
+    "categoryCode": 3,
+    "categoryName": "current assets",
+    "subCategoryCode": 4,
+    "subCategoryName": "inter-company accounts",
+    "reportCode": "3-3-4"
+  },
+  {
+    "primaryCode": 3,
+    "primaryName": "assets",
+    "categoryCode": 4,
+    "categoryName": "other assets",
+    "subCategoryCode": 1,
+    "subCategoryName": "cash float",
+    "reportCode": "3-4-1"
+  },
+  {
+    "primaryCode": 3,
+    "primaryName": "assets",
+    "categoryCode": 4,
+    "categoryName": "other assets",
+    "subCategoryCode": 2,
+    "subCategoryName": "cash on hand",
+    "reportCode": "3-4-2"
+  },
+  {
+    "primaryCode": 3,
+    "primaryName": "assets",
+    "categoryCode": 4,
+    "categoryName": "other assets",
+    "subCategoryCode": 3,
+    "subCategoryName": "deposits",
+    "reportCode": "3-4-3"
+  },
+  {
+    "primaryCode": 3,
+    "primaryName": "assets",
+    "categoryCode": 4,
+    "categoryName": "other assets",
+    "subCategoryCode": 4,
+    "subCategoryName": "petty cash",
+    "reportCode": "3-4-4"
+  },
+  {
+    "primaryCode": 3,
+    "primaryName": "assets",
+    "categoryCode": 4,
+    "categoryName": "other assets",
+    "subCategoryCode": 5,
+    "subCategoryName": "deferred taxation",
+    "reportCode": "3-4-5"
+  },
+  {
+    "primaryCode": 3,
+    "primaryName": "assets",
+    "categoryCode": 4,
+    "categoryName": "other assets",
+    "subCategoryCode": 6,
+    "subCategoryName": "prepaid commission",
+    "reportCode": "3-4-6"
+  },
+  {
+    "primaryCode": 4,
+    "primaryName": "liabilities",
+    "categoryCode": 1,
+    "categoryName": "current liabilities",
+    "subCategoryCode": 1,
+    "subCategoryName": "accounts payable",
+    "reportCode": "4-1-1"
+  },
+  {
+    "primaryCode": 4,
+    "primaryName": "liabilities",
+    "categoryCode": 1,
+    "categoryName": "current liabilities",
+    "subCategoryCode": 2,
+    "subCategoryName": "accruals",
+    "reportCode": "4-1-2"
+  },
+  {
+    "primaryCode": 4,
+    "primaryName": "liabilities",
+    "categoryCode": 1,
+    "categoryName": "current liabilities",
+    "subCategoryCode": 3,
+    "subCategoryName": "provisions",
+    "reportCode": "4-1-3"
+  },
+  {
+    "primaryCode": 4,
+    "primaryName": "liabilities",
+    "categoryCode": 1,
+    "categoryName": "current liabilities",
+    "subCategoryCode": 4,
+    "subCategoryName": "provisions for revenue share",
+    "reportCode": "4-1-4"
+  },
+  {
+    "primaryCode": 4,
+    "primaryName": "liabilities",
+    "categoryCode": 1,
+    "categoryName": "current liabilities",
+    "subCategoryCode": 5,
+    "subCategoryName": "vat",
+    "reportCode": "4-1-5"
+  },
+  {
+    "primaryCode": 4,
+    "primaryName": "liabilities",
+    "categoryCode": 1,
+    "categoryName": "current liabilities",
+    "subCategoryCode": 6,
+    "subCategoryName": "taxation liability",
+    "reportCode": "4-1-6"
+  },
+  {
+    "primaryCode": 4,
+    "primaryName": "liabilities",
+    "categoryCode": 1,
+    "categoryName": "current liabilities",
+    "subCategoryCode": 7,
+    "subCategoryName": "shareholders' for dividends",
+    "reportCode": "4-1-7"
+  },
+  {
+    "primaryCode": 4,
+    "primaryName": "liabilities",
+    "categoryCode": 2,
+    "categoryName": "share capital",
+    "subCategoryCode": 1,
+    "subCategoryName": "share capital",
+    "reportCode": "4-2-1"
+  },
+  {
+    "primaryCode": 4,
+    "primaryName": "liabilities",
+    "categoryCode": 2,
+    "categoryName": "share capital",
+    "subCategoryCode": 2,
+    "subCategoryName": "share premium",
+    "reportCode": "4-2-2"
+  },
+  {
+    "primaryCode": 4,
+    "primaryName": "liabilities",
+    "categoryCode": 3,
+    "categoryName": "retained earnings - prior years",
+    "subCategoryCode": 1,
+    "subCategoryName": "reserves - general",
+    "reportCode": "4-3-1"
+  },
+  {
+    "primaryCode": 4,
+    "primaryName": "liabilities",
+    "categoryCode": 3,
+    "categoryName": "retained earnings - prior years",
+    "subCategoryCode": 2,
+    "subCategoryName": "retentions - prior years",
+    "reportCode": "4-3-2"
+  },
+  {
+    "primaryCode": 4,
+    "primaryName": "liabilities",
+    "categoryCode": 4,
+    "categoryName": "retained earnings - current",
+    "subCategoryCode": 1,
+    "subCategoryName": "retentions - current year",
+    "reportCode": "4-4-1"
+  },
+  {
+    "primaryCode": 4,
+    "primaryName": "liabilities",
+    "categoryCode": 5,
+    "categoryName": "equity loans",
+    "subCategoryCode": 1,
+    "subCategoryName": "equity loans",
+    "reportCode": "4-5-1"
+  },
+  {
+    "primaryCode": 4,
+    "primaryName": "liabilities",
+    "categoryCode": 6,
+    "categoryName": "cash in wallets",
+    "subCategoryCode": 1,
+    "subCategoryName": "cash in wallets",
+    "reportCode": "4-6-1"
+  },
+  {
+    "primaryCode": 4,
+    "primaryName": "liabilities",
+    "categoryCode": 7,
+    "categoryName": "cash in banks",
+    "subCategoryCode": 1,
+    "subCategoryName": "cash in banks",
+    "reportCode": "4-7-1"
+  },
+  {
+    "primaryCode": 4,
+    "primaryName": "liabilities",
+    "categoryCode": 8,
+    "categoryName": "term loans",
+    "subCategoryCode": 1,
+    "subCategoryName": "term loans",
+    "reportCode": "4-8-1"
+  },
+  {
+    "primaryCode": 4,
+    "primaryName": "liabilities",
+    "categoryCode": 9,
+    "categoryName": "asset-based loans",
+    "subCategoryCode": 1,
+    "subCategoryName": "asset-based loans",
+    "reportCode": "4-9-1"
+  },
+  {
+    "primaryCode": 5,
+    "primaryName": "income",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": ""
+  },
+  {
+    "primaryCode": 5,
+    "primaryName": "reports-income",
+    "categoryCode": 1,
+    "categoryName": "revenue",
+    "subCategoryCode": 1,
+    "subCategoryName": "revenue",
+    "reportCode": "5-1-1-0"
+  },
+  {
+    "primaryCode": 5,
+    "primaryName": "reports-income",
+    "categoryCode": 2,
+    "categoryName": "income adjustments",
+    "subCategoryCode": 1,
+    "subCategoryName": "commission received",
+    "reportCode": "5-2-1-0"
+  },
+  {
+    "primaryCode": 5,
+    "primaryName": "reports-income",
+    "categoryCode": 2,
+    "categoryName": "income adjustments",
+    "subCategoryCode": 2,
+    "subCategoryName": "discounts received",
+    "reportCode": "5-2-2-0"
+  },
+  {
+    "primaryCode": 5,
+    "primaryName": "reports-income",
+    "categoryCode": 2,
+    "categoryName": "income adjustments",
+    "subCategoryCode": 3,
+    "subCategoryName": "incentive kickbacks",
+    "reportCode": "5-2-3-0"
+  },
+  {
+    "primaryCode": 5,
+    "primaryName": "reports-income",
+    "categoryCode": 2,
+    "categoryName": "income adjustments",
+    "subCategoryCode": 4,
+    "subCategoryName": "sundry income",
+    "reportCode": "5-2-4-0"
+  },
+  {
+    "primaryCode": 5,
+    "primaryName": "subtotal",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": "5-2-0-0"
+  },
+  {
+    "primaryCode": 5,
+    "primaryName": "reports-income",
+    "categoryCode": 3,
+    "categoryName": "income - non-trading",
+    "subCategoryCode": 1,
+    "subCategoryName": "interest received",
+    "reportCode": "5-3-1-0"
+  },
+  {
+    "primaryCode": 5,
+    "primaryName": "reports-income",
+    "categoryCode": 3,
+    "categoryName": "income - non-trading",
+    "subCategoryCode": 2,
+    "subCategoryName": "dividends - received",
+    "reportCode": "5-3-2-0"
+  },
+  {
+    "primaryCode": 5,
+    "primaryName": "subtotal",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": "5-3-0-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "expenses",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": ""
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 1,
+    "categoryName": "gross profit adjustments",
+    "subCategoryCode": 1,
+    "subCategoryName": "inventory adjustments",
+    "reportCode": "6-1-1-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 1,
+    "categoryName": "gross profit adjustments",
+    "subCategoryCode": 2,
+    "subCategoryName": "manufacturing variances",
+    "reportCode": "6-1-2-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 1,
+    "categoryName": "gross profit adjustments",
+    "subCategoryCode": 3,
+    "subCategoryName": "price adjustments",
+    "reportCode": "6-1-3-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 1,
+    "categoryName": "gross profit adjustments",
+    "subCategoryCode": 4,
+    "subCategoryName": "revaluation adjustments",
+    "reportCode": "6-1-4-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 1,
+    "categoryName": "gross profit adjustments",
+    "subCategoryCode": 5,
+    "subCategoryName": "commission paid",
+    "reportCode": "6-1-5-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 1,
+    "categoryName": "gross profit adjustments",
+    "subCategoryCode": 6,
+    "subCategoryName": "incentive discounts",
+    "reportCode": "6-1-6-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 1,
+    "categoryName": "gross profit adjustments",
+    "subCategoryCode": 7,
+    "subCategoryName": "sundry expenses",
+    "reportCode": "6-1-7-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "subtotal",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": "6-1-0-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 2,
+    "categoryName": "cost of sales - variable",
+    "subCategoryCode": 1,
+    "subCategoryName": "trading",
+    "reportCode": "6-2-1-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "subtotal",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": "6-2-0-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 3,
+    "categoryName": "cost of sales - variable",
+    "subCategoryCode": 2,
+    "subCategoryName": "production materials",
+    "reportCode": "6-3-2-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 3,
+    "categoryName": "cost of sales - variable",
+    "subCategoryCode": 3,
+    "subCategoryName": "production variables",
+    "reportCode": "6-3-3-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "subtotal",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": "6-3-0-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 3,
+    "categoryName": "cost of sales - fixed",
+    "subCategoryCode": 4,
+    "subCategoryName": "production fixed",
+    "reportCode": "6-3-4-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 3,
+    "categoryName": "cost of sales - fixed",
+    "subCategoryCode": 5,
+    "subCategoryName": "share of overheads",
+    "reportCode": "6-3-5-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "subtotal",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": ""
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 4,
+    "categoryName": "cost of sales - variable",
+    "subCategoryCode": 6,
+    "subCategoryName": "revenue share",
+    "reportCode": "6-4-6-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "subtotal",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": "6-4-0-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 5,
+    "categoryName": "expenses - variable",
+    "subCategoryCode": 1,
+    "subCategoryName": "distribution",
+    "reportCode": "6-5-1-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 5,
+    "categoryName": "expenses - variable",
+    "subCategoryCode": 2,
+    "subCategoryName": "other variable",
+    "reportCode": "6-5-2-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 5,
+    "categoryName": "expenses - variable",
+    "subCategoryCode": 3,
+    "subCategoryName": "employment variable",
+    "reportCode": "6-5-3-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 5,
+    "categoryName": "expenses - variable",
+    "subCategoryCode": 4,
+    "subCategoryName": "selling",
+    "reportCode": "6-5-4-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 5,
+    "categoryName": "expenses - variable",
+    "subCategoryCode": 5,
+    "subCategoryName": "subcontracting",
+    "reportCode": "6-5-5-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "subtotal",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": "6-5-0-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 6,
+    "categoryName": "expenses - fixed",
+    "subCategoryCode": 1,
+    "subCategoryName": "fixed asset related",
+    "reportCode": "6-6-1-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 6,
+    "categoryName": "expenses - fixed",
+    "subCategoryCode": 2,
+    "subCategoryName": "data processing",
+    "reportCode": "6-6-2-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 6,
+    "categoryName": "expenses - fixed",
+    "subCategoryCode": 3,
+    "subCategoryName": "employment",
+    "reportCode": "6-6-3-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 6,
+    "categoryName": "expenses - fixed",
+    "subCategoryCode": 4,
+    "subCategoryName": "occupancy",
+    "reportCode": "6-6-4-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 6,
+    "categoryName": "expenses - fixed",
+    "subCategoryCode": 5,
+    "subCategoryName": "other fixed",
+    "reportCode": "6-6-5-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 6,
+    "categoryName": "expenses - fixed",
+    "subCategoryCode": 6,
+    "subCategoryName": "startup",
+    "reportCode": "6-6-6-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "subtotal",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": "6-6-0-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "operating expenses",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": "6-9-0-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 7,
+    "categoryName": "extraordinary expenses",
+    "subCategoryCode": 1,
+    "subCategoryName": "extraordinary expenses",
+    "reportCode": "6-7-1-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 8,
+    "categoryName": "interest paid",
+    "subCategoryCode": 2,
+    "subCategoryName": "interest paid",
+    "reportCode": "6-8-2-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 8,
+    "categoryName": "taxation",
+    "subCategoryCode": 3,
+    "subCategoryName": "taxation",
+    "reportCode": "6-8-3-0"
+  },
+  {
+    "primaryCode": 6,
+    "primaryName": "reports-expenses",
+    "categoryCode": 10,
+    "categoryName": "dividends",
+    "subCategoryCode": 4,
+    "subCategoryName": "dividends",
+    "reportCode": "6-10-4-0"
+  },
+  {
+    "primaryCode": 7,
+    "primaryName": "assets",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": ""
+  },
+  {
+    "primaryCode": 7,
+    "primaryName": "reports-assets",
+    "categoryCode": 1,
+    "categoryName": "fixed assets",
+    "subCategoryCode": 1,
+    "subCategoryName": "fixed assets",
+    "reportCode": "7-1-1-0"
+  },
+  {
+    "primaryCode": 7,
+    "primaryName": "reports-assets",
+    "categoryCode": 2,
+    "categoryName": "other fixed assets",
+    "subCategoryCode": 1,
+    "subCategoryName": "investments",
+    "reportCode": "7-2-1-0"
+  },
+  {
+    "primaryCode": 7,
+    "primaryName": "reports-assets",
+    "categoryCode": 2,
+    "categoryName": "other fixed assets",
+    "subCategoryCode": 2,
+    "subCategoryName": "asset replacements",
+    "reportCode": "7-2-2-0"
+  },
+  {
+    "primaryCode": 7,
+    "primaryName": "subtotal",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": ""
+  },
+  {
+    "primaryCode": 7,
+    "primaryName": "reports-assets",
+    "categoryCode": 3,
+    "categoryName": "current assets",
+    "subCategoryCode": 1,
+    "subCategoryName": "inventory",
+    "reportCode": "7-3-1-0"
+  },
+  {
+    "primaryCode": 7,
+    "primaryName": "reports-assets",
+    "categoryCode": 3,
+    "categoryName": "current assets",
+    "subCategoryCode": 2,
+    "subCategoryName": "accounts receivable",
+    "reportCode": "7-3-2-0"
+  },
+  {
+    "primaryCode": 7,
+    "primaryName": "reports-assets",
+    "categoryCode": 3,
+    "categoryName": "current assets",
+    "subCategoryCode": 3,
+    "subCategoryName": "related company accounts",
+    "reportCode": "7-3-3-0"
+  },
+  {
+    "primaryCode": 7,
+    "primaryName": "reports-assets",
+    "categoryCode": 3,
+    "categoryName": "current assets",
+    "subCategoryCode": 4,
+    "subCategoryName": "inter-company accounts",
+    "reportCode": "7-3-4-0"
+  },
+  {
+    "primaryCode": 7,
+    "primaryName": "subtotal",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": ""
+  },
+  {
+    "primaryCode": 7,
+    "primaryName": "reports-assets",
+    "categoryCode": 4,
+    "categoryName": "other assets",
+    "subCategoryCode": 1,
+    "subCategoryName": "cash float",
+    "reportCode": "7-4-1-0"
+  },
+  {
+    "primaryCode": 7,
+    "primaryName": "reports-assets",
+    "categoryCode": 4,
+    "categoryName": "other assets",
+    "subCategoryCode": 2,
+    "subCategoryName": "cash on hand",
+    "reportCode": "7-4-2-0"
+  },
+  {
+    "primaryCode": 7,
+    "primaryName": "reports-assets",
+    "categoryCode": 4,
+    "categoryName": "other assets",
+    "subCategoryCode": 3,
+    "subCategoryName": "deposits",
+    "reportCode": "7-4-3-0"
+  },
+  {
+    "primaryCode": 7,
+    "primaryName": "reports-assets",
+    "categoryCode": 4,
+    "categoryName": "other assets",
+    "subCategoryCode": 4,
+    "subCategoryName": "petty cash",
+    "reportCode": "7-4-4-0"
+  },
+  {
+    "primaryCode": 7,
+    "primaryName": "reports-assets",
+    "categoryCode": 4,
+    "categoryName": "other assets",
+    "subCategoryCode": 5,
+    "subCategoryName": "deferred taxation",
+    "reportCode": "7-4-5-0"
+  },
+  {
+    "primaryCode": 7,
+    "primaryName": "reports-assets",
+    "categoryCode": 4,
+    "categoryName": "other assets",
+    "subCategoryCode": 6,
+    "subCategoryName": "prepaid commission",
+    "reportCode": "7-4-6-0"
+  },
+  {
+    "primaryCode": 7,
+    "primaryName": "subtotal",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": ""
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "liabilities",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": ""
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "reports-liabilities",
+    "categoryCode": 1,
+    "categoryName": "current liabilities",
+    "subCategoryCode": 1,
+    "subCategoryName": "accounts payable",
+    "reportCode": "8-1-1-0"
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "reports-liabilities",
+    "categoryCode": 1,
+    "categoryName": "current liabilities",
+    "subCategoryCode": 2,
+    "subCategoryName": "accruals",
+    "reportCode": "8-1-2-0"
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "reports-liabilities",
+    "categoryCode": 1,
+    "categoryName": "current liabilities",
+    "subCategoryCode": 3,
+    "subCategoryName": "provisions",
+    "reportCode": "8-1-3-0"
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "reports-liabilities",
+    "categoryCode": 1,
+    "categoryName": "current liabilities",
+    "subCategoryCode": 4,
+    "subCategoryName": "provisions for revenue share",
+    "reportCode": "8-1-4-0"
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "reports-liabilities",
+    "categoryCode": 1,
+    "categoryName": "current liabilities",
+    "subCategoryCode": 5,
+    "subCategoryName": "vat",
+    "reportCode": "8-1-5-0"
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "reports-liabilities",
+    "categoryCode": 1,
+    "categoryName": "current liabilities",
+    "subCategoryCode": 6,
+    "subCategoryName": "taxation liability",
+    "reportCode": "8-1-6-0"
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "reports-liabilities",
+    "categoryCode": 1,
+    "categoryName": "current liabilities",
+    "subCategoryCode": 7,
+    "subCategoryName": "shareholders' for dividends",
+    "reportCode": "8-1-7-0"
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "subtotal",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": ""
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "reports-liabilities",
+    "categoryCode": 2,
+    "categoryName": "share capital",
+    "subCategoryCode": 1,
+    "subCategoryName": "share capital",
+    "reportCode": "8-2-1-0"
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "reports-liabilities",
+    "categoryCode": 2,
+    "categoryName": "share capital",
+    "subCategoryCode": 2,
+    "subCategoryName": "share premium",
+    "reportCode": "8-2-2-0"
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "subtotal",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": ""
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "reports-liabilities",
+    "categoryCode": 3,
+    "categoryName": "retained earnings - prior years",
+    "subCategoryCode": 1,
+    "subCategoryName": "reserves - general",
+    "reportCode": "8-3-1-0"
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "reports-liabilities",
+    "categoryCode": 3,
+    "categoryName": "retained earnings - prior years",
+    "subCategoryCode": 2,
+    "subCategoryName": "retentions - prior years",
+    "reportCode": "8-3-2-0"
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "reports-liabilities",
+    "categoryCode": 4,
+    "categoryName": "retained earnings - current",
+    "subCategoryCode": 1,
+    "subCategoryName": "retentions - current year",
+    "reportCode": "8-4-1-0"
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "subtotal",
+    "categoryCode": null,
+    "categoryName": "",
+    "subCategoryCode": null,
+    "subCategoryName": "",
+    "reportCode": ""
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "reports-liabilities",
+    "categoryCode": 5,
+    "categoryName": "equity loans",
+    "subCategoryCode": 1,
+    "subCategoryName": "equity loans",
+    "reportCode": "8-5-1-0"
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "reports-liabilities",
+    "categoryCode": 6,
+    "categoryName": "cash in wallets",
+    "subCategoryCode": 1,
+    "subCategoryName": "cash in wallets",
+    "reportCode": "8-6-1-0"
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "reports-liabilities",
+    "categoryCode": 7,
+    "categoryName": "cash in banks",
+    "subCategoryCode": 1,
+    "subCategoryName": "cash in banks",
+    "reportCode": "8-7-1-0"
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "reports-liabilities",
+    "categoryCode": 8,
+    "categoryName": "term loans",
+    "subCategoryCode": 1,
+    "subCategoryName": "term loans",
+    "reportCode": "8-8-1-0"
+  },
+  {
+    "primaryCode": 8,
+    "primaryName": "reports-liabilities",
+    "categoryCode": 9,
+    "categoryName": "asset-based loans",
+    "subCategoryCode": 1,
+    "subCategoryName": "asset-based loans",
+    "reportCode": "8-9-1-0"
+  }
+]

@@ -1,0 +1,1 @@
+export { InvestVdrApp } from './InvestVdrApp';

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 240" width="540" height="240" fill="none">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@100;300&amp;display=swap');
+      .bean-text {
+        font-family: 'Raleway', 'URW Gothic', 'Century Gothic', sans-serif;
+        font-weight: 100;
+        font-size: 185px;
+        fill: #707070;
+        letter-spacing: -2px;
+      }
+      .tm-mark {
+        font-family: 'Raleway', 'URW Gothic', 'Century Gothic', sans-serif;
+        font-weight: 300;
+        font-size: 46px;
+        fill: #707070;
+      }
+    </style>
+  </defs>
+  <!-- 'bean' in Raleway Thin (font-weight: 100) with NO full stop after bean -->
+  <text x="4" y="182" class="bean-text">bean<tspan class="tm-mark" dy="-80" dx="8">TM</tspan></text>
+</svg>
