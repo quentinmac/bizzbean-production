@@ -14,6 +14,7 @@ import { createEnquiry } from '../services/enquiryService';
 
 interface FooterProps {
   userRole?: 'admin' | 'member' | 'public';
+  isMember?: boolean;
   onNavigate?: (view: string) => void;
   onOpenTalkToUs?: () => void;
   onOpenPolicies?: (policyKey: string) => void;
@@ -78,6 +79,7 @@ const POLICY_CONTENT: Record<string, { title: string; body: string[] }> = {
 
 export const Footer: React.FC<FooterProps> = ({
   userRole = 'member',
+  isMember = true,
   onNavigate = (view) => console.log('Navigate to', view),
   onOpenTalkToUs,
   onOpenPolicies,
@@ -104,11 +106,15 @@ export const Footer: React.FC<FooterProps> = ({
       onOpenTalkToUs();
       return;
     }
+    if (!isMember) {
+      return;
+    }
     setIsTalkToUsOpen(true);
   };
 
   const handleSendTalkToUs = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isMember) return;
     if (!contactMessage.trim()) return;
 
     try {

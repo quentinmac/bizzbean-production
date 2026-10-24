@@ -16,7 +16,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     priceZAR: 0,
     vatRate: 0.15,
     tokensAllocated: 0,
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '3:00',
     isPurchased: true,
     features: [
@@ -41,7 +41,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     priceZAR: 349,
     vatRate: 0.15,
     tokensAllocated: 69.8,
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '3:30',
     isPurchased: true,
     features: [
@@ -66,7 +66,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     priceZAR: 0,
     vatRate: 0.15,
     tokensAllocated: 0,
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '3:00',
     isPurchased: true,
     features: [
@@ -90,7 +90,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     priceZAR: 5600,
     vatRate: 0.15,
     tokensAllocated: 1120,
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '4:20',
     isPurchased: true,
     features: [
@@ -115,7 +115,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     priceZAR: 3750,
     vatRate: 0.15,
     tokensAllocated: 750,
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '3:10',
     isPurchased: false,
     features: [
@@ -140,7 +140,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     priceZAR: 6500,
     vatRate: 0.15,
     tokensAllocated: 1300,
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '5:15',
     isPurchased: false,
     features: [
@@ -165,7 +165,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     priceZAR: 1850,
     vatRate: 0.15,
     tokensAllocated: 370,
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '2:50',
     isPurchased: true,
     features: [
@@ -193,7 +193,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     vatRate: 0.15,
     tokensAllocated: 184,
     billingModel: 'monthly subscription',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1556742049-0a67c5574f73?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '3:30',
     isPurchased: true,
     features: [
@@ -218,7 +218,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     priceZAR: 750,
     vatRate: 0.15,
     tokensAllocated: 150,
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '2:40',
     isPurchased: false,
     features: [
@@ -243,7 +243,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     priceZAR: 1100,
     vatRate: 0.15,
     tokensAllocated: 220,
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '3:00',
     isPurchased: false,
     features: [
@@ -269,7 +269,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     priceZAR: 3500,
     vatRate: 0.15,
     tokensAllocated: 700,
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '4:00',
     isPurchased: false,
     features: [
@@ -293,7 +293,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     priceZAR: 2400,
     vatRate: 0.15,
     tokensAllocated: 480,
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '3:50',
     isPurchased: false,
     features: [
@@ -317,6 +317,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     priceZAR: 2800,
     vatRate: 0.15,
     tokensAllocated: 150,
+    imageUrl: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '4:15',
     isPurchased: false,
     features: [

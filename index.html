@@ -12,9 +12,29 @@
     <link rel="alternate icon" type="image/png" href="/bizzbean-favicon.png" />
     <link rel="alternate icon" type="image/svg+xml" href="/bizzbean-favicon.svg" />
     <link rel="apple-touch-icon" href="/bizzbean-favicon.jpg" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Raleway:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+      // Legacy V1 Purge: Unregister any stale service workers and clear cache storage
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          for (var i = 0; i < regs.length; i++) {
+            regs[i].unregister();
+          }
+        }).catch(function() {});
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          for (var i = 0; i < names.length; i++) {
+            caches.delete(names[i]);
+          }
+        }).catch(function() {});
+      }
+    </script>
   </head>
   <body class="bg-[#0A0D14] text-[#E2E8F0] antialiased selection:bg-amber-500/20 selection:text-amber-200">
     <div id="root"></div>

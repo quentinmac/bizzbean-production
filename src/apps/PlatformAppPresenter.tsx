@@ -274,7 +274,7 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
   // Standalone BizzDynamics Direct Experience (Per user optimization: removes outer wrapper header and suite carousel strip)
   if (activeApp === 'bizzdynamics') {
     return (
-      <div className="w-full h-full flex flex-col overflow-hidden">
+      <div className="w-full h-full flex-1 flex flex-col overflow-hidden">
         <BizzDynamics
           theme={theme}
           onClose={onBackToWorkstation}
@@ -284,10 +284,10 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
     );
   }
 
-  // Standalone BizzCalc Fullscreen Experience (Per user guidelines: standalone application, maximize device screen area, X will log out)
+  // Standalone BizzCalc Direct Experience (Matching BizzDynamics container architecture for guaranteed mobile viewport fit)
   if (activeApp === 'bizzcalc') {
     return (
-      <div className="fixed inset-0 z-40 flex flex-col h-screen w-screen overflow-hidden bg-[#FAF8F5] dark:bg-[#0A0D14]">
+      <div className="w-full h-full flex-1 flex flex-col overflow-hidden">
         <BizzCalc
           theme={theme}
           userProfile={userProfile}

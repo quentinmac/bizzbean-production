@@ -127,10 +127,19 @@ export function interpretVoiceCommand(
       if (isIncrease) {
         finalVal = Number((nextValues[targetMonth - 1] + val).toFixed(2));
       } else if (isDecrease) {
-        finalVal = Number(Math.max(0, nextValues[targetMonth - 1] - val).toFixed(2));
+        finalVal = Number((nextValues[targetMonth - 1] - val).toFixed(2));
       }
 
-      nextValues[targetMonth - 1] = finalVal;
+      // Check if user says "and following months" or "onwards" or by default cascades
+      const shouldCascade = text.includes('following') || text.includes('onwards') || text.includes('after');
+      if (shouldCascade) {
+        for (let i = targetMonth - 1; i < 60; i++) {
+          nextValues[i] = finalVal;
+        }
+      } else {
+        nextValues[targetMonth - 1] = finalVal;
+      }
+
       return {
         updatedValues: nextValues,
         result: {
@@ -138,7 +147,9 @@ export function interpretVoiceCommand(
           targetMonth,
           value: finalVal,
           rawTranscript,
-          feedbackMessage: `Month ${targetMonth} updated to ${finalVal.toFixed(2)}%`,
+          feedbackMessage: shouldCascade
+            ? `Month ${targetMonth} and following months updated to ${finalVal.toFixed(2)}%`
+            : `Month ${targetMonth} updated to ${finalVal.toFixed(2)}%`,
         },
       };
     }
@@ -157,7 +168,7 @@ export function interpretVoiceCommand(
         if (isIncrease) {
           finalVal = Number((nextValues[startMo + i] + val).toFixed(2));
         } else if (isDecrease) {
-          finalVal = Number(Math.max(0, nextValues[startMo + i] - val).toFixed(2));
+          finalVal = Number((nextValues[startMo + i] - val).toFixed(2));
         }
         nextValues[startMo + i] = finalVal;
       }
@@ -183,7 +194,7 @@ export function interpretVoiceCommand(
         if (isIncrease) {
           finalVal = Number((nextValues[i] + val).toFixed(2));
         } else if (isDecrease) {
-          finalVal = Number(Math.max(0, nextValues[i] - val).toFixed(2));
+          finalVal = Number((nextValues[i] - val).toFixed(2));
         }
         nextValues[i] = finalVal;
       }

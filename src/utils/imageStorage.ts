@@ -186,10 +186,6 @@ export function safeSaveStorage(key: string, data: any): void {
 export function cleanFallbackImagesFromArticles(articles: CmsArticle[]): CmsArticle[] {
   if (!Array.isArray(articles)) return [];
   return articles.map((art) => {
-    const img = (art.imageUrl || '').trim();
-    if (img.includes('images.unsplash.com')) {
-      return { ...art, imageUrl: '' };
-    }
     return art;
   });
 }
@@ -568,12 +564,15 @@ export function cleanLegacyProducts(products: CmsProduct[]): CmsProduct[] {
     }
   });
 
-  // 2. Clean fallback unsplash images while preserving user uploaded images
+  // 2. Preserve valid cover images, hydrate default covers from INITIAL_CMS_PRODUCTS when empty,
   // and ensure cost-recovery-calculator belongs definitively to fund-ability stage
   const cleanedList = Array.from(byId.values()).map((p) => {
     const cover = (p.canonicalCoverUrl || '').trim();
-    const isFallbackOrDeleted =
-      cover.includes('1553877522-43269d4ea984') || cover.includes('images.unsplash.com');
+    const isCorruptOrDeleted = cover.includes('1553877522-43269d4ea984');
+    const initialProd = INITIAL_CMS_PRODUCTS.find((ip) => ip.id === p.id);
+    const effectiveCover = (!cover || isCorruptOrDeleted)
+      ? (initialProd?.canonicalCoverUrl || '')
+      : cover;
 
     const effectiveStage =
       p.id === 'cost-recovery-calculator' && (p.stage === 'vi-ability' || p.stage === 'education')
@@ -615,7 +614,7 @@ export function cleanLegacyProducts(products: CmsProduct[]): CmsProduct[] {
     return {
       ...p,
       stage: effectiveStage,
-      canonicalCoverUrl: isFallbackOrDeleted ? '' : cover,
+      canonicalCoverUrl: effectiveCover,
       courseLessons: courseLessons ? courseLessons.map((l) => ({ ...l })) : [],
       syllabusLessonsCount: syllabusLessonsCount || (courseLessons ? courseLessons.length : 0),
       lessonTitles: lessonTitles || (courseLessons ? courseLessons.map((l) => l.name) : []),
@@ -663,8 +662,8 @@ export function cleanClearedCourseLessons(products: any[]): any[] {
 }
 
 /**
- * Permanently purges unsplash fallback images, legacy photos, and deleted/search message boards
- * from Hero Promotions so only real user-uploaded images and desired boards are presented.
+ * Hydrates Hero Promotions with high-fidelity visual assets, preserving user uploads
+ * and filtering deleted/search message boards.
  */
 export function cleanLegacyViabilityPromotions(promos: CmsPromotionSection[]): CmsPromotionSection[] {
   if (!Array.isArray(promos)) return INITIAL_CMS_PROMOTIONS;
@@ -681,9 +680,8 @@ export function cleanLegacyViabilityPromotions(promos: CmsPromotionSection[]): C
     .map((p) => {
       const initial = INITIAL_CMS_PROMOTIONS.find((ip) => ip.id === p.id);
       const img = (p.imageUrl || '').trim();
-      const isFallback =
-        img.includes('1553877522-43269d4ea984') || img.includes('images.unsplash.com');
-      const cleanedImg = isFallback ? '' : img;
+      const isCorrupted = img.includes('1553877522-43269d4ea984');
+      const cleanedImg = (!img || isCorrupted) ? (initial?.imageUrl || '') : img;
 
       const mergedStory = {
         narrative:

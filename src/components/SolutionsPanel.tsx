@@ -1,16 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { BIZZ_SOLUTIONS } from '../data/bizzdeskData';
 import {
   ChevronRight,
   Info,
-  MessageSquare,
-  Library,
-  Mail,
-  Bot,
-  HelpCircle,
-  Sparkles,
   Layers,
-  BookOpen,
 } from 'lucide-react';
 
 interface SolutionsPanelProps {
@@ -28,11 +21,14 @@ interface SolutionsPanelProps {
   onSelectAdminCentre?: () => void;
   onSelectEducationCentre?: () => void;
   onSelectBizzClass?: () => void;
+  onSelectCourse?: (courseId: string) => void;
   onActivateDialogue?: () => void;
   activeKbTab?: string;
   panelMode?: 'solutions' | 'knowledge';
   onTogglePanelMode?: (mode: 'solutions' | 'knowledge') => void;
 }
+
+
 
 export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
   activeSolutionId,
@@ -49,6 +45,7 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
   onSelectAdminCentre,
   onSelectEducationCentre,
   onSelectBizzClass,
+  onSelectCourse,
   onActivateDialogue,
   activeKbTab,
   panelMode,
@@ -68,19 +65,6 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
       : 'text-slate-700 hover:text-slate-900 hover:bg-[#F4EFE6] border border-transparent';
   };
 
-  // Internal mode state with fallback to prop if controlled
-  const [internalMode, setInternalMode] = useState<'solutions' | 'knowledge'>(
-    panelMode || 'solutions'
-  );
-
-  const currentMode = panelMode !== undefined ? panelMode : internalMode;
-
-  const handleModeChange = (mode: 'solutions' | 'knowledge') => {
-    setInternalMode(mode);
-    if (onTogglePanelMode) {
-      onTogglePanelMode(mode);
-    }
-  };
 
   const startupSolutions = BIZZ_SOLUTIONS.filter(
     (s) => s.category === 'startup' && s.id !== 'learn-earn-capital' && s.id !== 'bizzdynamics'
@@ -101,199 +85,72 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
       }`}
     >
       {/* ===================================================================== */}
-      {/* 1. TOP HEADER SELECTOR: SOLUTIONS PANEL vs KNOWLEDGE BASE             */}
-      {/* (Per mobile design proposal 2: Select SOLUTIONS PANEL or KNOWLEDGE BASE) */}
+      {/* 1. TOP HEADER: SOLUTIONS PANEL                                        */}
+      {/* (Dedicated header matching KnowledgeBasePanel styling)                 */}
       {/* ===================================================================== */}
       <div
-        className={`p-2.5 sm:p-3 border-b shrink-0 flex items-center gap-1.5 ${
+        className={`p-2.5 sm:p-3 border-b shrink-0 flex items-center justify-between min-h-[49px] ${
           isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-[#F4EFE6]/80 border-[#E8E2D8]'
         }`}
       >
-        <button
-          type="button"
-          onClick={() => handleModeChange('solutions')}
-          className={`flex-1 py-1.5 px-2 rounded-xl text-[11px] font-mono font-bold tracking-wider uppercase transition-all border ${
-            currentMode === 'solutions'
-              ? isDark
-                ? 'bg-[#1E2548] text-[#D4A373] border-[#5584B4] shadow-xs'
-                : 'bg-[#F2ECE1] text-[#8C6D3F] border-[#D8CEBC] shadow-xs'
-              : isDark
-              ? 'bg-[#121728] text-slate-400 hover:text-white border-[#222E4E]'
-              : 'bg-white/70 text-slate-600 hover:text-slate-900 border-[#E8E2D8]'
-          }`}
-        >
-          SOLUTIONS PANEL
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleModeChange('knowledge')}
-          className={`flex-1 py-1.5 px-2 rounded-xl text-[11px] font-mono font-bold tracking-wider uppercase transition-all border ${
-            currentMode === 'knowledge'
-              ? isDark
-                ? 'bg-[#1E2548] text-[#D4A373] border-[#5584B4] shadow-xs'
-                : 'bg-[#F2ECE1] text-[#8C6D3F] border-[#D8CEBC] shadow-xs'
-              : isDark
-              ? 'bg-[#121728] text-slate-400 hover:text-white border-[#222E4E]'
-              : 'bg-white/70 text-slate-600 hover:text-slate-900 border-[#E8E2D8]'
-          }`}
-        >
-          KNOWLEDGE BASE
-        </button>
+        <div className="flex items-center gap-2 px-1 py-0.5">
+          <Layers className="h-4 w-4 text-[#5584B4]" />
+          <h2
+            className={`font-mono text-xs font-bold tracking-wider uppercase ${
+              isDark ? 'text-[#DDEBF7]' : 'text-slate-900'
+            }`}
+          >
+            SOLUTIONS PANEL
+          </h2>
+        </div>
       </div>
 
       {/* ===================================================================== */}
-      {/* 2. BODY CONTENT: BASED ON SELECTION                                   */}
+      {/* 2. BODY CONTENT: SOLUTIONS DIRECTORY                                  */}
       {/* ===================================================================== */}
       <div className="p-3 space-y-4 flex-grow overflow-y-auto">
-        {/* A. KNOWLEDGE BASE SELECTION: DIALOGUE, ASSISTANT, or LIBRARY */}
-        {currentMode === 'knowledge' ? (
-          <div className="space-y-2.5 animate-in fade-in duration-150">
-            <div className="px-1 text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
-              Select Knowledge Service
-            </div>
+        <div className="space-y-4 animate-in fade-in duration-150">
+          {/* ABOUT BIZZBEAN Button */}
+          <div>
+            {(() => {
+              const displayAboutLabel = isAdmin
+                ? 'about bizzbean'
+                : (companyName ? `about ${companyName}` : 'about bizzbean');
 
-            {/* 1. DIALOGUE (Engage Coach GIM AI-Loop) */}
-            <button
-              type="button"
-              onClick={() => {
-                if (onActivateDialogue) onActivateDialogue();
-              }}
-              className={`w-full flex items-center justify-between p-3 rounded-xl text-xs transition-all border ${getSubtleActiveBtnClass(
-                activeKbTab === 'dialogue'
-              )}`}
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="p-2 rounded-lg bg-[#5584B4]/20 border border-[#5584B4]/40 text-[#5584B4] shrink-0">
-                  <MessageSquare className="h-4 w-4" />
-                </div>
-                <div className="text-left font-mono min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold uppercase tracking-wider text-xs">DIALOGUE</span>
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 lowercase block truncate mt-0.5">
-                    engage gim coach · ai-loop
-                  </span>
-                </div>
-              </div>
-              <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
-            </button>
+              const isAboutActive = activeSolutionId === 'about-bizzbean';
 
-            {/* 2. TALK TO US (Direct Access to Dialogue Centre in Administration Centre) */}
-            <button
-              type="button"
-              onClick={() => {
-                if (onOpenTalkToUs) {
-                  onOpenTalkToUs();
-                } else if (onSelectAdminCentre) {
-                  onSelectAdminCentre();
-                }
-              }}
-              className={`w-full flex items-center justify-between p-3 rounded-xl text-xs transition-all border ${getSubtleActiveBtnClass(
-                activeSolutionId === 'administration-centre'
-              )}`}
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="p-2 rounded-lg bg-[#5584B4]/20 border border-[#5584B4]/40 text-[#5584B4] shrink-0">
-                  <Mail className="h-4 w-4" />
-                </div>
-                <div className="text-left font-mono min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold uppercase tracking-wider text-xs">TALK TO US</span>
-                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#5584B4]/20 text-[#5584B4] dark:text-[#DDEBF7] font-bold uppercase">
-                      dialogue
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 lowercase block truncate mt-0.5">
-                    talk to us dialogue centre
-                  </span>
-                </div>
-              </div>
-              <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
-            </button>
-          </div>
-        ) : (
-          /* B. SOLUTIONS PANEL SELECTION (Clean List Without Standalone Dialogue/Library Spillover) */
-          <div className="space-y-4 animate-in fade-in duration-150">
-            {/* ABOUT BIZZBEAN Button */}
-            <div>
-              {(() => {
-                const displayAboutLabel = isAdmin
-                  ? 'about bizzbean'
-                  : (companyName ? `about ${companyName}` : 'about bizzbean');
-
-                const isAboutActive = activeSolutionId === 'about-bizzbean';
-
-                return (
-                  <button
-                    onClick={onSelectAbout}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${getSubtleActiveBtnClass(
-                      isAboutActive
-                    )}`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Info
-                        className={`h-3.5 w-3.5 ${
-                          isAboutActive
-                            ? isDark
-                              ? 'text-[#D4A373]'
-                              : 'text-[#8C6D3F]'
-                            : 'text-[#5584B4]'
-                        } shrink-0`}
-                      />
-                      <span className="lowercase font-semibold truncate">{displayAboutLabel}</span>
-                    </div>
-                    {isAboutActive ? (
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          isDark ? 'bg-[#D4A373]' : 'bg-[#8C6D3F]'
-                        } shrink-0`}
-                      />
-                    ) : (
-                      <ChevronRight className="h-3.5 w-3.5 opacity-60 shrink-0" />
-                    )}
-                  </button>
-                );
-              })()}
-            </div>
-
-            {/* TALK TO US Button (Replaces LIBRARY sticker and links to Dialogue Centre per user brief) */}
-            {(onOpenTalkToUs || onSelectAdminCentre) && (
-              <div>
+              return (
                 <button
-                  onClick={() => {
-                    if (onOpenTalkToUs) {
-                      onOpenTalkToUs();
-                    } else if (onSelectAdminCentre) {
-                      onSelectAdminCentre();
-                    }
-                  }}
+                  onClick={onSelectAbout}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${getSubtleActiveBtnClass(
-                    activeSolutionId === 'administration-centre'
+                    isAboutActive
                   )}`}
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <Mail
+                    <Info
                       className={`h-3.5 w-3.5 ${
-                        activeSolutionId === 'administration-centre'
+                        isAboutActive
                           ? isDark
                             ? 'text-[#D4A373]'
                             : 'text-[#8C6D3F]'
                           : 'text-[#5584B4]'
                       } shrink-0`}
                     />
-                    <span className="font-semibold uppercase tracking-wider text-xs">talk to us</span>
+                    <span className="lowercase font-semibold truncate">{displayAboutLabel}</span>
                   </div>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded font-mono uppercase bg-[#5584B4]/15 text-[#5584B4] dark:text-[#DDEBF7] font-bold">
-                    dialogue
-                  </span>
+                  {isAboutActive ? (
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        isDark ? 'bg-[#D4A373]' : 'bg-[#8C6D3F]'
+                      } shrink-0`}
+                    />
+                  ) : (
+                    <ChevronRight className="h-3.5 w-3.5 opacity-60 shrink-0" />
+                  )}
                 </button>
-              </div>
-            )}
+              );
+            })()}
+          </div>
 
             {/* STARTUP STAGE */}
             <div>
@@ -435,32 +292,13 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
               </div>
             </div>
 
-            {/* EDUCATIONAL SUPPORT */}
+            {/* MEDIA & ARTICLES */}
             <div>
               <div className="text-xs font-mono font-bold text-slate-500 tracking-wider uppercase px-2 mb-1 flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#5584B4]" />
-                <span>EDUCATIONAL SUPPORT</span>
+                <span>MEDIA & ARTICLES</span>
               </div>
               <div className="space-y-0.5">
-                {onSelectBizzClass && (
-                  <button
-                    onClick={onSelectBizzClass}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase ${getSubtleActiveBtnClass(
-                      activeSolutionId === 'bizzclass' || activeSolutionId === 'cost-recovery-calculator'
-                    )}`}
-                  >
-                    <span className={activeSolutionId === 'bizzclass' || activeSolutionId === 'cost-recovery-calculator' ? 'font-bold' : 'font-normal'}>
-                      bizzclass — course suite
-                    </span>
-                    {(activeSolutionId === 'bizzclass' || activeSolutionId === 'cost-recovery-calculator') && (
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          isDark ? 'bg-[#D4A373]' : 'bg-[#8C6D3F]'
-                        } shrink-0`}
-                      />
-                    )}
-                  </button>
-                )}
                 {educationSolutions.map((sol) => {
                   const isActive =
                     (activeStageId === 'education' ||
@@ -487,10 +325,9 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
                     </button>
                   );
                 })}
-              </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* ===================================================================== */}

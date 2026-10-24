@@ -63,8 +63,7 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
         p.isActive !== false &&
         p.imageUrl &&
         p.imageUrl.trim() !== '' &&
-        !p.imageUrl.includes('1553877522-43269d4ea984') &&
-        !p.imageUrl.includes('images.unsplash.com')
+        !p.imageUrl.includes('1553877522-43269d4ea984')
     );
 
     if (withImages.length > 0) {
@@ -259,48 +258,45 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
       
       {/* LEFT GLASS SLIDING DOOR (0% to 50% width) */}
       <div
-        className={`absolute top-0 bottom-0 left-0 w-1/2 z-30 transition-transform duration-[2200ms] ease-in-out border-r border-[#D8CEBC]/70 backdrop-blur-[5px] bg-[#FAF8F5]/90 shadow-2xl flex flex-col justify-between py-6 sm:py-10 md:py-12 ${
+        className={`absolute top-0 bottom-0 left-0 w-1/2 z-30 transition-transform duration-[2200ms] ease-in-out border-r border-[#D8CEBC]/70 backdrop-blur-[5px] bg-[#FAF8F5]/90 shadow-2xl ${
           doorsOpen ? '-translate-x-full' : 'translate-x-0'
         }`}
         style={{
           boxShadow: 'inset -2px 0 24px rgba(85,132,180,0.04)',
         }}
       >
-        {/* TOP: Left half of logo stitched against center seam */}
-        <div className="flex flex-col items-end w-full pr-0">
-          {/* Logo Left: [bizzbean favicon.jpg] + "bizz" in Raleway Light (300) flush to right edge */}
-          <div className="flex justify-end items-center w-full">
-            <div className="flex items-center gap-1.5 sm:gap-2.5">
-              <img
-                src="/bizzbean-favicon.jpg"
-                alt="bizzbean favicon"
-                className="h-8 w-8 sm:h-12 sm:w-12 md:h-14 md:w-14 lg:h-16 lg:w-16 object-contain mix-blend-multiply drop-shadow-xs select-none pointer-events-none"
-                onError={(e) => {
-                  const target = e.currentTarget;
-                  if (!target.dataset.triedFavicon) {
-                    target.dataset.triedFavicon = 'true';
-                    target.src = '/favicon.jpg';
-                  } else if (!target.dataset.triedPng) {
-                    target.dataset.triedPng = 'true';
-                    target.src = '/bizzbean-favicon.png';
-                  } else if (!target.dataset.triedSvg) {
-                    target.dataset.triedSvg = 'true';
-                    target.src = '/bizzbean-favicon.svg';
-                  }
-                }}
-              />
-              <span
-                className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl text-[#707070] tracking-tight leading-none select-none font-['Raleway']"
-                style={{ fontWeight: 300 }}
-              >
-                bizz
-              </span>
-            </div>
+        {/* TOP: Left half of logo stitched against center seam - Moved down closer to computer screen */}
+        <div className="absolute right-0 bottom-[calc(50%+108px)] sm:bottom-[calc(50%+138px)] md:bottom-[calc(50%+172px)] flex items-center pr-0 select-none pointer-events-none">
+          <div className="flex items-center gap-1.5 sm:gap-2.5">
+            <img
+              src="/bizzbean-favicon.jpg"
+              alt="bizzbean favicon"
+              className="h-8 w-8 sm:h-12 sm:w-12 md:h-14 md:w-14 lg:h-16 lg:w-16 object-contain mix-blend-multiply drop-shadow-xs select-none pointer-events-none"
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (!target.dataset.triedFavicon) {
+                  target.dataset.triedFavicon = 'true';
+                  target.src = '/favicon.jpg';
+                } else if (!target.dataset.triedPng) {
+                  target.dataset.triedPng = 'true';
+                  target.src = '/bizzbean-favicon.png';
+                } else if (!target.dataset.triedSvg) {
+                  target.dataset.triedSvg = 'true';
+                  target.src = '/bizzbean-favicon.svg';
+                }
+              }}
+            />
+            <span
+              className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl text-[#707070] tracking-tight leading-none select-none font-['Raleway']"
+              style={{ fontWeight: 300 }}
+            >
+              bizz
+            </span>
           </div>
         </div>
 
         {/* MIDDLE: "explore bizz-desk" button kept strictly within laptop dark outline, equal size & centered */}
-        <div className="flex items-center justify-end w-full pr-3 sm:pr-4 md:pr-6 relative">
+        <div className="absolute right-0 top-[calc(50%-12px)] -translate-y-1/2 pr-3 sm:pr-4 md:pr-6 flex items-center justify-end">
           <button
             type="button"
             onClick={() => handleTriggerEnter(false)}
@@ -311,8 +307,8 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
           </button>
         </div>
 
-        {/* BOTTOM: "sign in" button on left door */}
-        <div className="flex items-center justify-end w-full pr-4 sm:pr-8 md:pr-12">
+        {/* BOTTOM: "sign in" button on left door - Moved up closer to computer base */}
+        <div className="absolute right-0 top-[calc(50%+102px)] sm:top-[calc(50%+130px)] md:top-[calc(50%+162px)] pr-2.5 sm:pr-3.5 md:pr-4 flex items-center justify-end">
           <button
             type="button"
             onClick={() => {
@@ -328,36 +324,33 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
         </div>
 
         {/* Sliding Door Sleek Vertical Metal Handle on right edge */}
-        <div className="absolute top-1/2 -translate-y-1/2 right-1.5 sm:right-2.5 w-1.5 sm:w-2 h-20 sm:h-28 rounded-full bg-gradient-to-b from-[#C4B7A3] via-[#FAF8F5] to-[#C4B7A3] shadow-xs border border-[#D8CEBC]/60" />
+        <div className="absolute top-[calc(50%-12px)] -translate-y-1/2 right-1.5 sm:right-2.5 w-1.5 sm:w-2 h-20 sm:h-28 rounded-full bg-gradient-to-b from-[#C4B7A3] via-[#FAF8F5] to-[#C4B7A3] shadow-xs border border-[#D8CEBC]/60" />
       </div>
 
       {/* RIGHT GLASS SLIDING DOOR (50% to 100% width) */}
       <div
-        className={`absolute top-0 bottom-0 right-0 w-1/2 z-30 transition-transform duration-[2200ms] ease-in-out border-l border-[#D8CEBC]/70 backdrop-blur-[5px] bg-[#FAF8F5]/90 shadow-2xl flex flex-col justify-between py-6 sm:py-10 md:py-12 ${
+        className={`absolute top-0 bottom-0 right-0 w-1/2 z-30 transition-transform duration-[2200ms] ease-in-out border-l border-[#D8CEBC]/70 backdrop-blur-[5px] bg-[#FAF8F5]/90 shadow-2xl ${
           doorsOpen ? 'translate-x-full' : 'translate-x-0'
         }`}
         style={{
           boxShadow: 'inset 2px 0 24px rgba(85,132,180,0.04)',
         }}
       >
-        {/* TOP: Right half of logo stitched against center seam */}
-        <div className="flex flex-col items-start w-full pl-0">
-          {/* Logo Right: "bean" in Raleway Thin (100) with NO full stop after bean */}
-          <div className="flex justify-start items-center w-full">
-            <span
-              className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl text-[#707070] tracking-tight leading-none select-none font-['Raleway'] inline-flex items-baseline"
-              style={{ fontWeight: 100 }}
-            >
-              bean
-              <sup className="text-[10px] sm:text-xs md:text-sm font-normal text-[#707070] ml-0.5 -top-2.5 sm:-top-4 md:-top-5 font-['Raleway']">
-                TM
-              </sup>
-            </span>
-          </div>
+        {/* TOP: Right half of logo stitched against center seam - Moved down closer to computer screen */}
+        <div className="absolute left-0 bottom-[calc(50%+108px)] sm:bottom-[calc(50%+138px)] md:bottom-[calc(50%+172px)] flex items-center pl-0 select-none pointer-events-none">
+          <span
+            className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl text-[#707070] tracking-tight leading-none select-none font-['Raleway'] inline-flex items-baseline"
+            style={{ fontWeight: 100 }}
+          >
+            bean
+            <sup className="text-[10px] sm:text-xs md:text-sm font-normal text-[#707070] ml-0.5 -top-2.5 sm:-top-4 md:-top-5 font-['Raleway']">
+              TM
+            </sup>
+          </span>
         </div>
 
         {/* MIDDLE: "about bizzbean" button adjacent to explore bizz-desk, kept strictly within laptop dark outline, equal size & centered */}
-        <div className="flex items-center justify-start w-full pl-3 sm:pl-4 md:pl-6 relative">
+        <div className="absolute left-0 top-[calc(50%-12px)] -translate-y-1/2 pl-3 sm:pl-4 md:pl-6 flex items-center justify-start">
           <button
             type="button"
             onClick={onOpenAboutModal}
@@ -368,8 +361,8 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
           </button>
         </div>
 
-        {/* BOTTOM: "sign up" button on right door */}
-        <div className="flex items-center justify-start w-full pl-4 sm:pl-8 md:pl-12">
+        {/* BOTTOM: "sign up" button on right door - Moved up closer to computer base */}
+        <div className="absolute left-0 top-[calc(50%+102px)] sm:top-[calc(50%+130px)] md:top-[calc(50%+162px)] pl-2.5 sm:pl-3.5 md:pl-4 flex items-center justify-start">
           <button
             type="button"
             onClick={() => {
@@ -385,7 +378,7 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
         </div>
 
         {/* Sliding Door Sleek Vertical Metal Handle on left edge */}
-        <div className="absolute top-1/2 -translate-y-1/2 left-1.5 sm:left-2.5 w-1.5 sm:w-2 h-20 sm:h-28 rounded-full bg-gradient-to-b from-[#C4B7A3] via-[#FAF8F5] to-[#C4B7A3] shadow-xs border border-[#D8CEBC]/60" />
+        <div className="absolute top-[calc(50%-12px)] -translate-y-1/2 left-1.5 sm:left-2.5 w-1.5 sm:w-2 h-20 sm:h-28 rounded-full bg-gradient-to-b from-[#C4B7A3] via-[#FAF8F5] to-[#C4B7A3] shadow-xs border border-[#D8CEBC]/60" />
       </div>
 
       {/* ========================================================================= */}

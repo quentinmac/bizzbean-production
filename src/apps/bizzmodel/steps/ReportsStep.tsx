@@ -4,6 +4,21 @@ import { BizzModelState } from '../constants';
 import { calculateFinancialModelProjections, MonthlyFinancialSummary } from '../utils/revenueCalc';
 import { LiquidityVsDebtChart } from '../../bizzdynamics/components/LiquidityVsDebtChart';
 import {
+  ExecutiveEfficiencyChart,
+  EfficiencyChartDataPoint,
+} from '../../bizzdynamics/components/ExecutiveEfficiencyChart';
+import {
+  ExecutiveReturnsChart,
+  ReturnsChartDataPoint,
+} from '../../bizzdynamics/components/ExecutiveReturnsChart';
+import { ReportsCarousel } from '../../bizzdynamics/components/ReportsCarousel';
+import {
+  BizzReportTable,
+  BizzReportTableRow,
+  formatReportNumber,
+  formatReportPercent,
+} from '../../bizzdynamics/components/BizzReportTable';
+import {
   BizzReportSection,
   BizzTableClass,
   BizzTableHeaderClass,
@@ -395,68 +410,14 @@ export const ReportsStep: React.FC<ReportsStepProps> = ({
 
   return (
     <div className={`p-4 sm:p-6 space-y-6 font-mono ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-      {/* Top Report Tabs & Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-[#101626] border border-[#D8CEBC] dark:border-[#222F4C]">
-        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1">
-          {[
-            { id: 'liquidity-funding', label: '1. LIQUIDITY VS DEBT' },
-            { id: 'summary', label: '2. EXECUTIVE SUMMARY' },
-            { id: 'trading-account', label: '3. TRADING ACCOUNT' },
-            { id: 'trading-distribution', label: '4. TRADING DISTRIBUTION' },
-            { id: 'income-statement', label: '5. INCOME STATEMENT' },
-            { id: 'balance-sheet', label: '6. BALANCE SHEET' },
-            { id: 'cash-flow', label: '7. CASH FLOW' },
-            { id: 'vat-ledger', label: '8. VAT CALCULATION' },
-            { id: 'assumptions', label: '9. ASSUMPTIONS' },
-          ].map((tab) => {
-            const isSelected = activeReportTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveReportTab(tab.id as any)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap border ${
-                  isSelected
-                    ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-xs'
-                    : isDark
-                    ? 'bg-[#141A2E] text-slate-400 hover:text-white border-[#252E4A]'
-                    : 'bg-white text-slate-600 hover:text-slate-900 border-[#D8CEBC]'
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Year Filter: Y1, Y2, Y3, Y4, Y5, or 5-Year Summary (Download/Print completely excluded) */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center p-0.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B0F1C] text-xs">
-            {[1, 2, 3, 4, 5].map((yr) => (
-              <button
-                key={yr}
-                onClick={() => setReportHorizonYear(yr)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                  reportHorizonYear === yr
-                    ? 'bg-[#2E5E88] text-white shadow-xs'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                Y{yr}
-              </button>
-            ))}
-            <button
-              onClick={() => setReportHorizonYear('summary')}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                reportHorizonYear === 'summary'
-                  ? 'bg-[#2E5E88] text-white shadow-xs'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              5-Year Summary
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* Reports Navigation Carousel & Horizon Filter */}
+      <ReportsCarousel
+        theme={theme}
+        activeReportTab={activeReportTab}
+        onSelectReportTab={setActiveReportTab}
+        reportHorizonYear={reportHorizonYear}
+        onSelectHorizonYear={setReportHorizonYear}
+      />
 
       {/* =================================================================== */}
       {/* 1. LIQUIDITY VS DEBT (LIQUIDITY-FUNDING) — DUAL-AXIS TRAJECTORY     */}
@@ -602,517 +563,654 @@ export const ReportsStep: React.FC<ReportsStepProps> = ({
       )}
 
       {/* =================================================================== */}
-      {/* 2. EXECUTIVE SUMMARY (SUMMARY & GROWTH-TRAJECTORY)                  */}
+      {/* 2. EXECUTIVE SUMMARY (CHARTS + KEY RATIOS TABLE)                    */}
       {/* =================================================================== */}
       {activeReportTab === 'summary' && (() => {
-        const epsValues = yearData.map((y) => (y.shares_in_issue > 0 ? y.taxed_profits / y.shares_in_issue : 0));
-        const maxEps = Math.max(...epsValues.map(Math.abs), 0.01);
+        const capital =
+          (state.funding?.founderEquity || 0) +
+          (state.funding?.investorEquity || 0);
+
+        const totalEmployees =
+          state.employmentItems?.reduce(
+            (sum, e) => sum + (e.numEmployees || 0),
+            0
+          ) || 1;
+
+        // Dual-Axis Chart Data 1: Efficiency Trajectory (ROS % & ROA % vs Asset Turn x)
+        const efficiencyData: EfficiencyChartDataPoint[] = years.map((y) => {
+          const yr = yearData[y - 1];
+          const rev = yr.revenue || 1;
+          const noa = yr.net_operating_assets || 1;
+          const nop = yr.net_operating_profit;
+          const ros = (nop / rev) * 100;
+          const assetTurn = rev / noa;
+          const roa = (nop / noa) * 100;
+          return {
+            year: y,
+            label: `Year ${y}`,
+            ros: Number(ros.toFixed(2)),
+            roa: Number(roa.toFixed(2)),
+            assetTurn: Number(assetTurn.toFixed(2)),
+          };
+        });
+
+        // Multi-Metric Chart Data 2: Capital Structure & Returns (ROE %, Debt/Equity x, EPS)
+        const returnsData: ReturnsChartDataPoint[] = years.map((y) => {
+          const yr = yearData[y - 1];
+          const prior =
+            y === 1
+              ? 0
+              : yearData.slice(0, y - 1).reduce((sum, item) => sum + item.retained_earnings, 0);
+          const shEquity = capital + prior + yr.retained_earnings;
+          const overdraft =
+            yr.bank_balance_closing < 0 ? Math.abs(yr.bank_balance_closing) : 0;
+          const ibd = yr.term_loan_balance + overdraft;
+          const roe = shEquity !== 0 ? (yr.taxed_profits / shEquity) * 100 : 0;
+          const debtEquity = shEquity !== 0 ? ibd / shEquity : 0;
+          const eps =
+            yr.shares_in_issue > 0 ? yr.taxed_profits / yr.shares_in_issue : 0;
+
+          return {
+            year: y,
+            label: `Year ${y}`,
+            roe: Number(roe.toFixed(2)),
+            debtEquity: Number(debtEquity.toFixed(2)),
+            eps: Number(eps.toFixed(2)),
+          };
+        });
+
+        // V1 Key Ratios Table line items matching key_ratios_74f218cb.png
+        const executiveSummaryRows: BizzReportTableRow[] = [
+          // 1. MARGINS
+          { label: 'margins', isSectionHeader: true },
+          {
+            label: 'gross profit %',
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              return yr.revenue > 0
+                ? `${((yr.gross_profit / yr.revenue) * 100).toFixed(1)}%`
+                : '0.0%';
+            }),
+          },
+          {
+            label: 'other income %',
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              return yr.revenue > 0
+                ? `${((yr.other_inc / yr.revenue) * 100).toFixed(1)}%`
+                : '0.0%';
+            }),
+          },
+          {
+            label: 'total income %',
+            highlight: true,
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              return yr.revenue > 0
+                ? `${((yr.total_income / yr.revenue) * 100).toFixed(1)}%`
+                : '0.0%';
+            }),
+          },
+          {
+            label: 'expenses %',
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              return yr.revenue > 0
+                ? `${((yr.ex_total / yr.revenue) * 100).toFixed(1)}%`
+                : '0.0%';
+            }),
+          },
+          {
+            label: 'net operating profit %',
+            highlight: true,
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              return yr.revenue > 0
+                ? `${((yr.net_operating_profit / yr.revenue) * 100).toFixed(1)}%`
+                : '0.0%';
+            }),
+          },
+          {
+            label: 'interest %',
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              return yr.revenue > 0
+                ? `${((yr.interest_total / yr.revenue) * 100).toFixed(1)}%`
+                : '0.0%';
+            }),
+          },
+          {
+            label: 'taxation %',
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              return yr.revenue > 0
+                ? `${((yr.taxation / yr.revenue) * 100).toFixed(1)}%`
+                : '0.0%';
+            }),
+          },
+          {
+            label: 'taxed profits %',
+            highlight: true,
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              return yr.revenue > 0
+                ? `${((yr.taxed_profits / yr.revenue) * 100).toFixed(1)}%`
+                : '0.0%';
+            }),
+          },
+
+          // 2. EFFICIENCY (RED BOX ELEMENTS)
+          { label: 'efficiency', isSectionHeader: true },
+          {
+            label: 'return on sales',
+            highlight: true,
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              return yr.revenue > 0
+                ? `${((yr.net_operating_profit / yr.revenue) * 100).toFixed(1)}%`
+                : '0.0%';
+            }),
+          },
+          {
+            label: 'asset turn',
+            highlight: true,
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              const noa = yr.net_operating_assets || 1;
+              return `${(yr.revenue / noa).toFixed(2)}`;
+            }),
+          },
+          {
+            label: 'return on net operating assets',
+            highlight: true,
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              const noa = yr.net_operating_assets || 1;
+              return `${((yr.net_operating_profit / noa) * 100).toFixed(1)}%`;
+            }),
+          },
+          {
+            label: 'expense / income ratio',
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              const totInc = yr.total_income || 1;
+              return `${((yr.ex_total / totInc) * 100).toFixed(1)}%`;
+            }),
+          },
+          {
+            label: 'interest cover',
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              if (yr.interest_total <= 0) return 'n/a';
+              return `${(yr.net_operating_profit / yr.interest_total).toFixed(2)}`;
+            }),
+          },
+          {
+            label: 'expense cover (mts)',
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              const monthlyExp = (yr.ex_total || 1) / 12;
+              return `${(yr.bank_balance_closing / monthlyExp).toFixed(1)}`;
+            }),
+          },
+          {
+            label: 'return on equity',
+            highlight: true,
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              const prior =
+                y === 1
+                  ? 0
+                  : yearData.slice(0, y - 1).reduce((sum, item) => sum + item.retained_earnings, 0);
+              const shEquity = capital + prior + yr.retained_earnings;
+              return shEquity !== 0
+                ? `${((yr.taxed_profits / shEquity) * 100).toFixed(1)}%`
+                : '0.0%';
+            }),
+          },
+          {
+            label: 'debt / equity ratio',
+            highlight: true,
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              const prior =
+                y === 1
+                  ? 0
+                  : yearData.slice(0, y - 1).reduce((sum, item) => sum + item.retained_earnings, 0);
+              const shEquity = capital + prior + yr.retained_earnings;
+              const overdraft =
+                yr.bank_balance_closing < 0 ? Math.abs(yr.bank_balance_closing) : 0;
+              const ibd = yr.term_loan_balance + overdraft;
+              return shEquity !== 0 ? `${(ibd / shEquity).toFixed(2)}` : '0.00';
+            }),
+          },
+          {
+            label: 'earnings per share',
+            highlight: true,
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              const eps =
+                yr.shares_in_issue > 0 ? yr.taxed_profits / yr.shares_in_issue : 0;
+              return eps >= 0 ? `R ${eps.toFixed(2)}` : `-R ${Math.abs(eps).toFixed(2)}`;
+            }),
+          },
+
+          // 3. PRODUCTIVITY
+          { label: 'productivity', isSectionHeader: true },
+          {
+            label: 'number of employees',
+            values: years.map(() => totalEmployees),
+          },
+          {
+            label: 'employee revenue',
+            values: years.map((y) =>
+              Math.round(yearData[y - 1].revenue / totalEmployees)
+            ),
+          },
+          {
+            label: 'employee gross profit',
+            values: years.map((y) =>
+              Math.round(yearData[y - 1].gross_profit / totalEmployees)
+            ),
+          },
+          {
+            label: 'employee total income',
+            values: years.map((y) =>
+              Math.round(yearData[y - 1].total_income / totalEmployees)
+            ),
+          },
+          {
+            label: 'employee expenses',
+            values: years.map((y) =>
+              Math.round(yearData[y - 1].ex_total / totalEmployees)
+            ),
+          },
+          {
+            label: 'employee nop',
+            highlight: true,
+            values: years.map((y) =>
+              Math.round(yearData[y - 1].net_operating_profit / totalEmployees)
+            ),
+          },
+        ];
+
         return (
-          <div className="space-y-12">
-            <BizzReportSection title="5-year growth trajectory" isDark={isDark}>
-              <div
-                className={`h-64 border rounded-[2.5rem] flex items-end justify-around p-8 transition-colors ${
-                  isDark
-                    ? 'bg-[#101626] border-[#222F4C]'
-                    : 'bg-white border-bizz-blue/10'
-                }`}
-              >
-                {yearData.map((yr, i) => {
-                  const yrEps = epsValues[i];
-                  const h = (Math.abs(yrEps) / maxEps) * 100;
-                  const isNegative = yrEps < 0;
-                  return (
-                    <div
-                      key={i}
-                      className={`w-16 rounded-t-2xl relative group transition-all ${
-                        isNegative
-                          ? 'bg-rose-500/20 hover:bg-rose-500/40'
-                          : 'bg-bizz-blue/20 hover:bg-bizz-blue/40'
-                      }`}
-                      style={{ height: `${Math.max(h, 15)}%` }}
-                    >
-                      <div
-                        className={`absolute -top-8 left-1/2 -translate-x-1/2 text-[10px] font-bold uppercase whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity ${
-                          isNegative ? 'text-rose-600' : 'text-bizz-blue'
-                        }`}
-                      >
-                        {yrEps.toFixed(2)}
-                      </div>
-                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[10px] font-bold text-bizz-blue/40">
-                        YR{i + 1}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </BizzReportSection>
+          <div className="space-y-6 animate-in fade-in duration-200">
+            {/* Chart 1: Dual-Axis Efficiency Trajectory (Red Box 1: ROS & ROA vs Asset Turn) */}
+            <ExecutiveEfficiencyChart
+              data={efficiencyData}
+              isDark={isDark}
+              title="1. EFFICIENCY TRAJECTORY: RETURN ON SALES (ROS) & ROA VS ASSET TURN (DUAL-AXIS)"
+            />
+
+            {/* Chart 2: Capital Structure & Shareholder Returns (Red Box 2: ROE, Debt/Equity & EPS) */}
+            <ExecutiveReturnsChart
+              data={returnsData}
+              isDark={isDark}
+              currencyPrefix="R "
+              title="2. CAPITAL STRUCTURE & SHAREHOLDER VALUE: RETURN ON EQUITY, DEBT/EQUITY & EPS"
+            />
+
+            {/* Complete Key Ratios Report Table */}
+            <BizzReportTable
+              title="key ratios"
+              firstColumnLabel="key ratios"
+              years={years}
+              rows={executiveSummaryRows}
+              isDark={isDark}
+            />
           </div>
         );
       })()}
 
       {/* =================================================================== */}
-      {/* 3. TRADING ACCOUNT (TRADING SUMMARY & GP ADJUSTMENTS DETAILS)       */}
+      {/* 3. TRADING ACCOUNT (TRADING SUMMARY + EMBEDDED BREAKEVEN)           */}
       {/* =================================================================== */}
-      {activeReportTab === 'trading-account' && (
-        <BizzReportSection title="trading summary" isDark={isDark}>
-          <div className={BizzTableClass}>
-            <div className="min-w-[600px]">
-              <div className={BizzTableHeaderClass}>
-                <div className={BizzTableHeaderCellClass}>account line</div>
-                {years.map((y) => (
-                  <div key={y} className={BizzTableHeaderCellClass + ' text-right font-bold'}>
-                    year {y}
-                  </div>
-                ))}
-              </div>
-              <div className={BizzTableContainerClass}>
-                {[
-                  { label: 'unit sales', id: 'unit_sales', isUnits: true },
-                  { label: 'revenue', id: 'rev', highlight: true },
-                  { label: 'cost of sales', id: 'cos', highlight: true, isNeg: true },
-                  { label: 'cost of sales - variable', id: 'cos_var', isNeg: true },
-                  { label: 'cost of sales - fixed', id: 'cos_fixed', highlight: true, isNeg: true },
-                  { label: 'employment', id: 'staff_cos', indent: true, isNeg: true },
-                  { label: 'depreciation', id: 'dep_cos', indent: true, isNeg: true },
-                  { label: 'lease', id: 'lease_cos', indent: true, isNeg: true },
-                  { label: 'overheads', id: 'oh_cos', indent: true, isNeg: true },
-                  { label: 'gross profit', id: 'gp', highlight: true },
-                  { label: 'gross profit adjustments', id: 'gp_adj', isNeg: true },
-                  { label: 'remaining gross profit', id: 'rem_gp', highlight: true },
-                  { label: 'other income', id: 'other_inc' },
-                  { label: 'total income', id: 'total_inc', highlight: true },
-                  { label: 'expenses - total', id: 'expenses', highlight: true, isNeg: true },
-                  { label: 'expenses - variable', id: 'ex_var', isNeg: true },
-                  { label: 'expenses - fixed', id: 'ex_fixed', highlight: true, isNeg: true },
-                  { label: 'employment', id: 'staff_ex', indent: true, isNeg: true },
-                  { label: 'depreciation', id: 'dep_ex', indent: true, isNeg: true },
-                  { label: 'lease', id: 'lease_ex', indent: true, isNeg: true },
-                  { label: 'overheads', id: 'oh_ex', indent: true, isNeg: true },
-                  { label: 'net operating profit', id: 'nop', highlight: true },
-                ].map((row, idx) => (
-                  <div key={idx} className={`${BizzTableRowClass} ${row.highlight ? 'bg-bizz-total/30 font-bold' : ''}`}>
-                    <div className={`${BizzTableCellClass} ${row.indent ? 'pl-8' : ''} ${row.highlight ? 'font-bold' : ''}`}>
-                      {row.label}
-                    </div>
-                    {years.map((y) => {
-                      const yr = yearData[y - 1];
-                      let val = 0;
-                      if (row.id === 'unit_sales') val = yr.unitSales;
-                      else if (row.id === 'rev') val = yr.revenue;
-                      else if (row.id === 'cos') val = yr.total_cos;
-                      else if (row.id === 'cos_var') val = yr.cos_variable;
-                      else if (row.id === 'cos_fixed') val = yr.cos_fixed;
-                      else if (row.id === 'staff_cos') val = yr.cos_employment;
-                      else if (row.id === 'dep_cos') val = yr.cos_depreciation;
-                      else if (row.id === 'lease_cos') val = yr.cos_lease;
-                      else if (row.id === 'oh_cos') val = yr.cos_overheads;
-                      else if (row.id === 'gp') val = yr.gross_profit;
-                      else if (row.id === 'gp_adj') val = yr.gp_adjustments;
-                      else if (row.id === 'rem_gp') val = yr.remaining_gp;
-                      else if (row.id === 'other_inc') val = yr.other_inc;
-                      else if (row.id === 'total_inc') val = yr.total_income;
-                      else if (row.id === 'expenses') val = yr.ex_total;
-                      else if (row.id === 'ex_var') val = yr.ex_variable;
-                      else if (row.id === 'ex_fixed') val = yr.ex_fixed;
-                      else if (row.id === 'staff_ex') val = yr.ex_employment;
-                      else if (row.id === 'dep_ex') val = yr.ex_depreciation;
-                      else if (row.id === 'lease_ex') val = yr.ex_lease;
-                      else if (row.id === 'oh_ex') val = yr.ex_overheads;
-                      else if (row.id === 'nop') val = yr.net_operating_profit;
+      {activeReportTab === 'trading-account' && (() => {
+        const tradingSummaryRows: BizzReportTableRow[] = [
+          { label: 'unit sales', values: years.map((y) => yearData[y - 1].unitSales) },
+          { label: 'revenue', highlight: true, values: years.map((y) => yearData[y - 1].revenue) },
+          { label: 'cost of sales', highlight: true, values: years.map((y) => -yearData[y - 1].total_cos) },
+          { label: 'cost of sales - variable', values: years.map((y) => -yearData[y - 1].cos_variable) },
+          { label: 'cost of sales - fixed', highlight: true, values: years.map((y) => -yearData[y - 1].cos_fixed) },
+          { label: 'employment', indent: true, values: years.map((y) => -yearData[y - 1].cos_employment) },
+          { label: 'depreciation', indent: true, values: years.map((y) => -yearData[y - 1].cos_depreciation) },
+          { label: 'lease', indent: true, values: years.map((y) => -yearData[y - 1].cos_lease) },
+          { label: 'overheads', indent: true, values: years.map((y) => -yearData[y - 1].cos_overheads) },
+          { label: 'gross profit', highlight: true, values: years.map((y) => yearData[y - 1].gross_profit) },
+          { label: 'gross profit adjustments', values: years.map((y) => -yearData[y - 1].gp_adjustments) },
+          { label: 'remaining gross profit', highlight: true, values: years.map((y) => yearData[y - 1].remaining_gp) },
+          { label: 'other income', values: years.map((y) => yearData[y - 1].other_inc) },
+          { label: 'total income', highlight: true, values: years.map((y) => yearData[y - 1].total_income) },
+          { label: 'expenses - total', highlight: true, values: years.map((y) => -yearData[y - 1].ex_total) },
+          { label: 'expenses - variable', values: years.map((y) => -yearData[y - 1].ex_variable) },
+          { label: 'expenses - fixed', highlight: true, values: years.map((y) => -yearData[y - 1].ex_fixed) },
+          { label: 'employment', indent: true, values: years.map((y) => -yearData[y - 1].ex_employment) },
+          { label: 'depreciation', indent: true, values: years.map((y) => -yearData[y - 1].ex_depreciation) },
+          { label: 'lease', indent: true, values: years.map((y) => -yearData[y - 1].ex_lease) },
+          { label: 'overheads', indent: true, values: years.map((y) => -yearData[y - 1].ex_overheads) },
+          { label: 'net operating profit', highlight: true, values: years.map((y) => yearData[y - 1].net_operating_profit) },
+        ];
 
-                      const finalVal = row.isNeg ? -val : val;
-
-                      return (
-                        <div key={y} className={`${BizzTableCellClass} text-right tabular-nums ${row.highlight ? 'font-bold' : ''}`}>
-                          {row.isUnits ? finalVal.toLocaleString() : formatNumeric(finalVal)}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Gross Profit Adjustments Details Sub-Table */}
-          <div className="mt-10 border-t border-bizz-blue/10 pt-8" id="gp-adjustments-report-section">
-            <h4 className="text-sm font-black text-bizz-blue lowercase mb-4">gross profit adjustments details</h4>
-            <div className={BizzTableClass}>
-              <div className="min-w-[600px]">
-                <div className={BizzTableHeaderClass}>
-                  <div className={BizzTableHeaderCellClass}>gross profit adjustments</div>
-                  {years.map((y) => (
-                    <div key={y} className={BizzTableHeaderCellClass + ' text-right font-bold'}>
-                      year {y}
-                    </div>
-                  ))}
-                </div>
-                <div className={BizzTableContainerClass}>
-                  {[
-                    { label: 'sales commission', field: 'sales_commission' },
-                    { label: 'inventory adjustments', field: 'inventory_adjustments' },
-                    { label: 'manufacturing variance', field: 'manufacturing_variance' },
-                    { label: 'gross profit adjustments', field: 'gp_adjustments', highlight: true },
-                  ].map((row, idx) => (
-                    <div
-                      key={idx}
-                      className={`${BizzTableRowClass} ${
-                        row.highlight ? 'bg-bizz-total/30 font-bold border-double border-t-2 border-b-2 border-bizz-blue/20' : ''
-                      }`}
-                    >
-                      <div className={`${BizzTableCellClass} ${row.highlight ? 'font-bold text-bizz-blue' : ''}`}>
-                        {row.label}
-                      </div>
-                      {years.map((y) => {
-                        const yr = yearData[y - 1];
-                        const val = (yr[row.field as keyof typeof yr] as number) || 0;
-                        return (
-                          <div key={y} className={`${BizzTableCellClass} text-right tabular-nums ${row.highlight ? 'font-bold' : ''}`}>
-                            {formatNumeric(val)}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </BizzReportSection>
-      )}
-
-      {/* =================================================================== */}
-      {/* 4. TRADING ACCOUNT DISTRIBUTION                                     */}
-      {/* =================================================================== */}
-      {activeReportTab === 'trading-distribution' && (() => {
-        const formatDistPct = (val: number, revenue: number, isNeg: boolean = false) => {
-          if (!revenue || revenue === 0) return '0.00%';
-          let computedVal = val;
-          if (isNeg && computedVal > 0) {
-            computedVal = -computedVal;
-          }
-          const pct = (computedVal / revenue) * 100;
-          if (Math.abs(pct) < 0.0001) return '0.00%';
-          return `${pct.toFixed(2)}%`;
-        };
-
-        const distRows = [
-          { label: 'cost of sales', id: 'cos', highlight: true, isNeg: true },
-          { label: 'cost of sales - variable', id: 'cos_var', isNeg: true },
-          { label: 'cost of sales - fixed', id: 'cos_fixed', highlight: true, isNeg: true },
-          { label: 'employment', id: 'staff_cos', indent: true, isNeg: true },
-          { label: 'depreciation', id: 'dep_cos', indent: true, isNeg: true },
-          { label: 'lease', id: 'lease_cos', indent: true, isNeg: true },
-          { label: 'overheads', id: 'oh_cos', indent: true, isNeg: true },
-          { label: 'gross profit', id: 'gp', highlight: true },
-          { label: 'gross profit adjustments', id: 'gp_adj', isNeg: true },
-          { label: 'remaining gross profit', id: 'rem_gp', highlight: true },
-          { label: 'other income', id: 'other_inc' },
-          { label: 'total income', id: 'total_inc', highlight: true },
-          { label: 'expenses - total', id: 'expenses', highlight: true, isNeg: true },
-          { label: 'expenses - variable', id: 'ex_var', isNeg: true },
-          { label: 'expenses - fixed', id: 'ex_fixed', highlight: true, isNeg: true },
-          { label: 'employment', id: 'staff_ex', indent: true, isNeg: true },
-          { label: 'depreciation', id: 'dep_ex', indent: true, isNeg: true },
-          { label: 'lease', id: 'lease_ex', indent: true, isNeg: true },
-          { label: 'overheads', id: 'oh_ex', indent: true, isNeg: true },
-          { label: 'net operating profit', id: 'nop', highlight: true },
+        // Embedded Breakeven Analysis (per user request: treated as part of trading account)
+        const breakevenRows: BizzReportTableRow[] = [
+          { label: 'turnover', values: years.map((y) => yearData[y - 1].revenue) },
+          { label: 'expenses - fixed', values: years.map((y) => yearData[y - 1].cos_fixed + yearData[y - 1].ex_fixed) },
+          {
+            label: 'gross profit %',
+            formatValue: (val) => formatReportPercent(val),
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              return yr.revenue > 0 ? (yr.gross_profit / yr.revenue) * 100 : 0;
+            }),
+          },
+          {
+            label: 'breakeven turnover',
+            highlight: true,
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              const fixedTotal = yr.cos_fixed + yr.ex_fixed;
+              const gpMargin = yr.revenue > 0 ? yr.gross_profit / yr.revenue : 0;
+              return gpMargin > 0 ? Math.round(fixedTotal / gpMargin) : 0;
+            }),
+          },
         ];
 
         return (
-          <BizzReportSection title="trading summary - distribution (5-year annual)" isDark={isDark}>
-            <div className={BizzTableClass}>
-              <div className="min-w-[600px]">
-                <div className={BizzTableHeaderClass}>
-                  <div className={BizzTableHeaderCellClass}>account line</div>
-                  {years.map((y) => (
-                    <div key={y} className={BizzTableHeaderCellClass + ' text-right font-bold'}>
-                      year {y}
-                    </div>
-                  ))}
-                </div>
-                <div className={BizzTableContainerClass}>
-                  {distRows.map((row, idx) => (
-                    <div key={idx} className={`${BizzTableRowClass} ${row.highlight ? 'bg-bizz-total/30 font-bold' : ''}`}>
-                      <div className={`${BizzTableCellClass} ${row.indent ? 'pl-8' : ''} ${row.highlight ? 'font-bold' : ''}`}>
-                        {row.label}
-                      </div>
-                      {years.map((y) => {
-                        const yr = yearData[y - 1];
-                        const val = getDistVal(row.id, yr);
-                        const formattedPct = formatDistPct(val, yr.revenue, row.isNeg);
-                        return (
-                          <div key={y} className={`${BizzTableCellClass} text-right tabular-nums ${row.highlight ? 'font-bold' : ''}`}>
-                            {formattedPct}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-              </div>
+          <div className="space-y-8 animate-in fade-in duration-200">
+            {/* 1. Trading Summary Table */}
+            <BizzReportTable
+              title="trading summary"
+              firstColumnLabel="account line"
+              years={years}
+              rows={tradingSummaryRows}
+              isDark={isDark}
+            />
+
+            {/* 2. Breakeven Table (Integrated directly into Trading Account view) */}
+            <BizzReportTable
+              title="breakeven"
+              firstColumnLabel="account line"
+              years={years}
+              rows={breakevenRows}
+              isDark={isDark}
+            />
+
+            {/* 3. Gross Profit Adjustments Details Sub-Table */}
+            <div className="pt-2" id="gp-adjustments-report-section">
+              <BizzReportTable
+                title="gross profit adjustments details"
+                firstColumnLabel="gross profit adjustments"
+                years={years}
+                rows={[
+                  { label: 'sales commission', values: years.map((y) => yearData[y - 1].sales_commission) },
+                  { label: 'inventory adjustments', values: years.map((y) => yearData[y - 1].inventory_adjustments) },
+                  { label: 'manufacturing variance', values: years.map((y) => yearData[y - 1].manufacturing_variance) },
+                  { label: 'gross profit adjustments', highlight: true, values: years.map((y) => yearData[y - 1].gp_adjustments) },
+                ]}
+                isDark={isDark}
+              />
             </div>
-          </BizzReportSection>
+          </div>
+        );
+      })()}
+
+      {/* =================================================================== */}
+      {/* 4. TRADING ACCOUNT DISTRIBUTION (5-YEAR ANNUAL)                     */}
+      {/* =================================================================== */}
+      {activeReportTab === 'trading-distribution' && (() => {
+        const getDistPct = (val: number, revenue: number, isNeg: boolean = false) => {
+          if (!revenue || revenue === 0) return 0;
+          const computedVal = isNeg && val > 0 ? -val : val;
+          return (computedVal / revenue) * 100;
+        };
+
+        const distRows: BizzReportTableRow[] = [
+          { label: 'cost of sales', highlight: true, formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].total_cos, yearData[y - 1].revenue, true)) },
+          { label: 'cost of sales - variable', formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].cos_variable, yearData[y - 1].revenue, true)) },
+          { label: 'cost of sales - fixed', highlight: true, formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].cos_fixed, yearData[y - 1].revenue, true)) },
+          { label: 'employment', indent: true, formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].cos_employment, yearData[y - 1].revenue, true)) },
+          { label: 'depreciation', indent: true, formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].cos_depreciation, yearData[y - 1].revenue, true)) },
+          { label: 'lease', indent: true, formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].cos_lease, yearData[y - 1].revenue, true)) },
+          { label: 'overheads', indent: true, formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].cos_overheads, yearData[y - 1].revenue, true)) },
+          { label: 'gross profit', highlight: true, formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].gross_profit, yearData[y - 1].revenue, false)) },
+          { label: 'gross profit adjustments', formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].gp_adjustments, yearData[y - 1].revenue, true)) },
+          { label: 'remaining gross profit', highlight: true, formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].remaining_gp, yearData[y - 1].revenue, false)) },
+          { label: 'other income', formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].other_inc, yearData[y - 1].revenue, false)) },
+          { label: 'total income', highlight: true, formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].total_income, yearData[y - 1].revenue, false)) },
+          { label: 'expenses - total', highlight: true, formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].ex_total, yearData[y - 1].revenue, true)) },
+          { label: 'expenses - variable', formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].ex_variable, yearData[y - 1].revenue, true)) },
+          { label: 'expenses - fixed', highlight: true, formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].ex_fixed, yearData[y - 1].revenue, true)) },
+          { label: 'employment', indent: true, formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].ex_employment, yearData[y - 1].revenue, true)) },
+          { label: 'depreciation', indent: true, formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].ex_depreciation, yearData[y - 1].revenue, true)) },
+          { label: 'lease', indent: true, formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].ex_lease, yearData[y - 1].revenue, true)) },
+          { label: 'overheads', indent: true, formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].ex_overheads, yearData[y - 1].revenue, true)) },
+          { label: 'net operating profit', highlight: true, formatValue: (v) => formatReportPercent(v), values: years.map((y) => getDistPct(yearData[y - 1].net_operating_profit, yearData[y - 1].revenue, false)) },
+        ];
+
+        return (
+          <div className="animate-in fade-in duration-200">
+            <BizzReportTable
+              title="trading summary - distribution (5-year annual)"
+              firstColumnLabel="account line"
+              years={years}
+              rows={distRows}
+              isDark={isDark}
+            />
+          </div>
         );
       })()}
 
       {/* =================================================================== */}
       {/* 5. INCOME STATEMENT (5-YEAR ANNUAL)                                 */}
       {/* =================================================================== */}
-      {activeReportTab === 'income-statement' && (
-        <BizzReportSection title="income statement" isDark={isDark}>
-          <div className={BizzTableClass}>
-            <div className="min-w-[700px]">
-              <div className={BizzTableHeaderClass}>
-                <div className={BizzTableHeaderCellClass}>period</div>
-                {years.map((y) => (
-                  <div key={y} className={BizzTableHeaderCellClass + ' text-right font-bold'}>
-                    year {y}
-                  </div>
-                ))}
-              </div>
-              <div className={BizzTableContainerClass}>
-                {[
-                  { label: 'revenue', id: 'rev' },
-                  { label: 'net operating profit', id: 'nop', highlight: true },
-                  { label: 'interest - other', id: 'int_other', indent: true },
-                  { label: 'interest - term loan', id: 'int_tl', isNeg: true, indent: true },
-                  { label: 'interest', id: 'interest', highlight: true, isNeg: true },
-                  { label: 'net profit', id: 'np', highlight: true },
-                  { label: 'profit / loss on sale of fixed assets', id: 'fa_sale' },
-                  { label: 'net profit before taxation', id: 'np_bt', highlight: true },
-                  { label: 'taxation', id: 'tax', isNeg: true },
-                  { label: 'taxed profits', id: 'taxed_p', highlight: true },
-                  { label: 'dividends', id: 'div', isNeg: true },
-                  { label: 'retained earnings', id: 're', highlight: true },
-                ].map((row, i) => (
-                  <div key={i} className={`${BizzTableRowClass} ${row.highlight ? 'bg-bizz-total/30 font-bold' : ''}`}>
-                    <div className={`${BizzTableCellClass} ${row.indent ? 'pl-8' : ''} lowercase`}>{row.label}</div>
-                    {years.map((y) => {
-                      const yr = yearData[y - 1];
-                      let val = 0;
-                      if (row.id === 'rev') val = yr.revenue;
-                      else if (row.id === 'nop') val = yr.net_operating_profit;
-                      else if (row.id === 'int_other') val = yr.interest_other;
-                      else if (row.id === 'int_tl') val = yr.interest_tl;
-                      else if (row.id === 'interest') val = yr.interest_total;
-                      else if (row.id === 'np') val = yr.net_profit_before_tax;
-                      else if (row.id === 'fa_sale') val = 0;
-                      else if (row.id === 'np_bt') val = yr.net_profit_before_tax;
-                      else if (row.id === 'tax') val = yr.taxation;
-                      else if (row.id === 'taxed_p') val = yr.taxed_profits;
-                      else if (row.id === 'div') val = yr.dividends;
-                      else if (row.id === 're') val = yr.retained_earnings;
+      {activeReportTab === 'income-statement' && (() => {
+        const incomeStatementRows: BizzReportTableRow[] = [
+          { label: 'revenue', values: years.map((y) => yearData[y - 1].revenue) },
+          { label: 'net operating profit', highlight: true, values: years.map((y) => yearData[y - 1].net_operating_profit) },
+          { label: 'interest - other', indent: true, values: years.map((y) => yearData[y - 1].interest_other) },
+          { label: 'interest - term loan', indent: true, values: years.map((y) => -yearData[y - 1].interest_tl) },
+          { label: 'interest', highlight: true, values: years.map((y) => -yearData[y - 1].interest_total) },
+          { label: 'net profit', highlight: true, values: years.map((y) => yearData[y - 1].net_profit_before_tax) },
+          { label: 'profit / loss on sale of fixed assets', values: years.map(() => 0) },
+          { label: 'net profit before taxation', highlight: true, values: years.map((y) => yearData[y - 1].net_profit_before_tax) },
+          { label: 'taxation', values: years.map((y) => -yearData[y - 1].taxation) },
+          { label: 'taxed profits', highlight: true, values: years.map((y) => yearData[y - 1].taxed_profits) },
+          { label: 'dividends', values: years.map((y) => -yearData[y - 1].dividends) },
+          { label: 'retained earnings', highlight: true, values: years.map((y) => yearData[y - 1].retained_earnings) },
+        ];
 
-                      const finalVal = row.isNeg ? -val : val;
-
-                      return (
-                        <div key={y} className={`${BizzTableCellClass} text-right tabular-nums`}>
-                          {formatNumeric(finalVal)}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
+        return (
+          <div className="animate-in fade-in duration-200">
+            <BizzReportTable
+              title="income statement"
+              firstColumnLabel="period"
+              years={years}
+              rows={incomeStatementRows}
+              isDark={isDark}
+            />
           </div>
-        </BizzReportSection>
-      )}
+        );
+      })()}
 
-      {/* REPORT 2: BALANCE SHEET */}
-      {activeReportTab === 'balance-sheet' && (
-        <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-[#101626] border-[#222F4C]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-          <div className="p-3.5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs">
-            <span className="font-bold uppercase text-slate-900 dark:text-white">
-              BALANCE SHEET SUMMARY (12 MONTHS)
-            </span>
-            <span className="text-emerald-500 font-bold text-[11px]">
-              Balanced: Total Assets = Total Liabilities + Equity
-            </span>
-          </div>
+      {/* =================================================================== */}
+      {/* 6. BALANCE SHEET (5-YEAR ANNUAL)                                    */}
+      {/* =================================================================== */}
+      {activeReportTab === 'balance-sheet' && (() => {
+        const capital =
+          (state.funding?.founderEquity || 0) + (state.funding?.investorEquity || 0);
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-mono">
-              <thead className={`border-b text-[11px] ${isDark ? 'bg-[#0E1322] border-[#222F4C] text-slate-400' : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-600'}`}>
-                <tr>
-                  <th className="p-2.5 pl-4 min-w-[220px]">BALANCE SHEET LINE</th>
-                  {projections.slice(0, 12).map((p) => (
-                    <th key={p.month} className="p-2.5 text-right min-w-[90px]">
-                      M{p.month}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                <tr className="font-bold bg-slate-50/60 dark:bg-slate-900/40 text-slate-900 dark:text-white">
-                  <td className="p-2.5 pl-4" colSpan={13}>CURRENT ASSETS</td>
-                </tr>
-                <tr>
-                  <td className="p-2.5 pl-6 text-slate-600 dark:text-slate-300">Bank & Liquid Cash (COA 3-2-1-1)</td>
-                  {projections.slice(0, 12).map((p) => (
-                    <td key={p.month} className="p-2.5 text-right font-bold text-slate-900 dark:text-white">
-                      {p.closingCash > 0 ? p.closingCash.toLocaleString() : '0'}
-                    </td>
-                  ))}
-                </tr>
-                <tr>
-                  <td className="p-2.5 pl-6 text-slate-600 dark:text-slate-300">VAT Receivable from SARS (COA 3-2-2-1)</td>
-                  {projections.slice(0, 12).map((p) => (
-                    <td key={p.month} className="p-2.5 text-right text-emerald-500">
-                      {p.vatReceivable.toLocaleString()}
-                    </td>
-                  ))}
-                </tr>
-                <tr className="font-bold bg-slate-50/60 dark:bg-slate-900/40 text-slate-900 dark:text-white border-t">
-                  <td className="p-2.5 pl-4" colSpan={13}>LIABILITIES</td>
-                </tr>
-                <tr>
-                  <td className="p-2.5 pl-6 text-slate-600 dark:text-slate-300">Bank Overdraft Facility (COA 4-7-1-25)</td>
-                  {projections.slice(0, 12).map((p) => (
-                    <td key={p.month} className="p-2.5 text-right font-bold text-rose-500">
-                      {p.closingCash < 0 ? Math.abs(p.closingCash).toLocaleString() : '0'}
-                    </td>
-                  ))}
-                </tr>
-                <tr>
-                  <td className="p-2.5 pl-6 text-slate-600 dark:text-slate-300">VAT Payable to SARS (COA 4-7-1-1)</td>
-                  {projections.slice(0, 12).map((p) => (
-                    <td key={p.month} className="p-2.5 text-right text-rose-500 font-bold">
-                      {p.vatPayable.toLocaleString()}
-                    </td>
-                  ))}
-                </tr>
-                <tr>
-                  <td className="p-2.5 pl-6 text-slate-600 dark:text-slate-300">Corporate Tax Payable to SARS (COA 4-7-1-2)</td>
-                  {projections.slice(0, 12).map((p) => (
-                    <td key={p.month} className="p-2.5 text-right text-amber-500 font-bold">
-                      {p.taxLiability.toLocaleString()}
-                    </td>
-                  ))}
-                </tr>
-                <tr>
-                  <td className="p-2.5 pl-6 text-slate-600 dark:text-slate-300">Term Loans Outstanding (COA 4-8-1-30)</td>
-                  {projections.slice(0, 12).map((p) => (
-                    <td key={p.month} className="p-2.5 text-right font-bold text-amber-500">
-                      {p.debtBalance.toLocaleString()}
-                    </td>
-                  ))}
-                </tr>
-                <tr className="font-bold bg-slate-50/60 dark:bg-slate-900/40 text-slate-900 dark:text-white border-t">
-                  <td className="p-2.5 pl-4" colSpan={13}>EQUITY &amp; ACCUMULATED RESERVES</td>
-                </tr>
-                <tr>
-                  <td className="p-2.5 pl-6 text-slate-600 dark:text-slate-300">Retained Earnings (COA 4-9-1-x)</td>
-                  {projections.slice(0, 12).map((p) => (
-                    <td key={p.month} className={`p-2.5 text-right font-bold ${p.cumulativeRetainedEarnings >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                      {p.cumulativeRetainedEarnings.toLocaleString()}
-                    </td>
-                  ))}
-                </tr>
-              </tbody>
-            </table>
+        const balanceSheetRows: BizzReportTableRow[] = [
+          { label: 'fixed assets', values: years.map((y) => yearData[y - 1].fixed_assets_net) },
+          { label: 'inventory', indent: true, values: years.map((y) => yearData[y - 1].inventory) },
+          { label: 'accounts receivables', indent: true, values: years.map((y) => yearData[y - 1].accounts_receivable) },
+          { label: 'other assets', indent: true, values: years.map((y) => yearData[y - 1].other_assets) },
+          { label: 'vat receivable', indent: true, values: years.map((y) => yearData[y - 1].vat_receivable) },
+          {
+            label: 'current assets',
+            highlight: true,
+            values: years.map(
+              (y) =>
+                yearData[y - 1].inventory +
+                yearData[y - 1].accounts_receivable +
+                yearData[y - 1].other_assets +
+                yearData[y - 1].vat_receivable
+            ),
+          },
+          {
+            label: 'total assets',
+            highlight: true,
+            values: years.map((y) => {
+              const ca =
+                yearData[y - 1].inventory +
+                yearData[y - 1].accounts_receivable +
+                yearData[y - 1].other_assets +
+                yearData[y - 1].vat_receivable;
+              return yearData[y - 1].fixed_assets_net + ca;
+            }),
+          },
+          { label: 'accounts payable', values: years.map((y) => yearData[y - 1].accounts_payable) },
+          { label: 'vat payable', values: years.map((y) => yearData[y - 1].vat_payable) },
+          { label: 'taxation payable', values: years.map((y) => yearData[y - 1].taxation_payable) },
+          {
+            label: 'non-interest bearing debt',
+            highlight: true,
+            values: years.map(
+              (y) =>
+                yearData[y - 1].accounts_payable +
+                yearData[y - 1].vat_payable +
+                yearData[y - 1].taxation_payable
+            ),
+          },
+          {
+            label: 'net operating assets',
+            highlight: true,
+            values: years.map((y) => {
+              const ca =
+                yearData[y - 1].inventory +
+                yearData[y - 1].accounts_receivable +
+                yearData[y - 1].other_assets +
+                yearData[y - 1].vat_receivable;
+              const ta = yearData[y - 1].fixed_assets_net + ca;
+              const nibd =
+                yearData[y - 1].accounts_payable +
+                yearData[y - 1].vat_payable +
+                yearData[y - 1].taxation_payable;
+              return ta - nibd;
+            }),
+          },
+          { label: 'financed by', isSectionHeader: true },
+          { label: 'shares in issue', values: years.map((y) => yearData[y - 1].shares_in_issue) },
+          { label: "shareholders' capital", values: years.map(() => capital) },
+          { label: 'equity loan', values: years.map(() => 0) },
+          {
+            label: 'retained earnings - prior',
+            values: years.map((y) => {
+              if (y === 1) return '';
+              return yearData.slice(0, y - 1).reduce((sum, yr) => sum + yr.retained_earnings, 0);
+            }),
+          },
+          { label: 'retained earnings - current', values: years.map((y) => yearData[y - 1].retained_earnings) },
+          {
+            label: "shareholders' equity",
+            highlight: true,
+            values: years.map((y) => {
+              const prior = y === 1 ? 0 : yearData.slice(0, y - 1).reduce((sum, yr) => sum + yr.retained_earnings, 0);
+              return capital + prior + yearData[y - 1].retained_earnings;
+            }),
+          },
+          { label: 'bank balance', values: years.map((y) => yearData[y - 1].bank_balance_closing) },
+          { label: 'term loan', values: years.map((y) => yearData[y - 1].term_loan_balance) },
+          {
+            label: 'interest-bearing debt',
+            highlight: true,
+            values: years.map((y) => {
+              const yr = yearData[y - 1];
+              const overdraft = yr.bank_balance_closing < 0 ? Math.abs(yr.bank_balance_closing) : 0;
+              return yr.term_loan_balance + overdraft;
+            }),
+          },
+          {
+            label: 'capital employed',
+            highlight: true,
+            values: years.map((y) => {
+              const prior = y === 1 ? 0 : yearData.slice(0, y - 1).reduce((sum, yr) => sum + yr.retained_earnings, 0);
+              const shEquity = capital + prior + yearData[y - 1].retained_earnings;
+              const yr = yearData[y - 1];
+              const overdraft = yr.bank_balance_closing < 0 ? Math.abs(yr.bank_balance_closing) : 0;
+              return shEquity + yr.term_loan_balance + overdraft;
+            }),
+          },
+          {
+            label: 'equity',
+            values: years.map((y) => {
+              const prior = y === 1 ? 0 : yearData.slice(0, y - 1).reduce((sum, yr) => sum + yr.retained_earnings, 0);
+              return capital + prior + yearData[y - 1].retained_earnings;
+            }),
+          },
+        ];
+
+        return (
+          <div className="animate-in fade-in duration-200">
+            <BizzReportTable
+              title="balance sheet"
+              firstColumnLabel="period"
+              years={years}
+              rows={balanceSheetRows}
+              isDark={isDark}
+            />
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* =================================================================== */}
       {/* 7. CASH FLOW STATEMENT (5-YEAR ANNUAL)                              */}
       {/* =================================================================== */}
-      {activeReportTab === 'cash-flow' && (
-        <BizzReportSection title="cash flow statement" isDark={isDark}>
-          <div className={BizzTableClass}>
-            <div className="min-w-[700px]">
-              <div className={BizzTableHeaderClass}>
-                <div className={BizzTableHeaderCellClass}>period</div>
-                {years.map((y) => (
-                  <div key={y} className={BizzTableHeaderCellClass + ' text-right font-bold'}>
-                    year {y}
-                  </div>
-                ))}
-              </div>
-              <div className={BizzTableContainerClass}>
-                {[
-                  { label: 'bank balance - opening', id: 'obs' },
-                  { label: 'net operating profit', id: 'nop' },
-                  { label: 'interest - other', id: 'int_other', indent: true },
-                  { label: 'interest - term loan', id: 'int_tl', isNeg: true, indent: true },
-                  { label: 'interest', id: 'interest', highlight: true, isNeg: true },
-                  { label: 'sub total', id: 'sub_total', highlight: true },
-                  { label: 'profit / loss on sale of fixed assets', id: 'fa_sale' },
-                  { label: 'taxation', id: 'tax', isNeg: true },
-                  { label: 'dividends', id: 'div', isNeg: true },
-                  { label: 'cash from operations', isTotal: true, id: 'cfo' },
-                  { label: 'inventory', id: 'inv_change', isNeg: true },
-                  { label: 'accounts receivables', id: 'ar_change', isNeg: true },
-                  { label: 'other assets', id: 'oa_change', isNeg: true },
-                  { label: 'vat receivable', id: 'vatr_change', isNeg: true },
-                  { label: 'accounts payables', id: 'ap_change' },
-                  { label: 'vat payable', id: 'vatp_change' },
-                  { label: 'taxation', id: 'tax_change' },
-                  { label: 'change in working capital', isTotal: true, id: 'wc' },
-                  { label: 'capital expenditure', id: 'capex', isNeg: true },
-                  { label: 'depreciation write back', id: 'dep' },
-                  { label: 'net proceeds from the sale of fixed asset', id: 'net_proc' },
-                  { label: 'application to capital assets', isTotal: true, id: 'cai' },
-                  { label: 'share capital', id: 'sci' },
-                  { label: 'equity loan', id: 'eq_loan' },
-                  { label: 'term loan', id: 'tl_change' },
-                  { label: 'change in funding', isTotal: true, id: 'cf' },
-                  { label: 'cashflow', isTotal: true, id: 'nc' },
-                  { label: 'bank balance - closing', isTotal: true, id: 'cbs' },
-                  { label: 'bank balance - check', isTotal: true, id: 'cbs_check' },
-                ].map((row, i) => (
-                  <div key={i} className={BizzTableRowClass + (row.isTotal ? ' bg-bizz-total/30 font-bold' : '')}>
-                    <div className={`${BizzTableCellClass} ${row.indent ? 'pl-8' : ''} lowercase`}>{row.label}</div>
-                    {years.map((y) => {
-                      const yr = yearData[y - 1];
-                      let val = 0;
-                      if (row.id === 'obs') val = yr.bank_balance_opening;
-                      else if (row.id === 'nop') val = yr.net_operating_profit;
-                      else if (row.id === 'int_other') val = yr.interest_other;
-                      else if (row.id === 'int_tl') val = yr.interest_tl;
-                      else if (row.id === 'interest') val = yr.interest_total;
-                      else if (row.id === 'sub_total') val = yr.net_operating_profit - yr.interest_total;
-                      else if (row.id === 'fa_sale') val = 0;
-                      else if (row.id === 'tax') val = yr.taxation;
-                      else if (row.id === 'div') val = yr.dividends;
-                      else if (row.id === 'cfo') val = yr.cash_from_operations;
-                      else if (row.id === 'inv_change') val = yr.inv_change;
-                      else if (row.id === 'ar_change') val = yr.ar_change;
-                      else if (row.id === 'oa_change') val = yr.oa_change;
-                      else if (row.id === 'vatr_change') val = yr.vat_rec_change;
-                      else if (row.id === 'ap_change') val = yr.ap_change;
-                      else if (row.id === 'vatp_change') val = yr.vat_pay_change;
-                      else if (row.id === 'tax_change') val = yr.taxation;
-                      else if (row.id === 'wc') val = yr.change_in_working_capital;
-                      else if (row.id === 'capex') val = yr.capex;
-                      else if (row.id === 'dep') val = yr.dep_writeback;
-                      else if (row.id === 'net_proc') val = 0;
-                      else if (row.id === 'cai') val = yr.application_to_capital_assets;
-                      else if (row.id === 'sci') val = yr.share_capital_change;
-                      else if (row.id === 'eq_loan') val = yr.equity_loan_change;
-                      else if (row.id === 'tl_change') val = yr.loan_change;
-                      else if (row.id === 'cf') val = yr.change_in_funding;
-                      else if (row.id === 'nc') val = yr.cashflow;
-                      else if (row.id === 'cbs') val = yr.bank_balance_closing;
-                      else if (row.id === 'cbs_check') val = yr.bank_balance_closing;
+      {activeReportTab === 'cash-flow' && (() => {
+        const cashFlowRows: BizzReportTableRow[] = [
+          { label: 'bank balance - opening', values: years.map((y) => yearData[y - 1].bank_balance_opening) },
+          { label: 'net operating profit', values: years.map((y) => yearData[y - 1].net_operating_profit) },
+          { label: 'interest - other', indent: true, values: years.map((y) => yearData[y - 1].interest_other) },
+          { label: 'interest - term loan', indent: true, values: years.map((y) => -yearData[y - 1].interest_tl) },
+          { label: 'interest', highlight: true, values: years.map((y) => -yearData[y - 1].interest_total) },
+          { label: 'sub total', highlight: true, values: years.map((y) => yearData[y - 1].net_operating_profit - yearData[y - 1].interest_total) },
+          { label: 'profit / loss on sale of fixed assets', values: years.map(() => 0) },
+          { label: 'taxation', values: years.map((y) => -yearData[y - 1].taxation) },
+          { label: 'dividends', values: years.map((y) => -yearData[y - 1].dividends) },
+          { label: 'cash from operations', highlight: true, values: years.map((y) => yearData[y - 1].cash_from_operations) },
+          { label: 'inventory', values: years.map((y) => -yearData[y - 1].inv_change) },
+          { label: 'accounts receivables', values: years.map((y) => -yearData[y - 1].ar_change) },
+          { label: 'other assets', values: years.map((y) => -yearData[y - 1].oa_change) },
+          { label: 'vat receivable', values: years.map((y) => -yearData[y - 1].vat_rec_change) },
+          { label: 'accounts payables', values: years.map((y) => yearData[y - 1].ap_change) },
+          { label: 'vat payable', values: years.map((y) => yearData[y - 1].vat_pay_change) },
+          { label: 'taxation', values: years.map((y) => yearData[y - 1].taxation) },
+          { label: 'change in working capital', highlight: true, values: years.map((y) => yearData[y - 1].change_in_working_capital) },
+          { label: 'capital expenditure', values: years.map((y) => -yearData[y - 1].capex) },
+          { label: 'depreciation write back', values: years.map((y) => yearData[y - 1].dep_writeback) },
+          { label: 'net proceeds from the sale of fixed asset', values: years.map(() => 0) },
+          { label: 'application to capital assets', highlight: true, values: years.map((y) => yearData[y - 1].application_to_capital_assets) },
+          { label: 'share capital', values: years.map((y) => yearData[y - 1].share_capital_change) },
+          { label: 'equity loan', values: years.map((y) => yearData[y - 1].equity_loan_change) },
+          { label: 'term loan', values: years.map((y) => yearData[y - 1].loan_change) },
+          { label: 'change in funding', highlight: true, values: years.map((y) => yearData[y - 1].change_in_funding) },
+          { label: 'cashflow', highlight: true, values: years.map((y) => yearData[y - 1].cashflow) },
+          { label: 'bank balance - closing', highlight: true, values: years.map((y) => yearData[y - 1].bank_balance_closing) },
+          { label: 'bank balance - check', highlight: true, values: years.map((y) => yearData[y - 1].bank_balance_closing) },
+        ];
 
-                      const finalVal = row.isNeg ? -val : val;
-
-                      return (
-                        <div key={y} className={`${BizzTableCellClass} text-right tabular-nums`}>
-                          {formatNumeric(finalVal)}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
+        return (
+          <div className="animate-in fade-in duration-200">
+            <BizzReportTable
+              title="cash flow statement"
+              firstColumnLabel="period"
+              years={years}
+              rows={cashFlowRows}
+              isDark={isDark}
+            />
           </div>
-        </BizzReportSection>
-      )}
+        );
+      })()}
 
       {/* =================================================================== */}
       {/* 8. VAT CALCULATION (5-YEAR VAT CALCULATION & PAYMENTS AT M12)       */}

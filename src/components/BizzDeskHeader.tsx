@@ -707,12 +707,18 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
           {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
 
-        {/* Maximize Center Work Area Toggle */}
+        {/* Expand / Maximize Work Area (Hides side panels for full undistracted focus) */}
         <button
           onClick={onToggleMaximize}
-          title={isMaximized ? 'Restore 3-Panel View' : 'Maximize Work Area'}
-          className={`p-1.5 rounded-lg border transition-colors ${
-            isDark
+          title={
+            isMaximized
+              ? 'Restore 3-Panel View (Show Solutions Panel & Knowledge Base)'
+              : 'Maximize Work Area (Hide Side Panels for Undistracted Focus)'
+          }
+          className={`p-1.5 rounded-lg border transition-all ${
+            isMaximized
+              ? 'bg-[#5584B4]/20 border-[#5584B4] text-[#5584B4] dark:text-[#DDEBF7] shadow-xs'
+              : isDark
               ? 'bg-[#161C30] hover:bg-[#1E2548] border-[#252E4A] text-slate-300 hover:text-white'
               : 'bg-white hover:bg-[#F4EFE6] border-[#E8E2D8] text-slate-700 hover:text-slate-900'
           }`}

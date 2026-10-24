@@ -37,6 +37,19 @@ export interface CmsProduct {
   courseLessons?: CmsCourseLesson[];
   coursePromoVideoUrl?: string;
   companionMaterialFilename?: string;
+  // View Screen Transparency Customizations (Editable View Screens)
+  targetProfile?: string;
+  challengeText?: string;
+  whatYouGet?: string[];
+  deliverables?: string[];
+  engineSteps?: Array<{
+    step: number;
+    title: string;
+    desc: string;
+    inputs: string[];
+    outputs: string[];
+    logic?: string;
+  }>;
 }
 
 export interface CmsVideo {
@@ -96,7 +109,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     activeInSync: true,
     youtubeDemoUrl: 'https://www.youtube.com/watch?v=vUT8lZLZpKg',
     coursePromoVideoUrl: 'https://www.youtube.com/watch?v=9dwqCG-vnVA',
-    canonicalCoverUrl: '',
+    canonicalCoverUrl: 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=1200&q=80',
     syllabusLessonsCount: 3,
     lessonTitles: [
       'Lesson 01: The Founder Hypothesis vs. Customer Reality',
@@ -143,7 +156,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ticketPriceZAR: 274.80,
     isPurchased: true,
     activeInSync: true,
-    canonicalCoverUrl: '',
+    canonicalCoverUrl: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&q=80',
     youtubeDemoUrl: 'https://www.youtube.com/watch?v=0--AvwZabIQ',
     assignedStep: 'Stage 1 · Step 2',
     journeyMilestone: 'Unit Margin Verification',
@@ -174,7 +187,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ticketPriceZAR: 418.80,
     isPurchased: true,
     activeInSync: true,
-    canonicalCoverUrl: '',
+    canonicalCoverUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80',
     youtubeDemoUrl: '',
     assignedStep: 'Stage 1 · Step 3',
     journeyMilestone: 'Financial Dynamics Simulator',
@@ -205,7 +218,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     activeInSync: true,
     youtubeDemoUrl: 'https://www.youtube.com/watch?v=0--AvwZabIQ',
     coursePromoVideoUrl: 'https://www.youtube.com/watch?v=3wyZYsk8OTY',
-    canonicalCoverUrl: '',
+    canonicalCoverUrl: 'https://images.unsplash.com/photo-1554224154-26032ffc0d07?auto=format&fit=crop&w=1200&q=80',
     syllabusLessonsCount: 2,
     lessonTitles: [
       'Lesson 01: Mapping Fixed vs. Variable Allocations',
@@ -248,7 +261,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ticketPriceZAR: 672.00,
     isPurchased: true,
     activeInSync: true,
-    canonicalCoverUrl: '',
+    canonicalCoverUrl: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=1200&q=80',
     youtubeDemoUrl: '',
     assignedStep: 'Stage 2 · Step 1',
     journeyMilestone: 'Institutional Model Ready',
@@ -277,7 +290,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ticketPriceZAR: 478.80,
     isPurchased: false,
     activeInSync: true,
-    canonicalCoverUrl: '',
+    canonicalCoverUrl: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80',
     assignedStep: 'Stage 2 · Step 7',
     modules: ['Venture Memo Generator', 'Cap Table Snapshot Exporter', 'Risk Matrix Builder'],
   },
@@ -301,7 +314,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     activeInSync: true,
     youtubeDemoUrl: 'https://www.youtube.com/watch?v=vUT8lZLZpKg',
     coursePromoVideoUrl: 'https://www.youtube.com/watch?v=9dwqCG-vnVA',
-    canonicalCoverUrl: '',
+    canonicalCoverUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1200&q=80',
     syllabusLessonsCount: 7,
     lessonTitles: [
       '1 - INTRODUCTION',
@@ -376,7 +389,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ticketPriceZAR: 343.62,
     isPurchased: true,
     activeInSync: true,
-    canonicalCoverUrl: '',
+    canonicalCoverUrl: 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&w=1200&q=80',
     syllabusLessonsCount: 3,
     lessonTitles: ['1 - CASH CONVERSION CYCLE', '2 - WORKING CAPITAL RECOVERY', '3 - RECEIVABLES VELOCITY'],
     courseLessons: [
@@ -404,7 +417,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ticketPriceZAR: 412.62,
     isPurchased: true,
     activeInSync: true,
-    canonicalCoverUrl: '',
+    canonicalCoverUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80',
     syllabusLessonsCount: 3,
     lessonTitles: ['1 - 3-STATEMENT RECONCILIATION', '2 - EBITDA VS FREE CASH FLOW', '3 - BALANCE SHEET STRESS TEST'],
     courseLessons: [
@@ -434,7 +447,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ticketPriceZAR: 450.00,
     isPurchased: false,
     activeInSync: true,
-    canonicalCoverUrl: '',
+    canonicalCoverUrl: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1200&q=80',
     assignedStep: 'Stage 3 · Step 3',
     modules: ['Working Capital Leakage Auditor', 'Vendor Terms Re-negotiation Assistant', 'Overhead Benchmarks'],
   },
@@ -456,7 +469,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ticketPriceZAR: 274.80,
     isPurchased: false,
     activeInSync: true,
-    canonicalCoverUrl: '',
+    canonicalCoverUrl: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80',
     youtubeDemoUrl: '',
     coursePromoVideoUrl: '',
     assignedStep: 'Stage 3 · Step 4',
@@ -507,7 +520,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ticketPriceZAR: 412.62,
     isPurchased: true,
     activeInSync: true,
-    canonicalCoverUrl: '',
+    canonicalCoverUrl: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1200&q=80',
     syllabusLessonsCount: 3,
     lessonTitles: [
       '1 - BASE, BULL & BEAR SCENARIO MATRIX',
@@ -539,7 +552,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ticketPriceZAR: 412.62,
     isPurchased: true,
     activeInSync: true,
-    canonicalCoverUrl: '',
+    canonicalCoverUrl: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1200&q=80',
     syllabusLessonsCount: 3,
     lessonTitles: [
       '1 - ANNUAL OPERATING CADENCE & MILESTONES',
@@ -573,7 +586,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ticketPriceZAR: 780.00,
     isPurchased: false,
     activeInSync: true,
-    canonicalCoverUrl: '',
+    canonicalCoverUrl: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=1200&q=80',
     assignedStep: 'Stage 4 · Step 1',
     modules: ['40-Point VDR Folder Hierarchy', 'Cap Table Dilution Simulator', 'Term Sheet Checklist'],
   },
@@ -597,7 +610,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ticketPriceZAR: 408.00,
     isPurchased: true,
     activeInSync: true,
-    canonicalCoverUrl: '',
+    canonicalCoverUrl: 'https://images.unsplash.com/photo-1556742049-0a67c5574f73?auto=format&fit=crop&w=1200&q=80',
     assignedStep: 'Operations · Core',
     modules: ['62-Account General Ledger', 'Voice-to-Transaction Input', 'VAT 15% Automated Accrual', 'Google Sheets Bridge'],
   },
@@ -619,7 +632,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ticketPriceZAR: 312.00,
     isPurchased: false,
     activeInSync: true,
-    canonicalCoverUrl: '',
+    canonicalCoverUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1200&q=80',
     assignedStep: 'Operations · Rolling',
     modules: ['Rolling 13-Week Cash Horizon', 'Variance Tracking Alert Engine', 'Departmental Cost Centers'],
   },
@@ -641,7 +654,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ticketPriceZAR: 348.00,
     isPurchased: false,
     activeInSync: true,
-    canonicalCoverUrl: '',
+    canonicalCoverUrl: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=1200&q=80',
     assignedStep: 'Operations · Margins',
     modules: ['Vendor Subscription Leak Detector', 'Debtor Collection Acceleration', 'Margin Calibration'],
   },
@@ -663,7 +676,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ticketPriceZAR: 274.62,
     isPurchased: true,
     activeInSync: true,
-    canonicalCoverUrl: '',
+    canonicalCoverUrl: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80',
     syllabusLessonsCount: 3,
     lessonTitles: ['1 - FULLY BURDENED LABOR RATE', '2 - HIRING REVENUE MULTIPLE', '3 - EMPLOYEE CONTRIBUTION QUOTA'],
     courseLessons: [
@@ -693,6 +706,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ticketPriceZAR: 960.00,
     isPurchased: false,
     activeInSync: true,
+    canonicalCoverUrl: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80',
     assignedStep: 'Growth · Step 1',
     modules: ['Channel Economics Modeler', 'Pricing Elasticity Curve', 'Competitive Moat Heatmap'],
   },
@@ -1456,7 +1470,7 @@ export const INITIAL_CMS_PROMOTIONS: CmsPromotionSection[] = [
     targetType: 'solution',
     targetId: 'learn-earn-capital',
     buttonText: 'explore vi-ability',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=1600&q=80',
     isActive: true,
     stageStory: {
       narrative: 'Learn how to earn access to capital and validate unit economics before commercial launch. Master customer willingness to pay and establish verifiable contribution margins.',
@@ -1473,7 +1487,7 @@ export const INITIAL_CMS_PROMOTIONS: CmsPromotionSection[] = [
     targetType: 'solution',
     targetId: 'fund-ability',
     buttonText: 'explore fund-ability',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=1600&q=80',
     isActive: true,
     stageStory: {
       narrative: 'Institutional capital requires rigorous 3-statement financial models with dynamic valuation dials, scenario sensitivity, and zero macro assumptions.',
@@ -1490,7 +1504,7 @@ export const INITIAL_CMS_PROMOTIONS: CmsPromotionSection[] = [
     targetType: 'solution',
     targetId: 'sustain-ability',
     buttonText: 'explore sustain-ability',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1600&q=80',
     isActive: true,
     stageStory: {
       narrative: 'Protect corporate balance sheets with an uncompromised 18-month cash runway safeguard rule, ensuring the venture survives market shocks without emergency down-rounds.',
@@ -1507,7 +1521,7 @@ export const INITIAL_CMS_PROMOTIONS: CmsPromotionSection[] = [
     targetType: 'solution',
     targetId: 'invest-ability',
     buttonText: 'explore invest-ability',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1600&q=80',
     isActive: true,
     stageStory: {
       narrative: 'Prepare for institutional diligence, investor syndication, cap table waterfalls, and transaction-ready corporate virtual data rooms.',
@@ -1524,7 +1538,7 @@ export const INITIAL_CMS_PROMOTIONS: CmsPromotionSection[] = [
     targetType: 'solution',
     targetId: 'personal-sandbox',
     buttonText: 'enter personal sandbox',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1600&q=80',
     isActive: true,
     stageStory: {
       narrative: 'Your private, illuminated executive cockpit. Seamlessly combine real-time financial modeling, connected accounting ledgers, and bespoke growth forecasts in one distraction-free workbench.',
@@ -1541,7 +1555,7 @@ export const INITIAL_CMS_PROMOTIONS: CmsPromotionSection[] = [
     targetType: 'solution',
     targetId: 'bizzmoney',
     buttonText: 'launch bizzmoney',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1600&q=80',
     isActive: true,
     stageStory: {
       narrative: 'Double-entry operational ledger designed for entrepreneurs. Features standard 62-account chart of accounts, voice-assisted transaction entry, and automatic tax accrual.',
@@ -1558,7 +1572,7 @@ export const INITIAL_CMS_PROMOTIONS: CmsPromotionSection[] = [
     targetType: 'solution',
     targetId: 'budget',
     buttonText: 'launch bizzbudget',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1600&q=80',
     isActive: true,
     stageStory: {
       narrative: 'Rolling 13-week cash variance engine. Allocate capital by strategic priority, detect departmental expense drift early, and prevent surprise runway compression.',
@@ -1575,7 +1589,7 @@ export const INITIAL_CMS_PROMOTIONS: CmsPromotionSection[] = [
     targetType: 'solution',
     targetId: 'bizzoptimizer',
     buttonText: 'launch bizzoptimizer',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=1600&q=80',
     isActive: true,
     stageStory: {
       narrative: 'Surgical margin optimization. Audit redundant software subscriptions, renegotiate vendor contracts, and streamline working capital to extend runway without external fundraising.',
@@ -1592,7 +1606,7 @@ export const INITIAL_CMS_PROMOTIONS: CmsPromotionSection[] = [
     targetType: 'solution',
     targetId: 'strategy',
     buttonText: 'explore growth strategy',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1600&q=80',
     isActive: true,
     stageStory: {
       narrative: 'Multi-scenario growth strategy simulator. Model pricing elasticity, international expansion paths, and competitive moat defensibility before deploying growth capital.',
@@ -1609,7 +1623,7 @@ export const INITIAL_CMS_PROMOTIONS: CmsPromotionSection[] = [
     targetType: 'solution',
     targetId: 'critical-thinking',
     buttonText: 'engage critical thinking',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1600&q=80',
     isActive: true,
     stageStory: {
       narrative: 'Socratic defense and blindspot audit. Challenge confirmation biases, stress-test business plan assumptions, and examine worst-case market scenarios with objective rigor.',
@@ -1626,7 +1640,7 @@ export const INITIAL_CMS_PROMOTIONS: CmsPromotionSection[] = [
     targetType: 'solution',
     targetId: 'machine-based-learning',
     buttonText: 'explore machine learning',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1600&q=80',
     isActive: true,
     stageStory: {
       narrative: 'Applied enterprise intelligence literacy. Master prompt engineering, generative workflow automations, and predictive analytics tailored specifically for operational scale.',
@@ -1644,7 +1658,7 @@ export const INITIAL_CMS_PROMOTIONS: CmsPromotionSection[] = [
     targetId: 'dialogue',
     targetTab: 'dialogue',
     buttonText: 'open gim dialogue',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=1600&q=80',
     isActive: true,
     stageStory: {
       narrative: 'Direct executive advisory with GIM business coach. Real-time sounding board for financial modeling, strategic forks, and venture validation logic.',
@@ -1662,7 +1676,7 @@ export const INITIAL_CMS_PROMOTIONS: CmsPromotionSection[] = [
     targetId: 'library',
     targetTab: 'library',
     buttonText: 'open virtual library',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=1600&q=80',
     isActive: true,
     stageStory: {
       narrative: 'The virtual venture library. Manage your daily 3-objective focus ledger, retrieve saved financial forecasts, and download companion workbooks and templates.',

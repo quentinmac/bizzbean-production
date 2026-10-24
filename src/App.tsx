@@ -11,6 +11,7 @@ import { CloseShopModal, DailyObjective } from './components/CloseShopModal';
 import { CmsConsoleModal } from './components/CmsConsoleModal';
 import { BuyTokensModal } from './components/BuyTokensModal';
 import { TalkToUsModal } from './components/TalkToUsModal';
+import { NonMemberTalkToUsModal } from './components/NonMemberTalkToUsModal';
 import { INITIAL_CMS_PRODUCTS, INITIAL_CMS_VIDEOS, INITIAL_CMS_ARTICLES, INITIAL_CMS_PROMOTIONS, CmsProduct, CmsVideo, CmsArticle, CmsPromotionSection } from './data/cmsConsoleData';
 import { safeSaveStorage, idbGet, cleanFallbackImagesFromArticles, cleanLegacyProducts, cleanLegacyViabilityPromotions, cleanClearedEducationVideos, cleanClearedCourseLessons, mergeLoadedPromotions, mergeLoadedProducts } from './utils/imageStorage';
 import {
@@ -36,12 +37,23 @@ import {
   Play,
   X,
   Laptop,
+  CheckCircle2,
+  Coins,
+  ArrowRight,
+  Sparkles,
 } from 'lucide-react';
 
 export default function App() {
   // Navigation / View state
   const [inSplashDoors, setInSplashDoors] = useState<boolean>(true);
-  const [isMember, setIsMember] = useState<boolean>(true);
+  const [isMember, setIsMember] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('bizz_is_member') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [isNonMemberTalkToUsOpen, setIsNonMemberTalkToUsOpen] = useState<boolean>(false);
   const [userEmail, setUserEmail] = useState<string>('founder@bizzbean.com');
   const isAdmin = useMemo(() => {
     return determineUserRole(userEmail) === 'admin';
@@ -83,6 +95,9 @@ export default function App() {
       if (fbUser) {
         setUserEmail(fbUser.email || '');
         setIsMember(true);
+        try {
+          localStorage.setItem('bizz_is_member', 'true');
+        } catch (e) {}
         if (fbUser.displayName) {
           setUserProfile((prev) => ({
             ...prev,
@@ -139,6 +154,13 @@ export default function App() {
   const [activeSolutionId, setActiveSolutionId] = useState<string>('learn-earn-capital');
   const [activeView, setActiveView] = useState<'flashcard' | 'active-app' | 'about' | 'footer' | 'workspace' | 'library' | 'admin-centre' | 'education-centre' | 'bizzclass' | 'platform-apps'>('flashcard');
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
+  const [purchasedNotice, setPurchasedNotice] = useState<{
+    solutionName: string;
+    tokensCredited: number;
+    priceZAR: number;
+    solutionId: string;
+    isCourse: boolean;
+  } | null>(null);
 
   // Quick Links / Pinboard Pinning (persisted across reloads) - Strictly courses & apps, never stages
   const [quickLinkIds, setQuickLinkIds] = useState<string[]>(() => {
@@ -438,8 +460,7 @@ export default function App() {
         p.isActive !== false &&
         p.imageUrl &&
         p.imageUrl.trim() !== '' &&
-        !p.imageUrl.includes('1553877522-43269d4ea984') &&
-        !p.imageUrl.includes('images.unsplash.com')
+        !p.imageUrl.includes('1553877522-43269d4ea984')
     );
     if (withImages.length > 0) {
       const randomIndex = Math.floor(Math.random() * withImages.length);
@@ -464,8 +485,7 @@ export default function App() {
               p.isActive !== false &&
               p.imageUrl &&
               p.imageUrl.trim() !== '' &&
-              !p.imageUrl.includes('1553877522-43269d4ea984') &&
-              !p.imageUrl.includes('images.unsplash.com')
+              !p.imageUrl.includes('1553877522-43269d4ea984')
           );
           if (available.length > 0) {
             return available[Math.floor(Math.random() * available.length)];
@@ -487,8 +507,7 @@ export default function App() {
           p.isActive !== false &&
           p.imageUrl &&
           p.imageUrl.trim() !== '' &&
-          !p.imageUrl.includes('1553877522-43269d4ea984') &&
-          !p.imageUrl.includes('images.unsplash.com')
+          !p.imageUrl.includes('1553877522-43269d4ea984')
       );
       if (withImages.length > 0 && (!activePromotion || !activePromotion.imageUrl || activePromotion.isActive === false)) {
         const randomIndex = Math.floor(Math.random() * withImages.length);
@@ -535,19 +554,15 @@ export default function App() {
 
   // Active solution data object: look up in cmsProducts first, then BIZZ_SOLUTIONS
   const activeSolution: BizzSolution = useMemo(() => {
-    const effectiveSolId =
-      activeSolutionId === 'vi-ability' ? 'learn-earn-capital' : activeSolutionId;
+    const effectiveSolId = activeSolutionId;
     const matchingCms = (cmsProducts || []).find(
       (p) =>
         p.id === effectiveSolId ||
-        p.id === activeSolutionId ||
-        (effectiveSolId === 'learn-earn-capital' && (p.id === 'learn-earn-capital' || p.stage === 'vi-ability')) ||
         (effectiveSolId === 'bizzbudget' && p.id === 'budget') ||
         (effectiveSolId === 'budget' && p.id === 'bizzbudget')
     );
     if (matchingCms) {
-      const isViabilityCourse =
-        matchingCms.id === 'learn-earn-capital' || matchingCms.stage === 'vi-ability';
+      const isViabilityCourse = matchingCms.id === 'learn-earn-capital';
       return {
         id: matchingCms.id === 'budget' ? 'bizzbudget' : matchingCms.id,
         category: (matchingCms.stage === 'operations' ? 'operations' : matchingCms.stage === 'growth' ? 'growth' : 'startup') as any,
@@ -575,9 +590,7 @@ export default function App() {
         vatRate: 0.15,
         tokensAllocated: isViabilityCourse ? 0 : matchingCms.tokensAllocated,
         billingModel: matchingCms.billingModel,
-        imageUrl: isViabilityCourse
-          ? ''
-          : (matchingCms.canonicalCoverUrl || (matchingCms as any).imageUrl || ''),
+        imageUrl: matchingCms.canonicalCoverUrl || (matchingCms as any).imageUrl || '',
         explainerDuration: '3:00',
         isPurchased: matchingCms.isPurchased,
         features: matchingCms.modules || matchingCms.lessonTitles || [],
@@ -664,6 +677,9 @@ export default function App() {
     preSelectedPromo?: CmsPromotionSection | null
   ) => {
     setIsMember(asMember);
+    try {
+      localStorage.setItem('bizz_is_member', asMember ? 'true' : 'false');
+    } catch (e) {}
     if (email) setUserEmail(email);
 
     // On opening doors, present a random active HERO PROMOTION image from user-loaded promotions
@@ -703,6 +719,10 @@ export default function App() {
 
   const handleConfirmCloseShop = () => {
     signOutUser().catch(() => {});
+    setIsMember(false);
+    try {
+      localStorage.setItem('bizz_is_member', 'false');
+    } catch (e) {}
     setIsCloseShopModalOpen(false);
     setInSplashDoors(true);
     setActiveView('flashcard');
@@ -750,7 +770,7 @@ export default function App() {
         p.isActive !== false &&
         p.imageUrl &&
         p.imageUrl.trim() !== '' &&
-        !p.imageUrl.includes('images.unsplash.com')
+        !p.imageUrl.includes('1553877522-43269d4ea984')
     );
     if (available.length === 0) {
       setShowPromotion(false);
@@ -764,8 +784,13 @@ export default function App() {
     setActivePromotion(available[nextIndex]);
   };
 
-  // Open TALK TO US: routes admins to Administration Centre Tab 2, and sandbox members to the TalkToUsModal form
+  // Open TALK TO US: non-members are barred and shown membership guidance modal;
+  // admins routed to Admin Centre Tab 2; registered members to TalkToUsModal form
   const handleOpenTalkToUs = () => {
+    if (!isMember) {
+      setIsNonMemberTalkToUsOpen(true);
+      return;
+    }
     if (isAdmin) {
       setAdminInitialTab('dialogue-centre');
       setActiveView('admin-centre');
@@ -823,27 +848,39 @@ export default function App() {
 
     if (targetId === 'vi-ability') {
       setActiveStageId('vi-ability');
-      setActiveSolutionId('learn-earn-capital');
+      setActiveSolutionId('vi-ability');
+      setActiveView('flashcard');
+      return;
     } else if (targetId === 'fund-ability') {
       setActiveStageId('fund-ability');
-      const firstFund = (cmsProducts || []).find((p) => p.stage === 'fund-ability');
-      setActiveSolutionId(firstFund ? firstFund.id : 'bizzmodel');
+      setActiveSolutionId('fund-ability');
+      setActiveView('flashcard');
+      return;
     } else if (targetId === 'sustain-ability') {
       setActiveStageId('sustain-ability');
-      const firstSustain = (cmsProducts || []).find((p) => p.stage === 'sustain-ability');
-      setActiveSolutionId(firstSustain ? firstSustain.id : 'sustain-runway');
+      setActiveSolutionId('sustain-ability');
+      setActiveView('flashcard');
+      return;
     } else if (targetId === 'invest-ability') {
       setActiveStageId('invest-ability');
-      const firstInvest = (cmsProducts || []).find((p) => p.stage === 'invest-ability');
-      setActiveSolutionId(firstInvest ? firstInvest.id : 'invest-vdr');
+      setActiveSolutionId('invest-ability');
+      setActiveView('flashcard');
+      return;
     } else if (targetId === 'personal-sandbox') {
       setActiveStageId('personal-sandbox');
-      const firstSol = (cmsProducts || [])[0];
-      setActiveSolutionId(firstSol ? (firstSol.id === 'budget' ? 'bizzbudget' : firstSol.id) : 'personal-sandbox');
+      setActiveSolutionId('personal-sandbox');
+      setActiveView('flashcard');
+      return;
     } else if (targetId === 'operations') {
       setActiveStageId('operations');
-      const firstOp = (cmsProducts || []).find((p) => p.stage === 'operations');
-      setActiveSolutionId(firstOp ? (firstOp.id === 'budget' ? 'bizzbudget' : firstOp.id) : 'bizzmoney');
+      setActiveSolutionId('bizzmoney');
+      setActiveView('flashcard');
+      return;
+    } else if (targetId === 'growth') {
+      setActiveStageId('growth');
+      setActiveSolutionId('growth');
+      setActiveView('flashcard');
+      return;
     } else if (targetId === 'profit-optimizer') {
       // Explicit disambiguation: Profit Optimizer course belongs strictly to sustain-ability stage
       setActiveStageId((prevStage) => (prevStage === 'personal-sandbox' ? 'personal-sandbox' : 'sustain-ability'));
@@ -874,9 +911,7 @@ export default function App() {
       }
     }
 
-    if (activeView !== 'bizzclass') {
-      setActiveView('flashcard');
-    }
+    setActiveView('flashcard');
     setShowPromotion(false);
     setMobileActivePanel('workarea');
   };
@@ -937,14 +972,40 @@ export default function App() {
   // Buy solution with token deduction & persistence in cmsProducts
   const handleBuySolution = (sol: BizzSolution, targetView?: 'active-app' | 'flashcard') => {
     sol.isPurchased = true;
-    setCmsProducts((prev) =>
-      prev.map((p) =>
+    const earnedTokens = sol.tokensAllocated || Math.round((sol.priceZAR || 0) * 0.2);
+
+    setCmsProducts((prev) => {
+      const updated = prev.map((p) =>
         p.id === sol.id || (sol.id === 'bizzbudget' && p.id === 'budget') || (sol.id === 'budget' && p.id === 'bizzbudget')
           ? { ...p, isPurchased: true }
           : p
-      )
-    );
-    setTokenBalance((prev) => prev + sol.tokensAllocated);
+      );
+      safeSaveStorage('bizzdesk_cms_products_v1', updated);
+      saveCmsProductsToFirestore(updated).catch(() => {});
+      return updated;
+    });
+
+    setTokenBalance((prev) => {
+      const newBal = prev + earnedTokens;
+      safeSaveStorage('bizzdesk_token_balance', newBal);
+      return newBal;
+    });
+
+    const isCourse =
+      sol.category === 'education' ||
+      sol.id.includes('course') ||
+      sol.id.includes('capital') ||
+      sol.id.includes('calculator') ||
+      ['cost-recovery-calculator', 'learn-earn-capital', 'how-to-bizzcalc', 'profit-optimizer', 'financial-reports', 'your-first-hire', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(sol.id);
+
+    setPurchasedNotice({
+      solutionName: sol.name,
+      tokensCredited: earnedTokens,
+      priceZAR: sol.priceZAR || 0,
+      solutionId: sol.id,
+      isCourse,
+    });
+
     setActiveSolutionId(sol.id === 'budget' ? 'bizzbudget' : sol.id);
     if (targetView) {
       setActiveView(targetView);
@@ -1064,13 +1125,8 @@ export default function App() {
     setDailyObjectives((prev) => [...prev, newObj]);
   };
 
-  // Detect if user has launched standalone BizzCalc to maximize screen area (per PDF guidelines)
-  const isStandaloneApp = activeView === 'active-app' && (
-    activeSolutionId === 'bizzcalc' ||
-    activeSolutionId === 'cost-recovery-calculator' ||
-    activeSolution?.id === 'bizzcalc' ||
-    activeSolution?.id === 'cost-recovery-calculator'
-  );
+  // Unified layout behavior: allow BizzCalc to share identical responsive workstation layout with BizzDynamics
+  const isStandaloneApp = false;
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#FAF8F5] text-slate-800 font-sans flex flex-col">
@@ -1115,7 +1171,10 @@ export default function App() {
               isMaximized={isMaximized}
               theme={theme}
               onSelectSolution={handleSelectSolution}
-              onToggleMaximize={() => setIsMaximized(!isMaximized)}
+              onToggleMaximize={() => {
+                setIsMaximized(!isMaximized);
+                setSolutionsPanelMode('solutions');
+              }}
               onToggleTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
               onSignOut={handleSignOut}
               onOpenCmsConsole={() => setIsCmsConsoleOpen(true)}
@@ -1134,90 +1193,98 @@ export default function App() {
 
           {/* The Workstation Area (Responsive 3-Panel on Desktop / Single Full-Width Panel on Mobile) */}
           <div className="flex-grow flex flex-col md:flex-row overflow-hidden relative">
-            {/* Panel 1: Solutions Navigation (Left) - Always visible on desktop with elegant margin */}
-            <div
-              className={`h-full shrink-0 ${
-                mobileActivePanel === 'solutions'
-                  ? 'flex w-full'
-                  : 'hidden md:flex md:w-72 lg:w-76 md:ml-3 lg:ml-6 md:my-2 lg:my-3 mr-2'
-              }`}
-            >
-              <SolutionsPanel
-                activeSolutionId={
-                  activeView === 'about'
-                    ? 'about-bizzbean'
-                    : activeView === 'footer'
-                    ? 'website-footer'
-                    : activeView === 'admin-centre'
-                    ? 'administration-centre'
-                    : activeView === 'education-centre'
-                    ? 'education-centre'
-                    : activeView === 'bizzclass'
-                    ? 'bizzclass'
-                    : activeView === 'workspace'
-                    ? 'google-workspace'
-                    : activeView === 'library'
-                    ? 'sandbox-library'
-                    : activeSolutionId
-                }
-                activeStageId={activeStageId}
-                theme={theme}
-                companyName={userProfile.companyName}
-                isAdmin={isAdmin}
-                onSelectSolution={(solId) => {
-                  handleSelectSolution(solId);
-                  setMobileActivePanel('workarea');
-                }}
-                onSelectAbout={() => {
-                  setActiveView('about');
-                  setMobileActivePanel('workarea');
-                }}
-                onSelectLibrary={() => {
-                  setActiveView('library');
-                  setMobileActivePanel('workarea');
-                }}
-                onOpenTalkToUs={handleOpenTalkToUs}
-                onSelectWorkspace={() => {
-                  setActiveView('workspace');
-                  setMobileActivePanel('workarea');
-                }}
-                onSelectFooter={() => {
-                  setActiveView('footer');
-                  setMobileActivePanel('workarea');
-                }}
-                onSelectAdminCentre={() => {
-                  setActiveView('admin-centre');
-                  setMobileActivePanel('workarea');
-                }}
-                onSelectEducationCentre={() => {
-                  setActiveView('education-centre');
-                  setActiveSolutionId('education-centre');
-                  setMobileActivePanel('workarea');
-                }}
-                onSelectBizzClass={() => {
-                  setActiveView('bizzclass');
-                  setActiveSolutionId('cost-recovery-calculator');
-                  setMobileActivePanel('workarea');
-                }}
-                onActivateDialogue={() => {
-                  setActiveKbTab('dialogue');
-                  // On small mobile view only, navigate to knowledge tab
-                  if (typeof window !== 'undefined' && window.innerWidth < 768) {
-                    setMobileActivePanel('knowledge');
+            {/* Panel 1: Solutions Navigation (Left) - Hidden when isMaximized for full work focus */}
+            {!isMaximized && (
+              <div
+                className={`shrink-0 ${
+                  mobileActivePanel === 'solutions'
+                    ? 'h-full flex w-full'
+                    : 'hidden md:flex md:w-72 lg:w-76 md:ml-3 lg:ml-6 md:my-2 lg:my-3 mr-2 md:h-[calc(100%-1rem)] lg:h-[calc(100%-1.5rem)]'
+                }`}
+              >
+                <SolutionsPanel
+                  activeSolutionId={
+                    activeView === 'about'
+                      ? 'about-bizzbean'
+                      : activeView === 'footer'
+                      ? 'website-footer'
+                      : activeView === 'admin-centre'
+                      ? 'administration-centre'
+                      : activeView === 'education-centre'
+                      ? 'education-centre'
+                      : activeView === 'bizzclass'
+                      ? (activeSolutionId || 'cost-recovery-calculator')
+                      : activeView === 'workspace'
+                      ? 'google-workspace'
+                      : activeView === 'library'
+                      ? 'sandbox-library'
+                      : activeSolutionId
                   }
-                }}
-                panelMode={solutionsPanelMode}
-                onTogglePanelMode={(mode) => setSolutionsPanelMode(mode)}
-                activeKbTab={activeKbTab}
-              />
-            </div>
+                  activeStageId={activeStageId}
+                  theme={theme}
+                  companyName={userProfile.companyName}
+                  isAdmin={isAdmin}
+                  onSelectSolution={(solId) => {
+                    handleSelectSolution(solId);
+                    setMobileActivePanel('workarea');
+                  }}
+                  onSelectAbout={() => {
+                    setActiveView('about');
+                    setMobileActivePanel('workarea');
+                  }}
+                  onSelectLibrary={() => {
+                    setActiveView('library');
+                    setMobileActivePanel('workarea');
+                  }}
+                  onOpenTalkToUs={handleOpenTalkToUs}
+                  onSelectWorkspace={() => {
+                    setActiveView('workspace');
+                    setMobileActivePanel('workarea');
+                  }}
+                  onSelectFooter={() => {
+                    setActiveView('footer');
+                    setMobileActivePanel('workarea');
+                  }}
+                  onSelectAdminCentre={() => {
+                    setActiveView('admin-centre');
+                    setMobileActivePanel('workarea');
+                  }}
+                  onSelectEducationCentre={() => {
+                    setActiveView('education-centre');
+                    setActiveSolutionId('education-centre');
+                    setMobileActivePanel('workarea');
+                  }}
+                  onSelectBizzClass={() => {
+                    setActiveView('bizzclass');
+                    setActiveSolutionId('cost-recovery-calculator');
+                    setMobileActivePanel('workarea');
+                  }}
+                  onSelectCourse={(courseId) => {
+                    setActiveView('bizzclass');
+                    setActiveSolutionId(courseId);
+                    setShowPromotion(false);
+                    setMobileActivePanel('workarea');
+                  }}
+                  onActivateDialogue={() => {
+                    setActiveKbTab('dialogue');
+                    // On small mobile view only, navigate to knowledge tab
+                    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                      setMobileActivePanel('knowledge');
+                    }
+                  }}
+                  panelMode={solutionsPanelMode}
+                  onTogglePanelMode={(mode) => setSolutionsPanelMode(mode)}
+                  activeKbTab={activeKbTab}
+                />
+              </div>
+            )}
 
-            {/* Panel 2: Center Work Area - Aligned symmetrically with Left & Right Panels */}
+            {/* Panel 2: Center Work Area - Expands to full screen width when isMaximized */}
             <main
               className={`flex-grow flex-col overflow-hidden relative ${
-                mobileActivePanel === 'workarea'
-                  ? 'h-full flex w-full'
-                  : 'hidden md:flex md:my-2 lg:my-3 h-[calc(100%-1rem)] lg:h-[calc(100%-1.5rem)] border lg:rounded-2xl shadow-xs overflow-hidden'
+                mobileActivePanel === 'workarea' ? 'flex w-full h-full' : 'hidden md:flex'
+              } md:my-2 lg:my-3 md:h-[calc(100%-1rem)] lg:h-[calc(100%-1.5rem)] border md:rounded-2xl shadow-xs ${
+                isMaximized ? 'md:mx-3 lg:mx-6' : ''
               } ${
                 theme === 'dark' ? 'bg-[#101424] border-[#252E4A]' : 'bg-[#FAF8F5] border-[#E8E2D8]'
               }`}
@@ -1269,10 +1336,10 @@ export default function App() {
             {/* Panel 3: Knowledge Base & AI-LOOP (Right) - Symmetrically aligned with Left-Hand Solutions Panel */}
             {!isMaximized && (
               <div
-                className={`h-full shrink-0 ${
+                className={`shrink-0 ${
                   mobileActivePanel === 'knowledge'
-                    ? 'flex w-full'
-                    : 'hidden md:flex md:w-72 lg:w-80 md:mr-3 lg:mr-6 md:my-2 lg:my-3 ml-2'
+                    ? 'h-full flex w-full'
+                    : 'hidden md:flex md:w-72 lg:w-80 md:mr-3 lg:mr-6 md:my-2 lg:my-3 ml-2 md:h-[calc(100%-1rem)] lg:h-[calc(100%-1.5rem)]'
                 }`}
               >
                 <KnowledgeBasePanel
@@ -1606,12 +1673,27 @@ export default function App() {
         userEmail={userEmail}
       />
 
-      {/* TALK TO US Advisory Modal for Sandbox Members & Visitors */}
+      {/* TALK TO US Advisory Modal for Verified Members */}
       <TalkToUsModal
         isOpen={isTalkToUsModalOpen}
         onClose={() => setIsTalkToUsModalOpen(false)}
         userProfile={userProfile}
         isDark={theme === 'dark'}
+      />
+
+      {/* Non-Member Talk To Us Access Restriction Modal */}
+      <NonMemberTalkToUsModal
+        isOpen={isNonMemberTalkToUsOpen}
+        onClose={() => setIsNonMemberTalkToUsOpen(false)}
+        onOpenSignUp={() => {
+          setIsNonMemberTalkToUsOpen(false);
+          setInSplashDoors(true);
+        }}
+        onOpenSignIn={() => {
+          setIsNonMemberTalkToUsOpen(false);
+          setInSplashDoors(true);
+        }}
+        theme={theme}
       />
 
       {/* PayFast Status Floating Notification */}
@@ -1645,6 +1727,118 @@ export default function App() {
             >
               <X className="h-4 w-4" />
             </button>
+          </div>
+        </div>
+      )}
+      {/* Solution Purchase Success Modal */}
+      {purchasedNotice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs select-none animate-in fade-in duration-150">
+          <div
+            className={`w-full max-w-lg rounded-3xl border shadow-2xl overflow-hidden flex flex-col font-mono ${
+              theme === 'dark'
+                ? 'bg-[#101424] border-[#252E4A] text-slate-100'
+                : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900'
+            }`}
+          >
+            {/* Header */}
+            <div
+              className={`p-5 border-b flex items-center justify-between ${
+                theme === 'dark' ? 'bg-[#161C30] border-[#252E4A]' : 'bg-[#F4EFE6] border-[#E8E2D8]'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-emerald-500/20 text-emerald-500 flex items-center justify-center border border-emerald-500/40">
+                  <CheckCircle2 className="h-6 w-6 stroke-[2.5]" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm uppercase tracking-wider text-slate-900 dark:text-white">
+                      PURCHASE CONFIRMED
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                      UNLOCKED
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 lowercase block mt-0.5">
+                    transaction saved & tokens credited
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setPurchasedNotice(null)}
+                className="p-1.5 rounded-xl border border-transparent hover:border-slate-300 dark:hover:border-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-all"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              <div
+                className={`p-4 rounded-2xl border ${
+                  theme === 'dark' ? 'bg-[#141A2E] border-[#252E4A]' : 'bg-white border-[#E8E2D8]'
+                }`}
+              >
+                <div className="text-xs text-slate-400 lowercase mb-1">unlocked solution:</div>
+                <div className="text-base font-bold uppercase text-[#5584B4] dark:text-[#DDEBF7]">
+                  {purchasedNotice.solutionName}
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div
+                    className={`p-2.5 rounded-xl border ${
+                      theme === 'dark' ? 'bg-[#0E1220] border-[#222E4E]' : 'bg-[#FAF8F5] border-[#E8E2D8]'
+                    }`}
+                  >
+                    <span className="text-slate-400 block text-[10px] lowercase">amount paid:</span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      R{purchasedNotice.priceZAR.toFixed(2)}
+                    </span>
+                  </div>
+                  <div
+                    className={`p-2.5 rounded-xl border ${
+                      theme === 'dark' ? 'bg-[#0E1220] border-[#222E4E]' : 'bg-[#FAF8F5] border-[#E8E2D8]'
+                    }`}
+                  >
+                    <span className="text-slate-400 block text-[10px] lowercase">tokens credited:</span>
+                    <span className="font-bold text-emerald-500 flex items-center gap-1">
+                      <Coins className="h-3.5 w-3.5" />
+                      +{purchasedNotice.tokensCredited} tokens
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-xs font-sans text-slate-600 dark:text-slate-400 leading-relaxed">
+                This solution is now permanently unlocked for your venture. You can launch it directly into your expanded workstation or access companion modules without limitations.
+              </p>
+            </div>
+
+            {/* Footer Actions */}
+            <div
+              className={`p-4 border-t flex items-center justify-end gap-3 ${
+                theme === 'dark' ? 'bg-[#161C30] border-[#252E4A]' : 'bg-[#F4EFE6] border-[#E8E2D8]'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => setPurchasedNotice(null)}
+                className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold uppercase hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors"
+              >
+                CONTINUE BROWSING
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const targetSol = purchasedNotice.solutionId;
+                  setPurchasedNotice(null);
+                  handleLaunchSolution(targetSol);
+                }}
+                className="px-5 py-2.5 rounded-xl bg-[#2E5E88] hover:bg-[#234E73] text-white text-xs font-bold uppercase flex items-center gap-2 shadow-md transition-all active:scale-95"
+              >
+                <Play className="h-3.5 w-3.5 fill-white text-white" />
+                <span>LAUNCH SOLUTION NOW</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

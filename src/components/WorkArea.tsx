@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { BizzSolution, UserBusinessProfile, LibraryItem } from '../types';
 import { CmsProduct, CmsVideo, CmsArticle, CmsPromotionSection, INITIAL_CMS_ARTICLES } from '../data/cmsConsoleData';
-import { Play, ArrowRight, Check, Coins, Bookmark, Sparkles, X, Calculator, ShieldCheck, DollarSign, QrCode, Share2, Layers, RefreshCw, Mic, ChevronLeft, ChevronRight, BookOpen, ShoppingCart, Info, Lock, Pin, UserCheck, Library, ExternalLink, Edit3, Save, RotateCcw } from 'lucide-react';
+import { Play, ArrowRight, Check, Coins, Bookmark, Sparkles, X, Calculator, ShieldCheck, DollarSign, QrCode, Share2, Layers, RefreshCw, Mic, ChevronLeft, ChevronRight, BookOpen, ShoppingCart, Info, Lock, Pin, UserCheck, Library, ExternalLink, Edit3, Save, RotateCcw, Eye } from 'lucide-react';
 import { formatCurrency } from '../utils/financialCalculations';
 import { BIZZ_SOLUTIONS } from '../data/bizzdeskData';
 import { SmartPricingModal } from './SmartPricingModal';
+import { SolutionTransparencyModal } from './SolutionTransparencyModal';
 import { SignUpModal } from './SignUpModal';
 import { SandboxLibrary } from './SandboxLibrary';
 import { AdministrationCentre } from './AdministrationCentre';
@@ -112,8 +113,9 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
   onOpenTalkToUs,
 }) => {
   const isDark = theme === 'dark';
-  // Smart pricing modal state
+  // Smart pricing and transparency preview modal state
   const [isSmartPricingModalOpen, setIsSmartPricingModalOpen] = useState(false);
+  const [isTransparencyModalOpen, setIsTransparencyModalOpen] = useState(false);
   const [isSignUpModalOpen, setIsSignUpModalOpen] = useState(false);
   // Currency selection on flashcards & apps (USD vs ZAR)
   const [selectedCurrency, setSelectedCurrency] = useState<'USD' | 'ZAR'>('USD');
@@ -1002,6 +1004,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
       <div className="flex-grow overflow-y-auto flex flex-col justify-between">
         <Footer
           userRole={isAdmin ? 'admin' : (isMember ? 'member' : 'public')}
+          isMember={isMember}
           onNavigate={(view) => {
             if (view === 'home' && onBackToWorkstation) {
               onBackToWorkstation();
@@ -1199,9 +1202,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
             s.id === currentStageKey ||
             s.stage === currentStageKey
         )
-  )
-    .filter((s: BizzSolution) => (currentStageKey === 'vi-ability' ? s.id === 'learn-earn-capital' : true))
-    .map((s: BizzSolution, idx: number) => {
+  ).map((s: BizzSolution, idx: number) => {
     const selling = s.priceZAR;
     const excl = Math.round((selling / 1.15) * 100) / 100;
     const vat = Math.round((selling - excl) * 100) / 100;
@@ -1386,8 +1387,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
             {/* 1. Pristine Hero Image Container - 100% Clean: No wording, no buttons, no references on image */}
             {activePromotion.imageUrl &&
             activePromotion.imageUrl.trim() !== '' &&
-            !activePromotion.imageUrl.includes('1553877522-43269d4ea984') &&
-            !activePromotion.imageUrl.includes('images.unsplash.com') && (
+            !activePromotion.imageUrl.includes('1553877522-43269d4ea984') && (
               <div className="relative w-full rounded-2xl sm:rounded-3xl overflow-hidden bg-black/5 dark:bg-[#0A0D14] border border-[#D8CEBC] dark:border-[#252E4A] shadow-xl">
                 <img
                   src={activePromotion.imageUrl}
@@ -1573,10 +1573,10 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                 isDark ? 'bg-[#141A2E] border-[#252E4A] text-slate-100' : 'bg-white border-[#D8CEBC] text-[#12172A]'
               }`}
             >
-              {/* Cover Image Header if present (NO FALLBACK IMAGE - only display if intentionally set and valid) */}
+              {/* Cover Image Header if present */}
               {currentArticle.imageUrl &&
                 currentArticle.imageUrl.trim() !== '' &&
-                !currentArticle.imageUrl.includes('images.unsplash.com') && (
+                !currentArticle.imageUrl.includes('1553877522-43269d4ea984') && (
                 <div className="relative w-full h-64 sm:h-80 overflow-hidden bg-black/60">
                   <img
                     src={currentArticle.imageUrl}
@@ -1726,8 +1726,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
               '';
 
             const isFallback =
-              directProductCover.includes('1553877522-43269d4ea984') ||
-              directProductCover.includes('images.unsplash.com');
+              directProductCover.includes('1553877522-43269d4ea984');
             const solutionImage = isFallback ? '' : directProductCover;
             const hasLoadError = Boolean(solutionImage && imageLoadErrors[solutionImage]);
             const shouldRenderImage = Boolean(solutionImage && !hasLoadError);
@@ -1980,8 +1979,19 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                         : false;
 
                       return (
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                          {/* 1. SIGN UP */}
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 pt-1">
+                          {/* 1. VIEW (Transparency preview without compute) */}
+                          <button
+                            type="button"
+                            onClick={() => setIsTransparencyModalOpen(true)}
+                            className="w-full px-3 sm:px-4 py-2.5 rounded-xl bg-[#1E293B] hover:bg-[#334155] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-sm transition-all tracking-wide border border-[#3B4861] active:scale-[0.99]"
+                            title="View solution richness, syllabus, engine architecture, and deliverables (zero compute)"
+                          >
+                            <Eye className="h-4 w-4 text-[#38BDF8]" />
+                            <span>VIEW</span>
+                          </button>
+
+                          {/* 2. SIGN UP */}
                           <button
                             type="button"
                             onClick={() => {
@@ -1997,7 +2007,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                             <span>SIGN UP</span>
                           </button>
 
-                          {/* 2. ADD TO PINBOARD */}
+                          {/* 3. ADD TO PINBOARD */}
                           <button
                             type="button"
                             onClick={() => onToggleQuickLink(targetSolId)}
@@ -2009,10 +2019,10 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                             title={isSolutionPinned ? 'Remove from pinboard' : 'Add to pinboard'}
                           >
                             <Pin className={`h-4 w-4 ${isSolutionPinned ? 'text-[#5584B4] fill-[#5584B4]/30' : 'text-slate-400'} -rotate-45`} />
-                            <span>{isSolutionPinned ? 'PINNED TO PINBOARD' : 'ADD TO PINBOARD'}</span>
+                            <span>{isSolutionPinned ? 'PINNED' : 'PINBOARD'}</span>
                           </button>
 
-                          {/* 3. LAUNCH IN WORK AREA / BIZZCLASS */}
+                          {/* 4. LAUNCH IN WORK AREA / BIZZCLASS */}
                           {isCourse ? (
                             <button
                               type="button"
@@ -2032,7 +2042,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                               title="Open BizzClass course master suite and lesson delivery stream"
                             >
                               <Play className="h-4 w-4 fill-white text-white" />
-                              <span>LAUNCH BIZZCLASS SUITE</span>
+                              <span className="truncate">LAUNCH BIZZCLASS</span>
                             </button>
                           ) : isPurchased ? (
                             <button
@@ -2050,7 +2060,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                               title="Launch interactive platform application and simulator"
                             >
                               <Layers className="h-4 w-4 text-[#84CC16]" />
-                              <span>LAUNCH PLATFORM APP</span>
+                              <span className="truncate">LAUNCH APP</span>
                             </button>
                           ) : (
                             <div className="w-full flex flex-col items-center">
@@ -2061,10 +2071,10 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                                 title="Purchase solution to access work area"
                               >
                                 <Lock className="h-3.5 w-3.5" />
-                                <span>LAUNCH IN WORK AREA</span>
+                                <span className="truncate">LOCKED</span>
                               </button>
-                              <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 lowercase mt-1">
-                                (purchase solution to access work area)
+                              <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 lowercase mt-0.5 truncate">
+                                (purchase required)
                               </span>
                             </div>
                           )}
@@ -2077,16 +2087,42 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                 {/* Smart Pricing Policy Popup Modal */}
                 <SmartPricingModal
                   isOpen={isSmartPricingModalOpen}
-                  solution={currentProd || activeSolution!}
+                  solution={(currentProd || activeSolution!) as any}
                   effectiveSellingZAR={effectiveSellingZAR}
                   effectiveExclusiveZAR={effectiveExclusiveZAR}
                   effectiveVatZAR={effectiveVatZAR}
                   effectiveTicketZAR={effectiveTicketZAR}
                   effectiveTokens={effectiveTokens}
                   isMonthlySubscription={isMonthlySubscription}
-                  theme={theme}
                   onClose={() => setIsSmartPricingModalOpen(false)}
                   onBuy={onBuySolution}
+                  theme={theme}
+                />
+
+                {/* Solution Transparency & Richness Modal (Zero Compute Preview) */}
+                <SolutionTransparencyModal
+                  isOpen={isTransparencyModalOpen}
+                  onClose={() => setIsTransparencyModalOpen(false)}
+                  solution={currentProd || activeSolution!}
+                  cmsProducts={cmsProducts}
+                  isMember={isMember}
+                  onBuySolution={onBuySolution}
+                  onOpenSignUp={onOpenSignUp}
+                  onSaveProduct={(updatedProd) => {
+                    const existing = cmsProducts || [];
+                    const idx = existing.findIndex((p) => p.id === updatedProd.id);
+                    let nextList: CmsProduct[];
+                    if (idx >= 0) {
+                      nextList = [...existing];
+                      nextList[idx] = { ...nextList[idx], ...updatedProd };
+                    } else {
+                      nextList = [...existing, updatedProd];
+                    }
+                    if (onSyncProductsToWebsite) {
+                      onSyncProductsToWebsite(nextList);
+                    }
+                  }}
+                  theme={theme}
                 />
 
                 {/* Sign Up Modal */}

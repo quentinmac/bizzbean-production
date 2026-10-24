@@ -7,7 +7,8 @@ export interface AssumptionRateItem {
   baseRate: number;
   unit: '%' | 'currency' | 'number';
   changeType: 'percentage' | 'value';
-  monthlyValues: number[]; // 60 values (Month 1 to Month 60)
+  monthlyValues: number[]; // 60 effective values: rate = (base + change rate)
+  monthlyChangeRates?: number[]; // 60 change rates / deltas (positive or negative): effective = baseRate + changeRate
   coaReference?: string;
 }
 

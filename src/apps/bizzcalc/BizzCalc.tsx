@@ -2561,10 +2561,10 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
         </main>
 
         {/* ===================================================================== */}
-        {/* 4. BOTTOM STEP NAVIGATION DOCK: 7 STEP ICONS WITH HOVER TOOLTIP      */}
+        {/* 4. BOTTOM STEP NAVIGATION DOCK: 7 STEP ICONS (MATCHING BIZZDYNAMICS)  */}
         {/* ===================================================================== */}
         <footer
-          className={`px-3 py-2 border-t shrink-0 flex items-center justify-around gap-1 sm:gap-2 ${
+          className={`px-2 sm:px-3 py-1 border-t shrink-0 flex items-center justify-around gap-1 sm:gap-2 h-11 sm:h-12 max-h-12 rounded-b-2xl ${
             isDark ? 'bg-[#0E1322] border-[#222F4C]' : 'bg-[#FAF8F5] border-[#D8CEBC]'
           }`}
         >
@@ -2583,23 +2583,23 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
                       setActiveTab('assumptions');
                     }
                   }}
-                  className={`p-1.5 sm:p-2 rounded-2xl transition-all flex flex-col items-center justify-center border ${
+                  className={`p-1 rounded-xl transition-all flex flex-col items-center justify-center border ${
                     isActive
                       ? isDark
-                        ? 'bg-[#1C2642] border-[#5584B4] ring-2 ring-[#5584B4]/40 shadow-xs scale-105'
-                        : 'bg-[#E3EDF6] border-[#2E5E88] ring-2 ring-[#2E5E88]/30 shadow-xs scale-105'
+                        ? 'bg-[#1C2642] border-[#5584B4] ring-1.5 ring-[#5584B4]/40 shadow-xs'
+                        : 'bg-[#E3EDF6] border-[#2E5E88] ring-1.5 ring-[#2E5E88]/30 shadow-xs'
                       : isDark
                       ? 'bg-[#141A2E] text-slate-400 hover:text-white border-[#252E4A] hover:border-slate-500'
                       : 'bg-white text-slate-600 hover:text-slate-900 border-[#D8CEBC] hover:border-[#2E5E88]/60 shadow-2xs'
                   }`}
                   aria-label={st.name}
                 >
-                  <div className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center">
+                  <div className="w-5 h-5 sm:w-5.5 sm:h-5.5 flex items-center justify-center">
                     <img
                       src={encodeURI(st.icon)}
                       alt={st.name}
-                      className={`w-full h-full object-contain transition-transform group-hover:scale-105 ${
-                        isDark ? 'bg-white rounded-md p-0.5' : 'mix-blend-multiply'
+                      className={`w-full h-full object-contain ${
+                        isDark ? 'bg-white rounded p-0.5' : 'mix-blend-multiply'
                       }`}
                       loading="eager"
                     />
@@ -2610,10 +2610,13 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
                 </button>
 
                 {/* Step hover tooltip matching PDF: "step hover text" */}
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-30 pointer-events-none">
-                  <div className="px-2.5 py-1 rounded-lg bg-slate-900 text-white text-[10px] font-normal lowercase whitespace-nowrap shadow-md">
-                    {st.name}
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:flex flex-col items-center z-30 pointer-events-none">
+                  <div className="px-2 py-0.5 rounded-lg bg-slate-900 text-white text-[10px] font-bold lowercase whitespace-nowrap shadow-md flex items-center gap-1.5">
+                    <span>0{st.id}</span>
+                    <span>·</span>
+                    <span>{st.name}</span>
                   </div>
+                  <div className="w-1.5 h-1.5 bg-slate-900 rotate-45 -mt-0.5" />
                 </div>
               </div>
             );
