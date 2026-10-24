@@ -1,0 +1,10 @@
+.gcloudignore
+.git
+.gitignore
+node_modules/
+bun.lock
+bun.lockb
+.env
+.env.local
+dist/
+*.log
