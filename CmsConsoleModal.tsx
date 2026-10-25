@@ -35,8 +35,17 @@ import {
   ArrowUpDown,
   ListOrdered,
   FileSpreadsheet,
+  Download,
+  Copy,
+  Check,
+  GitBranch,
 } from 'lucide-react';
 import { CoaManagementView } from './coa/CoaManagementView';
+import {
+  generateCmsConsoleDataTs,
+  downloadCmsDataFile,
+  syncCmsDataToServer,
+} from '../utils/cmsExportHelper';
 import {
   CmsProduct,
   CmsCourseLesson,
@@ -273,6 +282,77 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
   const [productToDelete, setProductToDelete] = useState<CmsProduct | null>(null);
   const [promotionsSearch, setPromotionsSearch] = useState<string>('');
+
+  // GitHub Export & Commit Reminder Modal State
+  const [showGitHubModal, setShowGitHubModal] = useState<boolean>(false);
+  const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [copiedPath, setCopiedPath] = useState<boolean>(false);
+  const [lastExportedTimestamp, setLastExportedTimestamp] = useState<string | null>(null);
+
+  const handleExportForGitHub = async () => {
+    setIsExporting(true);
+    try {
+      const tsContent = generateCmsConsoleDataTs({
+        products,
+        promotions,
+        videos,
+        articles,
+        bookBundle,
+        inquiries,
+        associateBatches,
+        sponsors,
+        transactions,
+        v1Transactions,
+        policies,
+        tooltips,
+      });
+
+      // 1. Immediately trigger download of cmsConsoleData.ts to the user's computer
+      downloadCmsDataFile(tsContent, 'cmsConsoleData.ts');
+
+      // 2. Also asynchronously update server disk file at /src/data/cmsConsoleData.ts if server is available
+      syncCmsDataToServer(tsContent).catch((err) => console.warn('Sync to local disk note:', err));
+
+      const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      setLastExportedTimestamp(nowStr);
+      setShowGitHubModal(true);
+      triggerSaveNotification('Downloaded cmsConsoleData.ts! Upload to GitHub to update your live website.');
+    } catch (err: any) {
+      console.error('Export failed:', err);
+      triggerSaveNotification('Export error: ' + (err?.message || 'Failed to generate file.'));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleDownloadAgain = () => {
+    try {
+      const tsContent = generateCmsConsoleDataTs({
+        products,
+        promotions,
+        videos,
+        articles,
+        bookBundle,
+        inquiries,
+        associateBatches,
+        sponsors,
+        transactions,
+        v1Transactions,
+        policies,
+        tooltips,
+      });
+      downloadCmsDataFile(tsContent, 'cmsConsoleData.ts');
+      triggerSaveNotification('Downloaded another copy of cmsConsoleData.ts.');
+    } catch (err: any) {
+      console.warn('Re-download failed:', err);
+    }
+  };
+
+  const handleCopyFilePath = () => {
+    navigator.clipboard.writeText('src/data/cmsConsoleData.ts');
+    setCopiedPath(true);
+    setTimeout(() => setCopiedPath(false), 2500);
+  };
 
   if (!isOpen) return null;
 
@@ -546,6 +626,19 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       .filter((p) => p.stage === targetProd.stage)
       .sort((a, b) => (a.seq || 0) - (b.seq || 0));
 
+    if (stageProds.length <= 1) {
+      // If single item in stage, adjust sequence number directly
+      const currentSeq = targetProd.seq || 1;
+      const nextSeq = direction === 'up' ? Math.max(1, currentSeq - 1) : currentSeq + 1;
+      if (nextSeq === currentSeq) return;
+      const updatedList = products.map((p) =>
+        p.id === prodId ? { ...p, seq: nextSeq } : p
+      );
+      persistProducts(updatedList);
+      triggerSaveNotification(`Updated sequence for "${targetProd.name}" to #${nextSeq} in ${targetProd.stage}.`);
+      return;
+    }
+
     const currentIndex = stageProds.findIndex((p) => p.id === prodId);
     if (currentIndex === -1) return;
 
@@ -583,12 +676,24 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       .filter((p) => p.stage === targetProd.stage)
       .sort((a, b) => (a.seq || 0) - (b.seq || 0));
 
+    const parsedSeq = Math.max(1, Math.round(Number(newSeq)) || 1);
+
+    // If there is only 1 product in this stage, directly update its sequence number
+    if (stageProds.length <= 1) {
+      const updatedList = products.map((p) =>
+        p.id === prodId ? { ...p, seq: parsedSeq } : p
+      );
+      persistProducts(updatedList);
+      triggerSaveNotification(`Updated sequence for "${targetProd.name}" to #${parsedSeq} in ${targetProd.stage}.`);
+      return;
+    }
+
     const currentIndex = stageProds.findIndex((p) => p.id === prodId);
     if (currentIndex === -1) return;
 
     // Remove from current position and insert at new requested position
     const reordered = stageProds.filter((p) => p.id !== prodId);
-    const clampedTargetIdx = Math.max(0, Math.min(reordered.length, Math.round(newSeq) - 1));
+    const clampedTargetIdx = Math.max(0, Math.min(reordered.length, parsedSeq - 1));
     reordered.splice(clampedTargetIdx, 0, targetProd);
 
     const updatedStageMap = new Map<string, number>();
@@ -768,27 +873,23 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     const currentStageAll = updatedList
       .filter((p) => p.stage === targetStage)
       .sort((a, b) => (a.seq || 0) - (b.seq || 0));
-    const seqMap = new Map<string, number>();
-    currentStageAll.forEach((p, idx) => seqMap.set(p.id, idx + 1));
-    updatedList = updatedList.map((p) => {
-      if (seqMap.has(p.id)) {
-        return { ...p, seq: seqMap.get(p.id)! };
-      }
-      return p;
-    });
+    if (currentStageAll.length > 1) {
+      const seqMap = new Map<string, number>();
+      currentStageAll.forEach((p, idx) => seqMap.set(p.id, idx + 1));
+      updatedList = updatedList.map((p) => {
+        if (seqMap.has(p.id)) {
+          return { ...p, seq: seqMap.get(p.id)! };
+        }
+        return p;
+      });
+    }
 
     persistProducts(updatedList);
     unmarkProductAsDeleted(updatedObj.id);
-    if (
-      updatedObj.id === 'cost-recovery-calculator' ||
-      (updatedObj.name || '').toLowerCase().includes('cost recovery')
-    ) {
-      unmarkProductAsDeleted('cost-recovery-calculator');
-    }
     setEditingProduct(null);
     triggerSaveNotification(
       isNew
-        ? `Added new ${updatedObj.type} "${updatedObj.name}" to live site (Stage: ${updatedObj.stage}, #${seqMap.get(updatedObj.id)}).`
+        ? `Added new ${updatedObj.type} "${updatedObj.name}" to live site (Stage: ${updatedObj.stage}, #${updatedObj.seq}).`
         : `Synced "${updatedObj.name}" to live website & Firestore.`
     );
   };
@@ -922,6 +1023,16 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportForGitHub}
+              disabled={isExporting}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-mono text-xs font-bold shadow-md hover:shadow-emerald-500/25 transition-all flex items-center gap-1.5 border border-emerald-400/40 active:scale-95 cursor-pointer"
+              title="Export all CMS data (images, pricing, content) into cmsConsoleData.ts for GitHub"
+            >
+              <Download className="h-4 w-4 text-emerald-100" />
+              <span>Export for GitHub</span>
+            </button>
+
             <button
               onClick={() => setActiveTab('coa')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-mono transition-all flex items-center gap-2 border shadow-sm ${
@@ -1247,6 +1358,16 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                       <GraduationCap className="h-3.5 w-3.5" />
                       <span>+ Add Course</span>
                     </button>
+
+                    <button
+                      onClick={handleExportForGitHub}
+                      disabled={isExporting}
+                      className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-sm transition-all whitespace-nowrap border border-emerald-400/40"
+                      title="Export updated products, pricing, and covers (e.g. bizzcalc) to cmsConsoleData.ts for GitHub"
+                    >
+                      <Download className="h-3.5 w-3.5 text-emerald-100" />
+                      <span>Export for GitHub</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1322,8 +1443,9 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                             .filter((p) => p.stage === prod.stage)
                             .sort((a, b) => (a.seq || 0) - (b.seq || 0));
                           const posInStage = stageSiblings.findIndex((p) => p.id === prod.id);
-                          const isFirstInStage = posInStage === 0;
-                          const isLastInStage = posInStage === stageSiblings.length - 1;
+                          const isSingleInStage = stageSiblings.length <= 1;
+                          const isFirstInStage = isSingleInStage ? (prod.seq || 1) <= 1 : posInStage === 0;
+                          const isLastInStage = isSingleInStage ? false : posInStage === stageSiblings.length - 1;
 
                           return (
                             <tr
@@ -3228,7 +3350,35 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                     <Save className="h-3.5 w-3.5" />
                     <span>Save All Promotions</span>
                   </button>
+
+                  <button
+                    onClick={handleExportForGitHub}
+                    disabled={isExporting}
+                    className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 transition-all shadow-sm border border-emerald-400/40"
+                    title="Export updated stage images & stories to cmsConsoleData.ts for GitHub"
+                  >
+                    <Download className="h-3.5 w-3.5 text-emerald-100" />
+                    <span>Export for GitHub</span>
+                  </button>
                 </div>
+              </div>
+
+              {/* Live Site GitHub Reminder Banner */}
+              <div className="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-start sm:items-center gap-2.5 text-slate-300">
+                  <Download className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5 sm:mt-0" />
+                  <span>
+                    <strong className="text-emerald-300 font-mono">Live Site Publishing Tip:</strong> To see newly updated stage images (e.g. <strong className="text-white">vi-ABILITY</strong> stage cover) on your live website, click <strong className="text-emerald-300 font-mono">Export for GitHub</strong> and upload the file to your GitHub repository.
+                  </span>
+                </div>
+                <button
+                  onClick={handleExportForGitHub}
+                  disabled={isExporting}
+                  className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 shadow-sm"
+                >
+                  <Download className="h-3 w-3" />
+                  <span>Export cmsConsoleData.ts</span>
+                </button>
               </div>
 
               {/* Message Boards Grid */}
@@ -4019,6 +4169,221 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                   <span>Confirm Delete</span>
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* GITHUB EXPORT & COMMIT REMINDER MODAL DIALOG                             */}
+        {/* ========================================================================= */}
+        {showGitHubModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fade-in font-sans">
+            <div className="relative w-full max-w-2xl rounded-2xl border border-emerald-500/40 bg-[#0E1322] shadow-2xl overflow-hidden flex flex-col text-slate-100 max-h-[92vh]">
+              
+              {/* Header */}
+              <div className="p-4 sm:px-6 bg-[#131B30] border-b border-[#222F4C] flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-400 flex items-center justify-center shadow-inner">
+                    <Download className="h-5 w-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                      <span>cmsConsoleData.ts Exported</span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        Ready for GitHub
+                      </span>
+                    </h2>
+                    <p className="text-xs text-slate-400">
+                      Generated at {lastExportedTimestamp || 'now'} · Download has started automatically
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowGitHubModal(false)}
+                  className="p-2 rounded-xl bg-[#1B233D] hover:bg-[#252F52] text-slate-400 hover:text-white transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="p-5 sm:p-6 overflow-y-auto space-y-4 text-xs font-sans">
+                
+                {/* Important Notice Callout */}
+                <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-500/40 space-y-2">
+                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+                    <GitBranch className="h-4 w-4 shrink-0 text-emerald-400" />
+                    <span>CRITICAL STEP: Commit this file to GitHub</span>
+                  </div>
+                  <p className="text-slate-300 leading-relaxed">
+                    Because your live website is deployed from your GitHub repository, browser CMS changes are stored locally until committed.
+                    The downloaded <strong className="text-emerald-300 font-mono">cmsConsoleData.ts</strong> file contains all your latest changes. Uploading it to GitHub is what applies them permanently to the live site.
+                  </p>
+                </div>
+
+                {/* Scope Coverage Confirmation (Answering the user's explicit question) */}
+                <div className="p-4 rounded-xl bg-[#141A2E] border border-[#222F4C] space-y-2.5">
+                  <div className="flex items-center gap-2 text-slate-200 font-bold text-xs uppercase tracking-wide">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    <span>Will this apply to ALL CMS console data, including pricing & content?</span>
+                  </div>
+                  <div className="text-emerald-300 font-semibold text-xs flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                    <span>YES! Everything currently in this CMS is included in the exported file:</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
+                    <div className="p-2.5 rounded-lg bg-[#0E1220] border border-[#222F4C] flex items-start gap-2">
+                      <span className="text-emerald-400 font-bold">1.</span>
+                      <div>
+                        <div className="text-white font-bold">Images & Covers</div>
+                        <div className="text-slate-400 text-[10px]">
+                          Stage banners (e.g. vi-ABILITY) & product canonical covers (e.g. bizzcalc).
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-[#0E1220] border border-[#222F4C] flex items-start gap-2">
+                      <span className="text-emerald-400 font-bold">2.</span>
+                      <div>
+                        <div className="text-white font-bold">Pricing & Token Formulas</div>
+                        <div className="text-slate-400 text-[10px]">
+                          Selling price, 15% VAT, exclusive price, ticket price, tokens, and billing model.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-[#0E1220] border border-[#222F4C] flex items-start gap-2">
+                      <span className="text-emerald-400 font-bold">3.</span>
+                      <div>
+                        <div className="text-white font-bold">Content & Stage Stories</div>
+                        <div className="text-slate-400 text-[10px]">
+                          All titles, descriptions, stage narratives, challenges, milestones, and deliverables.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-[#0E1220] border border-[#222F4C] flex items-start gap-2">
+                      <span className="text-emerald-400 font-bold">4.</span>
+                      <div>
+                        <div className="text-white font-bold">Curricula & Videos</div>
+                        <div className="text-slate-400 text-[10px]">
+                          All course lessons, durations, YouTube demo & promo links, and companion files.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4 Step GitHub Upload Instructions */}
+                <div className="p-4 rounded-xl bg-[#141A2E] border border-[#222F4C] space-y-3">
+                  <div className="text-slate-200 font-bold text-xs uppercase tracking-wide">
+                    How to update GitHub (Step-by-Step):
+                  </div>
+
+                  <div className="space-y-2.5 font-mono text-xs">
+                    <div className="flex items-start gap-2.5">
+                      <span className="h-5 w-5 rounded-full bg-[#1B233D] text-[#5584B4] border border-[#2B3452] flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
+                        1
+                      </span>
+                      <p className="text-slate-300">
+                        Check your computer's <strong>Downloads</strong> folder for the newly downloaded file <strong className="text-emerald-300 font-mono">cmsConsoleData.ts</strong>.
+                      </p>
+                    </div>
+
+                    <div className="flex items-start gap-2.5">
+                      <span className="h-5 w-5 rounded-full bg-[#1B233D] text-[#5584B4] border border-[#2B3452] flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
+                        2
+                      </span>
+                      <div className="flex-1">
+                        <p className="text-slate-300">
+                          Open your repository on GitHub and navigate to the file:
+                        </p>
+                        <div className="mt-1 flex items-center gap-2 p-1.5 rounded-lg bg-[#0A0D18] border border-[#222F4C] text-[11px] text-emerald-300">
+                          <span className="flex-1 font-mono truncate">src/data/cmsConsoleData.ts</span>
+                          <button
+                            onClick={handleCopyFilePath}
+                            className="px-2 py-0.5 rounded bg-[#1B233D] hover:bg-[#252F52] text-slate-300 hover:text-white transition-colors flex items-center gap-1 text-[10px]"
+                            title="Copy file path"
+                          >
+                            {copiedPath ? (
+                              <>
+                                <Check className="h-3 w-3 text-emerald-400" />
+                                <span className="text-emerald-400">Copied!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-3 w-3" />
+                                <span>Copy Path</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2.5">
+                      <span className="h-5 w-5 rounded-full bg-[#1B233D] text-[#5584B4] border border-[#2B3452] flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
+                        3
+                      </span>
+                      <p className="text-slate-300">
+                        Click <strong>Add file → Upload files</strong> (or click the edit pencil icon) and upload your downloaded <code className="text-emerald-300">cmsConsoleData.ts</code>.
+                      </p>
+                    </div>
+
+                    <div className="flex items-start gap-2.5">
+                      <span className="h-5 w-5 rounded-full bg-[#1B233D] text-[#5584B4] border border-[#2B3452] flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
+                        4
+                      </span>
+                      <p className="text-slate-300">
+                        Click the green <strong>Commit changes</strong> button. Your live website will automatically redeploy with the new images and data within 1-2 minutes!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Footer Buttons */}
+              <div className="p-4 sm:px-6 bg-[#131B30] border-t border-[#222F4C] flex flex-wrap items-center justify-between gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleDownloadAgain}
+                  className="px-3.5 py-2 rounded-xl bg-[#1B233D] hover:bg-[#252F52] text-slate-300 hover:text-white text-xs font-mono font-semibold transition-colors flex items-center gap-1.5 border border-[#2B3452]"
+                >
+                  <Download className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>Download Again</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyFilePath}
+                    className="px-3.5 py-2 rounded-xl bg-[#1B233D] hover:bg-[#252F52] text-slate-300 hover:text-white text-xs font-mono font-semibold transition-colors flex items-center gap-1.5 border border-[#2B3452]"
+                  >
+                    {copiedPath ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 text-emerald-400" />
+                        <span className="text-emerald-400">Path Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5" />
+                        <span>Copy Path</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowGitHubModal(false)}
+                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-mono font-bold transition-all shadow-md shadow-emerald-950/50 flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Got It, Ready to Upload</span>
+                  </button>
+                </div>
+              </div>
+
             </div>
           </div>
         )}
