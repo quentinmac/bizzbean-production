@@ -179,6 +179,49 @@ export function safeSaveStorage(key: string, data: any): void {
   idbSet(key, data).catch((e) => console.warn('IDB mirror error', e));
 }
 
+export const CMS_STORAGE_KEYS = {
+  CACHE_VERSION: 'bizzdesk_cms_cache_v3',
+  PRODUCTS: 'bizzdesk_cms_products_v3',
+  PROMOTIONS: 'bizzdesk_cms_promotions_v3',
+  VIDEOS: 'bizzdesk_cms_videos_v3',
+  ARTICLES: 'bizzdesk_cms_articles_v3',
+  DELETED_PRODUCTS: 'bizzdesk_cms_deleted_product_ids_v3',
+  DELETED_PROMOTIONS: 'bizzdesk_cms_deleted_promotion_ids_v3',
+} as const;
+
+/**
+ * Self-healing cache eviction: ensures that any stale v1 or v2 client storage
+ * that holds outdated prices or obsolete images is purged automatically.
+ */
+export function ensureFreshCmsCache(): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    const currentVersion = localStorage.getItem('bizzdesk_cms_cache_version');
+    if (currentVersion !== 'v3') {
+      const keysToPurge = [
+        'bizzdesk_cms_products_v1',
+        'bizzdesk_cms_promotions_v1',
+        'bizzdesk_cms_articles_v1',
+        'bizzdesk_cms_videos_v1',
+        'bizzdesk_cms_deleted_product_ids_v1',
+        'bizzdesk_cms_deleted_promotion_ids_v1',
+        'bizzdesk_cms_products_v2',
+        'bizzdesk_cms_promotions_v2',
+        'bizzdesk_cms_articles_v2',
+        'bizzdesk_cms_videos_v2',
+      ];
+      keysToPurge.forEach((k) => {
+        try {
+          localStorage.removeItem(k);
+        } catch (_) {}
+      });
+      localStorage.setItem('bizzdesk_cms_cache_version', 'v3');
+    }
+  } catch (e) {
+    console.warn('Cache migration notice:', e);
+  }
+}
+
 /**
  * Strips legacy unsplash fallback stock images from articles so only user-provided / uploaded images are rendered.
  * If an article has an Unsplash fallback image URL, it is cleaned to ''.
@@ -190,7 +233,7 @@ export function cleanFallbackImagesFromArticles(articles: CmsArticle[]): CmsArti
   });
 }
 
-const DELETED_PRODUCTS_KEY = 'bizzdesk_cms_deleted_product_ids_v1';
+const DELETED_PRODUCTS_KEY = CMS_STORAGE_KEYS.DELETED_PRODUCTS;
 
 export function getDeletedProductIds(): Set<string> {
   try {
@@ -235,7 +278,7 @@ export function unmarkProductAsDeleted(prodId: string): void {
   }
 }
 
-const DELETED_PROMOTIONS_KEY = 'bizzdesk_cms_deleted_promotion_ids_v1';
+const DELETED_PROMOTIONS_KEY = CMS_STORAGE_KEYS.DELETED_PROMOTIONS;
 
 export function getDeletedPromotionIds(): Set<string> {
   const result = new Set<string>(['search']);
@@ -564,7 +607,7 @@ export function cleanLegacyProducts(products: CmsProduct[]): CmsProduct[] {
     }
   });
 
-  // 2. Preserve valid cover images, hydrate default covers from INITIAL_CMS_PRODUCTS when empty,
+  // 2. Preserve valid cover images, hydrate default covers & exact prices from INITIAL_CMS_PRODUCTS,
   // and ensure cost-recovery-calculator belongs definitively to fund-ability stage
   const cleanedList = Array.from(byId.values()).map((p) => {
     const cover = (p.canonicalCoverUrl || '').trim();
@@ -576,14 +619,37 @@ export function cleanLegacyProducts(products: CmsProduct[]): CmsProduct[] {
         (p.id === 'budget' && ip.id === 'budget') ||
         (p.name && ip.name.toLowerCase() === p.name.toLowerCase())
     );
-    const effectiveCover = isCorruptOrDeleted
-      ? (initialProd?.canonicalCoverUrl || '')
-      : cover;
+
+    // Keep user base64 upload, else canonical initial cover
+    const effectiveCover = cover.startsWith('data:image')
+      ? cover
+      : (initialProd?.canonicalCoverUrl || (!isCorruptOrDeleted ? cover : ''));
 
     const effectiveStage =
       p.id === 'cost-recovery-calculator' && (p.stage === 'vi-ability' || p.stage === 'education')
         ? ('fund-ability' as const)
-        : p.stage || 'vi-ability';
+        : (initialProd?.stage || p.stage || 'vi-ability');
+
+    const effectiveSellingPrice =
+      initialProd?.sellingPriceZAR !== undefined
+        ? initialProd.sellingPriceZAR
+        : (p.sellingPriceZAR ?? 0);
+    const effectiveExclusivePrice =
+      initialProd?.exclusivePriceZAR !== undefined
+        ? initialProd.exclusivePriceZAR
+        : (p.exclusivePriceZAR ?? Math.round((effectiveSellingPrice / 1.15) * 100) / 100);
+    const effectiveVat =
+      initialProd?.vatZAR !== undefined
+        ? initialProd.vatZAR
+        : (p.vatZAR ?? Math.round((effectiveSellingPrice - effectiveExclusivePrice) * 100) / 100);
+    const effectiveTokens =
+      initialProd?.tokensAllocated !== undefined
+        ? initialProd.tokensAllocated
+        : (p.tokensAllocated ?? Math.round(effectiveSellingPrice * 0.20 * 10) / 10);
+    const effectiveTicket =
+      initialProd?.ticketPriceZAR !== undefined
+        ? initialProd.ticketPriceZAR
+        : (p.ticketPriceZAR ?? Math.round(effectiveSellingPrice * 1.20 * 100) / 100);
 
     let courseLessons = p.courseLessons;
     let syllabusLessonsCount = p.syllabusLessonsCount;
@@ -618,8 +684,20 @@ export function cleanLegacyProducts(products: CmsProduct[]): CmsProduct[] {
     }
 
     return {
+      ...(initialProd || {}),
       ...p,
+      seq: initialProd?.seq ?? p.seq ?? 1,
+      sku: initialProd?.sku || p.sku || '',
+      name: (p.name && p.name.trim() !== '') ? p.name : (initialProd?.name || p.id),
+      subtitle: (p.subtitle && p.subtitle.trim() !== '') ? p.subtitle : (initialProd?.subtitle || ''),
+      description: (p.description && p.description.trim() !== '') ? p.description : (initialProd?.description || ''),
+      purpose: (p.purpose && p.purpose.trim() !== '') ? p.purpose : (initialProd?.purpose || ''),
       stage: effectiveStage,
+      sellingPriceZAR: effectiveSellingPrice,
+      exclusivePriceZAR: effectiveExclusivePrice,
+      vatZAR: effectiveVat,
+      tokensAllocated: effectiveTokens,
+      ticketPriceZAR: effectiveTicket,
       canonicalCoverUrl: effectiveCover,
       courseLessons: courseLessons ? courseLessons.map((l) => ({ ...l })) : [],
       syllabusLessonsCount: syllabusLessonsCount || (courseLessons ? courseLessons.length : 0),
@@ -672,9 +750,12 @@ export function cleanClearedCourseLessons(products: any[]): any[] {
  * and filtering deleted/search message boards.
  */
 export function cleanLegacyViabilityPromotions(promos: CmsPromotionSection[]): CmsPromotionSection[] {
-  if (!Array.isArray(promos)) return INITIAL_CMS_PROMOTIONS;
   const deletedIds = getDeletedPromotionIds();
-  return promos
+  if (!Array.isArray(promos) || promos.length === 0) {
+    return INITIAL_CMS_PROMOTIONS.filter((p) => !deletedIds.has(p.id));
+  }
+
+  const cleaned = promos
     .filter((p) => {
       if (!p || !p.id) return false;
       if (deletedIds.has(p.id)) return false;
@@ -686,24 +767,28 @@ export function cleanLegacyViabilityPromotions(promos: CmsPromotionSection[]): C
     .map((p) => {
       const initial = INITIAL_CMS_PROMOTIONS.find((ip) => ip.id === p.id);
       const img = (p.imageUrl || '').trim();
-      const isCorrupted = img.includes('1553877522-43269d4ea984');
-      const cleanedImg = (!img || isCorrupted) ? (initial?.imageUrl || '') : img;
+      const isCorrupted = !img || img.includes('1553877522-43269d4ea984');
+
+      // User custom base64 image is preserved; otherwise take canonical initial image
+      const cleanedImg = img.startsWith('data:image')
+        ? img
+        : (initial?.imageUrl || (!isCorrupted ? img : ''));
 
       const mergedStory = {
         narrative:
-          p.stageStory?.narrative !== undefined && p.stageStory.narrative.trim() !== ''
+          (p.stageStory?.narrative && p.stageStory.narrative.trim() !== '')
             ? p.stageStory.narrative
             : (initial?.stageStory?.narrative || ''),
         stageChallenge:
-          p.stageStory?.stageChallenge !== undefined && p.stageStory.stageChallenge.trim() !== ''
+          (p.stageStory?.stageChallenge && p.stageStory.stageChallenge.trim() !== '')
             ? p.stageStory.stageChallenge
             : (initial?.stageStory?.stageChallenge || ''),
         milestone:
-          p.stageStory?.milestone !== undefined && p.stageStory.milestone.trim() !== ''
+          (p.stageStory?.milestone && p.stageStory.milestone.trim() !== '')
             ? p.stageStory.milestone
             : (initial?.stageStory?.milestone || ''),
         keyDeliverable:
-          p.stageStory?.keyDeliverable !== undefined && p.stageStory.keyDeliverable.trim() !== ''
+          (p.stageStory?.keyDeliverable && p.stageStory.keyDeliverable.trim() !== '')
             ? p.stageStory.keyDeliverable
             : (initial?.stageStory?.keyDeliverable || ''),
       };
@@ -721,6 +806,25 @@ export function cleanLegacyViabilityPromotions(promos: CmsPromotionSection[]): C
         stageStory: mergedStory,
       };
     });
+
+  // Guarantee all 13 canonical stages from INITIAL_CMS_PROMOTIONS exist
+  const existingIds = new Set(cleaned.map((p) => p.id));
+  INITIAL_CMS_PROMOTIONS.forEach((ip) => {
+    if (!existingIds.has(ip.id) && !deletedIds.has(ip.id)) {
+      cleaned.push({
+        ...ip,
+        imageUrl: ip.imageUrl || '',
+        stageStory: {
+          narrative: ip.stageStory?.narrative || '',
+          stageChallenge: ip.stageStory?.stageChallenge || '',
+          milestone: ip.stageStory?.milestone || '',
+          keyDeliverable: ip.stageStory?.keyDeliverable || '',
+        },
+      });
+    }
+  });
+
+  return cleaned;
 }
 
 /**
@@ -742,10 +846,10 @@ export function mergeLoadedPromotions(
     p.targetId === 'search';
 
   if (!secondary || !Array.isArray(secondary) || secondary.length === 0) {
-    return (primary || []).filter((p) => !isSearchOrDeleted(p));
+    return cleanLegacyViabilityPromotions(primary || []);
   }
   if (!primary || !Array.isArray(primary) || primary.length === 0) {
-    return (secondary || []).filter((p) => !isSearchOrDeleted(p));
+    return cleanLegacyViabilityPromotions(secondary || []);
   }
 
   const secMap = new Map<string, CmsPromotionSection>();
@@ -764,47 +868,48 @@ export function mergeLoadedPromotions(
       return;
     }
 
-    // sec is loaded from persistent storage (IndexedDB or localStorage); p is in-memory / incoming
-    // If in-memory p has a newly uploaded or updated image, preserve it; otherwise take sec's image
     const pImg = (p.imageUrl || '').trim();
     const secImg = (sec.imageUrl || '').trim();
-    const chosenImage =
-      pImg !== '' && pImg.startsWith('data:image') && pImg !== secImg
-        ? pImg
-        : (secImg !== '' ? secImg : pImg);
+    const initial = INITIAL_CMS_PROMOTIONS.find((ip) => ip.id === p.id);
 
-    // Merge stageStory: take sec's saved stageStory, falling back to p's defaults for any missing fields
+    // If secondary has a user-uploaded base64 image, preserve it; otherwise prefer authoritative primary
+    const chosenImage =
+      secImg.startsWith('data:image')
+        ? secImg
+        : (pImg !== '' && !pImg.includes('1553877522-43269d4ea984')
+            ? pImg
+            : (initial?.imageUrl || (secImg !== '' && !secImg.includes('1553877522-43269d4ea984') ? secImg : '')));
+
     const mergedStory = {
       narrative:
-        sec.stageStory?.narrative !== undefined && sec.stageStory.narrative.trim() !== ''
-          ? sec.stageStory.narrative
-          : (p.stageStory?.narrative || ''),
+        (p.stageStory?.narrative && p.stageStory.narrative.trim() !== '')
+          ? p.stageStory.narrative
+          : (sec.stageStory?.narrative || initial?.stageStory?.narrative || ''),
       stageChallenge:
-        sec.stageStory?.stageChallenge !== undefined && sec.stageStory.stageChallenge.trim() !== ''
-          ? sec.stageStory.stageChallenge
-          : (p.stageStory?.stageChallenge || ''),
+        (p.stageStory?.stageChallenge && p.stageStory.stageChallenge.trim() !== '')
+          ? p.stageStory.stageChallenge
+          : (sec.stageStory?.stageChallenge || initial?.stageStory?.stageChallenge || ''),
       milestone:
-        sec.stageStory?.milestone !== undefined && sec.stageStory.milestone.trim() !== ''
-          ? sec.stageStory.milestone
-          : (p.stageStory?.milestone || ''),
+        (p.stageStory?.milestone && p.stageStory.milestone.trim() !== '')
+          ? p.stageStory.milestone
+          : (sec.stageStory?.milestone || initial?.stageStory?.milestone || ''),
       keyDeliverable:
-        sec.stageStory?.keyDeliverable !== undefined && sec.stageStory.keyDeliverable.trim() !== ''
-          ? sec.stageStory.keyDeliverable
-          : (p.stageStory?.keyDeliverable || ''),
+        (p.stageStory?.keyDeliverable && p.stageStory.keyDeliverable.trim() !== '')
+          ? p.stageStory.keyDeliverable
+          : (sec.stageStory?.keyDeliverable || initial?.stageStory?.keyDeliverable || ''),
     };
 
-    // If p (primary/incoming update) has an explicit isActive setting (such as false), it takes precedence over stale cache
     const effectiveIsActive =
       p.isActive !== undefined ? p.isActive : (sec.isActive !== undefined ? sec.isActive : true);
 
     merged.push({
       ...sec,
       ...p,
-      displayName: (p.displayName && p.displayName.trim() !== '') ? p.displayName : (sec.displayName || p.displayName),
-      tagline: (p.tagline && p.tagline.trim() !== '') ? p.tagline : (sec.tagline || p.tagline),
-      buttonText: (p.buttonText && p.buttonText.trim() !== '') ? p.buttonText : (sec.buttonText || p.buttonText),
-      targetId: p.targetId || sec.targetId,
-      targetType: p.targetType || sec.targetType,
+      displayName: (p.displayName && p.displayName.trim() !== '') ? p.displayName : (sec.displayName || initial?.displayName || p.name),
+      tagline: (p.tagline && p.tagline.trim() !== '') ? p.tagline : (sec.tagline || initial?.tagline || ''),
+      buttonText: (p.buttonText && p.buttonText.trim() !== '') ? p.buttonText : (sec.buttonText || initial?.buttonText || 'explore'),
+      targetId: p.targetId || sec.targetId || initial?.targetId || 'vi-ability',
+      targetType: p.targetType || sec.targetType || initial?.targetType || 'solution',
       targetTab: p.targetTab || sec.targetTab,
       imageUrl: chosenImage,
       isActive: effectiveIsActive,
@@ -819,7 +924,7 @@ export function mergeLoadedPromotions(
     }
   });
 
-  return merged;
+  return cleanLegacyViabilityPromotions(merged);
 }
 
 /**
@@ -839,7 +944,7 @@ export function mergeLoadedProducts(
 
   const deletedIds = getDeletedProductIds();
 
-  // secondary is loaded from persistent storage (IndexedDB), primary is in-memory
+  // secondary is loaded from persistent storage (IndexedDB), primary is authoritative in-memory / Firestore
   const secMap = new Map<string, CmsProduct>();
   secondary.forEach((p) => {
     if (p && p.id && !deletedIds.has(p.id)) {
@@ -849,30 +954,19 @@ export function mergeLoadedProducts(
     }
   });
 
-  const primIds = new Set(primary.map((p) => p.id));
-  primary.forEach((p) => {
-    if (p && p.type === 'course') {
-      const canonId = getCanonicalCourseId(p.id) || getCanonicalCourseId(p.name);
-      if (canonId) primIds.add(canonId);
-    }
-  });
-
   const merged: CmsProduct[] = [];
+  const handledIds = new Set<string>();
 
-  // Start with secondary (storage persistent truth)
-  secondary.forEach((sec) => {
-    if (!sec || !sec.id || deletedIds.has(sec.id)) return;
-    const canonSecId = sec.type === 'course' ? (getCanonicalCourseId(sec.id) || getCanonicalCourseId(sec.name) || sec.id) : sec.id;
-    const prim = primary.find(
-      (p) =>
-        p &&
-        (p.id === sec.id ||
-          p.id === canonSecId ||
-          (p.type === 'course' && (getCanonicalCourseId(p.id) === canonSecId || getCanonicalCourseId(p.name) === canonSecId)))
-    );
+  // Primary authoritative products take precedence
+  primary.forEach((prim) => {
+    if (!prim || !prim.id || deletedIds.has(prim.id)) return;
+    const canonPrimId = prim.type === 'course' ? (getCanonicalCourseId(prim.id) || getCanonicalCourseId(prim.name) || prim.id) : prim.id;
+    handledIds.add(prim.id);
+    handledIds.add(canonPrimId);
 
-    if (!prim) {
-      merged.push({ ...sec, id: canonSecId });
+    const sec = secMap.get(prim.id) || secMap.get(canonPrimId);
+    if (!sec) {
+      merged.push({ ...prim, id: canonPrimId });
       return;
     }
 
@@ -881,20 +975,20 @@ export function mergeLoadedProducts(
     const initialProd = INITIAL_CMS_PRODUCTS.find(
       (ip) =>
         ip.id === sec.id ||
-        ip.id === canonSecId ||
+        ip.id === canonPrimId ||
         ip.id === prim.id ||
         (sec.id === 'bizzbudget' && ip.id === 'budget') ||
         (sec.name && ip.name.toLowerCase() === sec.name.toLowerCase())
     );
     const fallbackCover = initialProd?.canonicalCoverUrl || '';
+
+    // If sec has a base64 user upload, preserve it; otherwise prefer primCover
     const chosenCover =
-      pCover !== '' && pCover.startsWith('data:image') && pCover !== secCover
-        ? pCover
-        : (secCover !== '' && !secCover.includes('1553877522-43269d4ea984')
-            ? secCover
-            : (pCover !== '' && !pCover.includes('1553877522-43269d4ea984')
-                ? pCover
-                : fallbackCover));
+      secCover.startsWith('data:image')
+        ? secCover
+        : (pCover !== '' && !pCover.includes('1553877522-43269d4ea984')
+            ? pCover
+            : (secCover !== '' && !secCover.includes('1553877522-43269d4ea984') ? secCover : fallbackCover));
 
     const secLessons = sec.courseLessons || [];
     const primLessons = prim.courseLessons || [];
@@ -917,28 +1011,33 @@ export function mergeLoadedProducts(
     }
 
     const effectiveStage =
-      (sec.id === 'cost-recovery-calculator' || canonSecId === 'cost-recovery-calculator')
+      (sec.id === 'cost-recovery-calculator' || canonPrimId === 'cost-recovery-calculator')
         ? ('fund-ability' as const)
-        : (sec.stage || prim.stage || 'vi-ability');
+        : (prim.stage || sec.stage || 'vi-ability');
 
     merged.push({
-      ...prim,
-      ...sec, // Saved persistent storage content takes precedence over initial defaults
-      id: canonSecId,
+      ...sec,
+      ...prim, // Authoritative prim takes precedence over stale cache
+      id: canonPrimId,
       stage: effectiveStage,
+      sellingPriceZAR: prim.sellingPriceZAR !== undefined ? prim.sellingPriceZAR : sec.sellingPriceZAR,
+      exclusivePriceZAR: prim.exclusivePriceZAR !== undefined ? prim.exclusivePriceZAR : sec.exclusivePriceZAR,
+      vatZAR: prim.vatZAR !== undefined ? prim.vatZAR : sec.vatZAR,
+      tokensAllocated: prim.tokensAllocated !== undefined ? prim.tokensAllocated : sec.tokensAllocated,
+      ticketPriceZAR: prim.ticketPriceZAR !== undefined ? prim.ticketPriceZAR : sec.ticketPriceZAR,
       canonicalCoverUrl: chosenCover,
       courseLessons: chosenLessons ? chosenLessons.map((l) => ({ ...l })) : [],
-      syllabusLessonsCount: chosenLessons && chosenLessons.length > 0 ? chosenLessons.length : (sec.syllabusLessonsCount || prim.syllabusLessonsCount || 0),
-      lessonTitles: chosenLessons && chosenLessons.length > 0 ? chosenLessons.map((l) => l.name) : (sec.lessonTitles || prim.lessonTitles || []),
+      syllabusLessonsCount: chosenLessons && chosenLessons.length > 0 ? chosenLessons.length : (prim.syllabusLessonsCount || sec.syllabusLessonsCount || 0),
+      lessonTitles: chosenLessons && chosenLessons.length > 0 ? chosenLessons.map((l) => l.name) : (prim.lessonTitles || sec.lessonTitles || []),
     });
   });
 
-  // Preserve any new products created in memory that aren't yet in storage
-  primary.forEach((prim) => {
-    if (!prim || !prim.id || deletedIds.has(prim.id)) return;
-    const canonPrimId = prim.type === 'course' ? (getCanonicalCourseId(prim.id) || getCanonicalCourseId(prim.name) || prim.id) : prim.id;
-    if (!secMap.has(prim.id) && !secMap.has(canonPrimId)) {
-      merged.push({ ...prim, id: canonPrimId });
+  // Preserve any new custom products created by the user in secondary that aren't in primary
+  secondary.forEach((sec) => {
+    if (!sec || !sec.id || deletedIds.has(sec.id)) return;
+    const canonSecId = sec.type === 'course' ? (getCanonicalCourseId(sec.id) || getCanonicalCourseId(sec.name) || sec.id) : sec.id;
+    if (!handledIds.has(sec.id) && !handledIds.has(canonSecId)) {
+      merged.push({ ...sec, id: canonSecId });
     }
   });
 

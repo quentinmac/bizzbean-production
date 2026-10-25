@@ -13,7 +13,19 @@ import { BuyTokensModal } from './components/BuyTokensModal';
 import { TalkToUsModal } from './components/TalkToUsModal';
 import { NonMemberTalkToUsModal } from './components/NonMemberTalkToUsModal';
 import { INITIAL_CMS_PRODUCTS, INITIAL_CMS_VIDEOS, INITIAL_CMS_ARTICLES, INITIAL_CMS_PROMOTIONS, CmsProduct, CmsVideo, CmsArticle, CmsPromotionSection } from './data/cmsConsoleData';
-import { safeSaveStorage, idbGet, cleanFallbackImagesFromArticles, cleanLegacyProducts, cleanLegacyViabilityPromotions, cleanClearedEducationVideos, cleanClearedCourseLessons, mergeLoadedPromotions, mergeLoadedProducts } from './utils/imageStorage';
+import {
+  safeSaveStorage,
+  idbGet,
+  cleanFallbackImagesFromArticles,
+  cleanLegacyProducts,
+  cleanLegacyViabilityPromotions,
+  cleanClearedEducationVideos,
+  cleanClearedCourseLessons,
+  mergeLoadedPromotions,
+  mergeLoadedProducts,
+  CMS_STORAGE_KEYS,
+  ensureFreshCmsCache,
+} from './utils/imageStorage';
 import {
   fetchCmsProductsFromFirestore,
   fetchCmsVideosFromFirestore,
@@ -242,31 +254,15 @@ export default function App() {
   const [isTalkToUsModalOpen, setIsTalkToUsModalOpen] = useState<boolean>(false);
   const [adminInitialTab, setAdminInitialTab] = useState<'transactions' | 'dialogue-centre' | 'bulk-imports' | 'promo-emails' | 'cms-console' | 'about-bizzbean'>('transactions');
 
-  // Persistent CMS Products (survives tab close and reload - links cleared per user prompt)
+  // Persistent CMS Products (hydrated with canonical 19 products and authentic prices)
   const [cmsProducts, setCmsProducts] = useState<CmsProduct[]>(() => {
+    ensureFreshCmsCache();
     try {
-      const stored = localStorage.getItem('bizzdesk_cms_products_v1');
+      const stored = localStorage.getItem(CMS_STORAGE_KEYS.PRODUCTS);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const sanitized = cleanLegacyProducts(parsed).map((p) =>
-            p.id === 'cost-recovery-calculator' && (p.stage === 'vi-ability' || p.stage === 'education')
-              ? { ...p, stage: 'fund-ability' as const }
-              : p
-          );
-          const hasDynamics = sanitized.some((p: any) => p.id === 'bizzdynamics' || (p.name || '').toLowerCase().includes('dynamics'));
-          if (!hasDynamics) {
-            const dynamicsInitial = INITIAL_CMS_PRODUCTS.find((p) => p.id === 'bizzdynamics');
-            if (dynamicsInitial) sanitized.push(dynamicsInitial);
-          }
-          const hasCostRecovery = sanitized.some((p: any) =>
-            p.id === 'cost-recovery-calculator' || (p.name || '').toLowerCase().includes('cost recovery')
-          );
-          if (!hasCostRecovery) {
-            const costRecInitial = INITIAL_CMS_PRODUCTS.find((p) => p.id === 'cost-recovery-calculator');
-            if (costRecInitial) sanitized.push(costRecInitial);
-          }
-          return cleanClearedCourseLessons(sanitized);
+          return cleanClearedCourseLessons(cleanLegacyProducts(parsed));
         }
       }
     } catch (e) {
@@ -275,10 +271,11 @@ export default function App() {
     return cleanClearedCourseLessons(cleanLegacyProducts(INITIAL_CMS_PRODUCTS));
   });
 
-  // Persistent CMS Videos (survives tab close and reload - links cleared per user prompt)
+  // Persistent CMS Videos
   const [cmsVideos, setCmsVideos] = useState<CmsVideo[]>(() => {
+    ensureFreshCmsCache();
     try {
-      const stored = localStorage.getItem('bizzdesk_cms_videos_v1');
+      const stored = localStorage.getItem(CMS_STORAGE_KEYS.VIDEOS);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -291,10 +288,11 @@ export default function App() {
     return cleanClearedEducationVideos(INITIAL_CMS_VIDEOS);
   });
 
-  // Persistent CMS Articles (survives tab close and reload - removes fallback images)
+  // Persistent CMS Articles
   const [cmsArticles, setCmsArticles] = useState<CmsArticle[]>(() => {
+    ensureFreshCmsCache();
     try {
-      const stored = localStorage.getItem('bizzdesk_cms_articles_v1');
+      const stored = localStorage.getItem(CMS_STORAGE_KEYS.ARTICLES);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -307,25 +305,15 @@ export default function App() {
     return cleanFallbackImagesFromArticles(INITIAL_CMS_ARTICLES);
   });
 
-  // Persistent Promotional Billboards (14 sections)
+  // Persistent Promotional Billboards (13 stages with stage stories)
   const [cmsPromotions, setCmsPromotions] = useState<CmsPromotionSection[]>(() => {
+    ensureFreshCmsCache();
     try {
-      const stored = localStorage.getItem('bizzdesk_cms_promotions_v1');
+      const stored = localStorage.getItem(CMS_STORAGE_KEYS.PROMOTIONS);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const mapped = parsed.map((p: CmsPromotionSection) => {
-            const initial = INITIAL_CMS_PROMOTIONS.find((ip) => ip.id === p.id);
-            return {
-              ...initial,
-              ...p,
-              stageStory: {
-                ...(initial?.stageStory || {}),
-                ...(p.stageStory || {}),
-              },
-            };
-          });
-          return cleanLegacyViabilityPromotions(mapped);
+          return cleanLegacyViabilityPromotions(parsed);
         }
       }
     } catch (e) {
@@ -341,10 +329,10 @@ export default function App() {
   useEffect(() => {
     // 1. Initial rapid local cache hydration (IndexedDB)
     Promise.all([
-      idbGet<CmsProduct[]>('bizzdesk_cms_products_v1').catch(() => null),
-      idbGet<CmsArticle[]>('bizzdesk_cms_articles_v1').catch(() => null),
-      idbGet<CmsPromotionSection[]>('bizzdesk_cms_promotions_v1').catch(() => null),
-      idbGet<CmsVideo[]>('bizzdesk_cms_videos_v1').catch(() => null),
+      idbGet<CmsProduct[]>(CMS_STORAGE_KEYS.PRODUCTS).catch(() => null),
+      idbGet<CmsArticle[]>(CMS_STORAGE_KEYS.ARTICLES).catch(() => null),
+      idbGet<CmsPromotionSection[]>(CMS_STORAGE_KEYS.PROMOTIONS).catch(() => null),
+      idbGet<CmsVideo[]>(CMS_STORAGE_KEYS.VIDEOS).catch(() => null),
     ]).then(([idbProducts, idbArticles, idbPromos, idbVideos]) => {
       if (idbProducts && Array.isArray(idbProducts) && idbProducts.length > 0) {
         setCmsProducts((prev) => mergeLoadedProducts(prev, cleanLegacyProducts(idbProducts)));
@@ -369,7 +357,7 @@ export default function App() {
         const cleaned = cleanLegacyProducts(fsProducts);
         setCmsProducts((prev) => {
           const merged = mergeLoadedProducts(cleaned, prev);
-          safeSaveStorage('bizzdesk_cms_products_v1', merged);
+          safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, merged);
           return merged;
         });
       }
@@ -378,7 +366,7 @@ export default function App() {
     fetchCmsVideosFromFirestore().then((fsVideos) => {
       if (fsVideos && Array.isArray(fsVideos) && fsVideos.length > 0) {
         setCmsVideos(fsVideos);
-        safeSaveStorage('bizzdesk_cms_videos_v1', fsVideos);
+        safeSaveStorage(CMS_STORAGE_KEYS.VIDEOS, fsVideos);
       }
     });
 
@@ -386,7 +374,7 @@ export default function App() {
       if (fsArticles && Array.isArray(fsArticles) && fsArticles.length > 0) {
         const cleaned = cleanFallbackImagesFromArticles(fsArticles);
         setCmsArticles(cleaned);
-        safeSaveStorage('bizzdesk_cms_articles_v1', cleaned);
+        safeSaveStorage(CMS_STORAGE_KEYS.ARTICLES, cleaned);
       }
     });
 
@@ -395,7 +383,7 @@ export default function App() {
         const cleanedPromos = cleanLegacyViabilityPromotions(fsPromos);
         setCmsPromotions((prev) => {
           const merged = mergeLoadedPromotions(cleanedPromos, prev);
-          safeSaveStorage('bizzdesk_cms_promotions_v1', merged);
+          safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, merged);
           return merged;
         });
       }
@@ -407,7 +395,7 @@ export default function App() {
         const cleaned = cleanLegacyProducts(updated);
         setCmsProducts((prev) => {
           const merged = mergeLoadedProducts(cleaned, prev);
-          safeSaveStorage('bizzdesk_cms_products_v1', merged);
+          safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, merged);
           return merged;
         });
       }
@@ -418,7 +406,7 @@ export default function App() {
         const cleaned = cleanLegacyViabilityPromotions(updated);
         setCmsPromotions((prev) => {
           const merged = mergeLoadedPromotions(cleaned, prev);
-          safeSaveStorage('bizzdesk_cms_promotions_v1', merged);
+          safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, merged);
           return merged;
         });
       }
@@ -433,22 +421,22 @@ export default function App() {
   // Modular Auto-Sync to dual storage (guarded until initial hydration completes)
   useEffect(() => {
     if (!isHydrated.current) return;
-    safeSaveStorage('bizzdesk_cms_products_v1', cmsProducts);
+    safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, cmsProducts);
   }, [cmsProducts]);
 
   useEffect(() => {
     if (!isHydrated.current) return;
-    safeSaveStorage('bizzdesk_cms_videos_v1', cmsVideos);
+    safeSaveStorage(CMS_STORAGE_KEYS.VIDEOS, cmsVideos);
   }, [cmsVideos]);
 
   useEffect(() => {
     if (!isHydrated.current) return;
-    safeSaveStorage('bizzdesk_cms_articles_v1', cmsArticles);
+    safeSaveStorage(CMS_STORAGE_KEYS.ARTICLES, cmsArticles);
   }, [cmsArticles]);
 
   useEffect(() => {
     if (!isHydrated.current) return;
-    safeSaveStorage('bizzdesk_cms_promotions_v1', cmsPromotions);
+    safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, cmsPromotions);
   }, [cmsPromotions]);
 
   // Helper: Random sequence for door opening promotion (presents only real user-loaded images, never stock fallbacks)
@@ -474,7 +462,7 @@ export default function App() {
   }, []);
 
   const [activePromotion, setActivePromotion] = useState<CmsPromotionSection | null>(() => {
-    const stored = localStorage.getItem('bizzdesk_cms_promotions_v1');
+    const stored = localStorage.getItem(CMS_STORAGE_KEYS.PROMOTIONS);
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
@@ -630,7 +618,7 @@ export default function App() {
   const handleTriggerDoorOpening = useCallback((): CmsPromotionSection | null => {
     let currentPromos = cmsPromotions;
     try {
-      const stored = localStorage.getItem('bizzdesk_cms_promotions_v1');
+      const stored = localStorage.getItem(CMS_STORAGE_KEYS.PROMOTIONS);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -659,7 +647,7 @@ export default function App() {
     setTimeout(() => {
       const cleaned = cleanLegacyProducts(updated);
       setCmsProducts(cleaned);
-      safeSaveStorage('bizzdesk_cms_products_v1', cleaned);
+      safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, cleaned);
       saveCmsProductsToFirestore(cleaned).catch((err) =>
         console.warn('Firestore CMS product sync note:', err)
       );
@@ -669,7 +657,7 @@ export default function App() {
   const handleSyncVideosFromCms = useCallback((updated: CmsVideo[]) => {
     setTimeout(() => {
       setCmsVideos(updated);
-      safeSaveStorage('bizzdesk_cms_videos_v1', updated);
+      safeSaveStorage(CMS_STORAGE_KEYS.VIDEOS, updated);
     }, 0);
   }, []);
 
@@ -677,7 +665,7 @@ export default function App() {
     setTimeout(() => {
       const cleaned = cleanFallbackImagesFromArticles(updated);
       setCmsArticles(cleaned);
-      safeSaveStorage('bizzdesk_cms_articles_v1', cleaned);
+      safeSaveStorage(CMS_STORAGE_KEYS.ARTICLES, cleaned);
     }, 0);
   }, []);
 
@@ -685,7 +673,7 @@ export default function App() {
     setTimeout(() => {
       const cleaned = cleanLegacyViabilityPromotions(updated);
       setCmsPromotions(cleaned);
-      safeSaveStorage('bizzdesk_cms_promotions_v1', cleaned);
+      safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, cleaned);
     }, 0);
   }, []);
 
@@ -704,7 +692,7 @@ export default function App() {
     // On opening doors, present a random active HERO PROMOTION image from user-loaded promotions
     let currentPromos = cmsPromotions;
     try {
-      const stored = localStorage.getItem('bizzdesk_cms_promotions_v1');
+      const stored = localStorage.getItem(CMS_STORAGE_KEYS.PROMOTIONS);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -999,7 +987,7 @@ export default function App() {
           ? { ...p, isPurchased: true }
           : p
       );
-      safeSaveStorage('bizzdesk_cms_products_v1', updated);
+      safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, updated);
       saveCmsProductsToFirestore(updated).catch(() => {});
       return updated;
     });
