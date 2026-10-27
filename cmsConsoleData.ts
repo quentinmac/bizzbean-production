@@ -1,6 +1,6 @@
 // =============================================================================
 // BIZZBEAN CMS MASTER REPOSITORY DATA (AUTO-GENERATED VIA CMS CONSOLE EXPORT)
-// Generated at: 2026-10-27T15:50:31.332Z
+// Generated at: 2026-10-27T16:41:46.181Z
 //
 // INSTRUCTIONS FOR GITHUB DEPLOYMENT:
 // 1. Commit/upload this file directly to: src/data/cmsConsoleData.ts
@@ -226,10 +226,10 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "duration": "4:57",
         "name": "Lesson 01: LEARN HOW TO EARN ACCESS TO CAPITAL",
         "id": "cl-1-1",
-        "youtubeUrl": "https://youtu.be/eJ_8N_NfGBI"
+        "youtubeUrl": "https://youtu.be/eJ_8N_NfGBI",
+        "duration": "4:57"
       }
     ],
     "companionMaterialFilename": "Capital_Access_Framework_v2.zip"
@@ -294,10 +294,10 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
+        "id": "cl-2-1",
         "youtubeUrl": "https://youtu.be/MG1rOrFyz6M",
-        "name": "Lesson 01: Mapping Fixed vs. Variable Allocations",
         "duration": "11:35",
-        "id": "cl-2-1"
+        "name": "Lesson 01: Mapping Fixed vs. Variable Allocations"
       }
     ],
     "companionMaterialFilename": "Bizzcalc_Companion_Templates.zip"
@@ -335,46 +335,46 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "id": "crc-1",
-        "name": "1 - INTRODUCTION",
         "duration": "4 min",
-        "youtubeUrl": "https://www.youtube.com/watch?v=vUT8lZLZpKg"
+        "youtubeUrl": "https://www.youtube.com/watch?v=vUT8lZLZpKg",
+        "id": "crc-1",
+        "name": "1 - INTRODUCTION"
       },
       {
-        "id": "crc-2",
         "name": "2 - PRODUCTION CALCULATOR",
-        "youtubeUrl": "https://www.youtube.com/watch?v=9dwqCG-vnVA",
-        "duration": "7 min"
+        "duration": "7 min",
+        "id": "crc-2",
+        "youtubeUrl": "https://www.youtube.com/watch?v=9dwqCG-vnVA"
       },
       {
+        "youtubeUrl": "https://www.youtube.com/watch?v=5L0wwsNFads",
         "id": "crc-3",
         "name": "3 - EMPLOYEE CALCULATOR",
-        "duration": "9 min",
-        "youtubeUrl": "https://www.youtube.com/watch?v=5L0wwsNFads"
+        "duration": "9 min"
       },
       {
         "duration": "6 min",
-        "id": "crc-4",
         "youtubeUrl": "https://www.youtube.com/watch?v=YiUirHhqBoc",
+        "id": "crc-4",
         "name": "4 - MATERIALS COSTING"
       },
       {
-        "id": "crc-5",
-        "name": "5 - EXPENSE DYNAMICS",
         "youtubeUrl": "https://www.youtube.com/watch?v=r6h0R1sDx50",
+        "name": "5 - EXPENSE DYNAMICS",
+        "id": "crc-5",
         "duration": "8 min"
       },
       {
-        "name": "6 - FIXED ASSETS",
-        "id": "crc-6",
         "youtubeUrl": "https://www.youtube.com/watch?v=xbasHzq2fL0",
-        "duration": "7 min"
+        "name": "6 - FIXED ASSETS",
+        "duration": "7 min",
+        "id": "crc-6"
       },
       {
-        "duration": "10 min",
         "name": "7 - EMPLOYMENT EXPENSES",
         "id": "crc-7",
-        "youtubeUrl": "https://www.youtube.com/watch?v=DiVPAjgmnj0"
+        "youtubeUrl": "https://www.youtube.com/watch?v=DiVPAjgmnj0",
+        "duration": "10 min"
       }
     ],
     "companionMaterialFilename": "Cost_Recovery_Calculator_Workbook.zip"
@@ -406,22 +406,22 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
+        "youtubeUrl": "https://www.youtube.com/watch?v=xbasHzq2fL0",
         "duration": "5 min",
-        "name": "1 - CASH CONVERSION CYCLE",
         "id": "ftm-1",
-        "youtubeUrl": "https://www.youtube.com/watch?v=xbasHzq2fL0"
+        "name": "1 - CASH CONVERSION CYCLE"
       },
       {
         "youtubeUrl": "https://www.youtube.com/watch?v=DiVPAjgmnj0",
         "duration": "8 min",
-        "id": "ftm-2",
-        "name": "2 - WORKING CAPITAL RECOVERY"
+        "name": "2 - WORKING CAPITAL RECOVERY",
+        "id": "ftm-2"
       },
       {
-        "id": "ftm-3",
-        "name": "3 - RECEIVABLES VELOCITY",
         "duration": "12 min",
-        "youtubeUrl": "https://www.youtube.com/watch?v=vUT8lZLZpKg"
+        "youtubeUrl": "https://www.youtube.com/watch?v=vUT8lZLZpKg",
+        "name": "3 - RECEIVABLES VELOCITY",
+        "id": "ftm-3"
       }
     ],
     "companionMaterialFilename": "Follow_The_Money_Workbook.zip",
@@ -456,21 +456,21 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "courseLessons": [
       {
         "name": "1 - 3-STATEMENT RECONCILIATION",
-        "youtubeUrl": "https://www.youtube.com/watch?v=9dwqCG-vnVA",
         "id": "fr-1",
+        "youtubeUrl": "https://www.youtube.com/watch?v=9dwqCG-vnVA",
         "duration": "6 min"
       },
       {
+        "duration": "10 min",
         "youtubeUrl": "https://www.youtube.com/watch?v=YiUirHhqBoc",
         "id": "fr-2",
-        "duration": "10 min",
         "name": "2 - EBITDA VS FREE CASH FLOW"
       },
       {
         "id": "fr-3",
-        "name": "3 - BALANCE SHEET STRESS TEST",
         "youtubeUrl": "https://www.youtube.com/watch?v=r6h0R1sDx50",
-        "duration": "14 min"
+        "duration": "14 min",
+        "name": "3 - BALANCE SHEET STRESS TEST"
       }
     ],
     "companionMaterialFilename": "Financial_Reports_Model.zip",
@@ -509,21 +509,21 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "courseLessons": [
       {
         "name": "Lesson 01: Auditing Discretionary Overhead & Vendor Creep",
-        "duration": "14:10",
+        "youtubeUrl": "https://www.youtube.com/watch?v=vUT8lZLZpKg",
         "id": "po-1",
-        "youtubeUrl": "https://www.youtube.com/watch?v=vUT8lZLZpKg"
+        "duration": "14:10"
       },
       {
         "duration": "16:30",
-        "name": "Lesson 02: Recalibrating Unit Contribution Margins",
+        "youtubeUrl": "https://www.youtube.com/watch?v=3wyZYsk8OTY",
         "id": "po-2",
-        "youtubeUrl": "https://www.youtube.com/watch?v=3wyZYsk8OTY"
+        "name": "Lesson 02: Recalibrating Unit Contribution Margins"
       },
       {
-        "youtubeUrl": "https://www.youtube.com/watch?v=xbasHzq2fL0",
-        "duration": "12:45",
         "name": "Lesson 03: The 18-Month Runway Safeguard Checklist",
-        "id": "po-3"
+        "duration": "12:45",
+        "id": "po-3",
+        "youtubeUrl": "https://www.youtube.com/watch?v=xbasHzq2fL0"
       }
     ],
     "companionMaterialFilename": "Profit_Optimizer_Worksheet.zip"
@@ -555,8 +555,8 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "name": "1 - BASE, BULL & BEAR SCENARIO MATRIX",
         "id": "fsp-1",
+        "name": "1 - BASE, BULL & BEAR SCENARIO MATRIX",
         "duration": "8 min",
         "youtubeUrl": "https://www.youtube.com/watch?v=9dwqCG-vnVA"
       },
@@ -567,10 +567,10 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
         "id": "fsp-2"
       },
       {
+        "name": "3 - REVENUE DRIVERS & SENSITIVITY MODELING",
         "duration": "15 min",
         "id": "fsp-3",
-        "youtubeUrl": "https://www.youtube.com/watch?v=5L0wwsNFads",
-        "name": "3 - REVENUE DRIVERS & SENSITIVITY MODELING"
+        "youtubeUrl": "https://www.youtube.com/watch?v=5L0wwsNFads"
       }
     ],
     "companionMaterialFilename": "Financial_Scenario_Modeler.zip",
@@ -605,21 +605,21 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "courseLessons": [
       {
         "duration": "7 min",
-        "youtubeUrl": "https://www.youtube.com/watch?v=YiUirHhqBoc",
         "id": "abp-1",
+        "youtubeUrl": "https://www.youtube.com/watch?v=YiUirHhqBoc",
         "name": "1 - ANNUAL OPERATING CADENCE & MILESTONES"
       },
       {
         "youtubeUrl": "https://www.youtube.com/watch?v=r6h0R1sDx50",
-        "duration": "11 min",
+        "name": "2 - DEPARTMENTAL BUDGET RECONCILIATION",
         "id": "abp-2",
-        "name": "2 - DEPARTMENTAL BUDGET RECONCILIATION"
+        "duration": "11 min"
       },
       {
-        "duration": "14 min",
         "name": "3 - QUARTERLY VARIANCE AUDITS & BOARD PACK",
-        "id": "abp-3",
-        "youtubeUrl": "https://www.youtube.com/watch?v=xbasHzq2fL0"
+        "youtubeUrl": "https://www.youtube.com/watch?v=xbasHzq2fL0",
+        "duration": "14 min",
+        "id": "abp-3"
       }
     ],
     "companionMaterialFilename": "Annual_Planning_Cycle_Playbook.zip",
@@ -653,22 +653,22 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "name": "1 - FULLY BURDENED LABOR RATE",
         "duration": "5 min",
-        "youtubeUrl": "https://www.youtube.com/watch?v=0--AvwZabIQ",
-        "id": "yfh-1"
+        "id": "yfh-1",
+        "name": "1 - FULLY BURDENED LABOR RATE",
+        "youtubeUrl": "https://www.youtube.com/watch?v=0--AvwZabIQ"
       },
       {
         "youtubeUrl": "https://www.youtube.com/watch?v=3wyZYsk8OTY",
         "id": "yfh-2",
-        "duration": "9 min",
-        "name": "2 - HIRING REVENUE MULTIPLE"
+        "name": "2 - HIRING REVENUE MULTIPLE",
+        "duration": "9 min"
       },
       {
+        "youtubeUrl": "https://www.youtube.com/watch?v=vUT8lZLZpKg",
         "duration": "8 min",
-        "name": "3 - EMPLOYEE CONTRIBUTION QUOTA",
         "id": "yfh-3",
-        "youtubeUrl": "https://www.youtube.com/watch?v=vUT8lZLZpKg"
+        "name": "3 - EMPLOYEE CONTRIBUTION QUOTA"
       }
     ],
     "companionMaterialFilename": "First_Hire_Costing_Template.zip",
