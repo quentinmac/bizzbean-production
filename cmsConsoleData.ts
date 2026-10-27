@@ -1,6 +1,6 @@
 // =============================================================================
 // BIZZBEAN CMS MASTER REPOSITORY DATA (AUTO-GENERATED VIA CMS CONSOLE EXPORT)
-// Generated at: 2026-10-27T10:30:47.688Z
+// Generated at: 2026-10-27T10:38:09.161Z
 //
 // INSTRUCTIONS FOR GITHUB DEPLOYMENT:
 // 1. Commit/upload this file directly to: src/data/cmsConsoleData.ts
@@ -571,64 +571,6 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
       }
     ],
     "companionMaterialFilename": "annual business planning cycle.zip"
-  },
-  {
-    "id": "invest-vdr",
-    "seq": 1,
-    "type": "app",
-    "stage": "invest-ability",
-    "sku": "BA-005",
-    "name": "invest-ABILITY VDR",
-    "subtitle": "40-Point Due Diligence Virtual Data Room Matrix",
-    "description": "Structured Virtual Data Room architecture with pre-indexed Google Drive folder structures, cap table waterfalls, and audit checklist.",
-    "purpose": "Pass venture audits with zero governance friction and complete transaction closing 3x faster.",
-    "billingModel": "once-off",
-    "exclusivePriceZAR": 565.22,
-    "vatZAR": 84.78,
-    "sellingPriceZAR": 650,
-    "tokensAllocated": 130,
-    "ticketPriceZAR": 780,
-    "isPurchased": false,
-    "activeInSync": true,
-    "canonicalCoverUrl": "https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=1200&q=80",
-    "assignedStep": "Stage 4 · Step 1",
-    "modules": [
-      "40-Point VDR Folder Hierarchy",
-      "Cap Table Dilution Simulator",
-      "Term Sheet Checklist"
-    ],
-    "courseLessons": [],
-    "syllabusLessonsCount": 0,
-    "lessonTitles": []
-  },
-  {
-    "id": "growth-strategy",
-    "seq": 1,
-    "type": "app",
-    "stage": "growth",
-    "sku": "BA-008",
-    "name": "growth-STRATEGY",
-    "subtitle": "Competitive Moats, Market Expansion & Scenario Modeler",
-    "description": "Advanced strategic scenario modeling tool for scaling enterprises graduating from startup phases.",
-    "purpose": "Test pricing shifts, channel expansion, and acquisition scenarios in a risk-free digital environment.",
-    "billingModel": "once-off",
-    "exclusivePriceZAR": 695.65,
-    "vatZAR": 104.35,
-    "sellingPriceZAR": 800,
-    "tokensAllocated": 160,
-    "ticketPriceZAR": 960,
-    "isPurchased": false,
-    "activeInSync": true,
-    "canonicalCoverUrl": "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80",
-    "assignedStep": "Growth · Step 1",
-    "modules": [
-      "Channel Economics Modeler",
-      "Pricing Elasticity Curve",
-      "Competitive Moat Heatmap"
-    ],
-    "courseLessons": [],
-    "syllabusLessonsCount": 0,
-    "lessonTitles": []
   },
   {
     "id": "how-to-bizzcalc",
