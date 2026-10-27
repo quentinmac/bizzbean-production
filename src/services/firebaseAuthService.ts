@@ -7,7 +7,7 @@ import {
   onAuthStateChanged,
   User as FirebaseUser
 } from 'firebase/auth';
-import { auth, db } from '../lib/firebase';
+import { auth, db, isFirestoreQuotaExceeded, setFirestoreQuotaExceeded } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 export interface AuthProfileData {
@@ -166,26 +166,31 @@ export async function signInUser(email: string, password: string): Promise<{ use
     city: role === 'admin' ? 'Cape Town' : 'Johannesburg',
   };
 
-  // Synchronize with Firestore users collection if available
+  // Synchronize with Firestore users collection if available and quota allows
   try {
-    const userDocRef = doc(db, 'users', fbUser.uid);
-    const snap = await getDoc(userDocRef);
-    if (snap.exists()) {
-      const data = snap.data();
-      Object.assign(profile, data);
-    } else {
-      await setDoc(userDocRef, {
-        uid: profile.uid,
-        email: profile.email,
-        name: profile.name,
-        role: profile.role,
-        isPro: profile.isPro,
-        purchasedApps: profile.purchasedApps,
-        purchasedCourses: profile.purchasedCourses,
-        updatedAt: new Date().toISOString()
-      });
+    if (!isFirestoreQuotaExceeded()) {
+      const userDocRef = doc(db, 'users', fbUser.uid);
+      const snap = await getDoc(userDocRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        Object.assign(profile, data);
+      } else {
+        await setDoc(userDocRef, {
+          uid: profile.uid,
+          email: profile.email,
+          name: profile.name,
+          role: profile.role,
+          isPro: profile.isPro,
+          purchasedApps: profile.purchasedApps,
+          purchasedCourses: profile.purchasedCourses,
+          updatedAt: new Date().toISOString()
+        });
+      }
     }
-  } catch (dbErr) {
+  } catch (dbErr: any) {
+    if (dbErr?.code === 'resource-exhausted' || String(dbErr?.message || '').includes('quota')) {
+      setFirestoreQuotaExceeded();
+    }
     console.info('User Firestore profile sync notice (offline/local fallback):', dbErr);
   }
 
@@ -230,18 +235,23 @@ export async function registerUser(
   };
 
   try {
-    const userDocRef = doc(db, 'users', fbUser.uid);
-    await setDoc(userDocRef, {
-      uid: profile.uid,
-      email: profile.email,
-      name: profile.name,
-      role: profile.role,
-      isPro: profile.isPro,
-      purchasedApps: profile.purchasedApps,
-      purchasedCourses: profile.purchasedCourses,
-      updatedAt: new Date().toISOString()
-    });
-  } catch (dbErr) {
+    if (!isFirestoreQuotaExceeded()) {
+      const userDocRef = doc(db, 'users', fbUser.uid);
+      await setDoc(userDocRef, {
+        uid: profile.uid,
+        email: profile.email,
+        name: profile.name,
+        role: profile.role,
+        isPro: profile.isPro,
+        purchasedApps: profile.purchasedApps,
+        purchasedCourses: profile.purchasedCourses,
+        updatedAt: new Date().toISOString()
+      });
+    }
+  } catch (dbErr: any) {
+    if (dbErr?.code === 'resource-exhausted' || String(dbErr?.message || '').includes('quota')) {
+      setFirestoreQuotaExceeded();
+    }
     console.info('User Firestore creation notice (offline/local fallback):', dbErr);
   }
 

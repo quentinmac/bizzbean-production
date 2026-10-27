@@ -1,5 +1,5 @@
 import { PromotionCoupon } from '../types';
-import { db } from '../lib/firebase';
+import { db, isFirestoreQuotaExceeded } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 // Default static coupon catalog
@@ -100,13 +100,15 @@ export async function validateCouponCode(code: string): Promise<ValidateCouponRe
 export async function redeemCouponCode(code: string, userEmail: string, userName: string): Promise<void> {
   const cleanCode = code.trim().toUpperCase();
   try {
-    const redemptionRef = doc(db, 'coupon_redemptions', `${cleanCode}_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}`);
-    await setDoc(redemptionRef, {
-      code: cleanCode,
-      userEmail,
-      userName,
-      redeemedAt: new Date().toISOString()
-    });
+    if (!isFirestoreQuotaExceeded()) {
+      const redemptionRef = doc(db, 'coupon_redemptions', `${cleanCode}_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}`);
+      await setDoc(redemptionRef, {
+        code: cleanCode,
+        userEmail,
+        userName,
+        redeemedAt: new Date().toISOString()
+      });
+    }
   } catch (err) {
     console.info('Coupon redemption log notice:', err);
   }

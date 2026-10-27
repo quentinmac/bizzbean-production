@@ -160,7 +160,9 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
       const stored = localStorage.getItem('bizzdesk_v1_transactions');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.filter((t): t is TransactionRecord => Boolean(t && typeof t === 'object' && t.invoiceNumber));
+        }
       }
     } catch (e) {}
     return INITIAL_V1_TRANSACTIONS;
@@ -171,7 +173,9 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
       const stored = localStorage.getItem('bizzdesk_v1_client_profiles');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.filter((c): c is ClientProfile => Boolean(c && typeof c === 'object' && c.name));
+        }
       }
     } catch (e) {}
     return INITIAL_CLIENT_PROFILES;
@@ -182,7 +186,9 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
       const stored = localStorage.getItem('bizzdesk_v1_client_notifications');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.filter((n): n is ClientNotification => Boolean(n && typeof n === 'object' && n.id));
+        }
       }
     } catch (e) {}
     return INITIAL_CLIENT_NOTIFICATIONS;
@@ -256,44 +262,45 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
   const handleSelectClientPreset = (profileId: string) => {
     setNewTxSelectedProfileId(profileId);
     if (profileId === 'custom') return;
-    const client = clientProfiles.find((c) => c.id === profileId);
+    const client = clientProfiles.find((c) => c && c.id === profileId);
     if (client) {
-      setNewTxCustomer(client.name);
-      setNewTxEmail(client.email);
+      setNewTxCustomer(client.name || '');
+      setNewTxEmail(client.email || '');
       if (client.country) setNewTxCountry(client.country);
     }
   };
 
   const openNewTxModalWithNextInvoice = () => {
-    const nextSeq = String(transactions.length + 1).padStart(4, '0');
+    const nextSeq = String((transactions || []).length + 1).padStart(4, '0');
     setNewTxInvoiceNo(`INV-2026-${nextSeq}`);
     setNewTxDate(new Date().toISOString().slice(0, 10));
     setIsNewTxModalOpen(true);
   };
 
-  const filteredTransactions = transactions.filter((tx) => {
+  const filteredTransactions = (transactions || []).filter((tx) => {
+    if (!tx) return false;
     const matchType = txTypeFilter === 'all' || tx.productType === txTypeFilter;
     const matchAssociate = txAssociateFilter === 'all' || tx.associate === txAssociateFilter;
-    const q = txSearch.toLowerCase().trim();
+    const q = (txSearch || '').toLowerCase().trim();
     const matchSearch =
       !q ||
-      tx.invoiceNumber.toLowerCase().includes(q) ||
-      tx.customer.toLowerCase().includes(q) ||
-      tx.customerEmail.toLowerCase().includes(q) ||
-      tx.sku.toLowerCase().includes(q) ||
-      tx.productName.toLowerCase().includes(q) ||
-      tx.associate.toLowerCase().includes(q) ||
-      (tx.country && tx.country.toLowerCase().includes(q));
+      (tx.invoiceNumber || '').toLowerCase().includes(q) ||
+      (tx.customer || '').toLowerCase().includes(q) ||
+      (tx.customerEmail || '').toLowerCase().includes(q) ||
+      (tx.sku || '').toLowerCase().includes(q) ||
+      (tx.productName || '').toLowerCase().includes(q) ||
+      (tx.associate || '').toLowerCase().includes(q) ||
+      Boolean(tx.country && (tx.country || '').toLowerCase().includes(q));
     return matchType && matchAssociate && matchSearch;
   });
 
-  const totalGrossZar = transactions.reduce((acc, tx) => acc + (tx.invoiceValue || 0), 0);
-  const totalNetZar = transactions.reduce((acc, tx) => acc + (tx.lineValue || 0), 0);
-  const totalVatZar = transactions.reduce((acc, tx) => acc + (tx.vatAmount || 0), 0);
-  const appTransactionsCount = transactions.filter((tx) => tx.productType === 'app').length;
-  const courseTransactionsCount = transactions.filter((tx) => tx.productType === 'course').length;
+  const totalGrossZar = (transactions || []).reduce((acc, tx) => acc + (Number(tx?.invoiceValue) || 0), 0);
+  const totalNetZar = (transactions || []).reduce((acc, tx) => acc + (Number(tx?.lineValue) || 0), 0);
+  const totalVatZar = (transactions || []).reduce((acc, tx) => acc + (Number(tx?.vatAmount) || 0), 0);
+  const appTransactionsCount = (transactions || []).filter((tx) => tx?.productType === 'app').length;
+  const courseTransactionsCount = (transactions || []).filter((tx) => tx?.productType === 'course').length;
 
-  const distinctAssociates = Array.from(new Set(transactions.map((tx) => tx.associate).filter(Boolean)));
+  const distinctAssociates = Array.from(new Set((transactions || []).map((tx) => tx?.associate).filter(Boolean))) as string[];
 
   const handleRecordNewTx = (e: React.FormEvent) => {
     e.preventDefault();
@@ -333,8 +340,8 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
     safeSaveStorage('bizzdesk_v1_transactions', updatedTransactions);
 
     // If customer doesn't exist in client directory, automatically create client profile
-    const existingClient = clientProfiles.find(
-      (c) => c.email.toLowerCase() === newRecord.customerEmail.toLowerCase()
+    const existingClient = (clientProfiles || []).find(
+      (c) => Boolean(c && (c.email || '').toLowerCase() === (newRecord.customerEmail || '').toLowerCase())
     );
     if (!existingClient) {
       const newClient: ClientProfile = {
@@ -356,7 +363,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
         id: `notif-${Date.now().toString().slice(-4)}`,
         recipientEmail: newRecord.customerEmail,
         subject: `Tax Invoice ${newRecord.invoiceNumber}: ${newRecord.productName}`,
-        content: `Your official tax invoice ${newRecord.invoiceNumber} for ${newRecord.productName} has been recorded. Gross value: R ${newRecord.invoiceValue.toFixed(2)} (incl. 15% SARS VAT).`,
+        content: `Your official tax invoice ${newRecord.invoiceNumber} for ${newRecord.productName} has been recorded. Gross value: R ${(Number(newRecord.invoiceValue) || 0).toFixed(2)} (incl. 15% SARS VAT).`,
         timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
         isRead: false,
         sender: 'Bizzbean Finance Desk',
@@ -463,21 +470,21 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
       'Invoice Value (Gross Incl VAT)',
     ];
     const rows = filteredTransactions.map((t) => [
-      `"${t.invoiceNumber}"`,
-      `"${t.transactionDate}"`,
-      `"${t.sku}"`,
-      `"${t.productName}"`,
-      `"${t.productType}"`,
-      `"${t.customer}"`,
-      `"${t.customerEmail}"`,
+      `"${t.invoiceNumber || ''}"`,
+      `"${t.transactionDate || ''}"`,
+      `"${t.sku || ''}"`,
+      `"${t.productName || ''}"`,
+      `"${t.productType || ''}"`,
+      `"${t.customer || ''}"`,
+      `"${t.customerEmail || ''}"`,
       `"${t.country || 'South Africa'}"`,
-      `"${t.associate}"`,
-      t.quantity,
-      t.unitPrice.toFixed(2),
-      t.lineValue.toFixed(2),
-      `${(t.vatRate * 100).toFixed(0)}%`,
-      t.vatAmount.toFixed(2),
-      t.invoiceValue.toFixed(2),
+      `"${t.associate || ''}"`,
+      Number(t.quantity) || 1,
+      (Number(t.unitPrice) || 0).toFixed(2),
+      (Number(t.lineValue) || 0).toFixed(2),
+      `${((Number(t.vatRate) || 0.15) * 100).toFixed(0)}%`,
+      (Number(t.vatAmount) || 0).toFixed(2),
+      (Number(t.invoiceValue) || 0).toFixed(2),
     ]);
     const csvContent =
       'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
@@ -499,7 +506,9 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
       const stored = localStorage.getItem('bizzdesk_cms_inquiries_v1');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.filter((i): i is CmsInquiry => Boolean(i && typeof i === 'object' && i.id));
+        }
       }
     } catch (e) {}
     return INITIAL_CMS_INQUIRIES;
@@ -508,8 +517,9 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
   // Real-time Firestore sync with localStorage fallback
   useEffect(() => {
     const unsubscribe = subscribeToEnquiries((items) => {
-      if (items && items.length > 0) {
-        setInquiries(items);
+      if (items && Array.isArray(items) && items.length > 0) {
+        const cleaned = items.filter((i) => Boolean(i && typeof i === 'object' && i.id));
+        if (cleaned.length > 0) setInquiries(cleaned);
       }
     });
     return () => unsubscribe();
@@ -521,14 +531,16 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
   const [replySubject, setReplySubject] = useState('');
   const [replyMessage, setReplyMessage] = useState('');
 
-  const filteredInquiries = inquiries.filter((inq) => {
+  const filteredInquiries = (inquiries || []).filter((inq) => {
+    if (!inq) return false;
     const matchStatus = inquiryStatusFilter === 'all' || inq.status === inquiryStatusFilter;
+    const q = (inquirySearch || '').toLowerCase().trim();
     const matchSearch =
-      !inquirySearch ||
-      inq.senderName.toLowerCase().includes(inquirySearch.toLowerCase()) ||
-      inq.senderEmail.toLowerCase().includes(inquirySearch.toLowerCase()) ||
-      inq.subject.toLowerCase().includes(inquirySearch.toLowerCase()) ||
-      inq.message.toLowerCase().includes(inquirySearch.toLowerCase());
+      !q ||
+      (inq.senderName || '').toLowerCase().includes(q) ||
+      (inq.senderEmail || '').toLowerCase().includes(q) ||
+      (inq.subject || '').toLowerCase().includes(q) ||
+      (inq.message || '').toLowerCase().includes(q);
     return matchStatus && matchSearch;
   });
 
@@ -611,8 +623,8 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
     `Founder Name,Email,Company,Stage\nThabo Mokoena,thabo@solarflow.co.za,SolarFlow,vi-ability\nZanele Dlamini,zanele@agrix.co.za,AgriX,fund-ability\nJohan van der Merwe,johan@paypulse.co.za,PayPulse,sustain-ability`
   );
 
-  const totalCohortFounders = associateBatches.reduce((acc, b) => acc + (b.candidateCount || 0), 0);
-  const totalBatchTokens = associateBatches.reduce((acc, b) => acc + (b.candidateCount * b.tokensPerAccount || 0), 0);
+  const totalCohortFounders = (associateBatches || []).reduce((acc, b) => acc + (Number(b?.candidateCount) || 0), 0);
+  const totalBatchTokens = (associateBatches || []).reduce((acc, b) => acc + ((Number(b?.candidateCount) || 0) * (Number(b?.tokensPerAccount) || 0)), 0);
 
   const handleCommitCsvBatch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -658,9 +670,9 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
   });
 
   const [selectedPromoEmailId, setSelectedPromoEmailId] = useState<string>(
-    promoEmails[0]?.id || 'promo-mail-01'
+    promoEmails?.[0]?.id || 'promo-mail-01'
   );
-  const activePromoEmail = promoEmails.find((p) => p.id === selectedPromoEmailId) || promoEmails[0];
+  const activePromoEmail = (promoEmails || []).find((p) => p && p.id === selectedPromoEmailId) || (promoEmails || [])[0] || INITIAL_CMS_PROMOTION_EMAILS[0];
 
   // Merge Variables State
   const [mergeFounderName, setMergeFounderName] = useState('Elena Vance');
@@ -701,12 +713,14 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
     if (cmsProducts && cmsProducts.length > 0) setProductsList(cmsProducts);
   }, [cmsProducts]);
 
-  const filteredCmsProducts = productsList.filter((p) => {
+  const filteredCmsProducts = (productsList || []).filter((p) => {
+    if (!p) return false;
     if (!cmsSearch) return true;
+    const q = cmsSearch.toLowerCase().trim();
     return (
-      p.name.toLowerCase().includes(cmsSearch.toLowerCase()) ||
-      p.sku.toLowerCase().includes(cmsSearch.toLowerCase()) ||
-      p.stage.toLowerCase().includes(cmsSearch.toLowerCase())
+      (p.name || '').toLowerCase().includes(q) ||
+      (p.sku || '').toLowerCase().includes(q) ||
+      (p.stage || '').toLowerCase().includes(q)
     );
   });
 
@@ -909,17 +923,17 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
                   <div className={`p-4 rounded-2xl border ${isDark ? 'bg-[#12172A] border-[#222F4C]' : 'bg-white border-[#E8E2D8] shadow-2xs'}`}>
                     <div className="text-[11px] text-slate-400 uppercase">Gross Invoiced (Incl VAT)</div>
-                    <div className="text-xl font-bold mt-1 text-emerald-400">R {totalGrossZar.toFixed(2)}</div>
+                    <div className="text-xl font-bold mt-1 text-emerald-400">R {(Number(totalGrossZar) || 0).toFixed(2)}</div>
                     <div className="text-[10px] text-slate-500 mt-0.5">Total billable value</div>
                   </div>
                   <div className={`p-4 rounded-2xl border ${isDark ? 'bg-[#12172A] border-[#222F4C]' : 'bg-white border-[#E8E2D8] shadow-2xs'}`}>
                     <div className="text-[11px] text-slate-400 uppercase">Net Sales (Excl VAT)</div>
-                    <div className="text-xl font-bold mt-1 text-[#5584B4]">R {totalNetZar.toFixed(2)}</div>
+                    <div className="text-xl font-bold mt-1 text-[#5584B4]">R {(Number(totalNetZar) || 0).toFixed(2)}</div>
                     <div className="text-[10px] text-slate-500 mt-0.5">Revenue before tax</div>
                   </div>
                   <div className={`p-4 rounded-2xl border ${isDark ? 'bg-[#12172A] border-[#222F4C]' : 'bg-white border-[#E8E2D8] shadow-2xs'}`}>
                     <div className="text-[11px] text-slate-400 uppercase">Output VAT (15%)</div>
-                    <div className="text-xl font-bold mt-1 text-amber-400">R {totalVatZar.toFixed(2)}</div>
+                    <div className="text-xl font-bold mt-1 text-amber-400">R {(Number(totalVatZar) || 0).toFixed(2)}</div>
                     <div className="text-[10px] text-slate-500 mt-0.5">SARS standard compliance</div>
                   </div>
                   <div className={`p-4 rounded-2xl border ${isDark ? 'bg-[#12172A] border-[#222F4C]' : 'bg-white border-[#E8E2D8] shadow-2xs'}`}>
@@ -1049,16 +1063,16 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                             <td className="py-3 px-3 text-slate-300 text-[11px]">{tx.associate}</td>
                             <td className="py-3 px-2 text-center text-slate-300">{tx.quantity}</td>
                             <td className="py-3 px-3 text-right text-slate-400">
-                              R {tx.unitPrice.toFixed(2)}
+                              R {(Number(tx.unitPrice) || 0).toFixed(2)}
                             </td>
                             <td className="py-3 px-3 text-right text-slate-300 font-medium">
-                              R {tx.lineValue.toFixed(2)}
+                              R {(Number(tx.lineValue) || 0).toFixed(2)}
                             </td>
                             <td className="py-3 px-3 text-right text-amber-400">
-                              R {tx.vatAmount.toFixed(2)}
+                              R {(Number(tx.vatAmount) || 0).toFixed(2)}
                             </td>
                             <td className="py-3 px-3 text-right font-bold text-emerald-400">
-                              R {tx.invoiceValue.toFixed(2)}
+                              R {(Number(tx.invoiceValue) || 0).toFixed(2)}
                             </td>
                             <td className="py-3 px-2 text-center">
                               <button
@@ -1114,10 +1128,12 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {clientProfiles.map((client) => {
-                    const clientInvoices = transactions.filter(
-                      (t) => t.customerEmail.toLowerCase() === client.email.toLowerCase()
+                    if (!client) return null;
+                    const clientEmail = (client.email || '').toLowerCase().trim();
+                    const clientInvoices = (transactions || []).filter(
+                      (t) => Boolean(t && (t.customerEmail || '').toLowerCase().trim() === clientEmail)
                     );
-                    const clientTotalZar = clientInvoices.reduce((acc, t) => acc + t.invoiceValue, 0);
+                    const clientTotalZar = clientInvoices.reduce((acc, t) => acc + (Number(t?.invoiceValue) || 0), 0);
 
                     return (
                       <div
@@ -1176,7 +1192,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                             <span className="text-slate-400">Invoices: </span>
                             <span className="font-bold text-white">{clientInvoices.length}</span>
                             <span className="text-slate-500"> • </span>
-                            <span className="text-emerald-400 font-bold">R {clientTotalZar.toFixed(2)}</span>
+                            <span className="text-emerald-400 font-bold">R {(Number(clientTotalZar) || 0).toFixed(2)}</span>
                           </div>
                           <button
                             type="button"
@@ -1248,7 +1264,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                             </td>
                             <td className="py-3 px-4 text-slate-300">{notif.serviceName || 'General Desk'}</td>
                             <td className="py-3 px-4 text-right font-bold text-emerald-400">
-                              {notif.amountInvoiced ? `R ${notif.amountInvoiced.toFixed(2)}` : '—'}
+                              {notif.amountInvoiced ? `R ${(Number(notif.amountInvoiced) || 0).toFixed(2)}` : '—'}
                             </td>
                             <td className="py-3 px-4 text-center">
                               <span
@@ -1642,10 +1658,10 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                             </td>
                             <td className="py-3 px-2 text-center text-slate-200">{viewingInvoice.quantity}</td>
                             <td className="py-3 px-3 text-right text-slate-300">
-                              R {viewingInvoice.unitPrice.toFixed(2)}
+                              R {(Number(viewingInvoice.unitPrice) || 0).toFixed(2)}
                             </td>
                             <td className="py-3 px-3 text-right text-slate-200 font-bold">
-                              R {viewingInvoice.lineValue.toFixed(2)}
+                              R {(Number(viewingInvoice.lineValue) || 0).toFixed(2)}
                             </td>
                           </tr>
                         </tbody>
@@ -1657,15 +1673,15 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                       <div className="w-64 space-y-1.5 text-xs">
                         <div className="flex justify-between text-slate-300">
                           <span>Subtotal (Excl. VAT):</span>
-                          <span className="font-mono">R {viewingInvoice.lineValue.toFixed(2)}</span>
+                          <span className="font-mono">R {(Number(viewingInvoice.lineValue) || 0).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-amber-400">
-                          <span>SARS VAT @ {(viewingInvoice.vatRate * 100).toFixed(0)}%:</span>
-                          <span className="font-mono">R {viewingInvoice.vatAmount.toFixed(2)}</span>
+                          <span>SARS VAT @ {((Number(viewingInvoice.vatRate) || 0.15) * 100).toFixed(0)}%:</span>
+                          <span className="font-mono">R {(Number(viewingInvoice.vatAmount) || 0).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-base font-bold text-emerald-400 pt-2 border-t border-[#222F4C]">
                           <span>Invoice Value (Gross):</span>
-                          <span className="font-mono">R {viewingInvoice.invoiceValue.toFixed(2)}</span>
+                          <span className="font-mono">R {(Number(viewingInvoice.invoiceValue) || 0).toFixed(2)}</span>
                         </div>
                       </div>
                     </div>
@@ -2005,8 +2021,8 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#222F4C]/40 pb-3">
                     <div className="flex items-center gap-2 font-mono text-xs">
-                      <span className="font-bold text-white text-sm">{inq.senderName}</span>
-                      <span className="text-slate-400">({inq.senderEmail})</span>
+                      <span className="font-bold text-white text-sm">{inq.senderName || 'Anonymous Founder'}</span>
+                      <span className="text-slate-400">({inq.senderEmail || 'No email'})</span>
                       <span
                         className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
                           inq.status === 'new'
@@ -2016,19 +2032,19 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                             : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                         }`}
                       >
-                        {inq.status}
+                        {inq.status || 'new'}
                       </span>
                     </div>
                     <div className="text-xs font-mono text-slate-400 flex items-center gap-1">
                       <Clock className="h-3.5 w-3.5" />
-                      <span>{inq.date}</span>
+                      <span>{inq.date || 'Recent'}</span>
                     </div>
                   </div>
 
                   <div>
-                    <div className="font-mono text-xs font-bold text-[#DDEBF7] mb-1">{inq.subject}</div>
+                    <div className="font-mono text-xs font-bold text-[#DDEBF7] mb-1">{inq.subject || 'Advisory Inquiry'}</div>
                     <div className="p-3.5 rounded-xl bg-[#0B0F19] border border-[#222F4C] text-xs text-slate-300 leading-relaxed font-sans">
-                      "{inq.message}"
+                      "{inq.message || ''}"
                     </div>
                   </div>
 
@@ -2450,7 +2466,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                 <div className="flex items-center justify-between font-mono text-xs text-slate-400">
                   <span className="uppercase">Live Branded Email Template Preview</span>
                   <button
-                    onClick={() => handleDispatchCampaign(activePromoEmail.id)}
+                    onClick={() => activePromoEmail && handleDispatchCampaign(activePromoEmail.id)}
                     className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-[#5584B4] hover:bg-[#4773A0] text-white font-bold shadow-md"
                   >
                     <Send className="h-3.5 w-3.5" />
@@ -2464,7 +2480,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                   <div className="p-3 bg-[#151C33] border-b border-[#252E4A] text-xs font-mono text-slate-300 space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="text-slate-400">From:</span>
-                      <span className="text-white font-bold">{activePromoEmail.senderPersona} &lt;thebizzbeanchannel@gmail.com&gt;</span>
+                      <span className="text-white font-bold">{(activePromoEmail?.senderPersona || 'Coach GIM')} &lt;thebizzbeanchannel@gmail.com&gt;</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-slate-400">To:</span>
@@ -2472,7 +2488,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-slate-400">Subject:</span>
-                      <span className="text-amber-400 font-bold">{activePromoEmail.subject}</span>
+                      <span className="text-amber-400 font-bold">{activePromoEmail?.subject || 'Welcome to Bizzbean'}</span>
                     </div>
                   </div>
 
@@ -2490,23 +2506,23 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                         </div>
                       </div>
                       <span className="font-mono text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-lg">
-                        +{activePromoEmail.tokensIncluded} BizzTokens Enclosed
+                        +{activePromoEmail?.tokensIncluded || 0} BizzTokens Enclosed
                       </span>
                     </div>
 
                     {/* Headline */}
                     <div>
                       <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                        {activePromoEmail.headline}
+                        {activePromoEmail?.headline || 'Accelerate Your Venture'}
                       </h2>
                       <p className="text-xs text-slate-400 font-mono mt-1">
-                        {activePromoEmail.previewHeader}
+                        {activePromoEmail?.previewHeader || ''}
                       </p>
                     </div>
 
                     {/* Personalized Body Text */}
                     <div className="text-xs sm:text-sm text-slate-300 leading-relaxed space-y-3 whitespace-pre-line">
-                      {activePromoEmail.bodyText
+                      {(activePromoEmail?.bodyText || '')
                         .replace(/\{\{founder_name\}\}/g, mergeFounderName)
                         .replace(/\{\{company_name\}\}/g, mergeCompanyName)}
                     </div>
@@ -2518,7 +2534,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                           Featured Executive Tool
                         </div>
                         <div className="font-mono text-sm font-bold text-white mt-0.5">
-                          {activePromoEmail.highlightedSolution}
+                          {activePromoEmail?.highlightedSolution || 'bizz-DESK Executive Tool'}
                         </div>
                         <div className="text-xs text-slate-400 mt-0.5">
                           Audit-ready financial modeling with zero macro dependencies.
@@ -2528,7 +2544,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                         type="button"
                         className="px-5 py-2.5 rounded-xl bg-[#5584B4] text-white font-mono font-bold text-xs shadow-md shrink-0 uppercase tracking-wider"
                       >
-                        {activePromoEmail.ctaLabel}
+                        {activePromoEmail?.ctaLabel || 'Enter Workstation'}
                       </button>
                     </div>
 
@@ -2617,6 +2633,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                       <th className="py-2.5 px-3 text-right">Selling Price</th>
                       <th className="py-2.5 px-3 text-right">Tokens</th>
                       <th className="py-2.5 px-3 text-right">Ticket Benchmark</th>
+                      <th className="py-2.5 px-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className={`divide-y ${isDark ? 'divide-[#1D2644]' : 'divide-[#E8E2D8]'}`}>
@@ -2634,13 +2651,38 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                           </span>
                         </td>
                         <td className="py-2.5 px-3 text-right font-bold text-white">
-                          R {p.sellingPriceZAR.toFixed(2)}
+                          R {(Number(p.sellingPriceZAR) || 0).toFixed(2)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-bold text-amber-400">
-                          +{p.tokensAllocated}
+                          +{p.tokensAllocated || 0}
                         </td>
                         <td className="py-2.5 px-3 text-right text-slate-400">
-                          R {p.ticketPriceZAR.toFixed(2)}
+                          R {(Number(p.ticketPriceZAR) || Number(p.sellingPriceZAR) || 0).toFixed(2)}
+                        </td>
+                        <td className="py-2.5 px-3 text-right">
+                          {p.type === 'course' ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (onSelectSolutionById) onSelectSolutionById(p.id);
+                                if (onLaunchApp) onLaunchApp('bizzclass');
+                              }}
+                              className="px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold bg-[#5584B4]/20 hover:bg-[#5584B4] text-[#DDEBF7] hover:text-white transition-colors border border-[#5584B4]/40 whitespace-nowrap"
+                              title="Manage Lessons in BizzClass"
+                            >
+                              Manage Lessons ({(p.courseLessons || []).length})
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (onSelectSolutionById) onSelectSolutionById(p.id);
+                              }}
+                              className="px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-colors whitespace-nowrap"
+                            >
+                              View Solution
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}

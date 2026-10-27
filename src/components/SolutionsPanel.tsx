@@ -1,5 +1,7 @@
 import React from 'react';
 import { BIZZ_SOLUTIONS } from '../data/bizzdeskData';
+import { CmsProduct } from '../data/cmsConsoleData';
+import { getDeletedProductIds, getCanonicalCourseId } from '../utils/imageStorage';
 import {
   ChevronRight,
   Info,
@@ -12,6 +14,7 @@ interface SolutionsPanelProps {
   theme: 'light' | 'dark';
   companyName?: string;
   isAdmin?: boolean;
+  cmsProducts?: CmsProduct[];
   onSelectSolution: (id: string) => void;
   onSelectAbout: () => void;
   onSelectLibrary?: () => void;
@@ -28,14 +31,13 @@ interface SolutionsPanelProps {
   onTogglePanelMode?: (mode: 'solutions' | 'knowledge') => void;
 }
 
-
-
 export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
   activeSolutionId,
   activeStageId,
   theme,
   companyName,
   isAdmin = false,
+  cmsProducts,
   onSelectSolution,
   onSelectAbout,
   onSelectLibrary,
@@ -65,12 +67,104 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
       : 'text-slate-700 hover:text-slate-900 hover:bg-[#F4EFE6] border border-transparent';
   };
 
+  const deletedIds = React.useMemo(() => getDeletedProductIds(), [cmsProducts]);
+
+  // Only display the 4 main stages and personal-sandbox container under STARTUP STAGE.
+  // All individual sub-solution links (bizzcalc, bizzmodel, bizzplan, cost recovery, etc.)
+  // under personal-sandbox have been removed from the main menu panel per user request.
+  const STAGE_CONTAINER_IDS = new Set([
+    'vi-ability',
+    'fund-ability',
+    'sustain-ability',
+    'invest-ability',
+    'personal-sandbox',
+  ]);
 
   const startupSolutions = BIZZ_SOLUTIONS.filter(
-    (s) => s.category === 'startup' && s.id !== 'learn-earn-capital' && s.id !== 'bizzdynamics'
+    (s) => s.category === 'startup' && STAGE_CONTAINER_IDS.has(s.id)
   );
-  const operationsSolutions = BIZZ_SOLUTIONS.filter((s) => s.category === 'operations');
-  const growthSolutions = BIZZ_SOLUTIONS.filter((s) => s.category === 'growth');
+
+  // Operations solutions derived strictly from live CMS products, respecting deletions
+  const operationsSolutions = React.useMemo(() => {
+    if (cmsProducts && Array.isArray(cmsProducts)) {
+      const fromCms = cmsProducts.filter(
+        (p) =>
+          p.stage === 'operations' &&
+          !deletedIds.has(p.id) &&
+          !deletedIds.has(getCanonicalCourseId(p.id) || '') &&
+          !deletedIds.has(p.name?.toLowerCase().trim() || '')
+      );
+      // Deduplicate by canonical ID / name
+      const map = new Map<string, { id: string; name: string }>();
+      fromCms.forEach((p) => {
+        const canonId = p.type === 'course' ? (getCanonicalCourseId(p.id) || p.id) : (p.id === 'budget' ? 'bizzbudget' : p.id);
+        const nameKey = p.name.toLowerCase().trim();
+        if (!map.has(canonId) && !map.has(nameKey)) {
+          map.set(canonId, { id: canonId, name: p.name });
+        }
+      });
+      return Array.from(map.values());
+    }
+
+    // Fallback: exclude deleted products and remove duplicates
+    const map = new Map<string, { id: string; name: string }>();
+    BIZZ_SOLUTIONS.filter((s) => s.category === 'operations').forEach((s) => {
+      const canonId = s.id === 'budget' ? 'bizzbudget' : s.id;
+      const nameKey = s.name.toLowerCase().trim();
+      if (
+        !deletedIds.has(s.id) &&
+        !deletedIds.has(canonId) &&
+        !deletedIds.has(nameKey) &&
+        !map.has(canonId) &&
+        !map.has(nameKey)
+      ) {
+        map.set(canonId, { id: canonId, name: s.name });
+      }
+    });
+    return Array.from(map.values());
+  }, [cmsProducts, deletedIds]);
+
+  // Growth solutions derived dynamically from live CMS products, respecting deletions
+  const growthSolutions = React.useMemo(() => {
+    if (cmsProducts && Array.isArray(cmsProducts)) {
+      const fromCms = cmsProducts.filter(
+        (p) =>
+          p.stage === 'growth' &&
+          p.id !== 'strategy' &&
+          !deletedIds.has(p.id) &&
+          !deletedIds.has(getCanonicalCourseId(p.id) || '') &&
+          !deletedIds.has(p.name?.toLowerCase().trim() || '')
+      );
+      if (fromCms.length > 0) {
+        const map = new Map<string, { id: string; name: string }>();
+        fromCms.forEach((p) => {
+          const canonId = p.id === 'strategy' ? 'growth-strategy' : p.id;
+          const nameKey = p.name.toLowerCase().trim();
+          if (!map.has(canonId) && !map.has(nameKey)) {
+            map.set(canonId, { id: canonId, name: p.name });
+          }
+        });
+        return Array.from(map.values());
+      }
+    }
+
+    const map = new Map<string, { id: string; name: string }>();
+    BIZZ_SOLUTIONS.filter((s) => s.category === 'growth' && s.id !== 'strategy').forEach((s) => {
+      const canonId = s.id === 'strategy' ? 'growth-strategy' : s.id;
+      const nameKey = s.name.toLowerCase().trim();
+      if (
+        !deletedIds.has(s.id) &&
+        !deletedIds.has(canonId) &&
+        !deletedIds.has(nameKey) &&
+        !map.has(canonId) &&
+        !map.has(nameKey)
+      ) {
+        map.set(canonId, { id: canonId, name: s.name });
+      }
+    });
+    return Array.from(map.values());
+  }, [cmsProducts, deletedIds]);
+
   const educationSolutions = BIZZ_SOLUTIONS.filter(
     (s) =>
       s.category === 'education' &&
@@ -152,181 +246,215 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
             })()}
           </div>
 
-            {/* STARTUP STAGE */}
-            <div>
-              <div className="text-xs font-mono font-bold text-slate-500 tracking-wider uppercase px-2 mb-1 flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#5584B4]" />
-                <span>STARTUP STAGE</span>
-              </div>
-              <div className="space-y-0.5">
-                {startupSolutions.map((sol) => {
-                  const isStartupCategory = !['operations', 'growth', 'education'].includes(
-                    activeStageId || ''
-                  );
-                  const isActive =
-                    activeStageId === sol.id ||
-                    (isStartupCategory && activeSolutionId === sol.id);
-                  return (
-                    <button
-                      key={sol.id}
-                      onClick={() => onSelectSolution(sol.id)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase ${getSubtleActiveBtnClass(
-                        isActive
-                      )}`}
-                    >
-                      <span className={isActive ? 'font-bold' : 'font-normal'}>
-                        {sol.name.toLowerCase()}
-                      </span>
-                      {isActive && (
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            isDark ? 'bg-[#D4A373]' : 'bg-[#8C6D3F]'
-                          } shrink-0`}
-                        />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            {(() => {
+              const isSpecialView = [
+                'about-bizzbean',
+                'website-footer',
+                'administration-centre',
+                'google-workspace',
+                'sandbox-library',
+                'education-centre',
+              ].includes(activeSolutionId);
 
-            {/* OPERATIONS */}
-            <div>
-              <div className="relative group/opheader text-xs font-mono font-bold text-slate-500 tracking-wider uppercase px-2 mb-1 flex items-center justify-between cursor-help">
-                <div className="flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#5584B4]" />
-                  <span>OPERATIONS</span>
-                </div>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-medium">
-                  coming soon
-                </span>
-                {/* Header Tooltip */}
-                <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 pointer-events-none hidden group-hover/opheader:flex items-center">
-                  <div className="bg-[#12172A] text-white text-[11px] font-mono font-medium py-1 px-2.5 rounded-lg shadow-xl border border-[#2B3452] whitespace-nowrap animate-in fade-in duration-150">
-                    Operations modules will be coming soon
+              return (
+                <>
+                  {/* STARTUP STAGE */}
+                  <div>
+                    <div className="text-xs font-mono font-bold text-slate-500 tracking-wider uppercase px-2 mb-1 flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#5584B4]" />
+                      <span>STARTUP STAGE</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      {startupSolutions.map((sol) => {
+                        const isStartupCategory = !['operations', 'growth', 'education'].includes(
+                          activeStageId || ''
+                        );
+                        const isActive =
+                          !isSpecialView &&
+                          (activeStageId === sol.id ||
+                            (isStartupCategory && activeSolutionId === sol.id));
+                        return (
+                          <button
+                            key={sol.id}
+                            onClick={() => onSelectSolution(sol.id)}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase ${getSubtleActiveBtnClass(
+                              isActive
+                            )}`}
+                          >
+                            <span className={isActive ? 'font-bold' : 'font-normal'}>
+                              {sol.name.toLowerCase()}
+                            </span>
+                            {isActive && (
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full ${
+                                  isDark ? 'bg-[#D4A373]' : 'bg-[#8C6D3F]'
+                                } shrink-0`}
+                              />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              </div>
-              <div className="space-y-0.5">
-                {operationsSolutions.map((sol) => {
-                  const isActive =
-                    activeStageId === 'operations' &&
-                    (activeSolutionId === sol.id ||
-                      (activeSolutionId === 'budget' && sol.id === 'bizzbudget') ||
-                      (activeSolutionId === 'bizzbudget' && sol.id === 'bizzbudget'));
-                  return (
-                    <div key={sol.id} className="relative group/soon">
-                      <button
-                        onClick={() => onSelectSolution(sol.id)}
-                        title="Coming Soon - This element will be coming soon"
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase ${getSubtleActiveBtnClass(
-                          isActive
-                        )}`}
-                      >
-                        <span className={isActive ? 'font-bold' : 'font-normal'}>
-                          {sol.name.toLowerCase()}
-                        </span>
-                        <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 font-semibold opacity-75 group-hover/soon:opacity-100">
-                          soon
-                        </span>
-                      </button>
 
-                      {/* Tooltip */}
-                      <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 pointer-events-none hidden group-hover/soon:flex items-center">
+                  {/* OPERATIONS */}
+                  <div>
+                    <div
+                      onClick={() => onSelectSolution('operations')}
+                      className={`relative group/opheader text-xs font-mono font-bold tracking-wider uppercase px-2 mb-1 flex items-center justify-between cursor-pointer rounded-lg py-1 transition-colors ${
+                        !isSpecialView && activeStageId === 'operations' ? 'bg-[#5584B4]/15 text-[#5584B4]' : 'text-slate-500 hover:text-slate-300'
+                      }`}
+                      title="Operations Stage - Click to view stage"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#5584B4]" />
+                        <span>OPERATIONS</span>
+                      </div>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-medium">
+                        coming soon
+                      </span>
+                      {/* Header Tooltip */}
+                      <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 pointer-events-none hidden group-hover/opheader:flex items-center">
                         <div className="bg-[#12172A] text-white text-[11px] font-mono font-medium py-1 px-2.5 rounded-lg shadow-xl border border-[#2B3452] whitespace-nowrap animate-in fade-in duration-150">
-                          {sol.name} will be coming soon
+                          Operations modules will be coming soon
                         </div>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+                    {operationsSolutions.length > 0 && (
+                      <div className="space-y-0.5">
+                        {operationsSolutions.map((sol) => {
+                          const isActive =
+                            !isSpecialView &&
+                            activeStageId === 'operations' &&
+                            (activeSolutionId === sol.id ||
+                              (activeSolutionId === 'budget' && sol.id === 'bizzbudget') ||
+                              (activeSolutionId === 'bizzbudget' && sol.id === 'bizzbudget'));
+                          return (
+                            <div key={sol.id} className="relative group/soon">
+                              <button
+                                onClick={() => onSelectSolution(sol.id)}
+                                title="Coming Soon - This element will be coming soon"
+                                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase ${getSubtleActiveBtnClass(
+                                  isActive
+                                )}`}
+                              >
+                                <span className={isActive ? 'font-bold' : 'font-normal'}>
+                                  {sol.name.toLowerCase()}
+                                </span>
+                                <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 font-semibold opacity-75 group-hover/soon:opacity-100">
+                                  soon
+                                </span>
+                              </button>
 
-            {/* GROWTH STAGE */}
-            <div>
-              <div className="relative group/growthheader text-xs font-mono font-bold text-slate-500 tracking-wider uppercase px-2 mb-1 flex items-center justify-between cursor-help">
-                <div className="flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#5584B4]" />
-                  <span>GROWTH STAGE</span>
-                </div>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-medium">
-                  coming soon
-                </span>
-                {/* Header Tooltip */}
-                <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 pointer-events-none hidden group-hover/growthheader:flex items-center">
-                  <div className="bg-[#12172A] text-white text-[11px] font-mono font-medium py-1 px-2.5 rounded-lg shadow-xl border border-[#2B3452] whitespace-nowrap animate-in fade-in duration-150">
-                    Growth stage modules will be coming soon
+                              {/* Tooltip */}
+                              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 pointer-events-none hidden group-hover/soon:flex items-center">
+                                <div className="bg-[#12172A] text-white text-[11px] font-mono font-medium py-1 px-2.5 rounded-lg shadow-xl border border-[#2B3452] whitespace-nowrap animate-in fade-in duration-150">
+                                  {sol.name} will be coming soon
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                </div>
-              </div>
-              <div className="space-y-0.5">
-                {growthSolutions.map((sol) => {
-                  const isActive = activeStageId === 'growth' && activeSolutionId === sol.id;
-                  return (
-                    <div key={sol.id} className="relative group/soon">
-                      <button
-                        onClick={() => onSelectSolution(sol.id)}
-                        title="Coming Soon - This element will be coming soon"
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase ${getSubtleActiveBtnClass(
-                          isActive
-                        )}`}
-                      >
-                        <span className={isActive ? 'font-bold' : 'font-normal'}>
-                          {sol.name.toLowerCase()}
-                        </span>
-                        <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 font-semibold opacity-75 group-hover/soon:opacity-100">
-                          soon
-                        </span>
-                      </button>
 
-                      {/* Tooltip */}
-                      <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 pointer-events-none hidden group-hover/soon:flex items-center">
+                  {/* GROWTH STAGE */}
+                  <div>
+                    <div
+                      onClick={() => onSelectSolution('growth')}
+                      className={`relative group/growthheader text-xs font-mono font-bold tracking-wider uppercase px-2 mb-1 flex items-center justify-between cursor-pointer rounded-lg py-1 transition-colors ${
+                        !isSpecialView && activeStageId === 'growth' ? 'bg-[#5584B4]/15 text-[#5584B4]' : 'text-slate-500 hover:text-slate-300'
+                      }`}
+                      title="Growth Stage - Click to view stage"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#5584B4]" />
+                        <span>GROWTH STAGE</span>
+                      </div>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-medium">
+                        coming soon
+                      </span>
+                      {/* Header Tooltip */}
+                      <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 pointer-events-none hidden group-hover/growthheader:flex items-center">
                         <div className="bg-[#12172A] text-white text-[11px] font-mono font-medium py-1 px-2.5 rounded-lg shadow-xl border border-[#2B3452] whitespace-nowrap animate-in fade-in duration-150">
-                          {sol.name} will be coming soon
+                          Growth stage modules will be coming soon
                         </div>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+                    {growthSolutions.length > 0 && (
+                      <div className="space-y-0.5">
+                        {growthSolutions.map((sol) => {
+                          const isActive = !isSpecialView && activeStageId === 'growth' && activeSolutionId === sol.id;
+                          return (
+                            <div key={sol.id} className="relative group/soon">
+                              <button
+                                onClick={() => onSelectSolution(sol.id)}
+                                title="Coming Soon - This element will be coming soon"
+                                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase ${getSubtleActiveBtnClass(
+                                  isActive
+                                )}`}
+                              >
+                                <span className={isActive ? 'font-bold' : 'font-normal'}>
+                                  {sol.name.toLowerCase()}
+                                </span>
+                                <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 font-semibold opacity-75 group-hover/soon:opacity-100">
+                                  soon
+                                </span>
+                              </button>
 
-            {/* MEDIA & ARTICLES */}
-            <div>
-              <div className="text-xs font-mono font-bold text-slate-500 tracking-wider uppercase px-2 mb-1 flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#5584B4]" />
-                <span>MEDIA & ARTICLES</span>
-              </div>
-              <div className="space-y-0.5">
-                {educationSolutions.map((sol) => {
-                  const isActive =
-                    (activeStageId === 'education' ||
-                      ['videos', 'articles'].includes(activeSolutionId)) &&
-                    activeSolutionId === sol.id;
-                  return (
-                    <button
-                      key={sol.id}
-                      onClick={() => onSelectSolution(sol.id)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase ${getSubtleActiveBtnClass(
-                        isActive
-                      )}`}
-                    >
-                      <span className={isActive ? 'font-bold' : 'font-normal'}>
-                        {sol.name.toLowerCase()}
-                      </span>
-                      {isActive && (
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            isDark ? 'bg-[#D4A373]' : 'bg-[#8C6D3F]'
-                          } shrink-0`}
-                        />
-                      )}
-                    </button>
-                  );
-                })}
-            </div>
-          </div>
+                              {/* Tooltip */}
+                              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 pointer-events-none hidden group-hover/soon:flex items-center">
+                                <div className="bg-[#12172A] text-white text-[11px] font-mono font-medium py-1 px-2.5 rounded-lg shadow-xl border border-[#2B3452] whitespace-nowrap animate-in fade-in duration-150">
+                                  {sol.name} will be coming soon
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* MEDIA & ARTICLES */}
+                  <div>
+                    <div className="text-xs font-mono font-bold text-slate-500 tracking-wider uppercase px-2 mb-1 flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#5584B4]" />
+                      <span>MEDIA & ARTICLES</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      {educationSolutions.map((sol) => {
+                        const isActive =
+                          !isSpecialView &&
+                          (activeStageId === 'education' ||
+                            ['videos', 'articles'].includes(activeSolutionId)) &&
+                          activeSolutionId === sol.id;
+                        return (
+                          <button
+                            key={sol.id}
+                            onClick={() => onSelectSolution(sol.id)}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase ${getSubtleActiveBtnClass(
+                              isActive
+                            )}`}
+                          >
+                            <span className={isActive ? 'font-bold' : 'font-normal'}>
+                              {sol.name.toLowerCase()}
+                            </span>
+                            {isActive && (
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full ${
+                                  isDark ? 'bg-[#D4A373]' : 'bg-[#8C6D3F]'
+                                } shrink-0`}
+                              />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
         </div>
       </div>
 

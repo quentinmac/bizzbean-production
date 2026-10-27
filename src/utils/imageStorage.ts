@@ -1,4 +1,26 @@
-import { CmsArticle, CmsCourseLesson, CmsProduct, CmsPromotionSection, INITIAL_CMS_PRODUCTS, INITIAL_CMS_PROMOTIONS } from '../data/cmsConsoleData';
+import {
+  CmsArticle,
+  CmsCourseLesson,
+  CmsProduct,
+  CmsPromotionSection,
+  CmsVideo,
+  INITIAL_CMS_PRODUCTS,
+  INITIAL_CMS_PROMOTIONS,
+  INITIAL_CMS_VIDEOS,
+  INITIAL_CMS_ARTICLES,
+} from '../data/cmsConsoleData';
+
+export const CANONICAL_MASTER_COURSE_IDS = new Set<string>([
+  'learn-earn-capital',
+  'how-to-bizzcalc',
+  'cost-recovery-calculator',
+  'follow-the-money',
+  'financial-reports',
+  'your-first-hire',
+  'profit-optimizer',
+  'financial-scenario-planning',
+  'annual-business-planning-cycle',
+]);
 
 // High-efficiency client-side image compression & robust storage utilities
 // Prevents QuotaExceededError in localStorage by compressing images to lightweight ~50KB JPEGs
@@ -179,25 +201,99 @@ export function safeSaveStorage(key: string, data: any): void {
   idbSet(key, data).catch((e) => console.warn('IDB mirror error', e));
 }
 
+export const CMS_STORAGE_KEYS = {
+  CACHE_VERSION: 'bizzdesk_cms_cache_v3',
+  PRODUCTS: 'bizzdesk_cms_products_v3',
+  PROMOTIONS: 'bizzdesk_cms_promotions_v3',
+  VIDEOS: 'bizzdesk_cms_videos_v3',
+  ARTICLES: 'bizzdesk_cms_articles_v3',
+  DELETED_PRODUCTS: 'bizzdesk_cms_deleted_product_ids_v3',
+  DELETED_PROMOTIONS: 'bizzdesk_cms_deleted_promotion_ids_v3',
+  DELETED_VIDEOS: 'bizzdesk_cms_deleted_video_ids_v3',
+  DELETED_ARTICLES: 'bizzdesk_cms_deleted_article_ids_v3',
+} as const;
+
+/**
+ * Self-healing cache eviction: ensures that any stale v1 or v2 client storage
+ * that holds outdated prices or obsolete images is purged automatically.
+ */
+export function ensureFreshCmsCache(): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    const currentVersion = localStorage.getItem('bizzdesk_cms_cache_version');
+    if (currentVersion !== 'v6') {
+      const keysToPurge = [
+        'bizzdesk_cms_products_v1',
+        'bizzdesk_cms_promotions_v1',
+        'bizzdesk_cms_articles_v1',
+        'bizzdesk_cms_videos_v1',
+        'bizzdesk_cms_deleted_product_ids_v1',
+        'bizzdesk_cms_deleted_promotion_ids_v1',
+        'bizzdesk_cms_products_v2',
+        'bizzdesk_cms_promotions_v2',
+        'bizzdesk_cms_articles_v2',
+        'bizzdesk_cms_videos_v2',
+        'bizzdesk_cms_products_v3',
+        'bizzdesk_cms_products_v4',
+        'bizzdesk_cms_products_v5',
+      ];
+      keysToPurge.forEach((k) => {
+        try {
+          localStorage.removeItem(k);
+        } catch (_) {}
+      });
+
+      // Clear any accidental deletion blocks on essential courses (How to Use bizzcalc and Cost Recovery Calculator)
+      const deletedRaw = localStorage.getItem(DELETED_PRODUCTS_KEY);
+      if (deletedRaw) {
+        try {
+          const parsed = JSON.parse(deletedRaw);
+          if (Array.isArray(parsed)) {
+            const cleaned = parsed.filter(
+              (id: string) =>
+                id !== 'how-to-bizzcalc' &&
+                id !== 'cost-recovery-calculator' &&
+                !id.toLowerCase().includes('how to use bizzcalc') &&
+                !id.toLowerCase().includes('cost recovery')
+            );
+            localStorage.setItem(DELETED_PRODUCTS_KEY, JSON.stringify(cleaned));
+            idbSet(DELETED_PRODUCTS_KEY, cleaned).catch(() => {});
+          }
+        } catch (_) {}
+      }
+
+      localStorage.setItem('bizzdesk_cms_cache_version', 'v6');
+    }
+  } catch (e) {
+    console.warn('Cache migration notice:', e);
+  }
+}
+
 /**
  * Strips legacy unsplash fallback stock images from articles so only user-provided / uploaded images are rendered.
  * If an article has an Unsplash fallback image URL, it is cleaned to ''.
  */
 export function cleanFallbackImagesFromArticles(articles: CmsArticle[]): CmsArticle[] {
   if (!Array.isArray(articles)) return [];
-  return articles.map((art) => {
-    return art;
-  });
+  const deletedIds = getDeletedArticleIds();
+  return articles.filter((art) => art && art.id && !deletedIds.has(art.id));
 }
 
-const DELETED_PRODUCTS_KEY = 'bizzdesk_cms_deleted_product_ids_v1';
+const DELETED_PRODUCTS_KEY = CMS_STORAGE_KEYS.DELETED_PRODUCTS;
 
 export function getDeletedProductIds(): Set<string> {
   try {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(DELETED_PRODUCTS_KEY) : null;
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return new Set(parsed);
+      if (Array.isArray(parsed)) {
+        return new Set(
+          parsed.filter((id: string) => {
+            const canon = getCanonicalCourseId(id) || id;
+            return !CANONICAL_MASTER_COURSE_IDS.has(id) && !CANONICAL_MASTER_COURSE_IDS.has(canon);
+          })
+        );
+      }
     }
   } catch (e) {
     console.warn('Failed to read deleted product IDs', e);
@@ -206,6 +302,11 @@ export function getDeletedProductIds(): Set<string> {
 }
 
 export function markProductAsDeleted(prodId: string): void {
+  const canon = getCanonicalCourseId(prodId) || prodId;
+  if (CANONICAL_MASTER_COURSE_IDS.has(prodId) || CANONICAL_MASTER_COURSE_IDS.has(canon)) {
+    console.warn(`Cannot mark canonical master course "${prodId}" as deleted.`);
+    return;
+  }
   try {
     const set = getDeletedProductIds();
     set.add(prodId);
@@ -219,12 +320,24 @@ export function markProductAsDeleted(prodId: string): void {
   }
 }
 
-export function unmarkProductAsDeleted(prodId: string): void {
+export function unmarkProductAsDeleted(prodIdOrName?: string, secondaryName?: string): void {
+  if (!prodIdOrName && !secondaryName) return;
   try {
     const set = getDeletedProductIds();
-    set.delete(prodId);
-    const canon = getCanonicalCourseId(prodId);
-    if (canon) set.delete(canon);
+    const toCheck = [
+      prodIdOrName,
+      secondaryName,
+      prodIdOrName ? getCanonicalCourseId(prodIdOrName) : null,
+      secondaryName ? getCanonicalCourseId(secondaryName) : null,
+    ].filter(Boolean) as string[];
+
+    toCheck.forEach((item) => {
+      set.delete(item);
+      set.delete(item.toLowerCase());
+      set.delete(item.trim());
+      set.delete(item.toLowerCase().trim());
+    });
+
     const arr = Array.from(set);
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(DELETED_PRODUCTS_KEY, JSON.stringify(arr));
@@ -235,7 +348,7 @@ export function unmarkProductAsDeleted(prodId: string): void {
   }
 }
 
-const DELETED_PROMOTIONS_KEY = 'bizzdesk_cms_deleted_promotion_ids_v1';
+const DELETED_PROMOTIONS_KEY = CMS_STORAGE_KEYS.DELETED_PROMOTIONS;
 
 export function getDeletedPromotionIds(): Set<string> {
   const result = new Set<string>(['search']);
@@ -264,6 +377,116 @@ export function markPromotionAsDeleted(promoId: string): void {
     idbSet(DELETED_PROMOTIONS_KEY, arr).catch(() => {});
   } catch (e) {
     console.warn('Failed to mark promotion as deleted', e);
+  }
+}
+
+export function unmarkPromotionAsDeleted(promoId: string): void {
+  try {
+    const set = getDeletedPromotionIds();
+    set.delete(promoId);
+    const arr = Array.from(set);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(DELETED_PROMOTIONS_KEY, JSON.stringify(arr));
+    }
+    idbSet(DELETED_PROMOTIONS_KEY, arr).catch(() => {});
+  } catch (e) {
+    console.warn('Failed to unmark promotion as deleted', e);
+  }
+}
+
+const DELETED_VIDEOS_KEY = CMS_STORAGE_KEYS.DELETED_VIDEOS;
+
+export function getDeletedVideoIds(): Set<string> {
+  const result = new Set<string>();
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(DELETED_VIDEOS_KEY) : null;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        parsed.forEach((id: string) => result.add(id));
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to read deleted video IDs', e);
+  }
+  return result;
+}
+
+export function markVideoAsDeleted(videoId: string): void {
+  if (!videoId) return;
+  try {
+    const set = getDeletedVideoIds();
+    set.add(videoId);
+    const arr = Array.from(set);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(DELETED_VIDEOS_KEY, JSON.stringify(arr));
+    }
+    idbSet(DELETED_VIDEOS_KEY, arr).catch(() => {});
+  } catch (e) {
+    console.warn('Failed to mark video as deleted', e);
+  }
+}
+
+export function unmarkVideoAsDeleted(videoId: string): void {
+  if (!videoId) return;
+  try {
+    const set = getDeletedVideoIds();
+    set.delete(videoId);
+    const arr = Array.from(set);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(DELETED_VIDEOS_KEY, JSON.stringify(arr));
+    }
+    idbSet(DELETED_VIDEOS_KEY, arr).catch(() => {});
+  } catch (e) {
+    console.warn('Failed to unmark video as deleted', e);
+  }
+}
+
+const DELETED_ARTICLES_KEY = CMS_STORAGE_KEYS.DELETED_ARTICLES;
+
+export function getDeletedArticleIds(): Set<string> {
+  const result = new Set<string>();
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(DELETED_ARTICLES_KEY) : null;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        parsed.forEach((id: string) => result.add(id));
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to read deleted article IDs', e);
+  }
+  return result;
+}
+
+export function markArticleAsDeleted(articleId: string): void {
+  if (!articleId) return;
+  try {
+    const set = getDeletedArticleIds();
+    set.add(articleId);
+    const arr = Array.from(set);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(DELETED_ARTICLES_KEY, JSON.stringify(arr));
+    }
+    idbSet(DELETED_ARTICLES_KEY, arr).catch(() => {});
+  } catch (e) {
+    console.warn('Failed to mark article as deleted', e);
+  }
+}
+
+export function unmarkArticleAsDeleted(articleId: string): void {
+  if (!articleId) return;
+  try {
+    const set = getDeletedArticleIds();
+    set.delete(articleId);
+    const arr = Array.from(set);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(DELETED_ARTICLES_KEY, JSON.stringify(arr));
+    }
+    idbSet(DELETED_ARTICLES_KEY, arr).catch(() => {});
+  } catch (e) {
+    console.warn('Failed to unmark article as deleted', e);
   }
 }
 
@@ -297,14 +520,14 @@ export const MASTER_COURSE_CURRICULA: Record<string, CmsCourseLesson[]> = {
     { id: 'fr-3', name: '3 - BALANCE SHEET STRESS TEST', duration: '14 min', youtubeUrl: 'https://www.youtube.com/watch?v=r6h0R1sDx50' },
   ],
   'profit optimizer': [
-    { id: 'po-1', name: '1 - CONTRIBUTION MARGIN WATERFALL', duration: '6 min', youtubeUrl: 'https://www.youtube.com/watch?v=vUT8lZLZpKg' },
-    { id: 'po-2', name: '2 - VOLUME SENSITIVITY MATRIX', duration: '11 min', youtubeUrl: 'https://www.youtube.com/watch?v=3wyZYsk8OTY' },
-    { id: 'po-3', name: '3 - PRICING POWER EXPERIMENTS', duration: '13 min', youtubeUrl: 'https://www.youtube.com/watch?v=xbasHzq2fL0' },
+    { id: 'po-1', name: 'Lesson 01: Auditing Discretionary Overhead & Vendor Creep', duration: '14:10', youtubeUrl: 'https://www.youtube.com/watch?v=vUT8lZLZpKg' },
+    { id: 'po-2', name: 'Lesson 02: Recalibrating Unit Contribution Margins', duration: '16:30', youtubeUrl: 'https://www.youtube.com/watch?v=3wyZYsk8OTY' },
+    { id: 'po-3', name: 'Lesson 03: The 18-Month Runway Safeguard Checklist', duration: '12:45', youtubeUrl: 'https://www.youtube.com/watch?v=xbasHzq2fL0' },
   ],
   'profit dynamics': [
-    { id: 'pd-1', name: '1 - CONTRIBUTION MARGIN WATERFALL', duration: '6 min', youtubeUrl: 'https://www.youtube.com/watch?v=vUT8lZLZpKg' },
-    { id: 'pd-2', name: '2 - VOLUME SENSITIVITY MATRIX', duration: '11 min', youtubeUrl: 'https://www.youtube.com/watch?v=3wyZYsk8OTY' },
-    { id: 'pd-3', name: '3 - PRICING POWER EXPERIMENTS', duration: '13 min', youtubeUrl: 'https://www.youtube.com/watch?v=xbasHzq2fL0' },
+    { id: 'pd-1', name: 'Lesson 01: Auditing Discretionary Overhead & Vendor Creep', duration: '14:10', youtubeUrl: 'https://www.youtube.com/watch?v=vUT8lZLZpKg' },
+    { id: 'pd-2', name: 'Lesson 02: Recalibrating Unit Contribution Margins', duration: '16:30', youtubeUrl: 'https://www.youtube.com/watch?v=3wyZYsk8OTY' },
+    { id: 'pd-3', name: 'Lesson 03: The 18-Month Runway Safeguard Checklist', duration: '12:45', youtubeUrl: 'https://www.youtube.com/watch?v=xbasHzq2fL0' },
   ],
   'your first hire': [
     { id: 'yfh-1', name: '1 - FULLY BURDENED LABOR RATE', duration: '5 min', youtubeUrl: 'https://www.youtube.com/watch?v=0--AvwZabIQ' },
@@ -334,7 +557,7 @@ export const BOGUS_YOUTUBE_IDS = [
 ];
 
 export function isBogusLessonUrl(url?: string): boolean {
-  if (!url || typeof url !== 'string' || !url.trim()) return true;
+  if (!url || typeof url !== 'string' || !url.trim()) return false;
   return BOGUS_YOUTUBE_IDS.some((bad) => url.includes(bad));
 }
 
@@ -386,18 +609,19 @@ export function getCanonicalCourseId(nameOrId: string): string | null {
   if (lower.includes('cost recovery') || lower.includes('cost-recovery')) return 'cost-recovery-calculator';
   if (lower.includes('financial report') || lower.includes('financial-reports')) return 'financial-reports';
   if (lower.includes('how to use bizzcalc') || lower.includes('how-to-bizzcalc')) return 'how-to-bizzcalc';
-  if (lower.includes('earn access to capital') || lower.includes('learn-earn-capital')) return 'learn-earn-capital';
+  if (lower.includes('earn access to capital') || lower.includes('learn-earn-capital') || lower.includes('capital access')) return 'learn-earn-capital';
   if (lower.includes('follow the money') || lower.includes('follow-the-money')) return 'follow-the-money';
   if (lower.includes('first hire') || lower.includes('your-first-hire')) return 'your-first-hire';
   if (lower.includes('profit optimizer') || lower.includes('profit dynamics') || lower.includes('profit-optimizer')) return 'profit-optimizer';
-  if (lower.includes('scenario planning') || lower.includes('financial-scenario')) return 'financial-scenario-planning';
-  if (lower.includes('annual business planning') || lower.includes('annual-business-planning')) return 'annual-business-planning-cycle';
+  if (lower.includes('scenario planning') || lower.includes('scenario') || lower.includes('financial-scenario')) return 'financial-scenario-planning';
+  if (lower.includes('annual business planning') || lower.includes('annual-business') || lower.includes('planning cycle') || lower.includes('planning-cycle')) return 'annual-business-planning-cycle';
   return null;
 }
 
 /**
  * Resolves a course in the given courses array using direct ID, canonical ID, name, keyword, or stage matching.
  * Guarantees that cost-recovery-calculator and specific course tracks never incorrectly fall back to learn-earn-capital.
+ * STRICT: Only returns courses, never returns apps (e.g. sustain-runway).
  */
 export function findMatchingCourse(
   targetIdOrName: string | undefined,
@@ -436,7 +660,8 @@ export function findMatchingCourse(
     found = courses.find(
       (c) =>
         c &&
-        (c.id.includes('cost-recovery') ||
+        (c.id === 'cost-recovery-calculator' ||
+          c.id.includes('cost-recovery') ||
           (c.name || '').toLowerCase().includes('cost recovery'))
     );
     if (found) return found;
@@ -445,17 +670,39 @@ export function findMatchingCourse(
     found = courses.find(
       (c) =>
         c &&
-        (c.id.includes('how-to-bizzcalc') ||
+        (c.id === 'how-to-bizzcalc' ||
+          c.id.includes('how-to-bizzcalc') ||
           (c.name || '').toLowerCase().includes('how to use bizzcalc'))
     );
     if (found) return found;
   }
-  if (target.includes('profit optimizer') || target.includes('profit-optimizer')) {
+  if (target.includes('profit optimizer') || target.includes('profit-optimizer') || target.includes('profit dynamics')) {
     found = courses.find(
       (c) =>
         c &&
-        (c.id.includes('profit-optimizer') ||
+        (c.id === 'profit-optimizer' ||
+          c.id.includes('profit-optimizer') ||
           (c.name || '').toLowerCase().includes('profit optimizer'))
+    );
+    if (found) return found;
+  }
+  if (target.includes('scenario planning') || target.includes('scenario-planning') || target.includes('financial scenario') || target.includes('scenario')) {
+    found = courses.find(
+      (c) =>
+        c &&
+        (c.id === 'financial-scenario-planning' ||
+          c.id.includes('scenario') ||
+          (c.name || '').toLowerCase().includes('scenario planning'))
+    );
+    if (found) return found;
+  }
+  if (target.includes('annual business') || target.includes('annual-business') || target.includes('planning cycle') || target.includes('annual')) {
+    found = courses.find(
+      (c) =>
+        c &&
+        (c.id === 'annual-business-planning-cycle' ||
+          c.id.includes('annual') ||
+          (c.name || '').toLowerCase().includes('annual business'))
     );
     if (found) return found;
   }
@@ -463,7 +710,8 @@ export function findMatchingCourse(
     found = courses.find(
       (c) =>
         c &&
-        (c.id.includes('financial-reports') ||
+        (c.id === 'financial-reports' ||
+          c.id.includes('financial-reports') ||
           (c.name || '').toLowerCase().includes('financial report'))
     );
     if (found) return found;
@@ -472,7 +720,8 @@ export function findMatchingCourse(
     found = courses.find(
       (c) =>
         c &&
-        (c.id.includes('follow-the-money') ||
+        (c.id === 'follow-the-money' ||
+          c.id.includes('follow-the-money') ||
           (c.name || '').toLowerCase().includes('follow the money'))
     );
     if (found) return found;
@@ -481,26 +730,9 @@ export function findMatchingCourse(
     found = courses.find(
       (c) =>
         c &&
-        (c.id.includes('your-first-hire') ||
+        (c.id === 'your-first-hire' ||
+          c.id.includes('your-first-hire') ||
           (c.name || '').toLowerCase().includes('first hire'))
-    );
-    if (found) return found;
-  }
-  if (target.includes('scenario planning') || target.includes('scenario-planning')) {
-    found = courses.find(
-      (c) =>
-        c &&
-        (c.id.includes('scenario') ||
-          (c.name || '').toLowerCase().includes('scenario planning'))
-    );
-    if (found) return found;
-  }
-  if (target.includes('annual business') || target.includes('annual-business')) {
-    found = courses.find(
-      (c) =>
-        c &&
-        (c.id.includes('annual') ||
-          (c.name || '').toLowerCase().includes('annual business'))
     );
     if (found) return found;
   }
@@ -508,14 +740,72 @@ export function findMatchingCourse(
     found = courses.find(
       (c) =>
         c &&
-        (c.id.includes('learn-earn') ||
+        (c.id === 'learn-earn-capital' ||
+          c.id.includes('learn-earn') ||
           (c.name || '').toLowerCase().includes('access to capital'))
     );
     if (found) return found;
   }
 
-  // 5. Stage matching: if target is a stage (e.g. 'fund-ability'), pick the primary course of that stage
-  found = courses.find((c) => c && c.stage === targetIdOrName);
+  // 5. Stage matching: if target is a stage (e.g. 'sustain-ability', 'fund-ability'), pick the primary course of that stage.
+  // CRITICAL: NEVER return an app (like sustain-runway) for course matching!
+  if (targetIdOrName === 'sustain-ability' || target.includes('sustain')) {
+    found =
+      courses.find((c) => c && c.id === 'profit-optimizer') ||
+      courses.find((c) => c && c.id === 'financial-scenario-planning') ||
+      courses.find((c) => c && c.id === 'annual-business-planning-cycle') ||
+      courses.find(
+        (c) =>
+          c &&
+          c.stage === 'sustain-ability' &&
+          (c.type === 'course' || (c.courseLessons && c.courseLessons.length > 0))
+      );
+    if (found) return found;
+  }
+  if (targetIdOrName === 'fund-ability' || target.includes('fund')) {
+    found =
+      courses.find((c) => c && c.id === 'cost-recovery-calculator') ||
+      courses.find((c) => c && c.id === 'follow-the-money') ||
+      courses.find((c) => c && c.id === 'financial-reports') ||
+      courses.find(
+        (c) =>
+          c &&
+          c.stage === 'fund-ability' &&
+          (c.type === 'course' || (c.courseLessons && c.courseLessons.length > 0))
+      );
+    if (found) return found;
+  }
+  if (targetIdOrName === 'vi-ability' || target.includes('vi-ability')) {
+    found =
+      courses.find((c) => c && c.id === 'learn-earn-capital') ||
+      courses.find((c) => c && c.id === 'how-to-bizzcalc') ||
+      courses.find(
+        (c) =>
+          c &&
+          c.stage === 'vi-ability' &&
+          (c.type === 'course' || (c.courseLessons && c.courseLessons.length > 0))
+      );
+    if (found) return found;
+  }
+  if (targetIdOrName === 'operations' || target.includes('operations')) {
+    found =
+      courses.find((c) => c && c.id === 'your-first-hire') ||
+      courses.find(
+        (c) =>
+          c &&
+          c.stage === 'operations' &&
+          (c.type === 'course' || (c.courseLessons && c.courseLessons.length > 0))
+      );
+    if (found) return found;
+  }
+
+  // General fallback: only match items that are courses
+  found = courses.find(
+    (c) =>
+      c &&
+      c.stage === targetIdOrName &&
+      (c.type === 'course' || (c.courseLessons && c.courseLessons.length > 0))
+  );
   if (found) return found;
 
   return undefined;
@@ -530,6 +820,8 @@ export function findMatchingCourse(
 export function cleanLegacyProducts(products: CmsProduct[]): CmsProduct[] {
   if (!Array.isArray(products) || products.length === 0) return INITIAL_CMS_PRODUCTS;
 
+  const deletedIds = getDeletedProductIds();
+
   // 1. Deduplicate by unique product ID or canonical course ID (keep latest with user edits)
   const byId = new Map<string, CmsProduct>();
   products.forEach((p) => {
@@ -538,6 +830,11 @@ export function cleanLegacyProducts(products: CmsProduct[]): CmsProduct[] {
       p.type === 'course'
         ? getCanonicalCourseId(p.id) || getCanonicalCourseId(p.name) || p.id
         : p.id;
+    const isMasterCourse =
+      CANONICAL_MASTER_COURSE_IDS.has(p.id) ||
+      CANONICAL_MASTER_COURSE_IDS.has(canonicalId);
+    if (!isMasterCourse && (deletedIds.has(p.id) || deletedIds.has(canonicalId))) return;
+
     const existing = byId.get(canonicalId);
     if (!existing) {
       byId.set(canonicalId, { ...p, id: canonicalId });
@@ -564,20 +861,61 @@ export function cleanLegacyProducts(products: CmsProduct[]): CmsProduct[] {
     }
   });
 
-  // 2. Preserve valid cover images, hydrate default covers from INITIAL_CMS_PRODUCTS when empty,
-  // and ensure cost-recovery-calculator belongs definitively to fund-ability stage
+  // Guarantee all 9 canonical master courses are unconditionally present
+  INITIAL_CMS_PRODUCTS.forEach((ip) => {
+    if (ip && CANONICAL_MASTER_COURSE_IDS.has(ip.id)) {
+      if (!byId.has(ip.id)) {
+        byId.set(ip.id, { ...ip });
+      }
+    }
+  });
+
+  // 2. Preserve valid cover images, user pricing edits and user sequences
   const cleanedList = Array.from(byId.values()).map((p) => {
     const cover = (p.canonicalCoverUrl || '').trim();
-    const isCorruptOrDeleted = cover.includes('1553877522-43269d4ea984');
-    const initialProd = INITIAL_CMS_PRODUCTS.find((ip) => ip.id === p.id);
-    const effectiveCover = (!cover || isCorruptOrDeleted)
-      ? (initialProd?.canonicalCoverUrl || '')
-      : cover;
+    const isCorruptOrDeleted = !cover || cover.includes('1553877522-43269d4ea984');
+    const initialProd = INITIAL_CMS_PRODUCTS.find(
+      (ip) =>
+        ip.id === p.id ||
+        (p.id === 'bizzbudget' && ip.id === 'budget') ||
+        (p.id === 'budget' && ip.id === 'budget') ||
+        (p.name && ip.name.toLowerCase() === p.name.toLowerCase())
+    );
+
+    // Keep user base64 upload, else canonical initial cover
+    const effectiveCover = cover.startsWith('data:image')
+      ? cover
+      : (initialProd?.canonicalCoverUrl || (!isCorruptOrDeleted ? cover : ''));
 
     const effectiveStage =
-      p.id === 'cost-recovery-calculator' && (p.stage === 'vi-ability' || p.stage === 'education')
+      p.id === 'cost-recovery-calculator'
         ? ('fund-ability' as const)
-        : p.stage || 'vi-ability';
+        : (['profit-optimizer', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(p.id))
+        ? ('sustain-ability' as const)
+        : p.id === 'bizzdynamics'
+        ? ('personal-sandbox' as const)
+        : (p.stage || initialProd?.stage || 'vi-ability');
+
+    const effectiveSellingPrice =
+      p.sellingPriceZAR !== undefined
+        ? p.sellingPriceZAR
+        : (initialProd?.sellingPriceZAR ?? 0);
+    const effectiveExclusivePrice =
+      p.exclusivePriceZAR !== undefined
+        ? p.exclusivePriceZAR
+        : (initialProd?.exclusivePriceZAR ?? Math.round((effectiveSellingPrice / 1.15) * 100) / 100);
+    const effectiveVat =
+      p.vatZAR !== undefined
+        ? p.vatZAR
+        : (initialProd?.vatZAR ?? Math.round((effectiveSellingPrice - effectiveExclusivePrice) * 100) / 100);
+    const effectiveTokens =
+      p.tokensAllocated !== undefined
+        ? p.tokensAllocated
+        : (initialProd?.tokensAllocated ?? Math.round(effectiveSellingPrice * 0.20 * 10) / 10);
+    const effectiveTicket =
+      p.ticketPriceZAR !== undefined
+        ? p.ticketPriceZAR
+        : (initialProd?.ticketPriceZAR ?? Math.round(effectiveSellingPrice * 1.20 * 100) / 100);
 
     let courseLessons = p.courseLessons;
     let syllabusLessonsCount = p.syllabusLessonsCount;
@@ -592,28 +930,51 @@ export function cleanLegacyProducts(products: CmsProduct[]): CmsProduct[] {
         (courseLessons.length === 1 &&
           courseLessons[0].name.toLowerCase().includes('strategic foundations'));
 
-      // If placeholder, empty, or has bogus YouTube URLs, hydrate with verified master curriculum
-      if (master && hasBogusOrEmpty) {
-        courseLessons = master.map((m, idx) => {
-          const userLesson = courseLessons && courseLessons[idx];
-          const userUrl = userLesson?.youtubeUrl?.trim() || '';
-          const effectiveUrl = (!userUrl || isBogusLessonUrl(userUrl)) ? m.youtubeUrl : userUrl;
-          return {
-            ...m,
-            ...(userLesson || {}),
-            name: userLesson?.name || m.name,
-            duration: userLesson?.duration || m.duration,
-            youtubeUrl: effectiveUrl,
-          };
+      // If empty, hydrate with master curriculum or default titles
+      if (!courseLessons || courseLessons.length === 0) {
+        if (master && master.length > 0) {
+          courseLessons = master.map((m) => ({ ...m }));
+          syllabusLessonsCount = master.length;
+          lessonTitles = courseLessons.map((l) => l.name);
+        } else if (p.lessonTitles && p.lessonTitles.length > 0) {
+          courseLessons = p.lessonTitles.map((t, idx) => ({
+            id: `lesson-${p.id}-${idx + 1}`,
+            name: t,
+            duration: '15 min',
+            youtubeUrl: '',
+          }));
+          syllabusLessonsCount = courseLessons.length;
+          lessonTitles = p.lessonTitles;
+        }
+      } else {
+        // Preserve all user-added lessons without truncation; only sanitize bogus test IDs in place
+        courseLessons = courseLessons.map((l, idx) => {
+          if (isBogusLessonUrl(l.youtubeUrl)) {
+            const fallbackUrl = master && master[idx] ? master[idx].youtubeUrl : '';
+            return { ...l, youtubeUrl: fallbackUrl };
+          }
+          return { ...l };
         });
-        syllabusLessonsCount = master.length;
+        syllabusLessonsCount = courseLessons.length;
         lessonTitles = courseLessons.map((l) => l.name);
       }
     }
 
     return {
+      ...(initialProd || {}),
       ...p,
+      seq: (typeof p.seq === 'number' && !isNaN(p.seq) && p.seq >= 1) ? p.seq : (initialProd?.seq ?? 1),
+      sku: p.sku || initialProd?.sku || '',
+      name: (p.name && p.name.trim() !== '') ? p.name : (initialProd?.name || p.id),
+      subtitle: (p.subtitle && p.subtitle.trim() !== '') ? p.subtitle : (initialProd?.subtitle || ''),
+      description: (p.description && p.description.trim() !== '') ? p.description : (initialProd?.description || ''),
+      purpose: (p.purpose && p.purpose.trim() !== '') ? p.purpose : (initialProd?.purpose || ''),
       stage: effectiveStage,
+      sellingPriceZAR: effectiveSellingPrice,
+      exclusivePriceZAR: effectiveExclusivePrice,
+      vatZAR: effectiveVat,
+      tokensAllocated: effectiveTokens,
+      ticketPriceZAR: effectiveTicket,
       canonicalCoverUrl: effectiveCover,
       courseLessons: courseLessons ? courseLessons.map((l) => ({ ...l })) : [],
       syllabusLessonsCount: syllabusLessonsCount || (courseLessons ? courseLessons.length : 0),
@@ -621,28 +982,13 @@ export function cleanLegacyProducts(products: CmsProduct[]): CmsProduct[] {
     };
   });
 
-  // Guarantee that cost-recovery-calculator is never accidentally missing from cleaned products
-  const hasCostRecovery = cleanedList.some(
-    (p) => p.id === 'cost-recovery-calculator' || (p.name || '').toLowerCase().includes('cost recovery')
-  );
-  if (!hasCostRecovery) {
-    const defaultCostRecovery = INITIAL_CMS_PRODUCTS.find((p) => p.id === 'cost-recovery-calculator');
-    if (defaultCostRecovery) {
-      const lessons = defaultCostRecovery.courseLessons || [];
-      cleanedList.push({
-        ...defaultCostRecovery,
-        canonicalCoverUrl: defaultCostRecovery.canonicalCoverUrl || '',
-        courseLessons: lessons.map((l) => ({ ...l })),
-        syllabusLessonsCount: defaultCostRecovery.syllabusLessonsCount || lessons.length,
-        lessonTitles: defaultCostRecovery.lessonTitles || lessons.map((l) => l.name),
-      });
-    }
-  }
-
-  // Ensure active cost-recovery-calculator is unblocked from deletedIds
-  unmarkProductAsDeleted('cost-recovery-calculator');
-
-  return cleanedList;
+  return cleanedList.filter((p) => {
+    const isMaster =
+      CANONICAL_MASTER_COURSE_IDS.has(p.id) ||
+      CANONICAL_MASTER_COURSE_IDS.has(getCanonicalCourseId(p.id) || '');
+    if (isMaster) return true;
+    return !deletedIds.has(p.id);
+  });
 }
 
 /**
@@ -650,7 +996,8 @@ export function cleanLegacyProducts(products: CmsProduct[]): CmsProduct[] {
  */
 export function cleanClearedEducationVideos(videos: any[]): any[] {
   if (!Array.isArray(videos)) return [];
-  return videos;
+  const deletedIds = getDeletedVideoIds();
+  return videos.filter((v) => v && v.id && !deletedIds.has(v.id));
 }
 
 /**
@@ -666,9 +1013,12 @@ export function cleanClearedCourseLessons(products: any[]): any[] {
  * and filtering deleted/search message boards.
  */
 export function cleanLegacyViabilityPromotions(promos: CmsPromotionSection[]): CmsPromotionSection[] {
-  if (!Array.isArray(promos)) return INITIAL_CMS_PROMOTIONS;
   const deletedIds = getDeletedPromotionIds();
-  return promos
+  if (!Array.isArray(promos) || promos.length === 0) {
+    return INITIAL_CMS_PROMOTIONS.filter((p) => !deletedIds.has(p.id));
+  }
+
+  const cleaned = promos
     .filter((p) => {
       if (!p || !p.id) return false;
       if (deletedIds.has(p.id)) return false;
@@ -680,24 +1030,28 @@ export function cleanLegacyViabilityPromotions(promos: CmsPromotionSection[]): C
     .map((p) => {
       const initial = INITIAL_CMS_PROMOTIONS.find((ip) => ip.id === p.id);
       const img = (p.imageUrl || '').trim();
-      const isCorrupted = img.includes('1553877522-43269d4ea984');
-      const cleanedImg = (!img || isCorrupted) ? (initial?.imageUrl || '') : img;
+      const isCorrupted = !img || img.includes('1553877522-43269d4ea984');
+
+      // User custom base64 image is preserved; otherwise take canonical initial image
+      const cleanedImg = img.startsWith('data:image')
+        ? img
+        : (initial?.imageUrl || (!isCorrupted ? img : ''));
 
       const mergedStory = {
         narrative:
-          p.stageStory?.narrative !== undefined && p.stageStory.narrative.trim() !== ''
+          (p.stageStory?.narrative && p.stageStory.narrative.trim() !== '')
             ? p.stageStory.narrative
             : (initial?.stageStory?.narrative || ''),
         stageChallenge:
-          p.stageStory?.stageChallenge !== undefined && p.stageStory.stageChallenge.trim() !== ''
+          (p.stageStory?.stageChallenge && p.stageStory.stageChallenge.trim() !== '')
             ? p.stageStory.stageChallenge
             : (initial?.stageStory?.stageChallenge || ''),
         milestone:
-          p.stageStory?.milestone !== undefined && p.stageStory.milestone.trim() !== ''
+          (p.stageStory?.milestone && p.stageStory.milestone.trim() !== '')
             ? p.stageStory.milestone
             : (initial?.stageStory?.milestone || ''),
         keyDeliverable:
-          p.stageStory?.keyDeliverable !== undefined && p.stageStory.keyDeliverable.trim() !== ''
+          (p.stageStory?.keyDeliverable && p.stageStory.keyDeliverable.trim() !== '')
             ? p.stageStory.keyDeliverable
             : (initial?.stageStory?.keyDeliverable || ''),
       };
@@ -715,6 +1069,25 @@ export function cleanLegacyViabilityPromotions(promos: CmsPromotionSection[]): C
         stageStory: mergedStory,
       };
     });
+
+  // Guarantee all 13 canonical stages from INITIAL_CMS_PROMOTIONS exist
+  const existingIds = new Set(cleaned.map((p) => p.id));
+  INITIAL_CMS_PROMOTIONS.forEach((ip) => {
+    if (!existingIds.has(ip.id) && !deletedIds.has(ip.id)) {
+      cleaned.push({
+        ...ip,
+        imageUrl: ip.imageUrl || '',
+        stageStory: {
+          narrative: ip.stageStory?.narrative || '',
+          stageChallenge: ip.stageStory?.stageChallenge || '',
+          milestone: ip.stageStory?.milestone || '',
+          keyDeliverable: ip.stageStory?.keyDeliverable || '',
+        },
+      });
+    }
+  });
+
+  return cleaned;
 }
 
 /**
@@ -736,10 +1109,10 @@ export function mergeLoadedPromotions(
     p.targetId === 'search';
 
   if (!secondary || !Array.isArray(secondary) || secondary.length === 0) {
-    return (primary || []).filter((p) => !isSearchOrDeleted(p));
+    return cleanLegacyViabilityPromotions(primary || []);
   }
   if (!primary || !Array.isArray(primary) || primary.length === 0) {
-    return (secondary || []).filter((p) => !isSearchOrDeleted(p));
+    return cleanLegacyViabilityPromotions(secondary || []);
   }
 
   const secMap = new Map<string, CmsPromotionSection>();
@@ -758,47 +1131,48 @@ export function mergeLoadedPromotions(
       return;
     }
 
-    // sec is loaded from persistent storage (IndexedDB or localStorage); p is in-memory / incoming
-    // If in-memory p has a newly uploaded or updated image, preserve it; otherwise take sec's image
     const pImg = (p.imageUrl || '').trim();
     const secImg = (sec.imageUrl || '').trim();
-    const chosenImage =
-      pImg !== '' && pImg.startsWith('data:image') && pImg !== secImg
-        ? pImg
-        : (secImg !== '' ? secImg : pImg);
+    const initial = INITIAL_CMS_PROMOTIONS.find((ip) => ip.id === p.id);
 
-    // Merge stageStory: take sec's saved stageStory, falling back to p's defaults for any missing fields
+    // If secondary has a user-uploaded base64 image, preserve it; otherwise prefer authoritative primary
+    const chosenImage =
+      secImg.startsWith('data:image')
+        ? secImg
+        : (pImg !== '' && !pImg.includes('1553877522-43269d4ea984')
+            ? pImg
+            : (initial?.imageUrl || (secImg !== '' && !secImg.includes('1553877522-43269d4ea984') ? secImg : '')));
+
     const mergedStory = {
       narrative:
-        sec.stageStory?.narrative !== undefined && sec.stageStory.narrative.trim() !== ''
-          ? sec.stageStory.narrative
-          : (p.stageStory?.narrative || ''),
+        (p.stageStory?.narrative && p.stageStory.narrative.trim() !== '')
+          ? p.stageStory.narrative
+          : (sec.stageStory?.narrative || initial?.stageStory?.narrative || ''),
       stageChallenge:
-        sec.stageStory?.stageChallenge !== undefined && sec.stageStory.stageChallenge.trim() !== ''
-          ? sec.stageStory.stageChallenge
-          : (p.stageStory?.stageChallenge || ''),
+        (p.stageStory?.stageChallenge && p.stageStory.stageChallenge.trim() !== '')
+          ? p.stageStory.stageChallenge
+          : (sec.stageStory?.stageChallenge || initial?.stageStory?.stageChallenge || ''),
       milestone:
-        sec.stageStory?.milestone !== undefined && sec.stageStory.milestone.trim() !== ''
-          ? sec.stageStory.milestone
-          : (p.stageStory?.milestone || ''),
+        (p.stageStory?.milestone && p.stageStory.milestone.trim() !== '')
+          ? p.stageStory.milestone
+          : (sec.stageStory?.milestone || initial?.stageStory?.milestone || ''),
       keyDeliverable:
-        sec.stageStory?.keyDeliverable !== undefined && sec.stageStory.keyDeliverable.trim() !== ''
-          ? sec.stageStory.keyDeliverable
-          : (p.stageStory?.keyDeliverable || ''),
+        (p.stageStory?.keyDeliverable && p.stageStory.keyDeliverable.trim() !== '')
+          ? p.stageStory.keyDeliverable
+          : (sec.stageStory?.keyDeliverable || initial?.stageStory?.keyDeliverable || ''),
     };
 
-    // If p (primary/incoming update) has an explicit isActive setting (such as false), it takes precedence over stale cache
     const effectiveIsActive =
       p.isActive !== undefined ? p.isActive : (sec.isActive !== undefined ? sec.isActive : true);
 
     merged.push({
       ...sec,
       ...p,
-      displayName: (p.displayName && p.displayName.trim() !== '') ? p.displayName : (sec.displayName || p.displayName),
-      tagline: (p.tagline && p.tagline.trim() !== '') ? p.tagline : (sec.tagline || p.tagline),
-      buttonText: (p.buttonText && p.buttonText.trim() !== '') ? p.buttonText : (sec.buttonText || p.buttonText),
-      targetId: p.targetId || sec.targetId,
-      targetType: p.targetType || sec.targetType,
+      displayName: (p.displayName && p.displayName.trim() !== '') ? p.displayName : (sec.displayName || initial?.displayName || p.name),
+      tagline: (p.tagline && p.tagline.trim() !== '') ? p.tagline : (sec.tagline || initial?.tagline || ''),
+      buttonText: (p.buttonText && p.buttonText.trim() !== '') ? p.buttonText : (sec.buttonText || initial?.buttonText || 'explore'),
+      targetId: p.targetId || sec.targetId || initial?.targetId || 'vi-ability',
+      targetType: p.targetType || sec.targetType || initial?.targetType || 'solution',
       targetTab: p.targetTab || sec.targetTab,
       imageUrl: chosenImage,
       isActive: effectiveIsActive,
@@ -813,7 +1187,7 @@ export function mergeLoadedPromotions(
     }
   });
 
-  return merged;
+  return cleanLegacyViabilityPromotions(merged);
 }
 
 /**
@@ -830,10 +1204,9 @@ export function mergeLoadedProducts(
   if (!primary || !Array.isArray(primary) || primary.length === 0) {
     return cleanLegacyProducts(secondary);
   }
-
   const deletedIds = getDeletedProductIds();
 
-  // secondary is loaded from persistent storage (IndexedDB), primary is in-memory
+  // secondary is loaded from persistent storage (IndexedDB), primary is authoritative in-memory / Firestore
   const secMap = new Map<string, CmsProduct>();
   secondary.forEach((p) => {
     if (p && p.id && !deletedIds.has(p.id)) {
@@ -843,85 +1216,298 @@ export function mergeLoadedProducts(
     }
   });
 
-  const primIds = new Set(primary.map((p) => p.id));
-  primary.forEach((p) => {
-    if (p && p.type === 'course') {
-      const canonId = getCanonicalCourseId(p.id) || getCanonicalCourseId(p.name);
-      if (canonId) primIds.add(canonId);
-    }
-  });
-
   const merged: CmsProduct[] = [];
+  const handledIds = new Set<string>();
 
-  // Start with secondary (storage persistent truth)
-  secondary.forEach((sec) => {
-    if (!sec || !sec.id || deletedIds.has(sec.id)) return;
-    const canonSecId = sec.type === 'course' ? (getCanonicalCourseId(sec.id) || getCanonicalCourseId(sec.name) || sec.id) : sec.id;
-    const prim = primary.find(
-      (p) =>
-        p &&
-        (p.id === sec.id ||
-          p.id === canonSecId ||
-          (p.type === 'course' && (getCanonicalCourseId(p.id) === canonSecId || getCanonicalCourseId(p.name) === canonSecId)))
-    );
+  // Primary authoritative products take precedence
+  primary.forEach((prim) => {
+    if (!prim || !prim.id || deletedIds.has(prim.id)) return;
+    const canonPrimId = prim.type === 'course' ? (getCanonicalCourseId(prim.id) || getCanonicalCourseId(prim.name) || prim.id) : prim.id;
+    handledIds.add(prim.id);
+    handledIds.add(canonPrimId);
 
-    if (!prim) {
-      merged.push({ ...sec, id: canonSecId });
+    const sec = secMap.get(prim.id) || secMap.get(canonPrimId);
+    if (!sec) {
+      merged.push({ ...prim, id: canonPrimId });
       return;
     }
 
     const pCover = (prim.canonicalCoverUrl || '').trim();
     const secCover = (sec.canonicalCoverUrl || '').trim();
+    const initialProd = INITIAL_CMS_PRODUCTS.find(
+      (ip) =>
+        ip.id === sec.id ||
+        ip.id === canonPrimId ||
+        ip.id === prim.id ||
+        (sec.id === 'bizzbudget' && ip.id === 'budget') ||
+        (sec.name && ip.name.toLowerCase() === sec.name.toLowerCase())
+    );
+    const fallbackCover = initialProd?.canonicalCoverUrl || '';
+
+    // If sec has a base64 user upload, preserve it; otherwise prefer primCover
     const chosenCover =
-      pCover !== '' && pCover.startsWith('data:image') && pCover !== secCover
-        ? pCover
-        : (secCover !== '' ? secCover : pCover);
+      secCover.startsWith('data:image')
+        ? secCover
+        : (pCover !== '' && !pCover.includes('1553877522-43269d4ea984')
+            ? pCover
+            : (secCover !== '' && !secCover.includes('1553877522-43269d4ea984') ? secCover : fallbackCover));
 
     const secLessons = sec.courseLessons || [];
     const primLessons = prim.courseLessons || [];
-    const secHasValid = secLessons.length > 0 && secLessons.some((l) => !isBogusLessonUrl(l.youtubeUrl));
-    const primHasValid = primLessons.length > 0 && primLessons.some((l) => !isBogusLessonUrl(l.youtubeUrl));
-    let chosenLessons = secHasValid ? secLessons : (primHasValid ? primLessons : (secLessons.length > 0 ? secLessons : primLessons));
+    // Authoritative primary takes precedence if it contains lessons; fallback to secondary
+    let chosenLessons = primLessons.length > 0 ? primLessons : secLessons;
 
-    // Guarantee bogus URLs are cleaned with master curriculum
-    const master = findMasterCurriculum(sec.name || sec.id || prim.name || prim.id || '');
-    if (master && chosenLessons.some((l) => isBogusLessonUrl(l.youtubeUrl))) {
-      chosenLessons = master.map((m, idx) => {
-        const curr = chosenLessons[idx];
-        const url = curr?.youtubeUrl?.trim() || '';
-        return {
-          ...m,
-          ...(curr || {}),
-          youtubeUrl: (!url || isBogusLessonUrl(url)) ? m.youtubeUrl : url,
-        };
+    // Guarantee bogus URLs are cleaned without truncating user lessons
+    const master = findMasterCurriculum(prim.name || prim.id || sec.name || sec.id || '');
+    if (!chosenLessons || chosenLessons.length === 0) {
+      if (master && master.length > 0) {
+        chosenLessons = master.map((m) => ({ ...m }));
+      }
+    } else {
+      chosenLessons = chosenLessons.map((l, idx) => {
+        if (isBogusLessonUrl(l.youtubeUrl)) {
+          const fallbackUrl = master && master[idx] ? master[idx].youtubeUrl : '';
+          return { ...l, youtubeUrl: fallbackUrl };
+        }
+        return { ...l };
       });
     }
 
     const effectiveStage =
-      (sec.id === 'cost-recovery-calculator' || canonSecId === 'cost-recovery-calculator')
+      (sec.id === 'cost-recovery-calculator' || canonPrimId === 'cost-recovery-calculator')
         ? ('fund-ability' as const)
-        : (sec.stage || prim.stage || 'vi-ability');
+        : (['profit-optimizer', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(sec.id) || ['profit-optimizer', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(canonPrimId))
+        ? ('sustain-ability' as const)
+        : (sec.id === 'bizzdynamics' || canonPrimId === 'bizzdynamics')
+        ? ('personal-sandbox' as const)
+        : (prim.stage || sec.stage || 'vi-ability');
 
     merged.push({
-      ...prim,
-      ...sec, // Saved persistent storage content takes precedence over initial defaults
-      id: canonSecId,
+      ...sec,
+      ...prim, // Primary (e.g. authoritative Firestore / live update) takes precedence over secondary fallback
+      id: canonPrimId,
       stage: effectiveStage,
+      name: (prim.name && prim.name.trim() !== '') ? prim.name : (sec.name || ''),
+      subtitle: (prim.subtitle && prim.subtitle.trim() !== '') ? prim.subtitle : (sec.subtitle || ''),
+      description: (prim.description && prim.description.trim() !== '') ? prim.description : (sec.description || ''),
+      purpose: (prim.purpose && prim.purpose.trim() !== '') ? prim.purpose : (sec.purpose || ''),
+      sku: prim.sku || sec.sku || '',
+      seq: (typeof prim.seq === 'number' && !isNaN(prim.seq) && prim.seq >= 1)
+        ? prim.seq
+        : ((typeof sec.seq === 'number' && !isNaN(sec.seq) && sec.seq >= 1) ? sec.seq : 1),
+      sellingPriceZAR: prim.sellingPriceZAR !== undefined ? prim.sellingPriceZAR : sec.sellingPriceZAR,
+      exclusivePriceZAR: prim.exclusivePriceZAR !== undefined ? prim.exclusivePriceZAR : sec.exclusivePriceZAR,
+      vatZAR: prim.vatZAR !== undefined ? prim.vatZAR : sec.vatZAR,
+      tokensAllocated: prim.tokensAllocated !== undefined ? prim.tokensAllocated : sec.tokensAllocated,
+      ticketPriceZAR: prim.ticketPriceZAR !== undefined ? prim.ticketPriceZAR : sec.ticketPriceZAR,
       canonicalCoverUrl: chosenCover,
       courseLessons: chosenLessons ? chosenLessons.map((l) => ({ ...l })) : [],
-      syllabusLessonsCount: chosenLessons && chosenLessons.length > 0 ? chosenLessons.length : (sec.syllabusLessonsCount || prim.syllabusLessonsCount || 0),
-      lessonTitles: chosenLessons && chosenLessons.length > 0 ? chosenLessons.map((l) => l.name) : (sec.lessonTitles || prim.lessonTitles || []),
+      syllabusLessonsCount: chosenLessons && chosenLessons.length > 0 ? chosenLessons.length : (prim.syllabusLessonsCount || sec.syllabusLessonsCount || 0),
+      lessonTitles: chosenLessons && chosenLessons.length > 0 ? chosenLessons.map((l) => l.name) : (prim.lessonTitles || sec.lessonTitles || []),
     });
   });
 
-  // Preserve any new products created in memory that aren't yet in storage
-  primary.forEach((prim) => {
-    if (!prim || !prim.id || deletedIds.has(prim.id)) return;
-    const canonPrimId = prim.type === 'course' ? (getCanonicalCourseId(prim.id) || getCanonicalCourseId(prim.name) || prim.id) : prim.id;
-    if (!secMap.has(prim.id) && !secMap.has(canonPrimId)) {
-      merged.push({ ...prim, id: canonPrimId });
+  // Preserve any new custom products created by the user in secondary that aren't in primary
+  secondary.forEach((sec) => {
+    if (!sec || !sec.id || deletedIds.has(sec.id)) return;
+    const canonSecId = sec.type === 'course' ? (getCanonicalCourseId(sec.id) || getCanonicalCourseId(sec.name) || sec.id) : sec.id;
+    if (!handledIds.has(sec.id) && !handledIds.has(canonSecId)) {
+      merged.push({ ...sec, id: canonSecId });
     }
   });
 
   return cleanLegacyProducts(merged);
 }
+
+/**
+ * Merges two article lists non-destructively:
+ * - Preserves user updates (title, author, readTime, category, summary, content, tags, canonicalCoverUrl)
+ * - Base64 cover uploads from user are strictly preserved
+ * - Preserves newly created articles
+ * - Guarantees all initial articles are retained if not deleted
+ */
+export function mergeLoadedArticles(
+  primary: CmsArticle[],
+  secondary?: CmsArticle[] | null
+): CmsArticle[] {
+  const deletedIds = getDeletedArticleIds();
+  const cleanList = (list: CmsArticle[] | null | undefined) =>
+    (list || []).filter((a) => a && a.id && !deletedIds.has(a.id));
+
+  const pClean = cleanList(primary);
+  const sClean = cleanList(secondary);
+
+  const normalizeSeq = (list: CmsArticle[]) => {
+    const sorted = [...list].sort((a, b) => (a.seq || 0) - (b.seq || 0));
+    sorted.forEach((a, idx) => {
+      if (!a.seq || isNaN(a.seq)) a.seq = idx + 1;
+    });
+    return sorted;
+  };
+
+  if (sClean.length === 0) {
+    const list = pClean.length > 0 ? pClean : cleanList(INITIAL_CMS_ARTICLES);
+    return cleanFallbackImagesFromArticles(normalizeSeq(list));
+  }
+  if (pClean.length === 0) {
+    const list = sClean.length > 0 ? sClean : cleanList(INITIAL_CMS_ARTICLES);
+    return cleanFallbackImagesFromArticles(normalizeSeq(list));
+  }
+
+  const secMap = new Map<string, CmsArticle>();
+  sClean.forEach((a) => {
+    if (a && a.id) secMap.set(a.id, a);
+  });
+
+  const merged: CmsArticle[] = [];
+  const handledIds = new Set<string>();
+
+  const isPlaceholder = (t?: string) =>
+    !t || t.trim() === '' || t.includes('Draft content for this executive brief') || t.includes('Type or upload your full article body');
+
+  // Primary authoritative articles (e.g. from Firestore or active state)
+  pClean.forEach((prim) => {
+    if (!prim || !prim.id || deletedIds.has(prim.id)) return;
+    handledIds.add(prim.id);
+    const sec = secMap.get(prim.id);
+    if (!sec) {
+      merged.push({ ...prim });
+      return;
+    }
+
+    const pImg = (prim.imageUrl || (prim as any).canonicalCoverUrl || '').trim();
+    const secImg = (sec.imageUrl || (sec as any).canonicalCoverUrl || '').trim();
+    const initial = INITIAL_CMS_ARTICLES.find((ia) => ia.id === prim.id);
+
+    // Image priority: primary valid image > secondary user base64 upload > secondary > initial
+    let chosenImg = '';
+    if (pImg !== '') {
+      chosenImg = pImg;
+    } else if (secImg.startsWith('data:image')) {
+      chosenImg = secImg;
+    } else if (secImg !== '') {
+      chosenImg = secImg;
+    } else {
+      chosenImg = initial?.imageUrl || '';
+    }
+
+    // Content priority: primary real content > secondary real content > fallback
+    let chosenContent = '';
+    if (prim.content && prim.content.trim() !== '' && !isPlaceholder(prim.content)) {
+      chosenContent = prim.content;
+    } else if (sec.content && sec.content.trim() !== '' && !isPlaceholder(sec.content)) {
+      chosenContent = sec.content;
+    } else {
+      chosenContent = prim.content || sec.content || initial?.content || '';
+    }
+
+    // Sequence priority: authoritative primary seq > secondary seq > initial seq
+    const effectiveSeq =
+      typeof prim.seq === 'number' && !isNaN(prim.seq) && prim.seq >= 1
+        ? prim.seq
+        : (typeof sec.seq === 'number' && !isNaN(sec.seq) && sec.seq >= 1 ? sec.seq : (initial?.seq || undefined));
+
+    merged.push({
+      ...initial,
+      ...sec,
+      ...prim,
+      id: prim.id,
+      seq: effectiveSeq,
+      title: (prim.title && prim.title.trim() !== '') ? prim.title : (sec.title || initial?.title || ''),
+      summary: (prim.summary && prim.summary.trim() !== '' && !isPlaceholder(prim.summary))
+        ? prim.summary
+        : (sec.summary && sec.summary.trim() !== '' && !isPlaceholder(sec.summary) ? sec.summary : (prim.summary || sec.summary || initial?.summary || '')),
+      content: chosenContent,
+      author: (prim.author && prim.author.trim() !== '') ? prim.author : (sec.author || initial?.author || 'the bizzbean channel'),
+      readTime: (prim.readTime && prim.readTime.trim() !== '') ? prim.readTime : (sec.readTime || initial?.readTime || '5 min read'),
+      category: (prim.category && prim.category.trim() !== '') ? prim.category : (sec.category || initial?.category || 'strategy'),
+      isMustRead: prim.isMustRead !== undefined ? prim.isMustRead : (sec.isMustRead !== undefined ? sec.isMustRead : false),
+      imageUrl: chosenImg,
+    });
+  });
+
+  // Include any user-created custom articles from secondary not in primary and not deleted
+  sClean.forEach((sec) => {
+    if (sec && sec.id && !handledIds.has(sec.id) && !deletedIds.has(sec.id)) {
+      merged.push({ ...sec });
+    }
+  });
+
+  const finalSorted = normalizeSeq(merged);
+  return cleanFallbackImagesFromArticles(finalSorted);
+}
+
+/**
+ * Merges two video lists non-destructively:
+ * - Preserves user-entered YouTube URLs, durations, and details
+ * - Does not revert populated stream links back to empty seed values
+ * - Preserves custom video uploads
+ * - Enforces deleted video IDs so deleted videos are never resurrected
+ */
+export function mergeLoadedVideos(
+  primary: CmsVideo[],
+  secondary?: CmsVideo[] | null
+): CmsVideo[] {
+  const deletedIds = getDeletedVideoIds();
+  const cleanList = (list: CmsVideo[] | null | undefined) =>
+    (list || []).filter((v) => v && v.id && !deletedIds.has(v.id));
+
+  const pClean = cleanList(primary);
+  const sClean = cleanList(secondary);
+
+  if (sClean.length === 0) {
+    return pClean.length > 0 ? pClean : cleanList(INITIAL_CMS_VIDEOS);
+  }
+  if (pClean.length === 0) {
+    return sClean.length > 0 ? sClean : cleanList(INITIAL_CMS_VIDEOS);
+  }
+
+  const secMap = new Map<string, CmsVideo>();
+  sClean.forEach((v) => {
+    if (v && v.id) secMap.set(v.id, v);
+  });
+
+  const merged: CmsVideo[] = [];
+  const handledIds = new Set<string>();
+
+  pClean.forEach((prim) => {
+    if (!prim || !prim.id || deletedIds.has(prim.id)) return;
+    handledIds.add(prim.id);
+    const sec = secMap.get(prim.id);
+    if (!sec) {
+      merged.push(prim);
+      return;
+    }
+
+    const pUrl = (prim.youtubeUrl || '').trim();
+    const secUrl = (sec.youtubeUrl || '').trim();
+    // Prefer non-empty YouTube URL, preferring authoritative primary if both populated
+    const chosenUrl = pUrl !== '' ? pUrl : secUrl;
+    const isLinked = Boolean(chosenUrl);
+
+    const effectiveMustWatch =
+      prim.isMustWatch !== undefined ? prim.isMustWatch : (sec.isMustWatch !== undefined ? sec.isMustWatch : false);
+
+    merged.push({
+      ...sec,
+      ...prim,
+      id: prim.id,
+      title: (prim.title && prim.title.trim() !== '') ? prim.title : (sec.title || ''),
+      duration: (prim.duration && prim.duration.trim() !== '') ? prim.duration : (sec.duration || '5:00'),
+      youtubeUrl: chosenUrl,
+      linked: isLinked,
+      author: (prim.author && prim.author.trim() !== '') ? prim.author : (sec.author || ''),
+      category: (prim.category && prim.category.trim() !== '') ? prim.category : (sec.category || 'general'),
+      isMustWatch: effectiveMustWatch,
+    });
+  });
+
+  sClean.forEach((sec) => {
+    if (sec && sec.id && !handledIds.has(sec.id) && !deletedIds.has(sec.id)) {
+      merged.push(sec);
+    }
+  });
+
+  return merged;
+}
+

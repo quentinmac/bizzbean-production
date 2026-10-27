@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowRight, Clock, KeyRound, UserCheck, X } from 'lucide-react';
 import { BizzbeanLogoIcon } from './BizzbeanLogoIcon';
 import { CmsPromotionSection } from '../data/cmsConsoleData';
+import { CMS_STORAGE_KEYS } from '../utils/imageStorage';
 import AuthGateway from './AuthGateway';
 
 interface SplashOfficeDoorsProps {
@@ -47,7 +48,7 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
     let promoList = cmsPromotions && cmsPromotions.length > 0 ? cmsPromotions : [];
     if (promoList.length === 0) {
       try {
-        const stored = localStorage.getItem('bizzdesk_cms_promotions_v1');
+        const stored = localStorage.getItem(CMS_STORAGE_KEYS.PROMOTIONS);
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed) && parsed.length > 0) promoList = parsed;

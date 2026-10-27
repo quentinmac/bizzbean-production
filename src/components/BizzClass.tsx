@@ -14,9 +14,12 @@ import {
   X,
   RefreshCw,
   Film,
+  Plus,
+  Trash2,
+  Edit2,
 } from 'lucide-react';
 import { CmsProduct, CmsCourseLesson } from '../data/cmsConsoleData';
-import { safeSaveStorage, getDeletedProductIds, MASTER_COURSE_CURRICULA, findMasterCurriculum, getCanonicalCourseId, findMatchingCourse, isBogusLessonUrl } from '../utils/imageStorage';
+import { safeSaveStorage, getDeletedProductIds, MASTER_COURSE_CURRICULA, findMasterCurriculum, getCanonicalCourseId, findMatchingCourse, isBogusLessonUrl, CMS_STORAGE_KEYS, CANONICAL_MASTER_COURSE_IDS } from '../utils/imageStorage';
 import { saveCmsProductsToFirestore } from '../services/cmsFirestoreService';
 
 interface BizzClassProps {
@@ -220,9 +223,9 @@ const DEFAULT_COURSES: CmsProduct[] = [
     id: 'profit-optimizer',
     seq: 7,
     type: 'course',
-    stage: 'growth',
+    stage: 'sustain-ability',
     sku: 'BC-007',
-    name: 'profit dynamics',
+    name: 'profit optimizer',
     subtitle: 'Operational Margin Defense & Contribution Discipline',
     canonicalCoverUrl: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80',
     description: 'Analyze operational expenditures, SaaS sprawl, and departmental contribution margins.',
@@ -236,13 +239,17 @@ const DEFAULT_COURSES: CmsProduct[] = [
     isPurchased: true,
     activeInSync: true,
     syllabusLessonsCount: 3,
-    lessonTitles: ['1 - CONTRIBUTION MARGIN WATERFALL', '2 - VOLUME SENSITIVITY MATRIX', '3 - PRICING POWER EXPERIMENTS'],
-    courseLessons: [
-      { id: 'pd-1', name: '1 - CONTRIBUTION MARGIN WATERFALL', duration: '6 min', youtubeUrl: 'https://www.youtube.com/watch?v=vUT8lZLZpKg' },
-      { id: 'pd-2', name: '2 - VOLUME SENSITIVITY MATRIX', duration: '11 min', youtubeUrl: 'https://www.youtube.com/watch?v=3wyZYsk8OTY' },
-      { id: 'pd-3', name: '3 - PRICING POWER EXPERIMENTS', duration: '13 min', youtubeUrl: 'https://www.youtube.com/watch?v=xbasHzq2fL0' },
+    lessonTitles: [
+      'Lesson 01: Auditing Discretionary Overhead & Vendor Creep',
+      'Lesson 02: Recalibrating Unit Contribution Margins',
+      'Lesson 03: The 18-Month Runway Safeguard Checklist',
     ],
-    companionMaterialFilename: 'Profit_Dynamics_Workbook.zip',
+    courseLessons: [
+      { id: 'po-1', name: 'Lesson 01: Auditing Discretionary Overhead & Vendor Creep', duration: '14:10', youtubeUrl: 'https://www.youtube.com/watch?v=vUT8lZLZpKg' },
+      { id: 'po-2', name: 'Lesson 02: Recalibrating Unit Contribution Margins', duration: '16:30', youtubeUrl: 'https://www.youtube.com/watch?v=3wyZYsk8OTY' },
+      { id: 'po-3', name: 'Lesson 03: The 18-Month Runway Safeguard Checklist', duration: '12:45', youtubeUrl: 'https://www.youtube.com/watch?v=xbasHzq2fL0' },
+    ],
+    companionMaterialFilename: 'Profit_Optimizer_Worksheet.zip',
   },
   {
     id: 'financial-scenario-planning',
@@ -337,10 +344,9 @@ export const BizzClass: React.FC<BizzClassProps> = ({
 
       // Never hide core master courses even if accidentally in deletedIds
       const isCoreMaster =
-        p.id === 'cost-recovery-calculator' ||
-        (p.name || '').toLowerCase().includes('cost recovery') ||
-        p.id === 'learn-earn-capital' ||
-        p.id === 'profit-optimizer';
+        CANONICAL_MASTER_COURSE_IDS.has(p.id) ||
+        CANONICAL_MASTER_COURSE_IDS.has(getCanonicalCourseId(p.id || '') || '') ||
+        CANONICAL_MASTER_COURSE_IDS.has(getCanonicalCourseId(p.name || '') || '');
       if (isCoreMaster) return true;
 
       return !deletedIds.has(p.id);
@@ -492,6 +498,108 @@ export const BizzClass: React.FC<BizzClassProps> = ({
   const [editingLessonUrl, setEditingLessonUrl] = useState<string>('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Lesson CRUD states
+  const [isAddLessonModalOpen, setIsAddLessonModalOpen] = useState<boolean>(false);
+  const [newLessonName, setNewLessonName] = useState<string>('');
+  const [newLessonDuration, setNewLessonDuration] = useState<string>('15 min');
+  const [newLessonUrl, setNewLessonUrl] = useState<string>('');
+
+  const [isEditLessonModalOpen, setIsEditLessonModalOpen] = useState<boolean>(false);
+  const [editingLessonIdx, setEditingLessonIdx] = useState<number>(0);
+  const [editLessonName, setEditLessonName] = useState<string>('');
+  const [editLessonDuration, setEditLessonDuration] = useState<string>('15 min');
+  const [editLessonUrl, setEditLessonUrl] = useState<string>('');
+
+  // Persist course lessons helper
+  const saveCourseLessons = (updatedLessons: CmsCourseLesson[], successMsg: string) => {
+    const updatedCourseObj: CmsProduct = {
+      ...activeCourse,
+      courseLessons: updatedLessons,
+      syllabusLessonsCount: updatedLessons.length,
+      lessonTitles: updatedLessons.map((l) => l.name),
+    };
+
+    const deletedIds = getDeletedProductIds();
+    const currentBase = (cmsProducts && cmsProducts.length > 0 ? cmsProducts : DEFAULT_COURSES).filter((p) => {
+      const isMaster =
+        CANONICAL_MASTER_COURSE_IDS.has(p.id) ||
+        CANONICAL_MASTER_COURSE_IDS.has(getCanonicalCourseId(p.id || '') || '');
+      if (isMaster) return true;
+      return !deletedIds.has(p.id);
+    });
+
+    const exists = currentBase.some((p) => p.id === activeCourse.id);
+    const updatedAllProducts = exists
+      ? currentBase.map((p) => (p.id === activeCourse.id ? updatedCourseObj : p))
+      : [...currentBase, updatedCourseObj];
+
+    onSyncProductsToWebsite(updatedAllProducts);
+    safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, updatedAllProducts);
+    saveCmsProductsToFirestore(updatedAllProducts).catch((err) =>
+      console.warn('Firestore BizzClass product sync note:', err)
+    );
+
+    setToastMessage(successMsg);
+  };
+
+  const handleAddLessonSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLessonName.trim()) return;
+    const newL: CmsCourseLesson = {
+      id: `lesson-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      name: newLessonName.trim(),
+      duration: newLessonDuration.trim() || '15 min',
+      youtubeUrl: newLessonUrl.trim(),
+    };
+    const updated = [...lessons, newL];
+    saveCourseLessons(updated, `Added lesson "${newL.name}" to ${activeCourse.name}.`);
+    setIsAddLessonModalOpen(false);
+    setActiveLessonIdx(updated.length - 1);
+  };
+
+  const handleOpenEditLesson = (idx: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const l = lessons[idx];
+    if (!l) return;
+    setEditingLessonIdx(idx);
+    setEditLessonName(l.name);
+    setEditLessonDuration(l.duration || '15 min');
+    setEditLessonUrl(l.youtubeUrl || '');
+    setIsEditLessonModalOpen(true);
+  };
+
+  const handleEditLessonSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editLessonName.trim()) return;
+    const updated = lessons.map((l, i) =>
+      i === editingLessonIdx
+        ? {
+            ...l,
+            name: editLessonName.trim(),
+            duration: editLessonDuration.trim() || l.duration,
+            youtubeUrl: editLessonUrl.trim(),
+          }
+        : l
+    );
+    saveCourseLessons(updated, `Saved changes for "${editLessonName.trim()}".`);
+    setIsEditLessonModalOpen(false);
+  };
+
+  const handleDeleteLessonAction = (idx: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (lessons.length <= 1) {
+      setToastMessage('A course track must retain at least one lesson.');
+      return;
+    }
+    const target = lessons[idx];
+    if (!window.confirm(`Delete lesson "${target.name}" from ${activeCourse.name}?`)) return;
+    const updated = lessons.filter((_, i) => i !== idx);
+    saveCourseLessons(updated, `Deleted lesson "${target.name}".`);
+    if (activeLessonIdx >= updated.length) {
+      setActiveLessonIdx(Math.max(0, updated.length - 1));
+    }
+  };
+
   // Sync editingLessonUrl when active lesson changes
   useEffect(() => {
     setEditingLessonUrl(currentLesson.youtubeUrl || '');
@@ -563,17 +671,20 @@ export const BizzClass: React.FC<BizzClassProps> = ({
 
     // Ensure we preserve the entire cmsProducts collection (excluding deleted products)
     const deletedIds = getDeletedProductIds();
-    const currentBase =
-      cmsProducts && cmsProducts.length > 0
-        ? cmsProducts.filter((p) => !deletedIds.has(p.id))
-        : DEFAULT_COURSES.filter((p) => !deletedIds.has(p.id));
+    const currentBase = (cmsProducts && cmsProducts.length > 0 ? cmsProducts : DEFAULT_COURSES).filter((p) => {
+      const isMaster =
+        CANONICAL_MASTER_COURSE_IDS.has(p.id) ||
+        CANONICAL_MASTER_COURSE_IDS.has(getCanonicalCourseId(p.id || '') || '');
+      if (isMaster) return true;
+      return !deletedIds.has(p.id);
+    });
     const exists = currentBase.some((p) => p.id === activeCourse.id);
     const updatedAllProducts = exists
       ? currentBase.map((p) => (p.id === activeCourse.id ? updatedCourseObj : p))
       : [...currentBase, updatedCourseObj];
 
     onSyncProductsToWebsite(updatedAllProducts);
-    safeSaveStorage('bizzdesk_cms_products_v1', updatedAllProducts);
+    safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, updatedAllProducts);
     saveCmsProductsToFirestore(updatedAllProducts).catch((err) =>
       console.warn('Firestore BizzClass product sync note:', err)
     );
@@ -773,8 +884,22 @@ export const BizzClass: React.FC<BizzClassProps> = ({
               isDark ? 'bg-[#141B2D] border-[#252F4A]' : 'bg-[#2E5579] border-[#244360] text-white'
             }`}
           >
-            <div className="p-3 text-[10px] font-mono font-bold uppercase tracking-wider text-white/80 border-b border-white/15 text-center">
-              LESSONS ({lessons.length})
+            <div className="p-3 text-[10px] font-mono font-bold uppercase tracking-wider text-white/80 border-b border-white/15 flex items-center justify-between">
+              <span>LESSONS ({lessons.length})</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setNewLessonName(`Lesson ${String(lessons.length + 1).padStart(2, '0')}: `);
+                  setNewLessonDuration('15 min');
+                  setNewLessonUrl('');
+                  setIsAddLessonModalOpen(true);
+                }}
+                className="px-2 py-0.5 rounded bg-emerald-500 hover:bg-emerald-600 text-white font-mono text-[10px] font-bold flex items-center gap-1 shadow-xs transition-colors"
+                title="Add a new lesson to this course"
+              >
+                <Plus className="h-3 w-3" />
+                <span>+ ADD LESSON</span>
+              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
@@ -801,7 +926,7 @@ export const BizzClass: React.FC<BizzClassProps> = ({
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0 text-[10px] font-mono">
+                    <div className="flex items-center gap-2 shrink-0 text-[10px] font-mono">
                       <span className={isActive ? 'text-[#20405E]' : 'text-white/70'}>
                         {lesson.duration || '6 min'}
                       </span>
@@ -810,6 +935,24 @@ export const BizzClass: React.FC<BizzClassProps> = ({
                       ) : (
                         <Film className={`h-3 w-3 ${isActive ? 'text-slate-400' : 'text-white/40'}`} />
                       )}
+                      <div className="flex items-center gap-1 ml-1" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={(e) => handleOpenEditLesson(idx, e)}
+                          title="Edit Lesson Title, Duration & Video"
+                          className="p-1 rounded hover:bg-black/20 text-white/70 hover:text-white transition-colors"
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteLessonAction(idx, e)}
+                          title="Delete Lesson"
+                          className="p-1 rounded hover:bg-rose-500/30 text-white/70 hover:text-rose-200 transition-colors"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
                   </button>
                 );
@@ -1065,6 +1208,169 @@ export const BizzClass: React.FC<BizzClassProps> = ({
           </div>
         </div>
       )}
+
+      {/* ADD LESSON MODAL */}
+      {isAddLessonModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white dark:bg-[#151D33] text-slate-900 dark:text-white rounded-2xl border border-slate-200 dark:border-[#222F4C] p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-[#222F4C]">
+              <div className="flex items-center gap-2">
+                <Plus className="h-5 w-5 text-emerald-500" />
+                <h4 className="font-mono text-sm font-bold uppercase tracking-wide">
+                  Add New Lesson to {activeCourse.name}
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddLessonModalOpen(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddLessonSubmit} className="space-y-4 text-xs font-mono">
+              <div>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1 uppercase font-bold">
+                  Lesson Name / Module Title:
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newLessonName}
+                  onChange={(e) => setNewLessonName(e.target.value)}
+                  placeholder="e.g. Lesson 04: Advanced Break-Even Sensitivity"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-[#222F4C] bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-white focus:outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1 uppercase font-bold">
+                  Duration (e.g. 15 min):
+                </label>
+                <input
+                  type="text"
+                  value={newLessonDuration}
+                  onChange={(e) => setNewLessonDuration(e.target.value)}
+                  placeholder="15 min"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-[#222F4C] bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-white focus:outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1 uppercase font-bold">
+                  YouTube / Video Stream URL (Optional):
+                </label>
+                <input
+                  type="text"
+                  value={newLessonUrl}
+                  onChange={(e) => setNewLessonUrl(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-[#222F4C] bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-white focus:outline-hidden"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-[#222F4C]">
+                <button
+                  type="button"
+                  onClick={() => setIsAddLessonModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold flex items-center gap-1.5 shadow-sm"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Save & Add Lesson</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT LESSON MODAL */}
+      {isEditLessonModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white dark:bg-[#151D33] text-slate-900 dark:text-white rounded-2xl border border-slate-200 dark:border-[#222F4C] p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-[#222F4C]">
+              <div className="flex items-center gap-2">
+                <Edit2 className="h-5 w-5 text-[#5584B4]" />
+                <h4 className="font-mono text-sm font-bold uppercase tracking-wide">
+                  Edit Lesson Details
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditLessonModalOpen(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditLessonSubmit} className="space-y-4 text-xs font-mono">
+              <div>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1 uppercase font-bold">
+                  Lesson Name:
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editLessonName}
+                  onChange={(e) => setEditLessonName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-[#222F4C] bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-white focus:outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1 uppercase font-bold">
+                  Duration:
+                </label>
+                <input
+                  type="text"
+                  value={editLessonDuration}
+                  onChange={(e) => setEditLessonDuration(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-[#222F4C] bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-white focus:outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1 uppercase font-bold">
+                  YouTube Video Stream URL:
+                </label>
+                <input
+                  type="text"
+                  value={editLessonUrl}
+                  onChange={(e) => setEditLessonUrl(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-[#222F4C] bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-white focus:outline-hidden"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-[#222F4C]">
+                <button
+                  type="button"
+                  onClick={() => setIsEditLessonModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-[#5584B4] hover:bg-[#4773A0] text-white font-bold flex items-center gap-1.5 shadow-sm"
+                >
+                  <Check className="h-4 w-4" />
+                  <span>Save Changes</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

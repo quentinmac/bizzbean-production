@@ -30,6 +30,7 @@ import {
   Check,
 } from 'lucide-react';
 import { CmsProduct, CmsCourseLesson } from '../data/cmsConsoleData';
+import { CMS_STORAGE_KEYS, safeSaveStorage } from '../utils/imageStorage';
 import { BizzSolution } from '../types';
 
 interface SolutionTransparencyModalProps {
@@ -228,7 +229,7 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
       id: effectiveProd.id || solution.id,
       seq: effectiveProd.seq || 1,
       type: isCourse ? 'course' : 'app',
-      stage: effectiveProd.stage || (solution.stage as any) || 'vi-ability',
+      stage: ['profit-optimizer', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(effectiveProd.id || solution.id) ? 'sustain-ability' : (effectiveProd.stage || (solution.stage as any) || 'vi-ability'),
       sku: effectiveProd.sku || 'BA-001',
       name: formName.trim() || effectiveProd.name || solution.name,
       subtitle: formSubtitle.trim() || effectiveProd.subtitle || solution.subtitle,
@@ -241,6 +242,7 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
       companionMaterialFilename: formCompanionFile.trim(),
       courseLessons: isCourse ? formLessons : effectiveProd.courseLessons,
       lessonTitles: isCourse ? formLessons.map((l) => l.name) : effectiveProd.lessonTitles,
+      syllabusLessonsCount: isCourse ? formLessons.length : (effectiveProd.syllabusLessonsCount || 0),
       engineSteps: !isCourse ? formSteps : effectiveProd.engineSteps,
       sellingPriceZAR: Number(formSellingPrice) || 0,
       exclusivePriceZAR: exclusivePrice,
@@ -257,7 +259,7 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
 
     // Direct fallback save to local storage
     try {
-      const stored = localStorage.getItem('bizzdesk_cms_products_v1');
+      const stored = localStorage.getItem(CMS_STORAGE_KEYS.PRODUCTS);
       if (stored) {
         const parsed: CmsProduct[] = JSON.parse(stored);
         const idx = parsed.findIndex((p) => p.id === updatedProd.id);
@@ -266,7 +268,7 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
         } else {
           parsed.push(updatedProd);
         }
-        localStorage.setItem('bizzdesk_cms_products_v1', JSON.stringify(parsed));
+        safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, parsed);
       }
     } catch (e) {
       console.warn('LocalStorage save error:', e);

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BizzSolution, UserBusinessProfile, LibraryItem } from '../types';
-import { CmsProduct, CmsVideo, CmsArticle, CmsPromotionSection, INITIAL_CMS_ARTICLES } from '../data/cmsConsoleData';
+import { CmsProduct, CmsVideo, CmsArticle, CmsPromotionSection, INITIAL_CMS_ARTICLES, INITIAL_CMS_VIDEOS, INITIAL_CMS_PRODUCTS } from '../data/cmsConsoleData';
 import { Play, ArrowRight, Check, Coins, Bookmark, Sparkles, X, Calculator, ShieldCheck, DollarSign, QrCode, Share2, Layers, RefreshCw, Mic, ChevronLeft, ChevronRight, BookOpen, ShoppingCart, Info, Lock, Pin, UserCheck, Library, ExternalLink, Edit3, Save, RotateCcw, Eye } from 'lucide-react';
 import { formatCurrency } from '../utils/financialCalculations';
 import { BIZZ_SOLUTIONS } from '../data/bizzdeskData';
@@ -18,6 +18,7 @@ import { Footer } from './Footer';
 import { FormattedAboutContent } from './FormattedAboutContent';
 import { AboutPanelTextEditor } from './AboutPanelTextEditor';
 import { BizzbeanLogoIcon } from './BizzbeanLogoIcon';
+import { ErrorBoundary } from './ErrorBoundary';
 import {
   DEFAULT_WHO_ARE_WE,
   DEFAULT_WHAT_WE_DO,
@@ -25,7 +26,7 @@ import {
   DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH,
   DEFAULT_COMPANY_WHAT_WE_DO,
 } from '../data/aboutDefaults';
-import { findMatchingCourse, getCanonicalCourseId } from '../utils/imageStorage';
+import { findMatchingCourse, getCanonicalCourseId, getDeletedProductIds, getDeletedVideoIds, getDeletedArticleIds } from '../utils/imageStorage';
 
 interface WorkAreaProps {
   activeSolution: BizzSolution | null;
@@ -183,27 +184,28 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
     activeStageId ||
     activeProdCms?.stage ||
     activeSolution?.stage ||
-    (activeSolution?.id === 'profit-optimizer'
+    (['profit-optimizer', 'financial-scenario-planning', 'annual-business-planning-cycle', 'sustain-runway', 'sustain-ability'].includes(activeSolution?.id || '') || (activeSolution?.id || '').includes('sustain')
       ? 'sustain-ability'
-      : activeSolution?.id === 'bizzoptimizer'
+      : ['bizzoptimizer', 'your-first-hire', 'bizzmoney', 'budget', 'bizzbudget'].includes(activeSolution?.id || '') || (activeSolution?.id || '').includes('operation')
       ? 'operations'
-      : activeSolution?.id.includes('vi-ability') || activeSolution?.id === 'vi-ability' || ['learn-earn-capital', 'bizzcalc', 'how-to-bizzcalc'].includes(activeSolution?.id || '')
+      : ['learn-earn-capital', 'bizzcalc', 'how-to-bizzcalc', 'bizzdynamics', 'vi-ability'].includes(activeSolution?.id || '') || (activeSolution?.id || '').includes('vi-ability')
       ? 'vi-ability'
-      : activeSolution?.id.includes('fund-ability') || activeSolution?.id === 'fund-ability' || ['bizzmodel', 'bizzplan'].includes(activeSolution?.id || '')
+      : ['cost-recovery-calculator', 'follow-the-money', 'financial-reports', 'bizzmodel', 'bizzplan', 'fund-ability'].includes(activeSolution?.id || '') || (activeSolution?.id || '').includes('fund-ability')
       ? 'fund-ability'
-      : activeSolution?.id.includes('sustain-ability') || activeSolution?.id === 'sustain-ability' || activeSolution?.id === 'sustain-runway'
-      ? 'sustain-ability'
-      : activeSolution?.id.includes('invest-ability') || activeSolution?.id === 'invest-ability' || activeSolution?.id === 'invest-vdr'
+      : (activeSolution?.id || '').includes('invest-ability') || activeSolution?.id === 'invest-vdr'
       ? 'invest-ability'
       : activeSolution?.id === 'personal-sandbox'
       ? 'personal-sandbox'
-      : activeSolution?.category === 'operations' || ['bizzmoney', 'budget', 'bizzbudget'].includes(activeSolution?.id || '')
+      : activeSolution?.category === 'operations'
       ? 'operations'
       : activeSolution?.category || 'vi-ability');
 
   // Educational video streaming state (per educational video.PNG)
   const [activeVideoIdx, setActiveVideoIdx] = useState<number>(0);
   const [activeArticleIdx, setActiveArticleIdx] = useState<number>(0);
+
+  // Memoized deleted products set (declared at top level before any early return)
+  const deletedProductIds = React.useMemo(() => getDeletedProductIds(), [cmsProducts]);
 
   const getYoutubeEmbedUrl = (url?: string) => {
     const raw = (url || 'https://www.youtube-nocookie.com/embed/P3S4s5f').trim();
@@ -239,33 +241,35 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
   // Render: ADMINISTRATION CENTRE (V1 Working Components transferred to Centre Panel)
   if (activeView === 'admin-centre') {
     return (
-      <AdministrationCentre
-        theme={theme}
-        initialTab={adminInitialTab}
-        cmsProducts={cmsProducts}
-        cmsVideos={cmsVideos}
-        cmsArticles={cmsArticles}
-        cmsPromotions={cmsPromotions}
-        userProfile={userProfile}
-        tokenBalance={tokenBalance}
-        onSyncProductsToWebsite={onSyncProductsToWebsite}
-        onSyncVideosToWebsite={onSyncVideosToWebsite}
-        onSyncArticlesToWebsite={onSyncArticlesToWebsite}
-        onSyncPromotionsToWebsite={onSyncPromotionsToWebsite}
-        onOpenStandaloneCmsModal={onOpenStandaloneCmsModal}
-        onBackToWorkstation={onBackToWorkstation || onCloseActiveApp}
-        onNavigateToStage={(stageId, solId) => {
-          if (onSelectSolutionById) {
-            onSelectSolutionById(solId || stageId);
-          }
-        }}
-        onBuySolution={onBuySolution}
-        onSelectSolutionById={onSelectSolutionById}
-        onLaunchApp={(appId) => {
-          if (onSelectSolutionById) onSelectSolutionById(appId);
-          onLaunchSolution();
-        }}
-      />
+      <ErrorBoundary fallbackTitle="Administration Centre Recovery" onReset={onBackToWorkstation}>
+        <AdministrationCentre
+          theme={theme}
+          initialTab={adminInitialTab}
+          cmsProducts={cmsProducts}
+          cmsVideos={cmsVideos}
+          cmsArticles={cmsArticles}
+          cmsPromotions={cmsPromotions}
+          userProfile={userProfile}
+          tokenBalance={tokenBalance}
+          onSyncProductsToWebsite={onSyncProductsToWebsite}
+          onSyncVideosToWebsite={onSyncVideosToWebsite}
+          onSyncArticlesToWebsite={onSyncArticlesToWebsite}
+          onSyncPromotionsToWebsite={onSyncPromotionsToWebsite}
+          onOpenStandaloneCmsModal={onOpenStandaloneCmsModal}
+          onBackToWorkstation={onBackToWorkstation || onCloseActiveApp}
+          onNavigateToStage={(stageId, solId) => {
+            if (onSelectSolutionById) {
+              onSelectSolutionById(solId || stageId);
+            }
+          }}
+          onBuySolution={onBuySolution}
+          onSelectSolutionById={onSelectSolutionById}
+          onLaunchApp={(appId) => {
+            if (onSelectSolutionById) onSelectSolutionById(appId);
+            onLaunchSolution();
+          }}
+        />
+      </ErrorBoundary>
     );
   }
 
@@ -785,9 +789,9 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                 </button>
                 <div>
                   <div className={`text-xs font-mono font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    bizzbean.com/profile/{userProfile.slug}
+                    bizzbean.com/profile/{userProfile?.slug || 'founder'}
                   </div>
-                  {userProfile.websiteUrl ? (
+                  {userProfile?.websiteUrl ? (
                     <a
                       href={userProfile.websiteUrl.startsWith('http') ? userProfile.websiteUrl : `https://${userProfile.websiteUrl}`}
                       target="_blank"
@@ -843,7 +847,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                 </button>
 
                 <h4 className="font-bold text-sm uppercase tracking-wider mb-1 font-mono">
-                  {userProfile.companyName || 'Member Profile'} QR
+                  {userProfile?.companyName || 'Member Profile'} QR
                 </h4>
                 <p className="text-xs text-slate-400 mb-4">
                   Scan to view verified public profile and venture details
@@ -1119,73 +1123,43 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
   const isArticlesMode = activeSolution.id === 'articles';
   const isEducationMode = isVideoMode || isArticlesMode || activeSolution.category === 'education';
 
-  const effectiveVideos = cmsVideos.length > 0 ? cmsVideos : [
-    {
-      id: 'vid-1',
-      title: 'how to write a perfect elevator pitch',
-      author: 'Rich Mulholland',
-      duration: '5:32',
-      youtubeUrl: '',
-      isMustWatch: true,
-      category: 'pitching',
-      linked: false,
-    },
-    {
-      id: 'vid-2',
-      title: 'unit economics and contribution margin in venture startups',
-      author: 'Elena Vance',
-      duration: '8:45',
-      youtubeUrl: '',
-      isMustWatch: true,
-      category: 'finance',
-      linked: false,
-    },
-    {
-      id: 'vid-3',
-      title: "warren buffett's value investing formula",
-      author: 'Benjamin Graham',
-      duration: '16:02',
-      youtubeUrl: '',
-      isMustWatch: false,
-      category: 'investing',
-      linked: false,
-    },
-    {
-      id: 'vid-4',
-      title: 'understanding working capital and debtor lag',
-      author: 'Quentin McCullough',
-      duration: '11:20',
-      youtubeUrl: '',
-      isMustWatch: true,
-      category: 'operations',
-      linked: false,
-    },
-    {
-      id: 'vid-5',
-      title: 'cap table waterfalls and venture dilution scenarios',
-      author: 'GIM Coach',
-      duration: '14:15',
-      youtubeUrl: '',
-      isMustWatch: true,
-      category: 'capital',
-      linked: false,
-    },
-    {
-      id: 'vid-6',
-      title: 'the illuminated sandbox: why simulation prevents enterprise failure',
-      author: 'Bizzbean Team',
-      duration: '7:50',
-      youtubeUrl: '',
-      isMustWatch: false,
-      category: 'sandbox',
-      linked: false,
-    },
-  ];
-  const currentVideo = effectiveVideos[activeVideoIdx % effectiveVideos.length] || effectiveVideos[0];
+  const deletedVideoIds = getDeletedVideoIds();
+  const effectiveVideos = (cmsVideos && cmsVideos.length > 0 ? cmsVideos : INITIAL_CMS_VIDEOS).filter(
+    (v) => v && v.id && !deletedVideoIds.has(v.id)
+  );
+  const currentVideo: CmsVideo =
+    effectiveVideos.length > 0
+      ? effectiveVideos[activeVideoIdx % effectiveVideos.length] || effectiveVideos[0]
+      : {
+          id: 'vid-placeholder',
+          title: 'no videos available',
+          author: 'the bizzbean channel',
+          duration: '0:00',
+          youtubeUrl: '',
+          isMustWatch: false,
+          category: 'education',
+          linked: false,
+        };
 
-  const effectiveArticles: CmsArticle[] =
-    cmsArticles && cmsArticles.length > 0 ? cmsArticles : INITIAL_CMS_ARTICLES;
-  const currentArticle = effectiveArticles[activeArticleIdx % effectiveArticles.length] || effectiveArticles[0];
+  const deletedArticleIds = getDeletedArticleIds();
+  const effectiveArticles: CmsArticle[] = (
+    cmsArticles && cmsArticles.length > 0 ? cmsArticles : INITIAL_CMS_ARTICLES
+  ).filter((a) => a && a.id && !deletedArticleIds.has(a.id));
+  const currentArticle: CmsArticle =
+    effectiveArticles.length > 0
+      ? effectiveArticles[activeArticleIdx % effectiveArticles.length] || effectiveArticles[0]
+      : {
+          id: 'art-placeholder',
+          title: 'no articles available',
+          author: 'the bizzbean channel',
+          readTime: '0 min read',
+          publishedDate: '',
+          isMustRead: false,
+          category: 'strategy',
+          summary: 'No articles currently in repository.',
+          content: '',
+          imageUrl: '',
+        };
 
   // Stage products restricted strictly to the current stage (or ALL solutions in personal-sandbox)
   const stageProductItems: CmsProduct[] = (cmsProducts || [])
@@ -1196,11 +1170,22 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
   // Fallback solutions strictly restricted to the current stage (or ALL solutions in personal-sandbox)
   const fallbackStageSolutions = (
     currentStageKey === 'personal-sandbox'
-      ? BIZZ_SOLUTIONS
+      ? BIZZ_SOLUTIONS.filter(
+          (s: BizzSolution) =>
+            !['vi-ability', 'fund-ability', 'sustain-ability', 'invest-ability', 'personal-sandbox', 'operations', 'growth', 'education'].includes(s.id) &&
+            s.id !== 'budget' &&
+            s.id !== 'strategy' &&
+            !deletedProductIds.has(s.id) &&
+            !deletedProductIds.has(s.name.toLowerCase().trim())
+        )
       : BIZZ_SOLUTIONS.filter(
           (s: BizzSolution) =>
-            s.id === currentStageKey ||
-            s.stage === currentStageKey
+            s.stage === currentStageKey &&
+            s.id !== currentStageKey &&
+            s.id !== 'budget' &&
+            s.id !== 'strategy' &&
+            !deletedProductIds.has(s.id) &&
+            !deletedProductIds.has(s.name.toLowerCase().trim())
         )
   ).map((s: BizzSolution, idx: number) => {
     const selling = s.priceZAR;
@@ -1220,6 +1205,8 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
       sellingPriceZAR: selling,
       tokensAllocated: tokens,
       ticketPriceZAR: ticket,
+      canonicalCoverUrl: s.imageUrl || '',
+      imageUrl: s.imageUrl || '',
     };
   });
 
@@ -1397,7 +1384,66 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
               </div>
             )}
 
-            {/* 2. Stage Story Message & Content Space (Positioned cleanly below the image) */}
+            {/* 2. Action & Navigation Bar - Positioned DIRECTLY BELOW the Hero Image */}
+            <div className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#141A2E] border border-[#D8CEBC] dark:border-[#252E4A] shadow-md flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              {/* Left: Previous / Next Stage Story Carousel Steppers */}
+              <div className="flex items-center gap-2">
+                {onCyclePromotion && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => onCyclePromotion('prev')}
+                      className="px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0E1220] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] border border-[#D8CEBC] dark:border-[#252E4A] text-xs font-mono text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      title="Browse previous stage story"
+                    >
+                      <ChevronLeft className="h-4 w-4 text-[#5584B4]" />
+                      <span>previous story</span>
+                    </button>
+
+                    <span className="px-3 py-2 text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-[#0E1220] border border-[#E8E2D8] dark:border-[#252E4A] rounded-xl whitespace-nowrap">
+                      {activePromoNum} of {totalPromosCount}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => onCyclePromotion('next')}
+                      className="px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0E1220] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] border border-[#D8CEBC] dark:border-[#252E4A] text-xs font-mono text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      title="Browse next stage story"
+                    >
+                      <span>next story</span>
+                      <ChevronRight className="h-4 w-4 text-[#5584B4]" />
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Right: Primary Stage Action CTA & Close to Workspace */}
+              <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onNavigateToSection) onNavigateToSection(activePromotion);
+                  }}
+                  className="px-6 py-2.5 rounded-xl bg-[#5584B4] hover:bg-[#4773A0] text-white font-bold text-sm font-sans flex items-center gap-2 transition-all shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                >
+                  <span>{activePromotion.buttonText || `explore ${activePromotion.name}`}</span>
+                  <ArrowRight className="h-4 w-4 text-[#C59B63]" />
+                </button>
+
+                {onClosePromotion && (
+                  <button
+                    type="button"
+                    onClick={onClosePromotion}
+                    className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#1E2548] dark:hover:bg-[#252F52] text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-mono lowercase transition-colors border border-slate-200 dark:border-[#2B3452] cursor-pointer"
+                    title="Close story and enter workspace"
+                  >
+                    close & enter workspace
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* 3. Stage Story Message & Content Space */}
             <div className="p-6 sm:p-8 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#141A2E] border border-[#D8CEBC] dark:border-[#252E4A] shadow-md space-y-6">
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-xs font-mono text-[#5584B4] tracking-wider font-semibold">
@@ -1442,65 +1488,6 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                   <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                     {activePromotion.stageStory?.keyDeliverable || 'Institutional model & validation audit artifacts.'}
                   </p>
-                </div>
-              </div>
-
-              {/* 3. Action & Navigation Buttons Row - Cleanly Positioned BELOW the Image & Stage Story Message */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-5 border-t border-[#E8E2D8] dark:border-[#222F4C]">
-                {/* Left: Previous / Next Stage Story Carousel Steppers */}
-                <div className="flex items-center gap-2">
-                  {onCyclePromotion && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => onCyclePromotion('prev')}
-                        className="px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0E1220] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] border border-[#D8CEBC] dark:border-[#252E4A] text-xs font-mono text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1.5 shadow-xs"
-                        title="Browse previous stage story"
-                      >
-                        <ChevronLeft className="h-4 w-4 text-[#5584B4]" />
-                        <span>previous story</span>
-                      </button>
-
-                      <span className="px-3 py-2 text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-[#0E1220] border border-[#E8E2D8] dark:border-[#252E4A] rounded-xl whitespace-nowrap">
-                        {activePromoNum} of {totalPromosCount}
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() => onCyclePromotion('next')}
-                        className="px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0E1220] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] border border-[#D8CEBC] dark:border-[#252E4A] text-xs font-mono text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1.5 shadow-xs"
-                        title="Browse next stage story"
-                      >
-                        <span>next story</span>
-                        <ChevronRight className="h-4 w-4 text-[#5584B4]" />
-                      </button>
-                    </>
-                  )}
-                </div>
-
-                {/* Right: Primary Stage Action CTA & Close to Workspace */}
-                <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap justify-end">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onNavigateToSection) onNavigateToSection(activePromotion);
-                    }}
-                    className="px-6 py-3 rounded-xl bg-[#5584B4] hover:bg-[#4773A0] text-white font-bold text-sm font-sans flex items-center gap-2 transition-all shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99]"
-                  >
-                    <span>{activePromotion.buttonText || `explore ${activePromotion.name}`}</span>
-                    <ArrowRight className="h-4 w-4 text-[#C59B63]" />
-                  </button>
-
-                  {onClosePromotion && (
-                    <button
-                      type="button"
-                      onClick={onClosePromotion}
-                      className="px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#1E2548] dark:hover:bg-[#252F52] text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-mono lowercase transition-colors border border-slate-200 dark:border-[#2B3452]"
-                      title="Close story and enter workspace"
-                    >
-                      close & enter workspace
-                    </button>
-                  )}
                 </div>
               </div>
             </div>
@@ -1718,16 +1705,28 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
               currentStageKey === 'vi-ability';
 
             // Resolve cover image strictly for this specific solution or course
+            const initialFallback = INITIAL_CMS_PRODUCTS.find(
+              (ip) =>
+                ip.id === targetProdId ||
+                ip.id === currentProd?.id ||
+                (targetProdId === 'bizzbudget' && ip.id === 'budget') ||
+                (targetProdId === 'budget' && ip.id === 'budget') ||
+                (currentProd?.name && ip.name.toLowerCase() === currentProd.name.toLowerCase())
+            );
+
             const directProductCover =
               matchingCms?.canonicalCoverUrl?.trim() ||
               (matchingCms as any)?.imageUrl?.trim() ||
               currentProd?.canonicalCoverUrl?.trim() ||
               currentProd?.imageUrl?.trim() ||
+              initialFallback?.canonicalCoverUrl?.trim() ||
               '';
 
             const isFallback =
               directProductCover.includes('1553877522-43269d4ea984');
-            const solutionImage = isFallback ? '' : directProductCover;
+            const solutionImage = isFallback
+              ? (initialFallback?.canonicalCoverUrl?.trim() || '')
+              : directProductCover;
             const hasLoadError = Boolean(solutionImage && imageLoadErrors[solutionImage]);
             const shouldRenderImage = Boolean(solutionImage && !hasLoadError);
 

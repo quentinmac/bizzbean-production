@@ -1,8 +1,11 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import payfastRouter from './src/server/payfastRouter.ts';
+
+import { exec } from 'child_process';
 
 dotenv.config();
 
@@ -19,6 +22,50 @@ async function startServer() {
 
   // PayFast API routes
   app.use('/api/payfast', payfastRouter);
+
+  // Build queue lock to prevent concurrent build exhaustion
+  let isBuilding = false;
+  let buildPending = false;
+  const triggerBundleRebuild = () => {
+    if (isBuilding) {
+      buildPending = true;
+      return;
+    }
+    isBuilding = true;
+    buildPending = false;
+    exec('npm run build', (buildErr, stdout, stderr) => {
+      isBuilding = false;
+      if (buildErr) {
+        console.error('[CMS Build] Build error:', buildErr, stderr);
+      } else {
+        console.log('[CMS Build] Successfully rebuilt production bundle in dist/.');
+      }
+      if (buildPending) {
+        triggerBundleRebuild();
+      }
+    });
+  };
+
+  // CMS Console Export & Sync Route (syncs to disk and auto-rebuilds production bundle)
+  app.post('/api/cms/save-file', (req, res) => {
+    try {
+      const { fileContent } = req.body;
+      if (!fileContent || typeof fileContent !== 'string') {
+        return res.status(400).json({ success: false, error: 'Invalid or missing fileContent' });
+      }
+      const targetPath = path.resolve(__dirname, 'src', 'data', 'cmsConsoleData.ts');
+      fs.writeFileSync(targetPath, fileContent, 'utf-8');
+      console.log(`[CMS Export] Successfully synced to ${targetPath} (${fileContent.length} bytes).`);
+
+      // Trigger debounced production bundle build in background
+      triggerBundleRebuild();
+
+      return res.json({ success: true, message: 'Updated src/data/cmsConsoleData.ts on disk and queued bundle rebuild.' });
+    } catch (err: any) {
+      console.error('[CMS Export] Failed to write cmsConsoleData.ts:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
 
   // Health check route
   app.get('/api/health', (_req, res) => {

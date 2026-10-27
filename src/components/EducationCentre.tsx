@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { CmsVideo, CmsArticle, CmsProduct } from '../data/cmsConsoleData';
 import { BizzbeanLogoIcon } from './BizzbeanLogoIcon';
-import { findMasterCurriculum, isBogusLessonUrl } from '../utils/imageStorage';
+import { findMasterCurriculum, isBogusLessonUrl, getDeletedVideoIds, getDeletedArticleIds } from '../utils/imageStorage';
 
 interface EducationCentreProps {
   theme: 'light' | 'dark';
@@ -105,7 +105,9 @@ export const EducationCentre: React.FC<EducationCentreProps> = ({
 
   // Filtered videos
   const filteredVideos = useMemo(() => {
-    return cmsVideos.filter((v) => {
+    const deleted = getDeletedVideoIds();
+    return (cmsVideos || []).filter((v) => {
+      if (!v || !v.id || deleted.has(v.id)) return false;
       const matchesSearch =
         searchQuery === '' ||
         v.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -119,16 +121,20 @@ export const EducationCentre: React.FC<EducationCentreProps> = ({
 
   // Filtered articles
   const filteredArticles = useMemo(() => {
-    return cmsArticles.filter((a) => {
-      const matchesSearch =
-        searchQuery === '' ||
-        a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.summary.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCat =
-        categoryFilter === 'all' || a.category.toLowerCase() === categoryFilter.toLowerCase();
-      return matchesSearch && matchesCat;
-    });
+    const deleted = getDeletedArticleIds();
+    return (cmsArticles || [])
+      .filter((a) => {
+        if (!a || !a.id || deleted.has(a.id)) return false;
+        const matchesSearch =
+          searchQuery === '' ||
+          a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          a.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          a.summary.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesCat =
+          categoryFilter === 'all' || a.category.toLowerCase() === categoryFilter.toLowerCase();
+        return matchesSearch && matchesCat;
+      })
+      .sort((a, b) => (a.seq || 0) - (b.seq || 0));
   }, [cmsArticles, searchQuery, categoryFilter]);
 
   // Filtered course products
@@ -766,9 +772,35 @@ export const EducationCentre: React.FC<EducationCentreProps> = ({
                   isDark ? 'bg-[#141A2E] border-[#252E4A]' : 'bg-white border-[#D8CEBC]'
                 }`}
               >
+                {/* Article Cover Image Banner */}
+                {currentArticle.imageUrl && (
+                  <div className="relative w-full h-56 sm:h-80 rounded-2xl overflow-hidden mb-6 bg-black/40 border border-[#E8E2D8] dark:border-[#252E4A]">
+                    <img
+                      src={currentArticle.imageUrl}
+                      alt={currentArticle.title}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-3 left-3 flex items-center gap-2">
+                      <span className="font-mono font-bold text-xs px-2.5 py-1 rounded bg-black/80 text-white border border-[#5584B4]/50 backdrop-blur-xs">
+                        #{currentArticle.seq || 1}
+                      </span>
+                      {currentArticle.isMustRead && (
+                        <span className="px-2.5 py-1 rounded text-[10px] uppercase font-bold bg-amber-500/90 text-white backdrop-blur-xs">
+                          MUST READ
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-5">
                   <div className="border-b pb-4 border-[#E8E2D8] dark:border-[#252E4A]">
                     <div className="flex items-center gap-2 text-xs font-mono text-slate-500 dark:text-slate-400 lowercase mb-1">
+                      {!currentArticle.imageUrl && (
+                        <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-[#5584B4]/20 text-[#5584B4]">
+                          #{currentArticle.seq || 1}
+                        </span>
+                      )}
                       <span>{currentArticle.readTime}</span>
                       <span>·</span>
                       <span>{currentArticle.category}</span>
@@ -811,7 +843,7 @@ export const EducationCentre: React.FC<EducationCentreProps> = ({
                 all articles & memos ({filteredArticles.length})
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredArticles.map((art) => {
+                {filteredArticles.map((art, idx) => {
                   const isSelected = art.id === currentArticle?.id;
                   return (
                     <div
@@ -828,9 +860,46 @@ export const EducationCentre: React.FC<EducationCentreProps> = ({
                       }`}
                     >
                       <div className="space-y-2">
+                        {/* Thumbnail Cover Image */}
+                        {art.imageUrl && (
+                          <div className="relative h-36 -mx-5 -mt-5 mb-2 overflow-hidden rounded-t-2xl bg-black/40">
+                            <img
+                              src={art.imageUrl}
+                              alt={art.title}
+                              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                            <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                              <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-black/80 text-white border border-[#5584B4]/50 backdrop-blur-xs">
+                                #{art.seq || idx + 1}
+                              </span>
+                              {art.isMustRead && (
+                                <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-amber-500/90 text-white backdrop-blur-xs">
+                                  MUST READ
+                                </span>
+                              )}
+                            </div>
+                            <div className="absolute top-2 right-2 text-[10px] font-mono px-2 py-0.5 rounded bg-black/70 text-slate-300 backdrop-blur-xs">
+                              {art.readTime}
+                            </div>
+                          </div>
+                        )}
+
                         <div className="flex items-center justify-between text-xs font-mono text-slate-400">
-                          <span>{art.category}</span>
-                          <span>{art.readTime}</span>
+                          <div className="flex items-center gap-1.5">
+                            {!art.imageUrl && (
+                              <span className="font-bold text-xs px-2 py-0.5 rounded bg-[#5584B4]/20 text-[#5584B4]">
+                                #{art.seq || idx + 1}
+                              </span>
+                            )}
+                            <span>{art.category}</span>
+                            {art.isMustRead && !art.imageUrl && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] uppercase font-bold bg-amber-500/20 text-amber-500">
+                                MUST READ
+                              </span>
+                            )}
+                          </div>
+                          {!art.imageUrl && <span>{art.readTime}</span>}
                         </div>
                         <h4 className="font-['Raleway'] text-base font-bold lowercase line-clamp-2">
                           {art.title}

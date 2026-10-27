@@ -52,6 +52,13 @@ function sanitizeForFirestore<T>(data: T): T {
   }
 }
 
+function withFirestoreTimeout<T>(promise: Promise<T>, ms = 6000, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
 /**
  * Fetch persistent CMS Products from Firestore.
  */
@@ -59,8 +66,8 @@ export async function fetchCmsProductsFromFirestore(): Promise<CmsProduct[] | nu
   if (isFirestoreQuotaExceeded()) return null;
   try {
     const docRef = doc(db, CMS_CONFIG_COLLECTION, 'products');
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
+    const snap = await withFirestoreTimeout(getDoc(docRef), 6000, null);
+    if (snap && snap.exists()) {
       const data = snap.data();
       if (data && Array.isArray(data.items) && data.items.length > 0) {
         return data.items as CmsProduct[];
@@ -79,12 +86,21 @@ export async function saveCmsProductsToFirestore(products: CmsProduct[]): Promis
   if (isFirestoreQuotaExceeded()) return false;
   try {
     const docRef = doc(db, CMS_CONFIG_COLLECTION, 'products');
-    await setDoc(docRef, {
-      items: sanitizeForFirestore(products),
-      updatedAt: new Date().toISOString(),
-      count: products.length,
-    });
-    return true;
+    const ok = await withFirestoreTimeout(
+      setDoc(docRef, {
+        items: sanitizeForFirestore(products),
+        updatedAt: new Date().toISOString(),
+        count: products.length,
+      })
+        .then(() => true)
+        .catch((err) => {
+          handleFirestoreError('save products', err);
+          return false;
+        }),
+      6000,
+      false
+    );
+    return ok;
   } catch (err) {
     handleFirestoreError('save products', err);
     return false;
@@ -98,8 +114,8 @@ export async function fetchCmsVideosFromFirestore(): Promise<CmsVideo[] | null> 
   if (isFirestoreQuotaExceeded()) return null;
   try {
     const docRef = doc(db, CMS_CONFIG_COLLECTION, 'videos');
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
+    const snap = await withFirestoreTimeout(getDoc(docRef), 6000, null);
+    if (snap && snap.exists()) {
       const data = snap.data();
       if (data && Array.isArray(data.items) && data.items.length > 0) {
         return data.items as CmsVideo[];
@@ -118,12 +134,21 @@ export async function saveCmsVideosToFirestore(videos: CmsVideo[]): Promise<bool
   if (isFirestoreQuotaExceeded()) return false;
   try {
     const docRef = doc(db, CMS_CONFIG_COLLECTION, 'videos');
-    await setDoc(docRef, {
-      items: sanitizeForFirestore(videos),
-      updatedAt: new Date().toISOString(),
-      count: videos.length,
-    });
-    return true;
+    const ok = await withFirestoreTimeout(
+      setDoc(docRef, {
+        items: sanitizeForFirestore(videos),
+        updatedAt: new Date().toISOString(),
+        count: videos.length,
+      })
+        .then(() => true)
+        .catch((err) => {
+          handleFirestoreError('save videos', err);
+          return false;
+        }),
+      6000,
+      false
+    );
+    return ok;
   } catch (err) {
     handleFirestoreError('save videos', err);
     return false;
@@ -137,11 +162,17 @@ export async function fetchCmsArticlesFromFirestore(): Promise<CmsArticle[] | nu
   if (isFirestoreQuotaExceeded()) return null;
   try {
     const docRef = doc(db, CMS_CONFIG_COLLECTION, 'articles');
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
+    const snap = await withFirestoreTimeout(getDoc(docRef), 6000, null);
+    if (snap && snap.exists()) {
       const data = snap.data();
       if (data && Array.isArray(data.items) && data.items.length > 0) {
-        return data.items as CmsArticle[];
+        const items = data.items as CmsArticle[];
+        items.forEach((item, idx) => {
+          if (!item.seq || isNaN(item.seq)) {
+            item.seq = idx + 1;
+          }
+        });
+        return items;
       }
     }
   } catch (err) {
@@ -157,12 +188,21 @@ export async function saveCmsArticlesToFirestore(articles: CmsArticle[]): Promis
   if (isFirestoreQuotaExceeded()) return false;
   try {
     const docRef = doc(db, CMS_CONFIG_COLLECTION, 'articles');
-    await setDoc(docRef, {
-      items: sanitizeForFirestore(articles),
-      updatedAt: new Date().toISOString(),
-      count: articles.length,
-    });
-    return true;
+    const ok = await withFirestoreTimeout(
+      setDoc(docRef, {
+        items: sanitizeForFirestore(articles),
+        updatedAt: new Date().toISOString(),
+        count: articles.length,
+      })
+        .then(() => true)
+        .catch((err) => {
+          handleFirestoreError('save articles', err);
+          return false;
+        }),
+      6000,
+      false
+    );
+    return ok;
   } catch (err) {
     handleFirestoreError('save articles', err);
     return false;
@@ -176,8 +216,8 @@ export async function fetchCmsPromotionsFromFirestore(): Promise<CmsPromotionSec
   if (isFirestoreQuotaExceeded()) return null;
   try {
     const docRef = doc(db, CMS_CONFIG_COLLECTION, 'promotions');
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
+    const snap = await withFirestoreTimeout(getDoc(docRef), 6000, null);
+    if (snap && snap.exists()) {
       const data = snap.data();
       if (data && Array.isArray(data.items) && data.items.length > 0) {
         return data.items.filter(
@@ -209,12 +249,21 @@ export async function saveCmsPromotionsToFirestore(promotions: CmsPromotionSecti
         p.name !== 'search' &&
         !(p.displayName && p.displayName.toLowerCase().includes('gemini search'))
     );
-    await setDoc(docRef, {
-      items: sanitizeForFirestore(filtered),
-      updatedAt: new Date().toISOString(),
-      count: filtered.length,
-    });
-    return true;
+    const ok = await withFirestoreTimeout(
+      setDoc(docRef, {
+        items: sanitizeForFirestore(filtered),
+        updatedAt: new Date().toISOString(),
+        count: filtered.length,
+      })
+        .then(() => true)
+        .catch((err) => {
+          handleFirestoreError('save promotions', err);
+          return false;
+        }),
+      6000,
+      false
+    );
+    return ok;
   } catch (err: any) {
     handleFirestoreError('save promotions', err);
     return false;
@@ -288,4 +337,65 @@ export function subscribeToCmsPromotions(
     return () => {};
   }
 }
+
+/**
+ * Real-time listener for CMS videos in Firestore
+ */
+export function subscribeToCmsVideos(
+  onUpdate: (videos: CmsVideo[]) => void
+): () => void {
+  if (isFirestoreQuotaExceeded()) return () => {};
+  try {
+    const docRef = doc(db, CMS_CONFIG_COLLECTION, 'videos');
+    const unsubscribe = onSnapshot(
+      docRef,
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data && Array.isArray(data.items) && data.items.length > 0) {
+            onUpdate(data.items as CmsVideo[]);
+          }
+        }
+      },
+      (err) => {
+        handleFirestoreError('videos listener', err);
+      }
+    );
+    return unsubscribe;
+  } catch (err) {
+    handleFirestoreError('subscribe videos', err);
+    return () => {};
+  }
+}
+
+/**
+ * Real-time listener for CMS articles in Firestore
+ */
+export function subscribeToCmsArticles(
+  onUpdate: (articles: CmsArticle[]) => void
+): () => void {
+  if (isFirestoreQuotaExceeded()) return () => {};
+  try {
+    const docRef = doc(db, CMS_CONFIG_COLLECTION, 'articles');
+    const unsubscribe = onSnapshot(
+      docRef,
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data && Array.isArray(data.items) && data.items.length > 0) {
+            onUpdate(data.items as CmsArticle[]);
+          }
+        }
+      },
+      (err) => {
+        handleFirestoreError('articles listener', err);
+      }
+    );
+    return unsubscribe;
+  } catch (err) {
+    handleFirestoreError('subscribe articles', err);
+    return () => {};
+  }
+}
+
 

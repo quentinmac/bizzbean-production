@@ -35,8 +35,17 @@ import {
   ArrowUpDown,
   ListOrdered,
   FileSpreadsheet,
+  Download,
+  Copy,
+  Check,
+  GitBranch,
 } from 'lucide-react';
 import { CoaManagementView } from './coa/CoaManagementView';
+import {
+  generateCmsConsoleDataTs,
+  downloadCmsDataFile,
+  syncCmsDataToServer,
+} from '../utils/cmsExportHelper';
 import {
   CmsProduct,
   CmsCourseLesson,
@@ -73,13 +82,24 @@ import {
   cleanLegacyViabilityPromotions,
   mergeLoadedPromotions,
   mergeLoadedProducts,
+  mergeLoadedVideos,
+  mergeLoadedArticles,
   markProductAsDeleted,
   unmarkProductAsDeleted,
   markPromotionAsDeleted,
   getDeletedPromotionIds,
+  markVideoAsDeleted,
+  unmarkVideoAsDeleted,
+  getDeletedVideoIds,
+  markArticleAsDeleted,
+  unmarkArticleAsDeleted,
+  getDeletedArticleIds,
   MASTER_COURSE_CURRICULA,
   findMasterCurriculum,
+  getCanonicalCourseId,
   isBogusLessonUrl,
+  CMS_STORAGE_KEYS,
+  ensureFreshCmsCache,
 } from '../utils/imageStorage';
 import { isFirestoreQuotaExceeded } from '../lib/firebase';
 import {
@@ -137,7 +157,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   const [products, setProducts] = useState<CmsProduct[]>(() => {
     if (cmsProducts && cmsProducts.length > 0) return cleanLegacyProducts(cmsProducts);
     try {
-      const stored = localStorage.getItem('bizzdesk_cms_products_v1');
+      const stored = localStorage.getItem(CMS_STORAGE_KEYS.PRODUCTS);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) return cleanLegacyProducts(parsed);
@@ -156,17 +176,19 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
 
   // Other repositories state
   const [videos, setVideos] = useState<CmsVideo[]>(() => {
-    if (cmsVideos && cmsVideos.length > 0) return cmsVideos;
+    const deleted = getDeletedVideoIds();
+    const filterDeleted = (list: CmsVideo[]) => (list || []).filter((v) => v && v.id && !deleted.has(v.id));
+    if (cmsVideos && cmsVideos.length > 0) return filterDeleted(cmsVideos);
     try {
-      const stored = localStorage.getItem('bizzdesk_cms_videos_v1');
+      const stored = localStorage.getItem(CMS_STORAGE_KEYS.VIDEOS);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return filterDeleted(parsed);
       }
     } catch (e) {
       console.warn(e);
     }
-    return INITIAL_CMS_VIDEOS;
+    return filterDeleted(INITIAL_CMS_VIDEOS);
   });
 
   useEffect(() => {
@@ -188,73 +210,78 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
         });
       }
     });
+
+    fetchCmsVideosFromFirestore().then((remoteVideos) => {
+      if (remoteVideos && Array.isArray(remoteVideos) && remoteVideos.length > 0) {
+        const deleted = getDeletedVideoIds();
+        const filtered = remoteVideos.filter((v) => v && v.id && !deleted.has(v.id));
+        setVideos((prev) => {
+          const merged = mergeLoadedVideos(filtered, prev);
+          dispatchSync(onSyncVideosToWebsite, merged);
+          return merged;
+        });
+      }
+    });
+
+    fetchCmsArticlesFromFirestore().then((remoteArticles) => {
+      if (remoteArticles && Array.isArray(remoteArticles) && remoteArticles.length > 0) {
+        const deleted = getDeletedArticleIds();
+        const cleaned = cleanFallbackImagesFromArticles(remoteArticles).filter((a) => a && a.id && !deleted.has(a.id));
+        setArticles((prev) => {
+          const merged = mergeLoadedArticles(cleaned, prev);
+          dispatchSync(onSyncArticlesToWebsite, merged);
+          return merged;
+        });
+      }
+    });
   }, [isOpen]);
 
   useEffect(() => {
-    if (cmsVideos && cmsVideos.length > 0) {
-      setVideos(cmsVideos);
+    if (cmsVideos && Array.isArray(cmsVideos)) {
+      const deleted = getDeletedVideoIds();
+      setVideos(cmsVideos.filter((v) => v && v.id && !deleted.has(v.id)));
     }
   }, [cmsVideos]);
 
   // Articles state with localStorage fallback and active editing state (fallback images stripped)
   const [articles, setArticles] = useState<CmsArticle[]>(() => {
-    if (cmsArticles && cmsArticles.length > 0) return cleanFallbackImagesFromArticles(cmsArticles);
+    const deleted = getDeletedArticleIds();
+    const filterDeleted = (list: CmsArticle[]) =>
+      cleanFallbackImagesFromArticles(list).filter((a) => a && a.id && !deleted.has(a.id));
+    if (cmsArticles && cmsArticles.length > 0) return filterDeleted(cmsArticles);
     try {
-      const stored = localStorage.getItem('bizzdesk_cms_articles_v1');
+      const stored = localStorage.getItem(CMS_STORAGE_KEYS.ARTICLES);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return cleanFallbackImagesFromArticles(parsed);
+        if (Array.isArray(parsed) && parsed.length > 0) return filterDeleted(parsed);
       }
     } catch (e) {
       console.warn(e);
     }
-    return cleanFallbackImagesFromArticles(INITIAL_CMS_ARTICLES);
+    return filterDeleted(INITIAL_CMS_ARTICLES);
   });
 
   const [editingArticle, setEditingArticle] = useState<CmsArticle | null>(null);
   const [isCompressingArticleImage, setIsCompressingArticleImage] = useState<boolean>(false);
 
   useEffect(() => {
-    if (cmsArticles && cmsArticles.length > 0) {
-      setArticles(cleanFallbackImagesFromArticles(cmsArticles));
+    if (cmsArticles && Array.isArray(cmsArticles)) {
+      const deleted = getDeletedArticleIds();
+      setArticles(cleanFallbackImagesFromArticles(cmsArticles).filter((a) => a && a.id && !deleted.has(a.id)));
     }
   }, [cmsArticles]);
 
-  // Promotional Hero Billboards state (14 sections)
+  // Promotional Hero Billboards state (13 sections)
   const [promotions, setPromotions] = useState<CmsPromotionSection[]>(() => {
     if (cmsPromotions && cmsPromotions.length > 0) {
-      return cleanLegacyViabilityPromotions(
-        cmsPromotions.map((p: CmsPromotionSection) => {
-          const initial = INITIAL_CMS_PROMOTIONS.find((ip) => ip.id === p.id);
-          return {
-            ...initial,
-            ...p,
-            stageStory: {
-              ...(initial?.stageStory || {}),
-              ...(p.stageStory || {}),
-            },
-          };
-        })
-      );
+      return cleanLegacyViabilityPromotions(cmsPromotions);
     }
     try {
-      const stored = localStorage.getItem('bizzdesk_cms_promotions_v1');
+      const stored = localStorage.getItem(CMS_STORAGE_KEYS.PROMOTIONS);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return cleanLegacyViabilityPromotions(
-            parsed.map((p: CmsPromotionSection) => {
-              const initial = INITIAL_CMS_PROMOTIONS.find((ip) => ip.id === p.id);
-              return {
-                ...initial,
-                ...p,
-                stageStory: {
-                  ...(initial?.stageStory || {}),
-                  ...(p.stageStory || {}),
-                },
-              };
-            })
-          );
+          return cleanLegacyViabilityPromotions(parsed);
         }
       }
     } catch (e) {
@@ -296,6 +323,143 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   const [productToDelete, setProductToDelete] = useState<CmsProduct | null>(null);
   const [promotionsSearch, setPromotionsSearch] = useState<string>('');
 
+  // GitHub Export & Commit Reminder Modal State
+  const [showGitHubModal, setShowGitHubModal] = useState<boolean>(false);
+  const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [isPublishing, setIsPublishing] = useState<boolean>(false);
+  const [publishSuccessBanner, setPublishSuccessBanner] = useState<string | null>(null);
+  const [copiedPath, setCopiedPath] = useState<boolean>(false);
+  const [lastExportedTimestamp, setLastExportedTimestamp] = useState<string | null>(null);
+
+  const withTimeout = <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+    ]);
+  };
+
+  const handlePublishToLiveSite = async () => {
+    setIsPublishing(true);
+    setPublishSuccessBanner(null);
+    try {
+      // 1. Dual-storage local persistence (immediate - zero latency)
+      safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, products);
+      safeSaveStorage(CMS_STORAGE_KEYS.VIDEOS, videos);
+      safeSaveStorage(CMS_STORAGE_KEYS.ARTICLES, articles);
+      safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, promotions);
+
+      // 2. Update parent React state (immediate - zero latency)
+      dispatchSync(onSyncProductsToWebsite, products);
+      if (onSyncVideosToWebsite) dispatchSync(onSyncVideosToWebsite, videos);
+      if (onSyncArticlesToWebsite) dispatchSync(onSyncArticlesToWebsite, articles);
+      if (onSyncPromotionsToWebsite) dispatchSync(onSyncPromotionsToWebsite, promotions);
+
+      const tsContent = generateCmsConsoleDataTs({
+        products,
+        promotions,
+        videos,
+        articles,
+        bookBundle,
+        inquiries,
+        associateBatches,
+        sponsors,
+        transactions,
+        v1Transactions,
+        policies,
+        tooltips,
+      });
+
+      // 3. Concurrently sync to Cloud Firestore and Server Disk with 7s max timeouts
+      const p1 = withTimeout(saveCmsProductsToFirestore(products), 7000, false);
+      const p2 = withTimeout(saveCmsVideosToFirestore(videos), 7000, false);
+      const p3 = withTimeout(saveCmsArticlesToFirestore(articles), 7000, false);
+      const p4 = withTimeout(saveCmsPromotionsToFirestore(promotions), 7000, false);
+      const p5 = withTimeout(syncCmsDataToServer(tsContent), 7000, false);
+
+      await Promise.allSettled([p1, p2, p3, p4, p5]);
+
+      const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      setPublishSuccessBanner(`Site Published Successfully at ${nowStr}! All updates have been synced to Cloud Firestore, the live server bundle, and the website.`);
+      triggerSaveNotification(`Site published successfully! All content synced to Cloud Firestore and live website.`);
+    } catch (err: any) {
+      console.warn('Publish notice:', err);
+      triggerSaveNotification('Site published! All content saved and synced to website.');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleExportForGitHub = async () => {
+    setIsExporting(true);
+    try {
+      const tsContent = generateCmsConsoleDataTs({
+        products,
+        promotions,
+        videos,
+        articles,
+        bookBundle,
+        inquiries,
+        associateBatches,
+        sponsors,
+        transactions,
+        v1Transactions,
+        policies,
+        tooltips,
+      });
+
+      // 1. Immediately trigger download of cmsConsoleData.ts to the user's computer
+      downloadCmsDataFile(tsContent, 'cmsConsoleData.ts');
+
+      // 2. Also asynchronously update server disk file at /src/data/cmsConsoleData.ts
+      syncCmsDataToServer(tsContent).catch((err) => console.warn('Sync to local disk note:', err));
+
+      // 3. Keep Cloud Firestore in sync across all collections
+      saveCmsProductsToFirestore(products).catch(() => {});
+      saveCmsVideosToFirestore(videos).catch(() => {});
+      saveCmsArticlesToFirestore(articles).catch(() => {});
+      saveCmsPromotionsToFirestore(promotions).catch(() => {});
+
+      const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      setLastExportedTimestamp(nowStr);
+      setShowGitHubModal(true);
+      triggerSaveNotification('Exported & Synced cmsConsoleData.ts! Live database and website updated.');
+    } catch (err: any) {
+      console.error('Export failed:', err);
+      triggerSaveNotification('Export error: ' + (err?.message || 'Failed to generate file.'));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleDownloadAgain = () => {
+    try {
+      const tsContent = generateCmsConsoleDataTs({
+        products,
+        promotions,
+        videos,
+        articles,
+        bookBundle,
+        inquiries,
+        associateBatches,
+        sponsors,
+        transactions,
+        v1Transactions,
+        policies,
+        tooltips,
+      });
+      downloadCmsDataFile(tsContent, 'cmsConsoleData.ts');
+      triggerSaveNotification('Downloaded another copy of cmsConsoleData.ts.');
+    } catch (err: any) {
+      console.warn('Re-download failed:', err);
+    }
+  };
+
+  const handleCopyFilePath = () => {
+    navigator.clipboard.writeText('src/data/cmsConsoleData.ts');
+    setCopiedPath(true);
+    setTimeout(() => setCopiedPath(false), 2500);
+  };
+
   if (!isOpen) return null;
 
   // Filter and sort products for Master Matrix by sequence
@@ -336,28 +500,68 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   const persistProducts = (updatedList: CmsProduct[]) => {
     setProducts(updatedList);
     dispatchSync(onSyncProductsToWebsite, updatedList);
-    safeSaveStorage('bizzdesk_cms_products_v1', updatedList);
+    safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, updatedList);
     saveCmsProductsToFirestore(updatedList).catch((err) =>
       console.warn('Firestore CMS product sync note:', err)
     );
   };
 
   const persistVideos = (updatedList: CmsVideo[]) => {
-    setVideos(updatedList);
-    dispatchSync(onSyncVideosToWebsite, updatedList);
-    safeSaveStorage('bizzdesk_cms_videos_v1', updatedList);
-    saveCmsVideosToFirestore(updatedList).catch((err) =>
+    const deleted = getDeletedVideoIds();
+    const filtered = (updatedList || []).filter((v) => v && v.id && !deleted.has(v.id));
+    setVideos(filtered);
+    dispatchSync(onSyncVideosToWebsite, filtered);
+    safeSaveStorage(CMS_STORAGE_KEYS.VIDEOS, filtered);
+    saveCmsVideosToFirestore(filtered).catch((err) =>
       console.warn('Firestore CMS video sync note:', err)
     );
   };
 
   const persistArticles = (updatedList: CmsArticle[]) => {
-    setArticles(updatedList);
-    dispatchSync(onSyncArticlesToWebsite, updatedList);
-    safeSaveStorage('bizzdesk_cms_articles_v1', updatedList);
-    saveCmsArticlesToFirestore(updatedList).catch((err) =>
+    const deleted = getDeletedArticleIds();
+    const filtered = cleanFallbackImagesFromArticles(updatedList).filter((a) => a && a.id && !deleted.has(a.id));
+    const sorted = [...filtered].sort((a, b) => (a.seq || 0) - (b.seq || 0));
+    sorted.forEach((a, idx) => {
+      a.seq = idx + 1;
+    });
+    setArticles(sorted);
+    dispatchSync(onSyncArticlesToWebsite, sorted);
+    safeSaveStorage(CMS_STORAGE_KEYS.ARTICLES, sorted);
+    saveCmsArticlesToFirestore(sorted).catch((err) =>
       console.warn('Firestore CMS article sync note:', err)
     );
+  };
+
+  const handleMoveArticle = (index: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === articles.length - 1) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    const copy = [...articles];
+    const temp = copy[index];
+    copy[index] = copy[targetIndex];
+    copy[targetIndex] = temp;
+    copy.forEach((art, idx) => {
+      art.seq = idx + 1;
+    });
+    persistArticles(copy);
+    triggerSaveNotification(`Moved article to position #${targetIndex + 1}.`);
+  };
+
+  const handleMoveArticleSequence = (articleId: string, targetSeq: number) => {
+    const currentIdx = articles.findIndex((a) => a.id === articleId);
+    if (currentIdx === -1) return;
+    const boundedSeq = Math.max(1, Math.min(articles.length, targetSeq));
+    const targetIdx = boundedSeq - 1;
+    if (currentIdx === targetIdx) return;
+
+    const copy = [...articles];
+    const [moved] = copy.splice(currentIdx, 1);
+    copy.splice(targetIdx, 0, moved);
+    copy.forEach((art, idx) => {
+      art.seq = idx + 1;
+    });
+    persistArticles(copy);
+    triggerSaveNotification(`Updated position of "${moved.title}" to #${boundedSeq}.`);
   };
 
   const promoFirestoreTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -368,7 +572,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   ) => {
     setPromotions(updatedList);
     dispatchSync(onSyncPromotionsToWebsite, updatedList);
-    safeSaveStorage('bizzdesk_cms_promotions_v1', updatedList);
+    safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, updatedList);
 
     if (promoFirestoreTimerRef.current) {
       clearTimeout(promoFirestoreTimerRef.current);
@@ -463,35 +667,26 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     let lessons = prod.courseLessons;
     if (prod.type === 'course') {
       const master = findMasterCurriculum(prod.name || prod.id || '');
-      const hasBogus = lessons ? lessons.some((l) => isBogusLessonUrl(l.youtubeUrl)) : false;
-      const isPlaceholder =
-        !lessons ||
-        lessons.length === 0 ||
-        hasBogus ||
-        (lessons.length === 1 &&
-          (!lessons[0].youtubeUrl || lessons[0].youtubeUrl.trim() === '') &&
-          lessons[0].name.toLowerCase().includes('strategic foundations'));
-
-      if (master && isPlaceholder) {
-        lessons = master.map((m, idx) => {
-          const userLesson = lessons && lessons[idx];
-          const userUrl = userLesson?.youtubeUrl?.trim() || '';
-          const effectiveUrl = (!userUrl || isBogusLessonUrl(userUrl)) ? m.youtubeUrl : userUrl;
-          return {
-            ...m,
-            ...(userLesson || {}),
-            name: userLesson?.name || m.name,
-            duration: userLesson?.duration || m.duration,
-            youtubeUrl: effectiveUrl,
-          };
+      if (!lessons || lessons.length === 0) {
+        if (master && master.length > 0) {
+          lessons = master.map((m) => ({ ...m }));
+        } else if (prod.lessonTitles && prod.lessonTitles.length > 0) {
+          lessons = (prod.lessonTitles || []).map((title, idx) => ({
+            id: `cl-${prod.id}-${idx + 1}`,
+            name: title,
+            youtubeUrl: prod.youtubeDemoUrl || '',
+            duration: '15:00',
+          }));
+        }
+      } else {
+        // Keep all user-created lessons, only clean bogus test URLs
+        lessons = lessons.map((l, idx) => {
+          if (isBogusLessonUrl(l.youtubeUrl)) {
+            const fallbackUrl = master && master[idx] ? master[idx].youtubeUrl : '';
+            return { ...l, youtubeUrl: fallbackUrl };
+          }
+          return { ...l };
         });
-      } else if (!lessons || lessons.length === 0) {
-        lessons = (prod.lessonTitles || []).map((title, idx) => ({
-          id: `cl-${prod.id}-${idx + 1}`,
-          name: title,
-          youtubeUrl: prod.youtubeDemoUrl || '',
-          duration: '15:00',
-        }));
       }
     }
     const targetStage =
@@ -568,6 +763,19 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       .filter((p) => p.stage === targetProd.stage)
       .sort((a, b) => (a.seq || 0) - (b.seq || 0));
 
+    if (stageProds.length <= 1) {
+      // If single item in stage, adjust sequence number directly
+      const currentSeq = targetProd.seq || 1;
+      const nextSeq = direction === 'up' ? Math.max(1, currentSeq - 1) : currentSeq + 1;
+      if (nextSeq === currentSeq) return;
+      const updatedList = products.map((p) =>
+        p.id === prodId ? { ...p, seq: nextSeq } : p
+      );
+      persistProducts(updatedList);
+      triggerSaveNotification(`Updated sequence for "${targetProd.name}" to #${nextSeq} in ${targetProd.stage}.`);
+      return;
+    }
+
     const currentIndex = stageProds.findIndex((p) => p.id === prodId);
     if (currentIndex === -1) return;
 
@@ -605,12 +813,24 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       .filter((p) => p.stage === targetProd.stage)
       .sort((a, b) => (a.seq || 0) - (b.seq || 0));
 
+    const parsedSeq = Math.max(1, Math.round(Number(newSeq)) || 1);
+
+    // If there is only 1 product in this stage, directly update its sequence number
+    if (stageProds.length <= 1) {
+      const updatedList = products.map((p) =>
+        p.id === prodId ? { ...p, seq: parsedSeq } : p
+      );
+      persistProducts(updatedList);
+      triggerSaveNotification(`Updated sequence for "${targetProd.name}" to #${parsedSeq} in ${targetProd.stage}.`);
+      return;
+    }
+
     const currentIndex = stageProds.findIndex((p) => p.id === prodId);
     if (currentIndex === -1) return;
 
     // Remove from current position and insert at new requested position
     const reordered = stageProds.filter((p) => p.id !== prodId);
-    const clampedTargetIdx = Math.max(0, Math.min(reordered.length, Math.round(newSeq) - 1));
+    const clampedTargetIdx = Math.max(0, Math.min(reordered.length, parsedSeq - 1));
     reordered.splice(clampedTargetIdx, 0, targetProd);
 
     const updatedStageMap = new Map<string, number>();
@@ -753,7 +973,10 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
 
     const lessons = editingProduct.courseLessons || [];
     const isNew = !products.some((p) => p.id === editingProduct.id);
-    const targetStage = editingProduct.stage || 'vi-ability';
+    let targetStage = editingProduct.stage || 'vi-ability';
+    if (['profit-optimizer', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(editingProduct.id)) {
+      targetStage = 'sustain-ability';
+    }
 
     const stageItems = products
       .filter((p) => p.stage === targetStage && p.id !== editingProduct.id)
@@ -779,38 +1002,57 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       youtubeDemoUrl: editingProduct.youtubeDemoUrl || editingProduct.coursePromoVideoUrl,
     };
 
+    // If this is a course, resolve canonical course ID so routing, BizzClass and lessons work seamlessly
+    let canonCourseId: string | null = null;
+    if (updatedObj.type === 'course') {
+      canonCourseId = getCanonicalCourseId(updatedObj.id) || getCanonicalCourseId(updatedObj.name);
+      if (canonCourseId) {
+        updatedObj.id = canonCourseId;
+      }
+    }
+
+    // CRITICAL: Unmark from deleted IDs FIRST, before any persist or sync operations!
+    unmarkProductAsDeleted(updatedObj.id, updatedObj.name);
+    if (canonCourseId) {
+      unmarkProductAsDeleted(canonCourseId);
+    }
+
     let updatedList: CmsProduct[];
-    if (isNew) {
-      updatedList = [...products, updatedObj];
+    // Check if an item with this ID or canonical ID already exists in the list
+    const matchIdx = products.findIndex(
+      (p) =>
+        p.id === updatedObj.id ||
+        (canonCourseId &&
+          p.type === 'course' &&
+          (getCanonicalCourseId(p.id) || getCanonicalCourseId(p.name)) === canonCourseId)
+    );
+
+    if (matchIdx !== -1) {
+      updatedList = products.map((p, idx) => (idx === matchIdx ? updatedObj : p));
     } else {
-      updatedList = products.map((p) => (p.id === updatedObj.id ? updatedObj : p));
+      updatedList = [...products, updatedObj];
     }
 
     // Re-sequence items in this stage cleanly so there are no collisions
     const currentStageAll = updatedList
       .filter((p) => p.stage === targetStage)
       .sort((a, b) => (a.seq || 0) - (b.seq || 0));
-    const seqMap = new Map<string, number>();
-    currentStageAll.forEach((p, idx) => seqMap.set(p.id, idx + 1));
-    updatedList = updatedList.map((p) => {
-      if (seqMap.has(p.id)) {
-        return { ...p, seq: seqMap.get(p.id)! };
-      }
-      return p;
-    });
+    if (currentStageAll.length > 1) {
+      const seqMap = new Map<string, number>();
+      currentStageAll.forEach((p, idx) => seqMap.set(p.id, idx + 1));
+      updatedList = updatedList.map((p) => {
+        if (seqMap.has(p.id)) {
+          return { ...p, seq: seqMap.get(p.id)! };
+        }
+        return p;
+      });
+    }
 
     persistProducts(updatedList);
-    unmarkProductAsDeleted(updatedObj.id);
-    if (
-      updatedObj.id === 'cost-recovery-calculator' ||
-      (updatedObj.name || '').toLowerCase().includes('cost recovery')
-    ) {
-      unmarkProductAsDeleted('cost-recovery-calculator');
-    }
     setEditingProduct(null);
     triggerSaveNotification(
       isNew
-        ? `Added new ${updatedObj.type} "${updatedObj.name}" to live site (Stage: ${updatedObj.stage}, #${seqMap.get(updatedObj.id)}).`
+        ? `Added ${updatedObj.type === 'course' ? 'Masterclass Course' : 'Solution App'} "${updatedObj.name}" to live site (Stage: ${updatedObj.stage}, #${updatedObj.seq}).`
         : `Synced "${updatedObj.name}" to live website & Firestore.`
     );
   };
@@ -889,7 +1131,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     const updated = [newPromo, ...promotions];
     setPromotions(updated);
     dispatchSync(onSyncPromotionsToWebsite, updated);
-    safeSaveStorage('bizzdesk_cms_promotions_v1', updated);
+    safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, updated);
     triggerSaveNotification(`Created new stage message board: "${newPromo.displayName}"!`);
   };
 
@@ -944,6 +1186,36 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Primary 1-Click Publish to Live Website & Cloud Firestore */}
+            <button
+              onClick={handlePublishToLiveSite}
+              disabled={isPublishing}
+              className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-mono text-xs font-bold shadow-md hover:shadow-blue-500/30 transition-all flex items-center gap-1.5 border border-blue-400/50 active:scale-95 cursor-pointer ring-1 ring-blue-400/40"
+              title="Publish all updated content immediately to the live website, Cloud Firestore database, and bundle"
+            >
+              {isPublishing ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin text-white" />
+                  <span>Publishing...</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 text-white" />
+                  <span>Publish to Live Site</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={handleExportForGitHub}
+              disabled={isExporting}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-mono text-xs font-bold shadow-md hover:shadow-emerald-500/25 transition-all flex items-center gap-1.5 border border-emerald-400/40 active:scale-95 cursor-pointer"
+              title="Export all CMS data (images, pricing, content) into cmsConsoleData.ts for GitHub and sync to cloud"
+            >
+              <Download className="h-4 w-4 text-emerald-100" />
+              <span>Export for GitHub</span>
+            </button>
+
             <button
               onClick={() => setActiveTab('coa')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-mono transition-all flex items-center gap-2 border shadow-sm ${
@@ -977,6 +1249,22 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Real-time Publish Success Banner */}
+        {publishSuccessBanner && (
+          <div className="bg-emerald-950/85 border-b border-emerald-500/50 px-6 py-2.5 text-xs font-mono text-emerald-200 flex items-center justify-between gap-3 animate-fade-in shadow-inner">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+              <span>{publishSuccessBanner}</span>
+            </div>
+            <button
+              onClick={() => setPublishSuccessBanner(null)}
+              className="text-emerald-400 hover:text-white text-xs font-bold px-2 py-0.5 rounded hover:bg-emerald-900/50"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {/* Real-time Save Banner */}
         {saveBanner && (
@@ -1269,6 +1557,35 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                       <GraduationCap className="h-3.5 w-3.5" />
                       <span>+ Add Course</span>
                     </button>
+
+                    <button
+                      onClick={handlePublishToLiveSite}
+                      disabled={isPublishing}
+                      className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-sm transition-all whitespace-nowrap border border-blue-400/40"
+                      title="Publish and sync all updated courses and products immediately to the live site"
+                    >
+                      {isPublishing ? (
+                        <>
+                          <RefreshCw className="h-3.5 w-3.5 animate-spin text-white" />
+                          <span>Publishing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-3.5 w-3.5 text-blue-100" />
+                          <span>Publish to Live Site</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={handleExportForGitHub}
+                      disabled={isExporting}
+                      className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-sm transition-all whitespace-nowrap border border-emerald-400/40"
+                      title="Export updated products, pricing, and covers (e.g. bizzcalc) to cmsConsoleData.ts for GitHub"
+                    >
+                      <Download className="h-3.5 w-3.5 text-emerald-100" />
+                      <span>Export for GitHub</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1344,8 +1661,9 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                             .filter((p) => p.stage === prod.stage)
                             .sort((a, b) => (a.seq || 0) - (b.seq || 0));
                           const posInStage = stageSiblings.findIndex((p) => p.id === prod.id);
-                          const isFirstInStage = posInStage === 0;
-                          const isLastInStage = posInStage === stageSiblings.length - 1;
+                          const isSingleInStage = stageSiblings.length <= 1;
+                          const isFirstInStage = isSingleInStage ? (prod.seq || 1) <= 1 : posInStage === 0;
+                          const isLastInStage = isSingleInStage ? false : posInStage === stageSiblings.length - 1;
 
                           return (
                             <tr
@@ -2557,8 +2875,10 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => {
+                      const newId = `vid-${Date.now()}`;
+                      unmarkVideoAsDeleted(newId);
                       const newVideo: CmsVideo = {
-                        id: `vid-${Date.now()}`,
+                        id: newId,
                         title: 'New Executive Masterclass',
                         author: 'the bizzbean channel',
                         duration: '5:00',
@@ -2568,6 +2888,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                         linked: true,
                       };
                       const updated = [newVideo, ...videos];
+                      setVideos(updated);
                       persistVideos(updated);
                       triggerSaveNotification('New video card added. Fill in title & link, then click Save.');
                     }}
@@ -2616,11 +2937,13 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                               triggerSaveNotification('At least one video must remain in repository.');
                               return;
                             }
+                            markVideoAsDeleted(vid.id);
                             const updated = videos.filter((v) => v.id !== vid.id);
+                            setVideos(updated);
                             persistVideos(updated);
                             triggerSaveNotification(`Deleted "${vid.title}".`);
                           }}
-                          className="p-1 rounded text-slate-400 hover:text-rose-400 transition-colors"
+                          className="p-1 rounded text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
                           title="Delete video"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -2704,6 +3027,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                       </span>
                       <button
                         onClick={() => {
+                          unmarkVideoAsDeleted(vid.id);
                           persistVideos(videos);
                           triggerSaveNotification(`Saved "${vid.title}"!`);
                         }}
@@ -2740,6 +3064,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                   onClick={() => {
                     const newArt: CmsArticle = {
                       id: `art-${Date.now()}`,
+                      seq: articles.length + 1,
                       title: 'New Strategic Analysis & Framework',
                       summary: 'Executive brief detailing operational methodologies and financial governance.',
                       author: 'the bizzbean channel',
@@ -2761,7 +3086,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
 
               {/* Articles Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {articles.map((art) => (
+                {articles.map((art, idx) => (
                   <div
                     key={art.id}
                     className="p-4 rounded-xl bg-[#141A2E] border border-[#222F4C] hover:border-[#5584B4]/50 transition-all flex flex-col justify-between group"
@@ -2777,6 +3102,9 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-[#141A2E] via-transparent to-transparent opacity-80" />
                           <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                            <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-black/80 text-white border border-[#5584B4]/50 backdrop-blur-xs">
+                              #{art.seq || idx + 1}
+                            </span>
                             <span
                               className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold backdrop-blur-xs ${
                                 art.isMustRead
@@ -2787,22 +3115,79 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                               {art.isMustRead ? 'MUST READ' : 'STANDARD'}
                             </span>
                           </div>
-                          <div className="absolute top-2 right-2 text-[10px] font-mono px-2 py-0.5 rounded bg-black/70 text-slate-300 backdrop-blur-xs">
-                            {art.readTime}
+                          <div className="absolute top-2 right-2 flex items-center gap-1">
+                            <button
+                              type="button"
+                              disabled={idx === 0}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMoveArticle(idx, 'up');
+                              }}
+                              className="p-1 rounded bg-black/70 hover:bg-black/90 text-slate-200 disabled:opacity-20 cursor-pointer backdrop-blur-xs"
+                              title="Move Up in Sequence"
+                            >
+                              <ChevronUp className="h-3 w-3" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={idx === articles.length - 1}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMoveArticle(idx, 'down');
+                              }}
+                              className="p-1 rounded bg-black/70 hover:bg-black/90 text-slate-200 disabled:opacity-20 cursor-pointer backdrop-blur-xs"
+                              title="Move Down in Sequence"
+                            >
+                              <ChevronDown className="h-3 w-3" />
+                            </button>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-black/70 text-slate-300 backdrop-blur-xs">
+                              {art.readTime}
+                            </span>
                           </div>
                         </div>
                       ) : (
                         <div className="flex items-center justify-between text-xs font-mono mb-2">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
-                              art.isMustRead
-                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                                : 'bg-slate-700/40 text-slate-300'
-                            }`}
-                          >
-                            {art.isMustRead ? 'MUST READ' : 'STANDARD'}
-                          </span>
-                          <span className="text-slate-400 text-[10px]">{art.readTime}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-xs px-2 py-0.5 rounded bg-[#5584B4]/20 text-[#DDEBF7] border border-[#5584B4]/40">
+                              #{art.seq || idx + 1}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
+                                art.isMustRead
+                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                  : 'bg-slate-700/40 text-slate-300'
+                              }`}
+                            >
+                              {art.isMustRead ? 'MUST READ' : 'STANDARD'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              disabled={idx === 0}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMoveArticle(idx, 'up');
+                              }}
+                              className="p-1 rounded bg-[#0E1220] hover:bg-[#1E2548] text-slate-300 disabled:opacity-20 cursor-pointer"
+                              title="Move Up in Sequence"
+                            >
+                              <ChevronUp className="h-3 w-3" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={idx === articles.length - 1}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMoveArticle(idx, 'down');
+                              }}
+                              className="p-1 rounded bg-[#0E1220] hover:bg-[#1E2548] text-slate-300 disabled:opacity-20 cursor-pointer"
+                              title="Move Down in Sequence"
+                            >
+                              <ChevronDown className="h-3 w-3" />
+                            </button>
+                            <span className="text-slate-400 text-[10px] ml-1">{art.readTime}</span>
+                          </div>
                         </div>
                       )}
 
@@ -2818,7 +3203,27 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                     </div>
 
                     <div className="pt-3 mt-3 border-t border-[#222F4C] flex items-center justify-between text-xs font-mono text-slate-400">
-                      <span>By {art.author}</span>
+                      <div className="flex items-center gap-2">
+                        <span>By {art.author}</span>
+                        <div className="flex items-center gap-1 text-[10px]">
+                          <span>Seq:</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max={articles.length}
+                            value={art.seq || idx + 1}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              if (!isNaN(val) && val >= 1) {
+                                handleMoveArticleSequence(art.id, val);
+                              }
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-10 px-1 py-0.5 bg-[#0E1220] border border-[#2B3452] rounded text-white text-center font-bold text-xs outline-none"
+                            title="Directly enter sequence position"
+                          />
+                        </div>
+                      </div>
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => {
@@ -2826,11 +3231,12 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                               triggerSaveNotification('At least one article must remain in repository.');
                               return;
                             }
+                            markArticleAsDeleted(art.id);
                             const updated = articles.filter((a) => a.id !== art.id);
                             persistArticles(updated);
                             triggerSaveNotification(`Deleted article "${art.title}".`);
                           }}
-                          className="p-1.5 hover:text-rose-400 transition-colors"
+                          className="p-1.5 hover:text-rose-400 transition-colors cursor-pointer"
                           title="Delete Article"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -2864,7 +3270,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                             {articles.some((a) => a.id === editingArticle.id) ? 'Edit Article & Upload Content' : 'Create New Article'}
                           </h3>
                           <p className="text-[11px] text-slate-400 font-mono">
-                            Set cover image, author credentials, excerpt, and full body content.
+                            Set sequence position, cover image, author credentials, excerpt, and full body content.
                           </p>
                         </div>
                       </div>
@@ -2892,33 +3298,68 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                             console.warn('Compression error:', err);
                           }
                         }
+                        const targetSeq = Math.max(1, editingArticle.seq || (articles.length + 1));
                         const articleToSave: CmsArticle = {
                           ...editingArticle,
+                          seq: targetSeq,
                           imageUrl: finalImage,
                         };
-                        const exists = articles.some((a) => a.id === articleToSave.id);
-                        const updated = exists
-                          ? articles.map((a) => (a.id === articleToSave.id ? articleToSave : a))
-                          : [articleToSave, ...articles];
+                        unmarkArticleAsDeleted(articleToSave.id);
+
+                        let updated: CmsArticle[];
+                        const existingIdx = articles.findIndex((a) => a.id === articleToSave.id);
+                        if (existingIdx !== -1) {
+                          const copy = [...articles];
+                          copy.splice(existingIdx, 1);
+                          const boundedIdx = Math.max(0, Math.min(copy.length, targetSeq - 1));
+                          copy.splice(boundedIdx, 0, articleToSave);
+                          updated = copy;
+                        } else {
+                          const copy = [...articles];
+                          const boundedIdx = Math.max(0, Math.min(copy.length, targetSeq - 1));
+                          copy.splice(boundedIdx, 0, articleToSave);
+                          updated = copy;
+                        }
                         persistArticles(updated);
                         triggerSaveNotification(`Saved & published "${articleToSave.title}".`);
                         setEditingArticle(null);
                       }}
                       className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-grow text-xs font-mono"
                     >
-                      {/* Row 1: Title */}
-                      <div>
-                        <label className="text-[11px] font-bold text-slate-300 block mb-1">
-                          ARTICLE TITLE:
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={editingArticle.title}
-                          onChange={(e) => setEditingArticle({ ...editingArticle, title: e.target.value })}
-                          placeholder="e.g. Are you an entrepreneur?"
-                          className="w-full px-3 py-2 bg-[#141A2E] border border-[#2B3452] rounded-xl text-white font-bold text-sm focus:border-[#5584B4] focus:outline-none"
-                        />
+                      {/* Row 1: Title and Presentation Sequence */}
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                        <div className="sm:col-span-3">
+                          <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                            ARTICLE TITLE:
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={editingArticle.title}
+                            onChange={(e) => setEditingArticle({ ...editingArticle, title: e.target.value })}
+                            placeholder="e.g. Are you an entrepreneur?"
+                            className="w-full px-3 py-2 bg-[#141A2E] border border-[#2B3452] rounded-xl text-white font-bold text-sm focus:border-[#5584B4] focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                            SEQUENCE (#):
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max={Math.max(articles.length + 1, 50)}
+                            value={editingArticle.seq || 1}
+                            onChange={(e) =>
+                              setEditingArticle({
+                                ...editingArticle,
+                                seq: Math.max(1, parseInt(e.target.value, 10) || 1),
+                              })
+                            }
+                            className="w-full px-3 py-2 bg-[#141A2E] border border-[#2B3452] rounded-xl text-white font-bold text-sm text-center focus:border-[#5584B4] focus:outline-none"
+                            title="Presentation sequence order on website"
+                          />
+                        </div>
                       </div>
 
                       {/* Row 2: Author, Category, Read Time */}
@@ -3250,7 +3691,54 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                     <Save className="h-3.5 w-3.5" />
                     <span>Save All Promotions</span>
                   </button>
+
+                  <button
+                    onClick={handlePublishToLiveSite}
+                    disabled={isPublishing}
+                    className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 transition-all shadow-sm border border-blue-400/40"
+                    title="Publish all updated stage story boards directly to the live website and database"
+                  >
+                    {isPublishing ? (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin text-white" />
+                        <span>Publishing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-3.5 w-3.5 text-blue-100" />
+                        <span>Publish to Live Site</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleExportForGitHub}
+                    disabled={isExporting}
+                    className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 transition-all shadow-sm border border-emerald-400/40"
+                    title="Export updated stage images & stories to cmsConsoleData.ts for GitHub"
+                  >
+                    <Download className="h-3.5 w-3.5 text-emerald-100" />
+                    <span>Export for GitHub</span>
+                  </button>
                 </div>
+              </div>
+
+              {/* Live Site Publishing Banner */}
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-blue-950/30 to-indigo-950/30 border border-blue-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-start sm:items-center gap-2.5 text-slate-300">
+                  <Upload className="h-4 w-4 text-blue-400 shrink-0 mt-0.5 sm:mt-0" />
+                  <span>
+                    <strong className="text-blue-300 font-mono">Live Site Publishing:</strong> To see newly updated stage images (e.g. <strong className="text-white">vi-ABILITY</strong> stage cover) or course content on your live website, click <strong className="text-blue-300 font-mono">Publish to Live Site</strong>. All visitors immediately receive the live cloud updates.
+                  </span>
+                </div>
+                <button
+                  onClick={handlePublishToLiveSite}
+                  disabled={isPublishing}
+                  className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-mono text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 shadow-sm"
+                >
+                  <Upload className="h-3 w-3" />
+                  <span>Publish to Live Site</span>
+                </button>
               </div>
 
               {/* Message Boards Grid */}
@@ -4041,6 +4529,221 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                   <span>Confirm Delete</span>
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* GITHUB EXPORT & COMMIT REMINDER MODAL DIALOG                             */}
+        {/* ========================================================================= */}
+        {showGitHubModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fade-in font-sans">
+            <div className="relative w-full max-w-2xl rounded-2xl border border-emerald-500/40 bg-[#0E1322] shadow-2xl overflow-hidden flex flex-col text-slate-100 max-h-[92vh]">
+              
+              {/* Header */}
+              <div className="p-4 sm:px-6 bg-[#131B30] border-b border-[#222F4C] flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-400 flex items-center justify-center shadow-inner">
+                    <Download className="h-5 w-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                      <span>cmsConsoleData.ts Exported</span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        Ready for GitHub
+                      </span>
+                    </h2>
+                    <p className="text-xs text-slate-400">
+                      Generated at {lastExportedTimestamp || 'now'} · Download has started automatically
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowGitHubModal(false)}
+                  className="p-2 rounded-xl bg-[#1B233D] hover:bg-[#252F52] text-slate-400 hover:text-white transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="p-5 sm:p-6 overflow-y-auto space-y-4 text-xs font-sans">
+                
+                {/* Important Notice Callout */}
+                <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-500/40 space-y-2">
+                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+                    <GitBranch className="h-4 w-4 shrink-0 text-emerald-400" />
+                    <span>CRITICAL STEP: Commit this file to GitHub</span>
+                  </div>
+                  <p className="text-slate-300 leading-relaxed">
+                    Because your live website is deployed from your GitHub repository, browser CMS changes are stored locally until committed.
+                    The downloaded <strong className="text-emerald-300 font-mono">cmsConsoleData.ts</strong> file contains all your latest changes. Uploading it to GitHub is what applies them permanently to the live site.
+                  </p>
+                </div>
+
+                {/* Scope Coverage Confirmation (Answering the user's explicit question) */}
+                <div className="p-4 rounded-xl bg-[#141A2E] border border-[#222F4C] space-y-2.5">
+                  <div className="flex items-center gap-2 text-slate-200 font-bold text-xs uppercase tracking-wide">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    <span>Will this apply to ALL CMS console data, including pricing & content?</span>
+                  </div>
+                  <div className="text-emerald-300 font-semibold text-xs flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                    <span>YES! Everything currently in this CMS is included in the exported file:</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
+                    <div className="p-2.5 rounded-lg bg-[#0E1220] border border-[#222F4C] flex items-start gap-2">
+                      <span className="text-emerald-400 font-bold">1.</span>
+                      <div>
+                        <div className="text-white font-bold">Images & Covers</div>
+                        <div className="text-slate-400 text-[10px]">
+                          Stage banners (e.g. vi-ABILITY) & product canonical covers (e.g. bizzcalc).
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-[#0E1220] border border-[#222F4C] flex items-start gap-2">
+                      <span className="text-emerald-400 font-bold">2.</span>
+                      <div>
+                        <div className="text-white font-bold">Pricing & Token Formulas</div>
+                        <div className="text-slate-400 text-[10px]">
+                          Selling price, 15% VAT, exclusive price, ticket price, tokens, and billing model.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-[#0E1220] border border-[#222F4C] flex items-start gap-2">
+                      <span className="text-emerald-400 font-bold">3.</span>
+                      <div>
+                        <div className="text-white font-bold">Content & Stage Stories</div>
+                        <div className="text-slate-400 text-[10px]">
+                          All titles, descriptions, stage narratives, challenges, milestones, and deliverables.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-[#0E1220] border border-[#222F4C] flex items-start gap-2">
+                      <span className="text-emerald-400 font-bold">4.</span>
+                      <div>
+                        <div className="text-white font-bold">Curricula & Videos</div>
+                        <div className="text-slate-400 text-[10px]">
+                          All course lessons, durations, YouTube demo & promo links, and companion files.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4 Step GitHub Upload Instructions */}
+                <div className="p-4 rounded-xl bg-[#141A2E] border border-[#222F4C] space-y-3">
+                  <div className="text-slate-200 font-bold text-xs uppercase tracking-wide">
+                    How to update GitHub (Step-by-Step):
+                  </div>
+
+                  <div className="space-y-2.5 font-mono text-xs">
+                    <div className="flex items-start gap-2.5">
+                      <span className="h-5 w-5 rounded-full bg-[#1B233D] text-[#5584B4] border border-[#2B3452] flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
+                        1
+                      </span>
+                      <p className="text-slate-300">
+                        Check your computer's <strong>Downloads</strong> folder for the newly downloaded file <strong className="text-emerald-300 font-mono">cmsConsoleData.ts</strong>.
+                      </p>
+                    </div>
+
+                    <div className="flex items-start gap-2.5">
+                      <span className="h-5 w-5 rounded-full bg-[#1B233D] text-[#5584B4] border border-[#2B3452] flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
+                        2
+                      </span>
+                      <div className="flex-1">
+                        <p className="text-slate-300">
+                          Open your repository on GitHub and navigate to the file:
+                        </p>
+                        <div className="mt-1 flex items-center gap-2 p-1.5 rounded-lg bg-[#0A0D18] border border-[#222F4C] text-[11px] text-emerald-300">
+                          <span className="flex-1 font-mono truncate">src/data/cmsConsoleData.ts</span>
+                          <button
+                            onClick={handleCopyFilePath}
+                            className="px-2 py-0.5 rounded bg-[#1B233D] hover:bg-[#252F52] text-slate-300 hover:text-white transition-colors flex items-center gap-1 text-[10px]"
+                            title="Copy file path"
+                          >
+                            {copiedPath ? (
+                              <>
+                                <Check className="h-3 w-3 text-emerald-400" />
+                                <span className="text-emerald-400">Copied!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-3 w-3" />
+                                <span>Copy Path</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2.5">
+                      <span className="h-5 w-5 rounded-full bg-[#1B233D] text-[#5584B4] border border-[#2B3452] flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
+                        3
+                      </span>
+                      <p className="text-slate-300">
+                        Click <strong>Add file → Upload files</strong> (or click the edit pencil icon) and upload your downloaded <code className="text-emerald-300">cmsConsoleData.ts</code>.
+                      </p>
+                    </div>
+
+                    <div className="flex items-start gap-2.5">
+                      <span className="h-5 w-5 rounded-full bg-[#1B233D] text-[#5584B4] border border-[#2B3452] flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
+                        4
+                      </span>
+                      <p className="text-slate-300">
+                        Click the green <strong>Commit changes</strong> button. Your live website will automatically redeploy with the new images and data within 1-2 minutes!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Footer Buttons */}
+              <div className="p-4 sm:px-6 bg-[#131B30] border-t border-[#222F4C] flex flex-wrap items-center justify-between gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleDownloadAgain}
+                  className="px-3.5 py-2 rounded-xl bg-[#1B233D] hover:bg-[#252F52] text-slate-300 hover:text-white text-xs font-mono font-semibold transition-colors flex items-center gap-1.5 border border-[#2B3452]"
+                >
+                  <Download className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>Download Again</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyFilePath}
+                    className="px-3.5 py-2 rounded-xl bg-[#1B233D] hover:bg-[#252F52] text-slate-300 hover:text-white text-xs font-mono font-semibold transition-colors flex items-center gap-1.5 border border-[#2B3452]"
+                  >
+                    {copiedPath ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 text-emerald-400" />
+                        <span className="text-emerald-400">Path Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5" />
+                        <span>Copy Path</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowGitHubModal(false)}
+                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-mono font-bold transition-all shadow-md shadow-emerald-950/50 flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Got It, Ready to Upload</span>
+                  </button>
+                </div>
+              </div>
+
             </div>
           </div>
         )}

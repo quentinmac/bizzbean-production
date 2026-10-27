@@ -694,6 +694,25 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
           </button>
         )}
 
+        {/* CMS CONSOLE (Direct access to Administration Centre & CMS Master Matrix) */}
+        <button
+          type="button"
+          onClick={() => onSelectSolution('cms-console')}
+          title="Open CMS Console & Administration Centre"
+          className={`hidden md:flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-mono font-bold uppercase tracking-wider transition-all border ${
+            activeSolutionId === 'administration-centre'
+              ? isDark
+                ? 'bg-[#1E2548]/30 text-[#D4A373] border-[#5584B4]/40 shadow-xs'
+                : 'bg-[#F2ECE1]/70 text-[#8C6D3F] border-[#C59B63]/40 shadow-xs'
+              : isDark
+              ? 'bg-[#161C30] hover:bg-[#1E2548] border-[#252E4A] text-slate-200 hover:text-white'
+              : 'bg-white hover:bg-[#F4EFE6] border-[#E8E2D8] text-slate-700 hover:text-slate-950'
+          }`}
+        >
+          <Database className="h-3.5 w-3.5 text-[#5584B4]" />
+          <span>CMS</span>
+        </button>
+
         {/* Theme Toggle (Light / Dark) */}
         <button
           onClick={onToggleTheme}
