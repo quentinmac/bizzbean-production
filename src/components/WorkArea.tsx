@@ -1979,15 +1979,15 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
 
                       return (
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 pt-1">
-                          {/* 1. VIEW (Transparency preview without compute) */}
+                          {/* 1. VIEW PRODUCT (Transparency preview without compute) */}
                           <button
                             type="button"
                             onClick={() => setIsTransparencyModalOpen(true)}
-                            className="w-full px-3 sm:px-4 py-2.5 rounded-xl bg-[#1E293B] hover:bg-[#334155] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-sm transition-all tracking-wide border border-[#3B4861] active:scale-[0.99]"
-                            title="View solution richness, syllabus, engine architecture, and deliverables (zero compute)"
+                            className="w-full px-2.5 sm:px-3 py-2.5 rounded-xl bg-[#1E293B] hover:bg-[#334155] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-1.5 shadow-sm transition-all tracking-wide border border-[#3B4861] active:scale-[0.99] cursor-pointer"
+                            title="View product details, syllabus, engine architecture, and deliverables (zero compute)"
                           >
-                            <Eye className="h-4 w-4 text-[#38BDF8]" />
-                            <span>VIEW</span>
+                            <Eye className="h-4 w-4 text-[#38BDF8] shrink-0" />
+                            <span className="truncate">VIEW PRODUCT</span>
                           </button>
 
                           {/* 2. SIGN UP */}
@@ -2102,7 +2102,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                 <SolutionTransparencyModal
                   isOpen={isTransparencyModalOpen}
                   onClose={() => setIsTransparencyModalOpen(false)}
-                  solution={currentProd || activeSolution!}
+                  solution={(currentProd || activeSolution || (cmsProducts && cmsProducts[0])) as any}
                   cmsProducts={cmsProducts}
                   isMember={isMember}
                   onBuySolution={onBuySolution}

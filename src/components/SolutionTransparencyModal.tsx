@@ -113,34 +113,54 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [saveToast, setSaveToast] = useState<boolean>(false);
 
-  if (!isOpen || !solution) return null;
-
   const isDark = theme === 'dark';
-  const solutionAny = solution as any;
+  const defaultFallback: any = (cmsProducts && cmsProducts.length > 0 ? cmsProducts[0] : null) || {
+    id: 'bizzcalc',
+    name: 'bizzcalc',
+    subtitle: 'Cost Recovery, Break-Even & Contribution Margin Simulator',
+    purpose: 'Comprehensive cost recovery calculator enabling founders to cost products accurately.',
+    description: 'Comprehensive cost recovery calculator enabling founders to cost products accurately.',
+    type: 'app',
+    stage: 'vi-ability',
+    sku: 'BA-001',
+    sellingPriceZAR: 229,
+    exclusivePriceZAR: 199.13,
+    vatZAR: 29.87,
+    tokensAllocated: 45.8,
+  };
+
+  const safeSolution: any = solution || defaultFallback;
+  const solId = safeSolution.id || 'bizzcalc';
+  const solName = safeSolution.name || safeSolution.displayName || 'bizzcalc';
+
+  // Match CMS product details if available (defensive search with safe strings)
+  const matchingCms = (cmsProducts || []).find(
+    (p) =>
+      (p?.id && p.id === solId) ||
+      (p?.name && solName && p.name.toLowerCase() === solName.toLowerCase())
+  );
+  const effectiveProd: any = matchingCms || safeSolution;
 
   // Determine if course or platform application
   const isCourse =
-    solutionAny.type === 'course' ||
-    (solution.id && ['learn-earn-capital', 'how-to-bizzcalc', 'cost-recovery-calculator', 'follow-the-money', 'financial-reports', 'your-first-hire', 'profit-optimizer', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(solution.id)) ||
-    (solution.name && solution.name.toLowerCase().includes('course'));
-
-  // Match CMS product details if available
-  const matchingCms = cmsProducts.find((p) => p.id === solution.id || p.name.toLowerCase() === solution.name.toLowerCase());
-  const effectiveProd: any = matchingCms || solution;
+    effectiveProd.type === 'course' ||
+    safeSolution.type === 'course' ||
+    ['learn-earn-capital', 'how-to-bizzcalc', 'cost-recovery-calculator', 'follow-the-money', 'financial-reports', 'your-first-hire', 'profit-optimizer', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(solId) ||
+    solName.toLowerCase().includes('course');
 
   const coverImage =
     effectiveProd.canonicalCoverUrl ||
     effectiveProd.imageUrl ||
     'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80';
 
-  const initialSellingPrice = effectiveProd.sellingPriceZAR ?? (solutionAny.priceZAR || 0);
-  const initialTokens = effectiveProd.tokensAllocated ?? (solutionAny.tokensAllocated || Math.round(initialSellingPrice * 0.2));
+  const initialSellingPrice = effectiveProd.sellingPriceZAR ?? (safeSolution.priceZAR || 0);
+  const initialTokens = effectiveProd.tokensAllocated ?? (safeSolution.tokensAllocated || Math.round(initialSellingPrice * 0.2));
 
   // Default course lessons
   const initialLessons: CmsCourseLesson[] =
-    effectiveProd.courseLessons && effectiveProd.courseLessons.length > 0
+    Array.isArray(effectiveProd.courseLessons) && effectiveProd.courseLessons.length > 0
       ? effectiveProd.courseLessons
-      : effectiveProd.lessonTitles && effectiveProd.lessonTitles.length > 0
+      : Array.isArray(effectiveProd.lessonTitles) && effectiveProd.lessonTitles.length > 0
       ? effectiveProd.lessonTitles.map((t: string, idx: number) => ({
           id: `l-${idx}`,
           name: t,
@@ -154,9 +174,9 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
         ];
 
   // Editable form state
-  const [formName, setFormName] = useState<string>(solution.name || '');
-  const [formSubtitle, setFormSubtitle] = useState<string>(solution.subtitle || '');
-  const [formPurpose, setFormPurpose] = useState<string>(effectiveProd.purpose || solution.purpose || solution.description || '');
+  const [formName, setFormName] = useState<string>(effectiveProd.name || safeSolution.name || 'bizzcalc');
+  const [formSubtitle, setFormSubtitle] = useState<string>(effectiveProd.subtitle || safeSolution.subtitle || '');
+  const [formPurpose, setFormPurpose] = useState<string>(effectiveProd.purpose || safeSolution.purpose || safeSolution.description || '');
   const [formChallenge, setFormChallenge] = useState<string>(
     effectiveProd.challengeText ||
     'Building in premature scale without unit economics clarity leads to unrecoverable burn. Founders need clear visibility before committing capital.'
@@ -165,7 +185,7 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
     effectiveProd.targetProfile || 'Pre-Seed to Series A Founders, Financial Directors, Advisory Teams'
   );
   const [formWhatYouGet, setFormWhatYouGet] = useState<string[]>(
-    effectiveProd.whatYouGet && effectiveProd.whatYouGet.length > 0
+    Array.isArray(effectiveProd.whatYouGet) && effectiveProd.whatYouGet.length > 0
       ? effectiveProd.whatYouGet
       : [
           'Interactive financial models with live scenario sliders',
@@ -175,9 +195,13 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
         ]
   );
   const [formCapabilities, setFormCapabilities] = useState<string[]>(
-    effectiveProd.modules && effectiveProd.modules.length > 0
+    Array.isArray(effectiveProd.modules) && effectiveProd.modules.length > 0
       ? effectiveProd.modules
-      : effectiveProd.features || (solution as any).features || [
+      : Array.isArray(effectiveProd.features)
+      ? effectiveProd.features
+      : Array.isArray((safeSolution as any).features)
+      ? (safeSolution as any).features
+      : [
           'Live sensitivity forecasting and break-even analysis',
           'Institutional 3-statement model integration',
           'Zero compute overhead on pre-purchase review',
@@ -188,33 +212,39 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
   );
   const [formLessons, setFormLessons] = useState<CmsCourseLesson[]>(initialLessons);
   const [formSteps, setFormSteps] = useState(
-    effectiveProd.engineSteps && effectiveProd.engineSteps.length > 0
+    Array.isArray(effectiveProd.engineSteps) && effectiveProd.engineSteps.length > 0
       ? effectiveProd.engineSteps
       : DEFAULT_APP_ENGINE_STEPS
   );
   const [formSellingPrice, setFormSellingPrice] = useState<number>(initialSellingPrice);
   const [formTokens, setFormTokens] = useState<number>(initialTokens);
 
-  // Synchronize state if underlying solution changes
+  // Synchronize state whenever the selected solution changes or the modal opens
   useEffect(() => {
-    setFormName(solution.name || '');
-    setFormSubtitle(solution.subtitle || '');
-    setFormPurpose(effectiveProd.purpose || solution.purpose || solution.description || '');
-    if (effectiveProd.challengeText) setFormChallenge(effectiveProd.challengeText);
-    if (effectiveProd.targetProfile) setFormTargetProfile(effectiveProd.targetProfile);
-    if (effectiveProd.whatYouGet) setFormWhatYouGet(effectiveProd.whatYouGet);
-    if (effectiveProd.modules) setFormCapabilities(effectiveProd.modules);
-    if (effectiveProd.companionMaterialFilename) setFormCompanionFile(effectiveProd.companionMaterialFilename);
-    if (effectiveProd.courseLessons && effectiveProd.courseLessons.length > 0) {
-      setFormLessons(effectiveProd.courseLessons);
+    const curProd: any = (cmsProducts || []).find((p) => p.id === solId) || safeSolution;
+    setFormName(curProd.name || safeSolution.name || 'bizzcalc');
+    setFormSubtitle(curProd.subtitle || safeSolution.subtitle || '');
+    setFormPurpose(curProd.purpose || safeSolution.purpose || safeSolution.description || '');
+    if (curProd.challengeText) setFormChallenge(curProd.challengeText);
+    if (curProd.targetProfile) setFormTargetProfile(curProd.targetProfile);
+    if (Array.isArray(curProd.whatYouGet) && curProd.whatYouGet.length > 0) {
+      setFormWhatYouGet(curProd.whatYouGet);
     }
-    if (effectiveProd.engineSteps && effectiveProd.engineSteps.length > 0) {
-      setFormSteps(effectiveProd.engineSteps);
+    if (Array.isArray(curProd.modules) && curProd.modules.length > 0) {
+      setFormCapabilities(curProd.modules);
     }
-    setFormSellingPrice(initialSellingPrice);
-    setFormTokens(initialTokens);
+    if (curProd.companionMaterialFilename) setFormCompanionFile(curProd.companionMaterialFilename);
+    if (Array.isArray(curProd.courseLessons) && curProd.courseLessons.length > 0) {
+      setFormLessons(curProd.courseLessons);
+    }
+    if (Array.isArray(curProd.engineSteps) && curProd.engineSteps.length > 0) {
+      setFormSteps(curProd.engineSteps);
+    }
+    const currentPrice = curProd.sellingPriceZAR ?? (safeSolution.priceZAR || 0);
+    setFormSellingPrice(currentPrice);
+    setFormTokens(curProd.tokensAllocated ?? (safeSolution.tokensAllocated || Math.round(currentPrice * 0.2)));
     setIsEditing(false);
-  }, [solution.id]);
+  }, [solId, isOpen]);
 
   // Calculated pricing metrics
   const sellingPrice = formSellingPrice;
@@ -341,6 +371,8 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
   };
 
   const currentStepData = formSteps.find((s: any) => s.step === activeAppStep) || formSteps[0] || DEFAULT_APP_ENGINE_STEPS[0];
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 select-none font-sans animate-in fade-in duration-150">

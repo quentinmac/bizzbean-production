@@ -146,6 +146,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   >(initialTab || 'products');
 
   const tabsNavRef = useRef<HTMLDivElement>(null);
+  const promoFirestoreTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (initialTab) {
@@ -563,8 +564,6 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     persistArticles(copy);
     triggerSaveNotification(`Updated position of "${moved.title}" to #${boundedSeq}.`);
   };
-
-  const promoFirestoreTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const persistPromotions = (
     updatedList: CmsPromotionSection[],
