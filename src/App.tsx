@@ -374,12 +374,12 @@ export default function App() {
       isHydrated.current = true;
     });
 
-    // 2. Authoritative Firestore Cloud Hydration (safely merged with local storage so user lessons and uploads are preserved)
+    // 2. Authoritative Firestore Cloud Hydration (safely merged so local edits and disk file take precedence)
     fetchCmsProductsFromFirestore().then((fsProducts) => {
       if (fsProducts && Array.isArray(fsProducts) && fsProducts.length > 0) {
         const cleaned = cleanLegacyProducts(fsProducts);
         setCmsProducts((prev) => {
-          const merged = mergeLoadedProducts(cleaned, prev);
+          const merged = mergeLoadedProducts(prev, cleaned);
           safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, merged);
           return merged;
         });
@@ -389,7 +389,7 @@ export default function App() {
     fetchCmsVideosFromFirestore().then((fsVideos) => {
       if (fsVideos && Array.isArray(fsVideos) && fsVideos.length > 0) {
         setCmsVideos((prev) => {
-          const merged = mergeLoadedVideos(fsVideos, prev);
+          const merged = mergeLoadedVideos(prev, fsVideos);
           safeSaveStorage(CMS_STORAGE_KEYS.VIDEOS, merged);
           return merged;
         });
@@ -400,7 +400,7 @@ export default function App() {
       if (fsArticles && Array.isArray(fsArticles) && fsArticles.length > 0) {
         const cleaned = cleanFallbackImagesFromArticles(fsArticles);
         setCmsArticles((prev) => {
-          const merged = mergeLoadedArticles(cleaned, prev);
+          const merged = mergeLoadedArticles(prev, cleaned);
           safeSaveStorage(CMS_STORAGE_KEYS.ARTICLES, merged);
           return merged;
         });
@@ -411,7 +411,7 @@ export default function App() {
       if (fsPromos && Array.isArray(fsPromos) && fsPromos.length > 0) {
         const cleanedPromos = cleanLegacyViabilityPromotions(fsPromos);
         setCmsPromotions((prev) => {
-          const merged = mergeLoadedPromotions(cleanedPromos, prev);
+          const merged = mergeLoadedPromotions(prev, cleanedPromos);
           safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, merged);
           return merged;
         });
@@ -1168,8 +1168,8 @@ export default function App() {
     }
   };
 
-  // Dialogue messaging with GIM (AI-Driven Engagement Loop)
-  const handleSendMessage = (text: string) => {
+  // Dialogue messaging with GIM (AI-Driven Engagement Loop with Gemini Search Grounding)
+  const handleSendMessage = async (text: string) => {
     const userMsg: DialogueMessage = {
       id: `msg-${Date.now()}`,
       sender: 'user',
@@ -1178,6 +1178,41 @@ export default function App() {
     };
 
     setDialogueMessages((prev) => [...prev, userMsg]);
+
+    // Try live server-side Gemini Search grounding API
+    try {
+      const res = await fetch('/api/gemini/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text,
+          history: dialogueMessages.slice(-6),
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.answer && typeof data.answer === 'string') {
+          let sourceText = '';
+          if (data.sources && Array.isArray(data.sources) && data.sources.length > 0) {
+            sourceText = `\n\n🔍 **Grounded Gemini Search Sources:**\n` + data.sources.map((s: string) => `• ${s}`).join('\n');
+          }
+
+          const gimLiveMsg: DialogueMessage = {
+            id: `gim-${Date.now()}`,
+            sender: 'gim',
+            text: `${data.answer}${sourceText}`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            pillar: text.toLowerCase().includes('cac') || text.toLowerCase().includes('runway') || text.toLowerCase().includes('model') ? 'financial_integration' : 'critical_thinking',
+            actionPrompt: 'Continue Coach GIM dialogue',
+          };
+          setDialogueMessages((prev) => [...prev, gimLiveMsg]);
+          return;
+        }
+      }
+    } catch (e) {
+      // Graceful fallback to Socratic guidance engine
+    }
 
     setTimeout(() => {
       const q = text.toLowerCase();

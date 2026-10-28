@@ -161,7 +161,17 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.filter((t): t is TransactionRecord => Boolean(t && typeof t === 'object' && t.invoiceNumber));
+          // If stored contains legacy mock items, clear them so user starts fresh at invoice 1
+          const hasLegacyMock = parsed.some((t: any) =>
+            t.customerEmail === 'quentin@bizzbean.com' ||
+            t.customer === 'Quentin McCullough' ||
+            t.sku === 'bizzcalc' && t.invoiceNumber === 'INV-2026-0001'
+          );
+          if (!hasLegacyMock) {
+            return parsed.filter((t): t is TransactionRecord => Boolean(t && typeof t === 'object' && t.invoiceNumber));
+          } else {
+            localStorage.setItem('bizzdesk_v1_transactions', JSON.stringify([]));
+          }
         }
       }
     } catch (e) {}
@@ -507,7 +517,12 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.filter((i): i is CmsInquiry => Boolean(i && typeof i === 'object' && i.id));
+          const hasLegacyMock = parsed.some((i: any) => i.id === 'inq-101' || i.id === 'inq-102');
+          if (!hasLegacyMock) {
+            return parsed.filter((i): i is CmsInquiry => Boolean(i && typeof i === 'object' && i.id));
+          } else {
+            localStorage.setItem('bizzdesk_cms_inquiries_v1', JSON.stringify([]));
+          }
         }
       }
     } catch (e) {}
@@ -517,9 +532,11 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
   // Real-time Firestore sync with localStorage fallback
   useEffect(() => {
     const unsubscribe = subscribeToEnquiries((items) => {
-      if (items && Array.isArray(items) && items.length > 0) {
-        const cleaned = items.filter((i) => Boolean(i && typeof i === 'object' && i.id));
-        if (cleaned.length > 0) setInquiries(cleaned);
+      if (items && Array.isArray(items)) {
+        const cleaned = items.filter(
+          (i) => Boolean(i && typeof i === 'object' && i.id && i.id !== 'inq-101' && i.id !== 'inq-102')
+        );
+        setInquiries(cleaned);
       }
     });
     return () => unsubscribe();
@@ -984,6 +1001,23 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {transactions.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm('Clear all entries in the transaction journal and reset invoice sequence to 1?')) {
+                            setTransactions([]);
+                            localStorage.setItem('bizzdesk_v1_transactions', JSON.stringify([]));
+                            showToast('Transaction journal cleared. Next invoice starts at INV-2026-0001 (Invoice #1).');
+                          }
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-bold bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/40 transition-colors"
+                        title="Clear all transactions and reset invoice sequence to 1"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Clear Journal</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={handleExportTxCsv}
@@ -2008,6 +2042,23 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                 <Plus className="h-3.5 w-3.5 text-[#5584B4]" />
                 <span>Simulate Inbound Inquiry</span>
               </button>
+              {inquiries.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Clear all inquiries from the Dialogue Centre?')) {
+                      setInquiries([]);
+                      localStorage.setItem('bizzdesk_cms_inquiries_v1', JSON.stringify([]));
+                      showToast('All inquiries cleared.');
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-bold bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/40 transition-colors"
+                  title="Clear all recorded inquiries"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Clear Inquiries</span>
+                </button>
+              )}
             </div>
 
             {/* Inquiries List */}

@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import payfastRouter from './src/server/payfastRouter.ts';
 
 import { exec } from 'child_process';
+import { GoogleGenAI } from '@google/genai';
 
 dotenv.config();
 
@@ -23,10 +24,133 @@ async function startServer() {
   // PayFast API routes
   app.use('/api/payfast', payfastRouter);
 
+  // Gemini Search Grounding & Coach GIM Dialogue API
+  app.post('/api/gemini/chat', async (req, res) => {
+    try {
+      const { message, history } = req.body;
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: 'Message is required' });
+      }
+
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.json({
+          answer: null,
+          fallback: true,
+          message: 'GEMINI_API_KEY not set on server. Using grounded fallback logic.',
+        });
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
+      const systemInstruction = `You are Coach GIM, the gentle, non-judgmental business coach and strategic advisor for the bizzbean workstation.
+Creed: "infinite wisdom. instant viability. always on."
+The user is building or operating an entrepreneurial venture across the 4 stages: vi-ability (Stage 01), fund-ability (Stage 02), sustain-ability (Stage 03), invest-ability (Stage 04).
+You provide rigorous quantitative guidance across the 6 V1 Process Questions:
+- WHO: Target customer, economic buyer & end-user clarity
+- WHAT: Core problem solved & defensible 10-word value proposition
+- WHY: Competitive moat, switching friction & 'why now?'
+- WHERE: Channels, distribution hubs & market concentration
+- WHEN: Runway milestones, cash conversion & break-even timing
+- HOW: Margins (>=65% software, >=38% ops), unit economics, CAC : LTV (>=3.2x)
+Use real-time Google Search grounding when current facts, market benchmarks, SARS tax rules (Section 12E, SBC, VAT201), or industry metrics are relevant. Keep your responses structured with clear headings, bullet points, and an actionable Coach Inquiry or Next Step.`;
+
+      const contents: any[] = [];
+      if (Array.isArray(history) && history.length > 0) {
+        for (const h of history.slice(-6)) {
+          const role = (h.sender === 'user' || h.role === 'user') ? 'user' : 'model';
+          const text = h.text || h.content;
+          if (text) {
+            contents.push({ role, parts: [{ text }] });
+          }
+        }
+      }
+      contents.push({ role: 'user', parts: [{ text: message }] });
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents,
+        config: {
+          systemInstruction,
+          tools: [{ googleSearch: {} }],
+        },
+      });
+
+      const candidate = response.candidates?.[0];
+      const answer = candidate?.content?.parts?.[0]?.text || response.text || '';
+      
+      const sources: string[] = [];
+      const groundingMetadata = candidate?.groundingMetadata;
+      if (groundingMetadata?.webSearchQueries) {
+        sources.push(...groundingMetadata.webSearchQueries);
+      }
+      if (groundingMetadata?.groundingChunks) {
+        for (const chunk of groundingMetadata.groundingChunks) {
+          if (chunk.web?.title) {
+            sources.push(chunk.web.title);
+          }
+        }
+      }
+
+      return res.json({
+        answer,
+        sources: Array.from(new Set(sources)),
+        grounded: Boolean(sources.length > 0),
+      });
+    } catch (err: any) {
+      console.error('[Gemini Chat API Error]:', err?.message || err);
+      return res.json({
+        answer: null,
+        fallback: true,
+        error: err?.message || 'Gemini processing error',
+      });
+    }
+  });
+
+  app.post('/api/gemini/search', async (req, res) => {
+    try {
+      const { query, threadHistory } = req.body;
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ error: 'Query is required' });
+      }
+
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.json({ answer: null, fallback: true });
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: query,
+        config: {
+          tools: [{ googleSearch: {} }],
+        },
+      });
+
+      const candidate = response.candidates?.[0];
+      const answer = candidate?.content?.parts?.[0]?.text || response.text || '';
+      const sources: string[] = [];
+      if (candidate?.groundingMetadata?.groundingChunks) {
+        for (const c of candidate.groundingMetadata.groundingChunks) {
+          if (c.web?.title) sources.push(c.web.title);
+        }
+      }
+
+      return res.json({
+        answer,
+        sources: Array.from(new Set(sources)),
+      });
+    } catch (err: any) {
+      return res.json({ answer: null, fallback: true, error: err.message });
+    }
+  });
+
   // Build queue lock to prevent concurrent build exhaustion
   let isBuilding = false;
   let buildPending = false;
   const triggerBundleRebuild = () => {
+    // Only rebuild in production; in development Vite middleware handles HMR
+    if (process.env.NODE_ENV !== 'production') return;
     if (isBuilding) {
       buildPending = true;
       return;
@@ -46,23 +170,96 @@ async function startServer() {
     });
   };
 
-  // CMS Console Export & Sync Route (syncs to disk and auto-rebuilds production bundle)
+  // CMS Console Export & Continuous Auto-Sync Route
   app.post('/api/cms/save-file', (req, res) => {
     try {
-      const { fileContent } = req.body;
+      const { fileContent, jsonPayload } = req.body;
       if (!fileContent || typeof fileContent !== 'string') {
         return res.status(400).json({ success: false, error: 'Invalid or missing fileContent' });
       }
-      const targetPath = path.resolve(__dirname, 'src', 'data', 'cmsConsoleData.ts');
-      fs.writeFileSync(targetPath, fileContent, 'utf-8');
-      console.log(`[CMS Export] Successfully synced to ${targetPath} (${fileContent.length} bytes).`);
 
-      // Trigger debounced production bundle build in background
+      // 1. Primary TypeScript destination: src/data/cmsConsoleData.ts
+      const targetTsPath = path.resolve(__dirname, 'src', 'data', 'cmsConsoleData.ts');
+      fs.writeFileSync(targetTsPath, fileContent, 'utf-8');
+
+      // 2. Primary JSON mirror: src/data/cmsBackup.json (high-speed structured recovery)
+      const targetJsonPath = path.resolve(__dirname, 'src', 'data', 'cmsBackup.json');
+      if (jsonPayload) {
+        fs.writeFileSync(targetJsonPath, JSON.stringify(jsonPayload, null, 2), 'utf-8');
+      }
+
+      // 3. Rolling timestamped backups in .cms_backups (keeps last 20 revisions)
+      const backupDir = path.resolve(__dirname, '.cms_backups');
+      if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true });
+      }
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupTsPath = path.resolve(backupDir, `cmsConsoleData-${timestamp}.ts`);
+      fs.writeFileSync(backupTsPath, fileContent, 'utf-8');
+
+      if (jsonPayload) {
+        const backupJsonPath = path.resolve(backupDir, `cmsBackup-${timestamp}.json`);
+        fs.writeFileSync(backupJsonPath, JSON.stringify(jsonPayload, null, 2), 'utf-8');
+      }
+
+      // Prune old backups beyond 20 entries
+      try {
+        const files = fs.readdirSync(backupDir);
+        if (files.length > 40) {
+          files.sort();
+          const toDelete = files.slice(0, files.length - 40);
+          toDelete.forEach((f) => fs.unlinkSync(path.join(backupDir, f)));
+        }
+      } catch {}
+
+      console.log(`[CMS Auto-Save] Successfully saved to ${targetTsPath} (${fileContent.length} bytes) at ${new Date().toLocaleTimeString()}.`);
+
+      // Trigger debounced production bundle build if in production
       triggerBundleRebuild();
 
-      return res.json({ success: true, message: 'Updated src/data/cmsConsoleData.ts on disk and queued bundle rebuild.' });
+      return res.json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        bytesWritten: fileContent.length,
+        message: 'Successfully auto-saved to disk and updated backup repository.',
+      });
     } catch (err: any) {
-      console.error('[CMS Export] Failed to write cmsConsoleData.ts:', err);
+      console.error('[CMS Auto-Save] Failed to write cmsConsoleData.ts:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // CMS Restore from Backup Route
+  app.get('/api/cms/backups', (_req, res) => {
+    try {
+      const backupDir = path.resolve(__dirname, '.cms_backups');
+      if (!fs.existsSync(backupDir)) {
+        return res.json({ backups: [] });
+      }
+      const files = fs.readdirSync(backupDir).filter((f) => f.endsWith('.json') || f.endsWith('.ts'));
+      files.sort().reverse();
+      return res.json({ backups: files.slice(0, 15) });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/cms/restore-backup', (req, res) => {
+    try {
+      const { filename } = req.body;
+      const backupDir = path.resolve(__dirname, '.cms_backups');
+      const backupPath = path.resolve(backupDir, filename);
+      if (!fs.existsSync(backupPath)) {
+        return res.status(404).json({ success: false, error: 'Backup not found' });
+      }
+      if (filename.endsWith('.ts')) {
+        const content = fs.readFileSync(backupPath, 'utf-8');
+        const targetTsPath = path.resolve(__dirname, 'src', 'data', 'cmsConsoleData.ts');
+        fs.writeFileSync(targetTsPath, content, 'utf-8');
+        return res.json({ success: true, message: `Restored ${filename} to src/data/cmsConsoleData.ts` });
+      }
+      return res.json({ success: false, error: 'Unsupported file type' });
+    } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message });
     }
   });

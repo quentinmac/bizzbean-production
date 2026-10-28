@@ -233,9 +233,6 @@ export function ensureFreshCmsCache(): void {
         'bizzdesk_cms_promotions_v2',
         'bizzdesk_cms_articles_v2',
         'bizzdesk_cms_videos_v2',
-        'bizzdesk_cms_products_v3',
-        'bizzdesk_cms_products_v4',
-        'bizzdesk_cms_products_v5',
       ];
       keysToPurge.forEach((k) => {
         try {
@@ -861,11 +858,12 @@ export function cleanLegacyProducts(products: CmsProduct[]): CmsProduct[] {
     }
   });
 
-  // Guarantee all 9 canonical master courses are unconditionally present
+  // Guarantee all canonical initial products (all 19 courses and apps) are present
   INITIAL_CMS_PRODUCTS.forEach((ip) => {
-    if (ip && CANONICAL_MASTER_COURSE_IDS.has(ip.id)) {
-      if (!byId.has(ip.id)) {
-        byId.set(ip.id, { ...ip });
+    if (ip && ip.id) {
+      const canonicalId = ip.type === 'course' ? (getCanonicalCourseId(ip.id) || ip.id) : ip.id;
+      if (!byId.has(ip.id) && !byId.has(canonicalId)) {
+        byId.set(canonicalId, { ...ip, id: canonicalId });
       }
     }
   });

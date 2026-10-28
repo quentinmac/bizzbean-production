@@ -198,14 +198,15 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     }
   }, [cmsProducts]);
 
-  // On modal open, ensure we are synced with the authoritative Firestore database
+  // On modal open, ensure we are synced with Firestore without overwriting local edits
   useEffect(() => {
     if (!isOpen) return;
     fetchCmsProductsFromFirestore().then((remote) => {
       if (remote && Array.isArray(remote) && remote.length > 0) {
         const cleaned = cleanLegacyProducts(remote);
         setProducts((prev) => {
-          const merged = mergeLoadedProducts(cleaned, prev);
+          // Local edits take precedence over remote to prevent accidental loss
+          const merged = mergeLoadedProducts(prev, cleaned);
           dispatchSync(onSyncProductsToWebsite, merged);
           return merged;
         });
@@ -217,7 +218,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
         const deleted = getDeletedVideoIds();
         const filtered = remoteVideos.filter((v) => v && v.id && !deleted.has(v.id));
         setVideos((prev) => {
-          const merged = mergeLoadedVideos(filtered, prev);
+          const merged = mergeLoadedVideos(prev, filtered);
           dispatchSync(onSyncVideosToWebsite, merged);
           return merged;
         });
@@ -229,7 +230,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
         const deleted = getDeletedArticleIds();
         const cleaned = cleanFallbackImagesFromArticles(remoteArticles).filter((a) => a && a.id && !deleted.has(a.id));
         setArticles((prev) => {
-          const merged = mergeLoadedArticles(cleaned, prev);
+          const merged = mergeLoadedArticles(prev, cleaned);
           dispatchSync(onSyncArticlesToWebsite, merged);
           return merged;
         });
@@ -331,6 +332,14 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   const [publishSuccessBanner, setPublishSuccessBanner] = useState<string | null>(null);
   const [copiedPath, setCopiedPath] = useState<boolean>(false);
   const [lastExportedTimestamp, setLastExportedTimestamp] = useState<string | null>(null);
+
+  // Auto-Save to Server Disk State & Backup Revisions
+  const autoSaveToDiskTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [lastDiskSavedTime, setLastDiskSavedTime] = useState<string | null>(null);
+  const [isDiskSaving, setIsDiskSaving] = useState<boolean>(false);
+  const [showBackupsModal, setShowBackupsModal] = useState<boolean>(false);
+  const [availableBackups, setAvailableBackups] = useState<string[]>([]);
+  const [isRestoringBackup, setIsRestoringBackup] = useState<boolean>(false);
 
   const withTimeout = <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
     return Promise.race([
@@ -497,11 +506,143 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     }, 0);
   };
 
-  // High-reliability Dual Storage + Firestore Sync Helpers
+  // Continuous Disk Synchronization Helper (Writes to src/data/cmsConsoleData.ts and src/data/cmsBackup.json)
+  const triggerAutoSaveToDisk = (
+    overrideProducts?: CmsProduct[],
+    overrideVideos?: CmsVideo[],
+    overrideArticles?: CmsArticle[],
+    overridePromotions?: CmsPromotionSection[],
+    immediate: boolean = false
+  ) => {
+    if (autoSaveToDiskTimerRef.current) {
+      clearTimeout(autoSaveToDiskTimerRef.current);
+    }
+    const runSave = async () => {
+      setIsDiskSaving(true);
+      try {
+        const pList = overrideProducts || products;
+        const vList = overrideVideos || videos;
+        const aList = overrideArticles || articles;
+        const promoList = overridePromotions || promotions;
+
+        const payload = {
+          products: pList,
+          promotions: promoList,
+          videos: vList,
+          articles: aList,
+          bookBundle,
+          inquiries,
+          associateBatches,
+          sponsors,
+          transactions,
+          v1Transactions,
+          policies,
+          tooltips,
+        };
+
+        const tsContent = generateCmsConsoleDataTs(payload);
+        const ok = await syncCmsDataToServer(tsContent, payload);
+        if (ok) {
+          const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          setLastDiskSavedTime(nowStr);
+        }
+      } catch (e) {
+        console.warn('Auto-save to disk note:', e);
+      } finally {
+        setIsDiskSaving(false);
+      }
+    };
+
+    if (immediate) {
+      runSave();
+    } else {
+      autoSaveToDiskTimerRef.current = setTimeout(runSave, 1200);
+    }
+  };
+
+  const handleQuickSaveToDisk = async () => {
+    setIsDiskSaving(true);
+    try {
+      const payload = {
+        products,
+        promotions,
+        videos,
+        articles,
+        bookBundle,
+        inquiries,
+        associateBatches,
+        sponsors,
+        transactions,
+        v1Transactions,
+        policies,
+        tooltips,
+      };
+      const tsContent = generateCmsConsoleDataTs(payload);
+      const ok = await syncCmsDataToServer(tsContent, payload);
+      safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, products);
+      safeSaveStorage(CMS_STORAGE_KEYS.VIDEOS, videos);
+      safeSaveStorage(CMS_STORAGE_KEYS.ARTICLES, articles);
+      safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, promotions);
+      saveCmsProductsToFirestore(products).catch(() => {});
+      saveCmsVideosToFirestore(videos).catch(() => {});
+      saveCmsArticlesToFirestore(articles).catch(() => {});
+      saveCmsPromotionsToFirestore(promotions).catch(() => {});
+
+      const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      if (ok) {
+        setLastDiskSavedTime(nowStr);
+        triggerSaveNotification(`All CMS data saved to disk & mirrored to cloud at ${nowStr}.`);
+      } else {
+        triggerSaveNotification(`Saved to local memory & cloud database.`);
+      }
+    } catch (e: any) {
+      console.warn('Quick save error:', e);
+    } finally {
+      setIsDiskSaving(false);
+    }
+  };
+
+  const handleOpenBackupsModal = async () => {
+    try {
+      const res = await fetch('/api/cms/backups');
+      const data = await res.json();
+      setAvailableBackups(data.backups || []);
+      setShowBackupsModal(true);
+    } catch (e) {
+      console.warn('Failed to fetch backups:', e);
+      triggerSaveNotification('Could not load backup history.');
+    }
+  };
+
+  const handleRestoreBackup = async (filename: string) => {
+    setIsRestoringBackup(true);
+    try {
+      const res = await fetch('/api/cms/restore-backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        triggerSaveNotification(`Restored backup: ${filename}! Reloading data...`);
+        setShowBackupsModal(false);
+        setTimeout(() => window.location.reload(), 1200);
+      } else {
+        triggerSaveNotification(`Restore error: ${data.error || 'Failed'}`);
+      }
+    } catch (e: any) {
+      triggerSaveNotification(`Restore failed: ${e.message}`);
+    } finally {
+      setIsRestoringBackup(false);
+    }
+  };
+
+  // High-reliability Dual Storage + Firestore + Server Disk Sync Helpers
   const persistProducts = (updatedList: CmsProduct[]) => {
     setProducts(updatedList);
     dispatchSync(onSyncProductsToWebsite, updatedList);
     safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, updatedList);
+    triggerAutoSaveToDisk(updatedList, undefined, undefined, undefined, true);
     saveCmsProductsToFirestore(updatedList).catch((err) =>
       console.warn('Firestore CMS product sync note:', err)
     );
@@ -513,6 +654,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     setVideos(filtered);
     dispatchSync(onSyncVideosToWebsite, filtered);
     safeSaveStorage(CMS_STORAGE_KEYS.VIDEOS, filtered);
+    triggerAutoSaveToDisk(undefined, filtered, undefined, undefined, true);
     saveCmsVideosToFirestore(filtered).catch((err) =>
       console.warn('Firestore CMS video sync note:', err)
     );
@@ -528,6 +670,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     setArticles(sorted);
     dispatchSync(onSyncArticlesToWebsite, sorted);
     safeSaveStorage(CMS_STORAGE_KEYS.ARTICLES, sorted);
+    triggerAutoSaveToDisk(undefined, undefined, sorted, undefined, true);
     saveCmsArticlesToFirestore(sorted).catch((err) =>
       console.warn('Firestore CMS article sync note:', err)
     );
@@ -572,6 +715,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     setPromotions(updatedList);
     dispatchSync(onSyncPromotionsToWebsite, updatedList);
     safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, updatedList);
+    triggerAutoSaveToDisk(undefined, undefined, undefined, updatedList, true);
 
     if (promoFirestoreTimerRef.current) {
       clearTimeout(promoFirestoreTimerRef.current);
@@ -1177,14 +1321,59 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                     Firebase Firestore Realtime Live
                   </span>
                 )}
+
+                {/* Auto-Save to Disk Indicator */}
+                {isDiskSaving ? (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 flex items-center gap-1 animate-pulse">
+                    <RefreshCw className="h-3 w-3 animate-spin text-blue-400" />
+                    Auto-saving to disk...
+                  </span>
+                ) : lastDiskSavedTime ? (
+                  <span
+                    className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 flex items-center gap-1"
+                    title="All CMS content successfully written to src/data/cmsConsoleData.ts on disk"
+                  >
+                    <Check className="h-3 w-3 text-cyan-400" />
+                    Disk Saved ({lastDiskSavedTime})
+                  </span>
+                ) : (
+                  <span
+                    className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1"
+                    title="Changes are automatically mirrored to server disk on every edit"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+                    Continuous Disk Auto-Save
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-400 font-mono">
-                unified contact & stage-centric content management · changes update live without re-publishing
+                unified contact & stage-centric content management · continuous disk auto-save active
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Quick Save to Disk Button */}
+            <button
+              onClick={handleQuickSaveToDisk}
+              disabled={isDiskSaving}
+              className="px-3 py-1.5 rounded-xl bg-[#1B233D] hover:bg-[#252F52] text-cyan-300 hover:text-white font-mono text-xs font-semibold transition-all flex items-center gap-1.5 border border-cyan-500/40 active:scale-95 cursor-pointer shadow-sm"
+              title="Save all changes directly to src/data/cmsConsoleData.ts and Cloud Firestore right now"
+            >
+              <Save className="h-3.5 w-3.5 text-cyan-400" />
+              <span>Save to Disk</span>
+            </button>
+
+            {/* Backups Button */}
+            <button
+              onClick={handleOpenBackupsModal}
+              className="px-2.5 py-1.5 rounded-xl bg-[#141B30] hover:bg-[#1E2744] text-slate-300 hover:text-white font-mono text-xs transition-all flex items-center gap-1.5 border border-[#2B355A] cursor-pointer"
+              title="View and restore timestamped CMS disk backups"
+            >
+              <GitBranch className="h-3.5 w-3.5 text-slate-400" />
+              <span>Backups</span>
+            </button>
+
             {/* Primary 1-Click Publish to Live Website & Cloud Firestore */}
             <button
               onClick={handlePublishToLiveSite}
@@ -1229,14 +1418,6 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
               <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/30 text-emerald-300 text-[10px] font-bold">
                 338
               </span>
-            </button>
-
-            <button
-              onClick={() => triggerSaveNotification('Clean Firebase sync verified. Database fresh.')}
-              className="px-3 py-1.5 rounded-lg bg-[#1B233D] hover:bg-[#252F52] border border-[#2B3452] text-xs font-mono text-slate-300 transition-colors flex items-center gap-1.5"
-            >
-              <RefreshCw className="h-3.5 w-3.5 text-[#5584B4]" />
-              <span>Verify Sync</span>
             </button>
 
             <button
@@ -3849,7 +4030,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                             <div className="relative aspect-[16/9] rounded-xl overflow-hidden bg-black/50 border border-[#2B3452] flex items-center justify-center">
                               {hasImage ? (
                                 <img
-                                  src={promo.imageUrl}
+                                  src={promo.imageUrl || undefined}
                                   alt={promo.displayName}
                                   className="w-full h-full object-cover"
                                 />
@@ -4526,6 +4707,78 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   <span>Confirm Delete</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* BACKUPS REVISIONS MODAL DIALOG                                            */}
+        {/* ========================================================================= */}
+        {showBackupsModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fade-in font-sans">
+            <div className="relative w-full max-w-lg rounded-2xl border border-cyan-500/40 bg-[#0E1322] shadow-2xl overflow-hidden flex flex-col text-slate-100 max-h-[85vh]">
+              <div className="p-4 sm:px-6 bg-[#131B30] border-b border-[#222F4C] flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-400 flex items-center justify-center shadow-inner">
+                    <GitBranch className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-white flex items-center gap-2">
+                      <span>Server Disk Backups</span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                        {availableBackups.length} Saved
+                      </span>
+                    </h2>
+                    <p className="text-xs text-slate-400">
+                      Snapshots saved automatically to .cms_backups on the server disk
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowBackupsModal(false)}
+                  className="p-2 rounded-xl bg-[#1B233D] hover:bg-[#252F52] text-slate-400 hover:text-white transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="p-4 sm:p-5 overflow-y-auto space-y-2 text-xs font-mono max-h-[60vh]">
+                {availableBackups.length === 0 ? (
+                  <div className="py-8 text-center text-slate-400">
+                    No disk backups recorded yet. Backups are created automatically when you save.
+                  </div>
+                ) : (
+                  availableBackups.map((filename) => (
+                    <div
+                      key={filename}
+                      className="p-3 rounded-xl bg-[#141B30] border border-[#232F4E] hover:border-cyan-500/50 flex items-center justify-between gap-3 transition-all"
+                    >
+                      <div className="truncate">
+                        <div className="font-bold text-slate-200 truncate">{filename}</div>
+                        <div className="text-[10px] text-slate-400">
+                          {filename.endsWith('.ts') ? 'TypeScript File (Full Code)' : 'JSON Data Snapshot'}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleRestoreBackup(filename)}
+                        disabled={isRestoringBackup}
+                        className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-mono text-xs font-bold shrink-0 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                      >
+                        {isRestoringBackup ? 'Restoring...' : 'Restore'}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="p-4 bg-[#131B30] border-t border-[#222F4C] flex justify-end">
+                <button
+                  onClick={() => setShowBackupsModal(false)}
+                  className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-xs"
+                >
+                  Close
                 </button>
               </div>
             </div>

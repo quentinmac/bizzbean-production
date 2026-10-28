@@ -149,6 +149,8 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
   const [copiedLink, setCopiedLink] = useState(false);
   const [isEditingPanels, setIsEditingPanels] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [workspaceSyncState, setWorkspaceSyncState] = useState<'idle' | 'syncing' | 'synced'>('idle');
+  const [workspaceNotice, setWorkspaceNotice] = useState<string | null>(null);
 
   // Unit economics computations
   const avgLifetimeMonths = churnRate > 0 ? 1 / (churnRate / 100) : 36;
@@ -986,16 +988,59 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
               <span className="text-[11px] text-slate-500 lowercase">no proprietary lock-in. all formulas and outputs remain 100% your venture's intellectual property.</span>
             </div>
 
-            <button
-              onClick={() => {
-                alert(`Exporting current financial model & transaction journal to Google Drive folder: "Bizzbean Sandbox / ${userProfile.companyName}"... Export complete!`);
-              }}
-              className="px-4 py-2 rounded-xl bg-[#12172A] hover:bg-[#1E2548] text-white text-xs font-semibold lowercase transition-colors flex items-center gap-1.5 shadow-xs"
-            >
-              <span>export model to google drive</span>
-              <ArrowRight className="h-3.5 w-3.5 text-[#C59B63]" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setWorkspaceSyncState('syncing');
+                  setTimeout(() => {
+                    const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(
+                      `Venture,${userProfile.companyName || 'Bizzbean Founder'}\n` +
+                      `Date,${new Date().toISOString().slice(0, 10)}\n` +
+                      `Metric,Value\n` +
+                      `Monthly Revenue,R ${finRevenue}\n` +
+                      `Gross Margin %,${finMargin}%\n` +
+                      `Monthly OpEx,R ${finOpEx}\n` +
+                      `Available Cash,R ${finCash}\n` +
+                      `Runway Months,${runwayMonths}\n` +
+                      `Estimated Valuation,R ${estValuation}\n`
+                    );
+                    const link = document.createElement("a");
+                    link.setAttribute("href", csvContent);
+                    link.setAttribute("download", `${(userProfile.slug || 'bizzbean')}_financial_model.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    setWorkspaceSyncState('synced');
+                    setWorkspaceNotice(`Venture financial model exported successfully. Open directly in Google Sheets or Microsoft Excel.`);
+                    setTimeout(() => setWorkspaceNotice(null), 6000);
+                  }, 600);
+                }}
+                disabled={workspaceSyncState === 'syncing'}
+                className="px-4 py-2 rounded-xl bg-[#12172A] hover:bg-[#1E2548] text-white text-xs font-semibold lowercase transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-60"
+              >
+                <span>{workspaceSyncState === 'syncing' ? 'exporting...' : workspaceSyncState === 'synced' ? 'model exported' : 'export model to google sheets / excel'}</span>
+                <ArrowRight className="h-3.5 w-3.5 text-[#C59B63]" />
+              </button>
+            </div>
           </div>
+
+          {workspaceNotice && (
+            <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-mono flex items-center justify-between animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-emerald-600" />
+                <span>{workspaceNotice}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWorkspaceNotice(null)}
+                className="text-slate-400 hover:text-slate-700"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
 
         </div>
       </div>

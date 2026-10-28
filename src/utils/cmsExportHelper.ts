@@ -92,7 +92,7 @@ export interface CmsProduct {
   id: string;
   seq: number;
   type: 'app' | 'course';
-  stage: 'vi-ability' | 'fund-ability' | 'sustain-ability' | 'invest-ability' | 'operations' | 'growth' | 'education';
+  stage: 'vi-ability' | 'fund-ability' | 'sustain-ability' | 'invest-ability' | 'operations' | 'growth' | 'education' | 'personal-sandbox';
   sku: string;
   name: string;
   subtitle: string;
@@ -106,15 +106,15 @@ export interface CmsProduct {
   ticketPriceZAR: number;
   isPurchased: boolean;
   activeInSync: boolean;
-  canonicalCoverUrl?: string;
-  youtubeDemoUrl?: string;
+  canonicalCoverUrl?: string | null;
+  youtubeDemoUrl?: string | null;
   assignedStep?: string;
   journeyMilestone?: string;
   modules?: string[];
   syllabusLessonsCount?: number;
   lessonTitles?: string[];
   courseLessons?: CmsCourseLesson[];
-  coursePromoVideoUrl?: string;
+  coursePromoVideoUrl?: string | null;
   companionMaterialFilename?: string;
   targetProfile?: string;
   challengeText?: string;
@@ -258,11 +258,11 @@ export interface CmsPromotionSection {
   tagline: string;
   targetType: 'solution' | 'knowledge-base';
   targetId: string;
-  targetTab?: 'dialogue' | 'search' | 'library';
+  targetTab?: 'dialogue' | 'search' | 'library' | null;
   buttonText: string;
-  imageUrl?: string;
+  imageUrl?: string | null;
   isActive: boolean;
-  stageStory?: CmsStageStory;
+  stageStory?: CmsStageStory | null;
 }
 
 // =============================================================================
@@ -351,23 +351,27 @@ export function downloadCmsDataFile(content: string, filename: string = 'cmsCons
 }
 
 /**
- * Sends the generated content to the backend server to sync /src/data/cmsConsoleData.ts on disk.
+ * Sends the generated content to the backend server to sync /src/data/cmsConsoleData.ts and /src/data/cmsBackup.json on disk.
  */
-export async function syncCmsDataToServer(content: string): Promise<boolean> {
+export async function syncCmsDataToServer(content: string, jsonPayload?: any): Promise<boolean> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
     const res = await fetch('/api/cms/save-file', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileContent: content }),
+      body: JSON.stringify({ fileContent: content, jsonPayload }),
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
+    if (!res.ok) {
+      console.warn(`Server file save returned status ${res.status}`);
+      return false;
+    }
     const data = await res.json();
     return !!data.success;
   } catch (err) {
-    console.warn('Backend server file write unavailable or timed out (safe to ignore if using download):', err);
+    console.warn('Backend server file write unavailable or timed out:', err);
     return false;
   }
 }

@@ -98,7 +98,7 @@ export const SandboxLibrary: React.FC<SandboxLibraryProps> = ({
     async function initData() {
       const uid = userProfile?.uid;
       const loadedDocs = await loadSandboxLibraryDocs(uid);
-      setDocuments(loadedDocs.length > 0 ? loadedDocs : DEFAULT_LIBRARY_DOCUMENTS);
+      setDocuments(loadedDocs);
 
       const loadedCats = await loadSandboxCategories(uid);
       setCategories(loadedCats.length > 0 ? loadedCats : getLocalCategories());
@@ -287,6 +287,26 @@ export const SandboxLibrary: React.FC<SandboxLibraryProps> = ({
               <span className="hidden sm:inline">Operations Focus</span>
             </button>
 
+            {documents.length > 0 && (
+              <button
+                onClick={() => {
+                  if (window.confirm('Clear all stashed documents in your vault to start afresh?')) {
+                    setDocuments([]);
+                    persistSandboxLibraryDocs([], userProfile?.uid);
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold font-mono tracking-wider uppercase border transition-colors cursor-pointer ${
+                  isDark
+                    ? 'bg-rose-950/30 hover:bg-rose-900/50 text-rose-300 border-rose-800/40'
+                    : 'bg-rose-50 hover:bg-rose-100 text-rose-800 border-rose-200'
+                }`}
+                title="Clear all documents from vault to start fresh"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Clear Vault</span>
+              </button>
+            )}
+
             <button
               onClick={() => {
                 setEditingDoc(null);
@@ -454,26 +474,43 @@ export const SandboxLibrary: React.FC<SandboxLibraryProps> = ({
                     ? 'bg-[#101424]/40 border-[#252E4A]'
                     : 'bg-white border-[#E8E2D8]'
                 }`}>
-                  <Library className="w-10 h-10 text-slate-500 mx-auto mb-3" />
-                  <h3 className={`text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                    No documents found matching criteria
+                  <Library className="w-12 h-12 text-[#C59B63] mx-auto mb-3 opacity-80" />
+                  <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    {documents.length === 0 ? 'Your Knowledge Vault is Fresh & Ready' : 'No documents found matching criteria'}
                   </h3>
-                  <p className={`text-xs mt-1 ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
-                    Try switching categories or clear the search filter.
+                  <p className={`text-xs mt-1.5 max-w-md mx-auto ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {documents.length === 0
+                      ? 'No documents currently stashed. Stash your statutory policies, financial models, or research notes to activate grounded Gemini AI intelligence and executive briefings.'
+                      : 'Try switching categories or clear the search filter to locate other documents in your vault.'}
                   </p>
-                  <button
-                    onClick={() => {
-                      setSearchQuery('');
-                      setSelectedCategory('ALL');
-                    }}
-                    className={`mt-3 px-3.5 py-1.5 rounded-lg text-xs font-bold font-mono uppercase tracking-wider transition-colors cursor-pointer border ${
-                      isDark
-                        ? 'bg-[#161C30] hover:bg-[#1E2548] text-slate-200 border-[#252E4A]'
-                        : 'bg-[#F4EFE6] hover:bg-[#EAE3D4] text-slate-800 border-[#E8E2D8]'
-                    }`}
-                  >
-                    Reset Filters
-                  </button>
+                  <div className="mt-4 flex items-center justify-center gap-2">
+                    {documents.length === 0 ? (
+                      <button
+                        onClick={() => {
+                          setEditingDoc(null);
+                          setIsStashOpen(true);
+                        }}
+                        className="px-4 py-2 rounded-xl text-xs font-bold font-mono uppercase tracking-wider bg-[#12172A] dark:bg-[#C59B63] text-white dark:text-[#12172A] shadow-md hover:opacity-90 transition-all cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Stash Your First Document</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setSearchQuery('');
+                          setSelectedCategory('ALL');
+                        }}
+                        className={`px-3.5 py-1.5 rounded-lg text-xs font-bold font-mono uppercase tracking-wider transition-colors cursor-pointer border ${
+                          isDark
+                            ? 'bg-[#161C30] hover:bg-[#1E2548] text-slate-200 border-[#252E4A]'
+                            : 'bg-[#F4EFE6] hover:bg-[#EAE3D4] text-slate-800 border-[#E8E2D8]'
+                        }`}
+                      >
+                        Reset Filters
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

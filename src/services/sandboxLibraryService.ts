@@ -162,104 +162,24 @@ export function getUpcomingReminders(docs: SandboxDocument[]): Array<{ doc: Sand
     .sort((a, b) => new Date(a.reminder.targetDate).getTime() - new Date(b.reminder.targetDate).getTime());
 }
 
-export const DEFAULT_LIBRARY_DOCUMENTS: SandboxDocument[] = [
-  {
-    id: 'doc-sars-compliance',
-    title: 'SARS Small Business Corporation (SBC) Tax Exemption & Turnover Tax Rules',
-    sourceType: 'policy_governance',
-    sourceName: 'SARS_SBC_Tax_Guide_2025.pdf',
-    category: 'Compliance',
-    content: `South African Revenue Service (SARS) qualifying criteria for Small Business Corporations (SBC under Section 12E):
-1. Turnover must be under R20 million per tax year.
-2. All shareholders must be natural persons holding shares for their own benefit throughout the year.
-3. Not more than 20% of total receipts/accruals may consist of investment income or rendering of a personal service.
-4. Capital asset write-off: 100% deduction in year 1 on manufacturing plant and machinery.
-5. SBC progressive sliding scale applies: 0% tax on the first R95,750 of taxable income, 7% on R95,751 - R365,000, 21% on R365,001 - R550,000, and 27% on excess above R550,000.
-6. VAT Registration: Mandatory when taxable supplies exceed R1,000,000 in any consecutive 12 months. Voluntary threshold is R50,000. Category B filing is every two months.`,
-    summary: 'Rules and tax rates for SARS Small Business Corporations and VAT threshold requirements.',
-    whyItMatters: 'Using SBC sliding tax rates saves up to R88,000 annually compared to the flat 27% corporate rate.',
-    actionStep: 'Verify shareholding is 100% natural individuals to claim Section 12E SBC tax brackets in annual returns.',
-    fileSizeKb: 342,
-    tags: ['SARS', 'SBC Tax', 'Section 12E', 'VAT Threshold', 'South Africa'],
-    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    tokenCost: 28,
-    isPinned: true,
-    reminder: {
-      enabled: true,
-      targetDate: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      targetTime: '16:00',
-      frequency: 'monthly',
-      leadTime: '3_days',
-      note: 'Submit VAT201 return and prepare EMP201 payroll file before the 7th.',
-      status: 'pending'
-    }
-  },
-  {
-    id: 'doc-sefa-grant-guidelines',
-    title: 'SEFA & IDC SME Funding Criteria: Debt Service Ratios & Co-Investment Requirements',
-    sourceType: 'financial_statement',
-    sourceName: 'SEFA_Direct_Lending_Policy.pdf',
-    category: 'Financials',
-    content: `Small Enterprise Finance Agency (SEFA) and Industrial Development Corporation (IDC) loan qualification requirements:
-1. Debt Service Coverage Ratio (DSCR) must be sustained at 1.35x minimum on projected cash flows.
-2. Own contribution minimums: 10% to 20% depending on youth/women ownership.
-3. Minimum loan: R50,000. Maximum direct lending facility: R15,000,000.
-4. Required documentation: 3-year historical financials or credible financial model (BizzModel / BizzCalc), 12-month month-by-month cash flow forecast, tax clearance certificate, off-taker agreements or letters of intent.
-5. Repayment holiday: Up to 6 months moratorium on capital repayments during initial commercial rollout.`,
-    summary: 'Requirements for SEFA and IDC debt financing facilities and mandatory financial model ratios.',
-    whyItMatters: 'Understanding the 1.35x DSCR avoids funding rejections when applying for low-interest expansion loans.',
-    actionStep: 'Run cash flows through BizzModel to verify year 1 and 2 DSCR never dips below 1.35x.',
-    fileSizeKb: 512,
-    tags: ['SEFA', 'IDC', 'SME Funding', 'DSCR', 'Cash Flow Loan'],
-    createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-    tokenCost: 35,
-    isPinned: true
-  },
-  {
-    id: 'doc-coffee-pricing-video',
-    title: 'High-Margin Retail Pricing Model & Contribution Margins for Artisanal Beverage Businesses',
-    sourceType: 'video_url',
-    sourceName: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    sourceUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    videoEmbedId: 'dQw4w9WgXcQ',
-    authorOrHost: 'Quentin McCullough',
-    publicationOrShow: 'BizzBean Strategic Finance Channel',
-    category: 'Strategy',
-    content: `Detailed breakdown of unit margins for retail coffee and specialty food enterprises:
-- Raw bean cost per kg: R220. Yield per kg: ~50 espresso shots = R4.40 per double shot.
-- Fresh milk cost per drink: R3.20. Packaging (biodegradable cup, lid, sleeve): R2.80.
-- Direct cost of goods sold (COGS): R10.40 per 350ml cup.
-- Recommended retail pricing: R38.00 incl VAT (R33.04 net of 15% VAT).
-- Unit Gross Profit: R22.64 (68.5% gross margin).
-- Break-even calculation: At R45,000 fixed monthly overheads (rent, staff, utilities), required volume is 1,988 cups per month (approx 66 cups per day).`,
-    summary: 'Complete recipe costing, COGS formula, and daily break-even cup metrics.',
-    whyItMatters: 'Reveals the exact daily volume needed before the business clears pure operational profit.',
-    actionStep: 'Compare our current supplier invoices against the R10.40 target unit COGS baseline.',
-    fileSizeKb: 180,
-    tags: ['Pricing Strategy', 'COGS', 'Break-even', 'Unit Economics', 'Video Guide'],
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    tokenCost: 19,
-    reminder: {
-      enabled: true,
-      targetDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      targetTime: '10:00',
-      frequency: 'one_off',
-      leadTime: '1_day',
-      note: 'Renegotiate wholesale coffee bean supply agreement with roaster.',
-      status: 'pending'
-    }
-  }
-];
+export const DEFAULT_LIBRARY_DOCUMENTS: SandboxDocument[] = [];
+
+const LEGACY_MOCK_DOC_IDS = new Set([
+  'doc-sars-compliance',
+  'doc-sefa-grant-guidelines',
+  'doc-coffee-pricing-video'
+]);
 
 export async function loadSandboxLibraryDocs(uid?: string): Promise<SandboxDocument[]> {
   try {
     if (uid && !isFirestoreQuotaExceeded()) {
       const snap = await getDoc(doc(db, 'sandbox_library', uid));
       if (snap.exists() && snap.data()?.documents) {
-        return snap.data().documents;
+        const docs: SandboxDocument[] = snap.data().documents;
+        const cleaned = docs.filter(
+          (d) => d && d.id && !LEGACY_MOCK_DOC_IDS.has(d.id) && d.videoEmbedId !== 'dQw4w9WgXcQ'
+        );
+        return cleaned;
       }
     }
   } catch (err) {
@@ -269,7 +189,14 @@ export async function loadSandboxLibraryDocs(uid?: string): Promise<SandboxDocum
   const local = localStorage.getItem(STORAGE_KEY);
   if (local) {
     try {
-      return JSON.parse(local);
+      const parsed: SandboxDocument[] = JSON.parse(local);
+      if (Array.isArray(parsed)) {
+        const cleaned = parsed.filter(
+          (d) => d && d.id && !LEGACY_MOCK_DOC_IDS.has(d.id) && d.videoEmbedId !== 'dQw4w9WgXcQ'
+        );
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+        return cleaned;
+      }
     } catch {}
   }
   return DEFAULT_LIBRARY_DOCUMENTS;
