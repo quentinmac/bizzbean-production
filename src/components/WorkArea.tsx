@@ -1206,32 +1206,58 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
           imageUrl: '',
         };
 
-  // Stage products restricted strictly to the current stage (or ALL solutions in personal-sandbox)
+  // Stage products: for personal-sandbox, present all active/published live solutions (excluding hidden operations-sandbox)
+  // For specific stages (vi-ability, fund-ability, etc.), restrict strictly to that stage
   const stageProductItems: CmsProduct[] = (cmsProducts || [])
-    .filter((p: CmsProduct) => (currentStageKey === 'personal-sandbox' ? true : p.stage === currentStageKey))
+    .filter((p: CmsProduct) => {
+      if (currentStageKey === 'personal-sandbox') {
+        return p.stage !== 'operations-sandbox' && p.stage !== 'personal-sandbox';
+      }
+      return p.stage === currentStageKey;
+    })
     .filter((p: CmsProduct) => p.id !== 'vi-ability' && !(currentStageKey === 'vi-ability' && (p.id === 'cost-recovery-calculator' || p.id === 'prod-1791293136272' || (p.name || '').toLowerCase().includes('cost recovery'))))
-    .sort((a, b) => (a.seq || 0) - (b.seq || 0));
+    .sort((a, b) => {
+      if (currentStageKey === 'personal-sandbox') {
+        const STAGE_ORDER: Record<string, number> = {
+          'vi-ability': 1,
+          'fund-ability': 2,
+          'sustain-ability': 3,
+          'invest-ability': 4,
+          'operations': 5,
+          'growth': 6,
+          'education': 7,
+        };
+        const orderA = STAGE_ORDER[a.stage] || 99;
+        const orderB = STAGE_ORDER[b.stage] || 99;
+        if (orderA !== orderB) return orderA - orderB;
+      }
+      return (a.seq || 0) - (b.seq || 0);
+    });
 
-  // Fallback solutions strictly restricted to the current stage (or ALL solutions in personal-sandbox)
-  const fallbackStageSolutions = (
-    currentStageKey === 'personal-sandbox'
-      ? BIZZ_SOLUTIONS.filter(
-          (s: BizzSolution) =>
-            !['vi-ability', 'fund-ability', 'sustain-ability', 'invest-ability', 'personal-sandbox', 'operations', 'growth', 'education'].includes(s.id) &&
-            s.id !== 'budget' &&
-            s.id !== 'strategy' &&
-            !deletedProductIds.has(s.id) &&
-            !deletedProductIds.has(s.name.toLowerCase().trim())
-        )
-      : BIZZ_SOLUTIONS.filter(
-          (s: BizzSolution) =>
-            s.stage === currentStageKey &&
-            s.id !== currentStageKey &&
-            s.id !== 'budget' &&
-            s.id !== 'strategy' &&
-            !deletedProductIds.has(s.id) &&
-            !deletedProductIds.has(s.name.toLowerCase().trim())
-        )
+  // Fallback solutions strictly restricted to the current stage or all public solutions if personal-sandbox
+  const fallbackStageSolutions = BIZZ_SOLUTIONS.filter(
+    (s: BizzSolution) => {
+      if (currentStageKey === 'personal-sandbox') {
+        return (
+          s.id !== 'personal-sandbox' &&
+          s.id !== 'vi-ability' &&
+          s.id !== 'budget' &&
+          s.id !== 'strategy' &&
+          !['invest-vdr', 'invest-ability', 'bizzdynamics', 'bizzmodel', 'hi-level-forecast', 'bizzforecasta', 'bizzmoney', 'bizzplan', 'sustain-runway', 'bizzoptimizer', 'growth-strategy'].includes(s.id) &&
+          !deletedProductIds.has(s.id) &&
+          !deletedProductIds.has(s.name.toLowerCase().trim())
+        );
+      }
+      return (
+        s.stage === currentStageKey &&
+        s.id !== currentStageKey &&
+        s.id !== 'budget' &&
+        s.id !== 'strategy' &&
+        !['invest-vdr', 'invest-ability'].includes(s.id) &&
+        !deletedProductIds.has(s.id) &&
+        !deletedProductIds.has(s.name.toLowerCase().trim())
+      );
+    }
   ).map((s: BizzSolution, idx: number) => {
     const selling = s.priceZAR;
     const excl = Math.round((selling / 1.15) * 100) / 100;
@@ -1371,9 +1397,13 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
               <span className="text-sm sm:text-base font-bold text-slate-900 dark:text-white tracking-wide lowercase">
                 {isVideoMode ? 'video playlist' : isArticlesMode ? 'knowledge base articles' : currentStageKey}
               </span>
-              {!isVideoMode && !isArticlesMode && displayTableProducts.length > 1 && (
+              {!isVideoMode && !isArticlesMode && (
                 <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono block -mt-0.5 lowercase">
-                  item {safeProductIdx + 1} of {displayTableProducts.length} · {currentStageKey === 'personal-sandbox' ? 'all solutions' : `${currentStageKey} only`}
+                  {displayTableProducts.length === 0
+                    ? '0 items · stage in preparation'
+                    : displayTableProducts.length === 1
+                      ? `1 item · ${currentStageKey === 'personal-sandbox' ? 'all solutions' : `${currentStageKey} only`}`
+                      : `item ${safeProductIdx + 1} of ${displayTableProducts.length} · ${currentStageKey === 'personal-sandbox' ? 'all available solutions' : `${currentStageKey} only`}`}
                 </span>
               )}
             </div>
@@ -1695,35 +1725,38 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
         ) : (
           /* CENTER: SOLUTION FLASHCARD CONTAINER (Clean About Bizzbean Styling per user brief) */
           (() => {
-            const currentProd = displayTableProducts[safeProductIdx] || activeSolution;
-            const targetProdId = currentProd?.id || activeSolution?.id;
-            const matchingCms = (cmsProducts || []).find(
-              (p: any) =>
-                p.id === targetProdId ||
-                (targetProdId === 'bizzbudget' && p.id === 'budget') ||
-                (targetProdId === 'budget' && p.id === 'bizzbudget')
-            );
-            const effectiveSellingZAR = matchingCms
-              ? matchingCms.sellingPriceZAR
-              : (currentProd?.sellingPriceZAR || currentProd?.priceZAR || activeSolution?.priceZAR || 0);
-            const effectiveTokens = matchingCms
-              ? matchingCms.tokensAllocated
-              : (currentProd?.tokensAllocated || activeSolution?.tokensAllocated || Math.round(effectiveSellingZAR * 0.20 * 10) / 10);
-            const effectiveExclusiveZAR = matchingCms
-              ? matchingCms.exclusivePriceZAR
-              : (currentProd?.exclusivePriceZAR || Math.round((effectiveSellingZAR / 1.15) * 100) / 100);
-            const effectiveVatZAR = matchingCms
-              ? matchingCms.vatZAR
-              : (currentProd?.vatZAR || Math.round((effectiveSellingZAR - effectiveExclusiveZAR) * 100) / 100);
-            const effectiveTicketZAR = matchingCms
-              ? matchingCms.ticketPriceZAR
-              : (currentProd?.ticketPriceZAR || Math.round((effectiveSellingZAR * 1.20) * 100) / 100);
-            const isMonthlySubscription =
-              (matchingCms?.billingModel || currentProd?.billingModel || activeSolution?.billingModel) === 'monthly subscription';
+            const hasStageProducts = displayTableProducts.length > 0;
+            const currentProd = hasStageProducts ? (displayTableProducts[safeProductIdx] || null) : null;
+            const targetProdId = currentProd?.id || null;
+            const matchingCms = hasStageProducts && targetProdId
+              ? (cmsProducts || []).find(
+                  (p: any) =>
+                    p.id === targetProdId ||
+                    (targetProdId === 'bizzbudget' && p.id === 'budget') ||
+                    (targetProdId === 'budget' && p.id === 'bizzbudget')
+                )
+              : null;
+            const effectiveSellingZAR = hasStageProducts
+              ? (matchingCms ? matchingCms.sellingPriceZAR : (currentProd?.sellingPriceZAR || currentProd?.priceZAR || 0))
+              : 0;
+            const effectiveTokens = hasStageProducts
+              ? (matchingCms ? matchingCms.tokensAllocated : (currentProd?.tokensAllocated || Math.round(effectiveSellingZAR * 0.20 * 10) / 10))
+              : 0;
+            const effectiveExclusiveZAR = hasStageProducts
+              ? (matchingCms ? matchingCms.exclusivePriceZAR : (currentProd?.exclusivePriceZAR || Math.round((effectiveSellingZAR / 1.15) * 100) / 100))
+              : 0;
+            const effectiveVatZAR = hasStageProducts
+              ? (matchingCms ? matchingCms.vatZAR : (currentProd?.vatZAR || Math.round((effectiveSellingZAR - effectiveExclusiveZAR) * 100) / 100))
+              : 0;
+            const effectiveTicketZAR = hasStageProducts
+              ? (matchingCms ? matchingCms.ticketPriceZAR : (currentProd?.ticketPriceZAR || Math.round((effectiveSellingZAR * 1.20) * 100) / 100))
+              : 0;
+            const isMonthlySubscription = hasStageProducts &&
+              ((matchingCms?.billingModel || currentProd?.billingModel || activeSolution?.billingModel) === 'monthly subscription');
 
-            const isPurchased = Boolean(
-              matchingCms?.isPurchased ?? currentProd?.isPurchased ?? activeSolution?.isPurchased
-            );
+            const isPurchased = hasStageProducts
+              ? Boolean(matchingCms?.isPurchased ?? currentProd?.isPurchased ?? activeSolution?.isPurchased)
+              : true;
 
             const isCourse =
               matchingCms?.type === 'course' ||
@@ -1775,18 +1808,21 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
             const hasLoadError = Boolean(solutionImage && imageLoadErrors[solutionImage]);
             const shouldRenderImage = Boolean(solutionImage && !hasLoadError);
 
-            const solutionDisplayName =
-              isViabilityDefault && (!matchingCms?.name || matchingCms?.name.toLowerCase() === 'vi-ability')
+            const solutionDisplayName = !hasStageProducts
+              ? `${currentStageKey.replace('-', ' ')} (in preparation)`
+              : isViabilityDefault && (!matchingCms?.name || matchingCms?.name.toLowerCase() === 'vi-ability')
                 ? 'learn how to earn access to capital'
                 : matchingCms?.name || currentProd?.name || activeSolution?.name || 'learn how to earn access to capital';
 
-            const solutionSubtitle =
-              isViabilityDefault && (!matchingCms?.subtitle || matchingCms?.subtitle.toLowerCase().includes('market fit'))
+            const solutionSubtitle = !hasStageProducts
+              ? 'this stage is currently in preparation · allocate solutions via the cms console or operations sandbox'
+              : isViabilityDefault && (!matchingCms?.subtitle || matchingCms?.subtitle.toLowerCase().includes('market fit'))
                 ? 'earn access to capital'
                 : matchingCms?.subtitle || currentProd?.subtitle || activeSolution?.subtitle || 'earn access to capital';
 
-            const courseObjectivesText =
-              isViabilityDefault && (!matchingCms?.purpose || matchingCms?.purpose.toLowerCase().includes('rigorous pre-build'))
+            const courseObjectivesText = !hasStageProducts
+              ? `There are currently no solutions allocated to the ${currentStageKey.replace('-', ' ')} stage. Work-in-progress solutions are staged in the Operations Sandbox and can be allocated to this stage anytime via the CMS Console.`
+              : isViabilityDefault && (!matchingCms?.purpose || matchingCms?.purpose.toLowerCase().includes('rigorous pre-build'))
                 ? 'This free course will teach you how to earn access to capital.'
                 : matchingCms?.purpose ||
                   matchingCms?.description ||
@@ -1993,17 +2029,28 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                         <span>SMART PRICING POLICY</span>
                       </button>
 
-                      {/* Pink BUY SOLUTION Button (Renamed from ADD SEAT / BUY AGAIN) */}
-                      <button
-                        type="button"
-                        onClick={() => onBuySolution(currentProd || activeSolution!)}
-                        className="w-full sm:w-auto flex-1 px-5 py-2.5 rounded-xl bg-[#E02475] hover:bg-[#C91A63] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99] tracking-wide"
-                      >
-                        <ShoppingCart className="h-4 w-4" />
-                        <span>
-                          BUY SOLUTION (R{effectiveSellingZAR.toFixed(2)}{isMonthlySubscription ? '/mo' : ''})
-                        </span>
-                      </button>
+                      {/* Pink BUY SOLUTION Button or Disabled Stage in Preparation Button */}
+                      {hasStageProducts ? (
+                        <button
+                          type="button"
+                          onClick={() => onBuySolution(currentProd || activeSolution!)}
+                          className="w-full sm:w-auto flex-1 px-5 py-2.5 rounded-xl bg-[#E02475] hover:bg-[#C91A63] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99] tracking-wide"
+                        >
+                          <ShoppingCart className="h-4 w-4" />
+                          <span>
+                            BUY SOLUTION (R{effectiveSellingZAR.toFixed(2)}{isMonthlySubscription ? '/mo' : ''})
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled
+                          className="w-full sm:w-auto flex-1 px-5 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 cursor-not-allowed tracking-wide border border-dashed border-slate-300 dark:border-slate-700"
+                        >
+                          <Lock className="h-4 w-4" />
+                          <span>STAGE IN PREPARATION (0 PRODUCTS)</span>
+                        </button>
+                      )}
                     </div>
 
                     {/* Row 2: Re-sequenced buttons per buttons.PNG: SIGN UP | ADD TO PINBOARD | LAUNCH IN WORK AREA */}
@@ -2088,7 +2135,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                               <Play className="h-4 w-4 fill-white text-white" />
                               <span className="truncate">LAUNCH BIZZCLASS</span>
                             </button>
-                          ) : isPurchased ? (
+                          ) : (isPurchased || currentStageKey === 'operations-sandbox') ? (
                             <button
                               type="button"
                               onClick={() => {
@@ -2215,7 +2262,14 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E8E2D8] dark:divide-[#252E4A]">
-                  {displayTableProducts.map((p: any) => {
+                  {displayTableProducts.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-8 px-4 text-center text-xs font-mono text-slate-500 dark:text-slate-400">
+                        No active solutions currently allocated to <span className="font-bold text-slate-700 dark:text-slate-200">{currentStageKey}</span>. Allocate solutions to this stage anytime via the CMS Console or Operations Sandbox.
+                      </td>
+                    </tr>
+                  ) : (
+                    displayTableProducts.map((p: any) => {
                     const currentProdId = displayTableProducts[safeProductIdx]?.id || activeSolution?.id;
                     const isCurrent =
                       p.id === currentProdId ||
@@ -2283,7 +2337,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                         </td>
                       </tr>
                     );
-                  })}
+                  }))}
                 </tbody>
                 <tfoot>
                   <tr className="bg-[#FAF8F5] dark:bg-[#0E1220] border-t-2 border-[#D8CEBC] dark:border-[#252E4A] font-bold text-slate-900 dark:text-white">

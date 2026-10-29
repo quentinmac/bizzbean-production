@@ -92,7 +92,7 @@ export interface CmsProduct {
   id: string;
   seq: number;
   type: 'app' | 'course';
-  stage: 'vi-ability' | 'fund-ability' | 'sustain-ability' | 'invest-ability' | 'operations' | 'growth' | 'education' | 'personal-sandbox';
+  stage: 'vi-ability' | 'fund-ability' | 'sustain-ability' | 'invest-ability' | 'operations' | 'growth' | 'education' | 'personal-sandbox' | 'operations-sandbox';
   sku: string;
   name: string;
   subtitle: string;

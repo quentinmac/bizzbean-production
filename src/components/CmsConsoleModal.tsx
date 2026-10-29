@@ -125,6 +125,7 @@ interface CmsConsoleModalProps {
   onSyncVideosToWebsite?: (videos: CmsVideo[]) => void;
   onSyncArticlesToWebsite?: (articles: CmsArticle[]) => void;
   onSyncPromotionsToWebsite?: (promotions: CmsPromotionSection[]) => void;
+  onLaunchSolution?: (solutionId: string) => void;
 }
 
 export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
@@ -139,6 +140,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   onSyncVideosToWebsite,
   onSyncArticlesToWebsite,
   onSyncPromotionsToWebsite,
+  onLaunchSolution,
 }) => {
   // Navigation tabs
   const [activeTab, setActiveTab] = useState<
@@ -1483,6 +1485,26 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
               <span>Stage-Centric Products & Curricula</span>
             </button>
 
+            {/* DIRECT SHORTCUT TAB: OPERATIONS SANDBOX */}
+            <button
+              onClick={() => {
+                setActiveTab('products');
+                setSelectedStageFilter('operations-sandbox');
+              }}
+              className={`px-3.5 py-2.5 text-xs font-mono font-bold tracking-wide uppercase transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'products' && selectedStageFilter === 'operations-sandbox'
+                  ? 'border-amber-400 text-amber-200 bg-amber-950/60 rounded-t-lg shadow-sm'
+                  : 'border-transparent text-amber-300 hover:text-amber-100 hover:bg-[#1A213B]/40'
+              }`}
+              title="Operations Sandbox: Staging & Incubation area for WIP SKU projects (bizzdynamics, bizzmodel, Hi Level Forecast, etc.)"
+            >
+              <span className="text-amber-400 text-sm">🛠️</span>
+              <span className="font-bold">Operations Sandbox</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                {products.filter((p) => p.stage === 'operations-sandbox').length}
+              </span>
+            </button>
+
             {/* TAB 2: CHART OF ACCOUNTS (PROMINENT TAB #2) */}
             <button
               onClick={() => setActiveTab('coa')}
@@ -1586,7 +1608,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
             <div className="space-y-5">
               
               {/* Stage Sub-Navigation Tabs (Page 8: VI-ABILITY, FUND-ABILITY, SUSTAIN-ABILITY, INVEST-ABILITY, OPERATIONS, GROWTH) */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              <div className="flex flex-wrap items-center gap-2 pb-1">
                 {[
                   { id: 'all', label: 'All Stages Master Matrix', count: products.length },
                   { id: 'vi-ability', label: '1. Vi-Ability', count: products.filter((p) => p.stage === 'vi-ability').length },
@@ -1596,23 +1618,54 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                   { id: 'operations', label: '5. Operations', count: products.filter((p) => p.stage === 'operations').length },
                   { id: 'growth', label: '6. Growth (Upcoming)', count: products.filter((p) => p.stage === 'growth').length },
                   { id: 'education', label: '7. Education / BizzClass', count: products.filter((p) => p.stage === 'education').length },
-                ].map((stg) => (
-                  <button
-                    key={stg.id}
-                    onClick={() => setSelectedStageFilter(stg.id)}
-                    className={`px-3 py-1.5 text-xs font-mono rounded-lg border transition-all whitespace-nowrap flex items-center gap-1.5 ${
-                      selectedStageFilter === stg.id
-                        ? 'bg-[#1E2745] text-white font-bold border-[#5584B4] shadow-sm'
-                        : 'bg-[#13182C] text-slate-400 hover:text-white border-[#222F4C]'
-                    }`}
-                  >
-                    <span>{stg.label}</span>
-                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-[#252F52] text-slate-300">
-                      {stg.count}
-                    </span>
-                  </button>
-                ))}
+                  { id: 'operations-sandbox', label: '🛠️ Operations Sandbox (Hidden / Staging)', count: products.filter((p) => p.stage === 'operations-sandbox').length },
+                ].map((stg) => {
+                  const isOps = stg.id === 'operations-sandbox';
+                  const isSelected = selectedStageFilter === stg.id;
+                  return (
+                    <button
+                      key={stg.id}
+                      onClick={() => setSelectedStageFilter(stg.id)}
+                      className={`px-3 py-1.5 text-xs font-mono rounded-lg border transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                        isOps
+                          ? isSelected
+                            ? 'bg-amber-950/80 text-amber-100 font-bold border-amber-400 shadow-md ring-1 ring-amber-400/50'
+                            : 'bg-[#181C2E] text-amber-300 hover:text-amber-100 border-amber-500/50 hover:border-amber-400'
+                          : isSelected
+                            ? 'bg-[#1E2745] text-white font-bold border-[#5584B4] shadow-sm'
+                            : 'bg-[#13182C] text-slate-400 hover:text-white border-[#222F4C]'
+                      }`}
+                    >
+                      <span>{stg.label}</span>
+                      <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                        isOps ? 'bg-amber-900/60 text-amber-200 border border-amber-500/40' : 'bg-[#252F52] text-slate-300'
+                      }`}>
+                        {stg.count}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
+
+              {/* Operations Sandbox Guidance Banner */}
+              {selectedStageFilter === 'operations-sandbox' && (
+                <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-500/50 text-xs font-mono text-amber-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 animate-fade-in shadow-inner">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl shrink-0">🛠️</span>
+                    <div>
+                      <div className="font-bold text-amber-100 uppercase tracking-wide text-sm">
+                        Operations Sandbox (Internal Staging & Testing Area)
+                      </div>
+                      <div className="text-amber-200/90 text-xs mt-1 leading-relaxed">
+                        These projects (including <strong>bizzdynamics, bizzmodel, Hi Level Forecast, bizzforecasta, bizzbudget, bizzmoney, bizzplan, sustain-runway, invest-vdr, bizzoptimizer, growth-strategy</strong>) are hidden from public stages so you can work on them and test their pricing and curricula safely.
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-amber-200 font-bold bg-amber-900/60 px-3.5 py-2 rounded-xl border border-amber-500/50 shrink-0">
+                    💡 <strong>To publish to live site:</strong> Click &ldquo;Manage&rdquo; on any item and change its &ldquo;Venture Stage&rdquo; to Vi-Ability, Fund-Ability, Sustain-Ability, or Invest-Ability.
+                  </div>
+                </div>
+              )}
 
               {/* 5 Summary KPI Cards (as specified in PDF Page 8) */}
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -1790,10 +1843,63 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                 </div>
               </div>
 
+              {/* Operations Sandbox Dedicated Staging & Direct Launch Bar */}
+              {selectedStageFilter === 'operations-sandbox' && (
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-950/50 via-[#18213E] to-amber-950/30 border border-amber-500/50 text-xs font-mono shadow-md space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold uppercase text-[11px] tracking-wide flex items-center gap-1.5 shadow-xs">
+                        <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                        🛠️ Operations Sandbox · Staging & Incubation Lab
+                      </span>
+                      <span className="text-slate-300 text-xs font-medium">
+                        WIP projects are safely hidden here from public visitors. Test interactive models directly:
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-amber-300 bg-amber-950/70 px-2.5 py-1 rounded-md border border-amber-500/40 shrink-0 font-bold">
+                      11 SKU Projects Staged
+                    </span>
+                  </div>
+
+                  {/* Direct Launch Pills */}
+                  <div className="flex items-center gap-2 flex-wrap pt-1">
+                    <span className="text-[11px] text-slate-300 font-bold uppercase mr-1 flex items-center gap-1">
+                      <Play className="h-3 w-3 text-emerald-400 fill-emerald-400" />
+                      Direct Launch:
+                    </span>
+                    {[
+                      { id: 'bizzdynamics', label: 'bizzdynamics', sku: 'BA-DYN' },
+                      { id: 'bizzmodel', label: 'bizzmodel', sku: 'BA-002' },
+                      { id: 'hi-level-forecast', label: 'Hi Level Forecast', sku: 'BA-HLF' },
+                      { id: 'bizzforecasta', label: 'bizzforecasta', sku: 'BA-BFA' },
+                      { id: 'bizzbudget', label: 'bizzbudget', sku: 'BA-007' },
+                      { id: 'bizzmoney', label: 'bizzmoney', sku: 'BA-006' },
+                    ].map((app) => (
+                      <button
+                        key={app.id}
+                        type="button"
+                        onClick={() => {
+                          if (onLaunchSolution) {
+                            onClose();
+                            onLaunchSolution(app.id);
+                          }
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs inline-flex items-center gap-1.5 border border-emerald-400/50 shadow-md hover:scale-105 active:scale-95 transition-all"
+                        title={`Click to open and test ${app.label} (${app.sku}) in the interactive Work Area`}
+                      >
+                        <Play className="h-3 w-3 fill-current text-white" />
+                        <span>{app.label}</span>
+                        <span className="text-[10px] text-emerald-100 opacity-90 font-mono">({app.sku})</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* VIEW 1: MASTER MATRIX TABLE */}
               {productsViewMode === 'matrix' && (
                 <div className="rounded-2xl border border-[#222F4C] overflow-hidden bg-[#13182C]">
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-[#2B355E] scrollbar-track-[#0E1220]">
                     <table className="w-full text-left text-xs font-mono border-collapse min-w-[980px]">
                       <thead>
                         <tr className="bg-[#182038] text-slate-400 border-b border-[#222F4C] text-[11px] uppercase">
@@ -1828,7 +1934,9 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                           </th>
                           <th className="py-2.5 px-3 text-right text-emerald-400">Ticket Price</th>
                           <th className="py-2.5 px-2 text-center">Sync</th>
-                          <th className="py-2.5 px-3 text-center">Actions</th>
+                          <th className="py-2.5 px-3 text-center sticky right-0 bg-[#182038] z-20 border-l border-[#222F4C] shadow-[-8px_0_12px_rgba(0,0,0,0.5)] min-w-[240px]">
+                            Actions
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#1D2644]">
@@ -1898,9 +2006,24 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                               </td>
                               <td className="py-3 px-2.5 font-bold text-slate-300">{prod.sku}</td>
                               <td className="py-3 px-3">
-                                <div className="font-bold text-white group-hover:text-[#DDEBF7] transition-colors">
-                                  {prod.name}
-                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (onLaunchSolution) {
+                                      onClose();
+                                      const targetId =
+                                        (prod.name || '').toLowerCase().includes('dynamics') || (prod.id || '').toLowerCase().includes('dynamics')
+                                          ? 'bizzdynamics'
+                                          : prod.id;
+                                      onLaunchSolution(targetId);
+                                    }
+                                  }}
+                                  className="text-left font-bold text-white hover:text-emerald-300 transition-colors inline-flex items-center gap-1.5 group/launch cursor-pointer"
+                                  title={`Click to open "${prod.name}" directly in the Work Area`}
+                                >
+                                  <span className="group-hover/launch:underline">{prod.name}</span>
+                                  <ExternalLink className="h-3 w-3 text-emerald-400 opacity-60 group-hover/launch:opacity-100 transition-opacity shrink-0" />
+                                </button>
                                 <div className="text-[11px] text-slate-400 truncate max-w-xs mt-0.5">
                                   {prod.subtitle}
                                 </div>
@@ -2018,13 +2141,41 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                                 <span className="text-emerald-400 font-bold text-[11px]">YES</span>
                               </td>
 
-                              {/* Actions: Edit & Delete */}
-                              <td className="py-3 px-3 text-center">
-                                <div className="inline-flex items-center justify-center gap-1.5">
+                              {/* Actions: Launch in Work Area, Allocate, Edit & Delete (Sticky on right so never clipped) */}
+                              <td className="py-3 px-3 text-center sticky right-0 bg-[#13182C] group-hover:bg-[#182038] z-10 border-l border-[#222F4C] shadow-[-8px_0_12px_rgba(0,0,0,0.5)]">
+                                <div className="inline-flex items-center justify-center gap-1.5 flex-nowrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (onLaunchSolution) {
+                                        onClose();
+                                        const targetId =
+                                          (prod.name || '').toLowerCase().includes('dynamics') || (prod.id || '').toLowerCase().includes('dynamics')
+                                            ? 'bizzdynamics'
+                                            : prod.id;
+                                        onLaunchSolution(targetId);
+                                      }
+                                    }}
+                                    className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all text-xs font-mono inline-flex items-center gap-1 shadow-md hover:scale-[1.02] active:scale-95 whitespace-nowrap"
+                                    title={`Launch "${prod.name}" in Work Area to test simulator/lessons`}
+                                  >
+                                    <Play className="h-3 w-3 fill-current text-white" />
+                                    <span>{prod.type === 'course' ? 'Open Course' : 'Launch App'}</span>
+                                  </button>
+                                  {prod.stage === 'operations-sandbox' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenEditProduct(prod)}
+                                      className="px-2 py-1 rounded-lg bg-amber-950/70 hover:bg-amber-900 border border-amber-500/60 text-amber-200 hover:text-white transition-colors text-xs font-mono inline-flex items-center gap-1 shadow-xs whitespace-nowrap"
+                                      title="Allocate this staging project to a live venture stage"
+                                    >
+                                      <span>🚀 Allocate</span>
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => handleOpenEditProduct(prod)}
-                                    className="px-2.5 py-1 rounded-lg bg-[#1B233D] hover:bg-[#5584B4] text-slate-300 hover:text-white transition-colors text-xs font-mono inline-flex items-center gap-1 shadow-xs"
+                                    className="px-2 py-1 rounded-lg bg-[#1B233D] hover:bg-[#5584B4] text-slate-300 hover:text-white transition-colors text-xs font-mono inline-flex items-center gap-1 shadow-xs whitespace-nowrap"
                                     title="Edit product, pricing, media, curriculum lessons"
                                   >
                                     <Edit2 className="h-3 w-3" />
@@ -2033,7 +2184,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => setProductToDelete(prod)}
-                                    className="px-2.5 py-1 rounded-lg bg-rose-950/40 hover:bg-rose-900/80 border border-rose-500/30 text-rose-300 hover:text-white transition-colors text-xs font-mono inline-flex items-center gap-1 shadow-xs"
+                                    className="px-2 py-1 rounded-lg bg-rose-950/40 hover:bg-rose-900/80 border border-rose-500/30 text-rose-300 hover:text-white transition-colors text-xs font-mono inline-flex items-center gap-1 shadow-xs whitespace-nowrap"
                                     title={`Delete "${prod.name}" from CMS and live site`}
                                   >
                                     <Trash2 className="h-3 w-3 text-rose-400" />
@@ -2083,13 +2234,14 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
 
                   {/* Stage-by-Stage Reordering Cards */}
                   {[
-                    { id: 'vi-ability', num: 1, name: '1. Vi-Ability', desc: 'Mathematical validation of customer willingness-to-pay before coding or building inventory' },
-                    { id: 'fund-ability', num: 2, name: '2. Fund-Ability', desc: 'Financial engineering, unit economics proof, and investor pitch defensibility' },
-                    { id: 'sustain-ability', num: 3, name: '3. Sustain-Ability', desc: 'Operational resilience, margin defense, and continuous cash flow engines' },
-                    { id: 'invest-ability', num: 4, name: '4. Invest-Ability', desc: 'Institutional due diligence readiness, virtual data rooms, and capital transactions' },
-                    { id: 'operations', num: 5, name: '5. Operations', desc: 'Daily execution systems, enterprise resource scaling, and team workflows' },
-                    { id: 'growth', num: 6, name: '6. Growth (Upcoming)', desc: 'Market expansion engines, organic acquisition loops, and venture scaling' },
-                    { id: 'education', num: 7, name: '7. Education / BizzClass', desc: 'Foundational masterclasses, cost recovery courses, and executive learning modules' },
+                    { id: 'vi-ability', num: '1', name: '1. Vi-Ability', desc: 'Mathematical validation of customer willingness-to-pay before coding or building inventory' },
+                    { id: 'fund-ability', num: '2', name: '2. Fund-Ability', desc: 'Financial engineering, unit economics proof, and investor pitch defensibility' },
+                    { id: 'sustain-ability', num: '3', name: '3. Sustain-Ability', desc: 'Operational resilience, margin defense, and continuous cash flow engines' },
+                    { id: 'invest-ability', num: '4', name: '4. Invest-Ability', desc: 'Institutional due diligence readiness, virtual data rooms, and capital transactions' },
+                    { id: 'operations', num: '5', name: '5. Operations', desc: 'Daily execution systems, enterprise resource scaling, and team workflows' },
+                    { id: 'growth', num: '6', name: '6. Growth (Upcoming)', desc: 'Market expansion engines, organic acquisition loops, and venture scaling' },
+                    { id: 'education', num: '7', name: '7. Education / BizzClass', desc: 'Foundational masterclasses, cost recovery courses, and executive learning modules' },
+                    { id: 'operations-sandbox', num: '🛠️', name: 'Operations Sandbox (Hidden · Staging & Incubation)', desc: 'Incubation area for SKU projects under development before allocating to a public stage' },
                   ]
                     .filter((stg) => selectedStageFilter === 'all' || selectedStageFilter === stg.id)
                     .map((stg) => {
@@ -2275,6 +2427,24 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                                         </label>
                                         <button
                                           type="button"
+                                          onClick={() => {
+                                            if (onLaunchSolution) {
+                                              onClose();
+                                              const targetId =
+                                                (prod.name || '').toLowerCase().includes('dynamics') || (prod.id || '').toLowerCase().includes('dynamics')
+                                                  ? 'bizzdynamics'
+                                                  : prod.id;
+                                              onLaunchSolution(targetId);
+                                            }
+                                          }}
+                                          className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all text-xs font-mono flex items-center gap-1 shadow-sm"
+                                          title={`Launch "${prod.name}" in Work Area to test simulator/lessons`}
+                                        >
+                                          <Play className="h-3 w-3 fill-current text-white" />
+                                          <span>{prod.type === 'course' ? 'Open Course' : 'Launch App'}</span>
+                                        </button>
+                                        <button
+                                          type="button"
                                           onClick={() => handleOpenEditProduct(prod)}
                                           className="px-2.5 py-1.5 rounded-lg bg-[#1B233D] hover:bg-[#5584B4] text-slate-300 hover:text-white transition-colors text-xs font-mono flex items-center gap-1"
                                           title="Edit product / course details"
@@ -2359,6 +2529,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                             <option value="operations">5. Operations (Stage 5)</option>
                             <option value="growth">6. Growth (Upcoming · Stage 6)</option>
                             <option value="education">7. Education / BizzClass (Stage 7)</option>
+                            <option value="operations-sandbox">🛠️ Operations Sandbox (Hidden / Staging)</option>
                           </select>
                         </div>
 

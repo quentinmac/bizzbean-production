@@ -597,9 +597,14 @@ export default function App() {
     (stageName: string, fallbackId: string) => {
       const deletedIds = getDeletedProductIds();
       const stageItems = (cmsProducts || [])
+        .filter((p) => {
+          if (stageName === 'personal-sandbox') {
+            return p.stage !== 'operations-sandbox' && p.stage !== 'personal-sandbox';
+          }
+          return p.stage === stageName;
+        })
         .filter(
           (p) =>
-            (stageName === 'personal-sandbox' ? true : p.stage === stageName) &&
             !deletedIds.has(p.id) &&
             !deletedIds.has(getCanonicalCourseId(p.id) || '') &&
             !deletedIds.has(p.name?.toLowerCase().trim() || '')
@@ -616,7 +621,7 @@ export default function App() {
         if (found) return found.id === 'budget' ? 'bizzbudget' : found.id;
         return stageItems[0].id === 'budget' ? 'bizzbudget' : stageItems[0].id;
       }
-      return fallbackId;
+      return '';
     },
     [cmsProducts]
   );
@@ -683,6 +688,28 @@ export default function App() {
         explainerDuration: '3:00',
         isPurchased: matchingCms.isPurchased,
         features: matchingCms.modules || matchingCms.lessonTitles || [],
+      };
+    }
+    const isStageContainer = ['vi-ability', 'fund-ability', 'sustain-ability', 'invest-ability', 'personal-sandbox', 'operations', 'growth', 'operations-sandbox'].includes(activeSolutionId);
+    if (!effectiveSolId && isStageContainer) {
+      return {
+        id: activeSolutionId,
+        category: 'startup' as any,
+        stage: activeSolutionId as any,
+        name: `${activeSolutionId.replace('-', ' ')} (in preparation)`,
+        subtitle: 'this stage is in preparation · allocate solutions via cms console',
+        stageCode: activeSolutionId.toUpperCase(),
+        description: 'No active solutions currently allocated to this stage.',
+        purpose: 'No active solutions currently allocated to this stage.',
+        priceUSD: 0,
+        priceZAR: 0,
+        vatRate: 0.15,
+        tokensAllocated: 0,
+        billingModel: 'once-off' as any,
+        imageUrl: '',
+        explainerDuration: '0:00',
+        isPurchased: false,
+        features: [],
       };
     }
     return (
@@ -1017,6 +1044,12 @@ export default function App() {
       const nextSol = resolveStageProduct('personal-sandbox', 'bizzcalc');
       setActiveStageId('personal-sandbox');
       setActiveSolutionId(nextSol);
+      setActiveView('flashcard');
+      return;
+    } else if (targetId === 'operations-sandbox') {
+      const nextSol = resolveStageProduct('operations-sandbox', 'bizzdynamics');
+      setActiveStageId('operations-sandbox');
+      setActiveSolutionId(nextSol || 'bizzdynamics');
       setActiveView('flashcard');
       return;
     } else if (targetId === 'operations') {
@@ -1836,6 +1869,7 @@ export default function App() {
           onSyncVideosToWebsite={handleSyncVideosFromCms}
           onSyncArticlesToWebsite={handleSyncArticlesFromCms}
           onSyncPromotionsToWebsite={handleSyncPromotionsFromCms}
+          onLaunchSolution={handleLaunchSolution}
         />
       )}
 

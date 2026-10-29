@@ -885,14 +885,28 @@ export function cleanLegacyProducts(products: CmsProduct[]): CmsProduct[] {
       ? cover
       : (initialProd?.canonicalCoverUrl || (!isCorruptOrDeleted ? cover : ''));
 
+    const WIP_PROJECT_IDS = new Set([
+      'bizzdynamics',
+      'bizzmodel',
+      'hi-level-forecast',
+      'bizzforecasta',
+      'bizzbudget',
+      'bizzmoney',
+      'bizzplan',
+      'sustain-runway',
+      'invest-vdr',
+      'bizzoptimizer',
+      'growth-strategy',
+    ]);
+
     const effectiveStage =
       p.id === 'cost-recovery-calculator'
         ? ('fund-ability' as const)
         : (['profit-optimizer', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(p.id))
         ? ('sustain-ability' as const)
-        : p.id === 'bizzdynamics'
-        ? ('personal-sandbox' as const)
-        : (p.stage || initialProd?.stage || 'vi-ability');
+        : (p.stage === 'personal-sandbox' || (WIP_PROJECT_IDS.has(p.id) && (p.stage === 'operations' || !p.stage || (p.stage as string) === 'personal-sandbox')))
+        ? ('operations-sandbox' as const)
+        : (p.stage || initialProd?.stage || 'operations-sandbox');
 
     const effectiveSellingPrice =
       p.sellingPriceZAR !== undefined
@@ -1271,14 +1285,28 @@ export function mergeLoadedProducts(
       });
     }
 
+    const WIP_PROJECT_IDS = new Set([
+      'bizzdynamics',
+      'bizzmodel',
+      'hi-level-forecast',
+      'bizzforecasta',
+      'bizzbudget',
+      'bizzmoney',
+      'bizzplan',
+      'sustain-runway',
+      'invest-vdr',
+      'bizzoptimizer',
+      'growth-strategy',
+    ]);
+
     const effectiveStage =
       (sec.id === 'cost-recovery-calculator' || canonPrimId === 'cost-recovery-calculator')
         ? ('fund-ability' as const)
         : (['profit-optimizer', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(sec.id) || ['profit-optimizer', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(canonPrimId))
         ? ('sustain-ability' as const)
-        : (sec.id === 'bizzdynamics' || canonPrimId === 'bizzdynamics')
-        ? ('personal-sandbox' as const)
-        : (prim.stage || sec.stage || 'vi-ability');
+        : (prim.stage === 'personal-sandbox' || sec.stage === 'personal-sandbox' || (WIP_PROJECT_IDS.has(canonPrimId) && (prim.stage === 'operations' || sec.stage === 'operations' || (!prim.stage && !sec.stage))))
+        ? ('operations-sandbox' as const)
+        : (prim.stage || sec.stage || initialProd?.stage || 'operations-sandbox');
 
     merged.push({
       ...sec,

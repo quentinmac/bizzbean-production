@@ -9,7 +9,7 @@
 //    deploy with all updated images, pricing formulas, currencies, and content.
 // =============================================================================
 
-import { TransactionRecord, ClientProfile, ClientNotification } from '../types';
+import { TransactionRecord, ClientProfile, ClientNotification } from './src/types';
 
 export interface CmsCourseLesson {
   id: string;
@@ -22,7 +22,7 @@ export interface CmsProduct {
   id: string;
   seq: number;
   type: 'app' | 'course';
-  stage: 'vi-ability' | 'fund-ability' | 'sustain-ability' | 'invest-ability' | 'operations' | 'growth' | 'education' | 'personal-sandbox';
+  stage: 'vi-ability' | 'fund-ability' | 'sustain-ability' | 'invest-ability' | 'operations' | 'growth' | 'education' | 'personal-sandbox' | 'operations-sandbox';
   sku: string;
   name: string;
   subtitle: string;
@@ -125,7 +125,7 @@ export interface CmsSponsorAccount {
   status: 'active' | 'renewal';
 }
 
-export type { TransactionRecord, ClientProfile, ClientNotification } from '../types';
+export type { TransactionRecord, ClientProfile, ClientNotification } from './src/types';
 
 export interface CmsTransactionRecord {
   id: string;
@@ -849,6 +849,237 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "companionMaterialFilename": "your first hire.zip",
     "youtubeDemoUrl": "",
     "coursePromoVideoUrl": ""
+  },
+  {
+    "id": "bizzdynamics",
+    "seq": 1,
+    "type": "app",
+    "stage": "operations-sandbox",
+    "sku": "BA-DYN",
+    "name": "bizzdynamics",
+    "subtitle": "Dynamic Business Physics & Revenue Multipliers",
+    "description": "Interactive operational simulator for business physics, pricing dynamics, and unit cost elasticity.",
+    "purpose": "Interactive modeling suite for business physics and scenario testing.",
+    "billingModel": "once-off",
+    "exclusivePriceZAR": 303.48,
+    "vatZAR": 45.52,
+    "sellingPriceZAR": 349.00,
+    "tokensAllocated": 69.8,
+    "ticketPriceZAR": 418.80,
+    "isPurchased": true,
+    "activeInSync": true,
+    "canonicalCoverUrl": "",
+    "youtubeDemoUrl": ""
+  },
+  {
+    "id": "bizzmodel",
+    "seq": 2,
+    "type": "app",
+    "stage": "operations-sandbox",
+    "sku": "BA-002",
+    "name": "bizzmodel",
+    "subtitle": "3-Statement Financial Simulator with Dynamic Dials",
+    "description": "Macro-free financial forecasting engine linking Income Statement, Balance Sheet, and Cash Flow with dynamic sensitivity dials.",
+    "purpose": "Equip founders with investor-ready models that withstand Series Seed/A venture due diligence audits.",
+    "billingModel": "once-off",
+    "exclusivePriceZAR": 486.96,
+    "vatZAR": 73.04,
+    "sellingPriceZAR": 560.00,
+    "tokensAllocated": 112.0,
+    "ticketPriceZAR": 672.00,
+    "isPurchased": true,
+    "activeInSync": true,
+    "canonicalCoverUrl": "",
+    "youtubeDemoUrl": ""
+  },
+  {
+    "id": "hi-level-forecast",
+    "seq": 3,
+    "type": "app",
+    "stage": "operations-sandbox",
+    "sku": "BA-HLF",
+    "name": "Hi Level Forecast",
+    "subtitle": "High-Level 36-Month Top-Down Revenue Projections",
+    "description": "Rapid sensitivity modeler for top-down revenue milestones and capital readiness targets.",
+    "purpose": "Synthesize high-level forecasting targets before entering granular line items.",
+    "billingModel": "once-off",
+    "exclusivePriceZAR": 300.00,
+    "vatZAR": 45.00,
+    "sellingPriceZAR": 345.00,
+    "tokensAllocated": 69.0,
+    "ticketPriceZAR": 414.00,
+    "isPurchased": true,
+    "activeInSync": true,
+    "canonicalCoverUrl": "",
+    "youtubeDemoUrl": ""
+  },
+  {
+    "id": "bizzforecasta",
+    "seq": 4,
+    "type": "app",
+    "stage": "operations-sandbox",
+    "sku": "BA-BFA",
+    "name": "bizzforecasta",
+    "subtitle": "Scenario Forecast & Revenue Velocity Simulator",
+    "description": "Algorithmic forecasting module for sales pipeline velocity and customer conversion lag.",
+    "purpose": "Forecast multi-scenario cash velocity curves.",
+    "billingModel": "once-off",
+    "exclusivePriceZAR": 320.00,
+    "vatZAR": 48.00,
+    "sellingPriceZAR": 368.00,
+    "tokensAllocated": 73.6,
+    "ticketPriceZAR": 441.60,
+    "isPurchased": true,
+    "activeInSync": true,
+    "canonicalCoverUrl": "",
+    "youtubeDemoUrl": ""
+  },
+  {
+    "id": "bizzbudget",
+    "seq": 5,
+    "type": "app",
+    "stage": "operations-sandbox",
+    "sku": "BA-007",
+    "name": "bizzbudget",
+    "subtitle": "Zero-Base Budgeting & Monthly Variance Analyzer",
+    "description": "Granular expense forecasting engine comparing budgeted versus actual spend across OPEX categories.",
+    "purpose": "Prevent accidental capital bleed through disciplined variance audits.",
+    "billingModel": "once-off",
+    "exclusivePriceZAR": 226.09,
+    "vatZAR": 33.91,
+    "sellingPriceZAR": 260.00,
+    "tokensAllocated": 52.0,
+    "ticketPriceZAR": 312.00,
+    "isPurchased": false,
+    "activeInSync": true,
+    "canonicalCoverUrl": "",
+    "youtubeDemoUrl": ""
+  },
+  {
+    "id": "bizzmoney",
+    "seq": 6,
+    "type": "app",
+    "stage": "operations-sandbox",
+    "sku": "BA-006",
+    "name": "bizzmoney",
+    "subtitle": "Zero-Overhead Bookkeeping & Tax Compliance Tracker",
+    "description": "Automated SARS small-business corporation tax tracker with integrated invoice generator.",
+    "purpose": "Eliminate accounting friction and maintain audit-proof books.",
+    "billingModel": "monthly subscription",
+    "exclusivePriceZAR": 295.65,
+    "vatZAR": 44.35,
+    "sellingPriceZAR": 340.00,
+    "tokensAllocated": 68.0,
+    "ticketPriceZAR": 408.00,
+    "isPurchased": true,
+    "activeInSync": true,
+    "canonicalCoverUrl": "",
+    "youtubeDemoUrl": ""
+  },
+  {
+    "id": "bizzplan",
+    "seq": 7,
+    "type": "app",
+    "stage": "operations-sandbox",
+    "sku": "BA-003",
+    "name": "bizzplan",
+    "subtitle": "Executive Memorandums & Investment Pitch Synthesis",
+    "description": "Structured narrative builder translating quantitative models into institutional executive memorandums and pitch decks.",
+    "purpose": "Bridge numbers with story so investors understand market moats and capital allocation efficiency.",
+    "billingModel": "once-off",
+    "exclusivePriceZAR": 346.96,
+    "vatZAR": 52.04,
+    "sellingPriceZAR": 399.00,
+    "tokensAllocated": 80.0,
+    "ticketPriceZAR": 478.80,
+    "isPurchased": false,
+    "activeInSync": true,
+    "canonicalCoverUrl": "",
+    "youtubeDemoUrl": ""
+  },
+  {
+    "id": "sustain-runway",
+    "seq": 8,
+    "type": "app",
+    "stage": "operations-sandbox",
+    "sku": "BA-004",
+    "name": "sustain-runway",
+    "subtitle": "Cash Burn, Debtor Lag & Working Capital Recovery Simulator",
+    "description": "Dynamic cash runway calculator modeling debtor lag, inventory drag, and emergency burn trimmer scenarios.",
+    "purpose": "Safeguard startup solvency with weekly cash conversion analytics.",
+    "billingModel": "once-off",
+    "exclusivePriceZAR": 326.09,
+    "vatZAR": 48.91,
+    "sellingPriceZAR": 375.00,
+    "tokensAllocated": 75.0,
+    "ticketPriceZAR": 450.00,
+    "isPurchased": false,
+    "activeInSync": true,
+    "canonicalCoverUrl": "",
+    "youtubeDemoUrl": ""
+  },
+  {
+    "id": "invest-vdr",
+    "seq": 9,
+    "type": "app",
+    "stage": "operations-sandbox",
+    "sku": "BA-005",
+    "name": "invest-ability vdr",
+    "subtitle": "40-Point Due Diligence Virtual Data Room Matrix",
+    "description": "Structured Virtual Data Room architecture with pre-indexed folder structures, cap table waterfalls, and audit checklist.",
+    "purpose": "Pass venture audits with zero governance friction and complete transaction closing 3x faster.",
+    "billingModel": "once-off",
+    "exclusivePriceZAR": 565.22,
+    "vatZAR": 84.78,
+    "sellingPriceZAR": 650.00,
+    "tokensAllocated": 130.0,
+    "ticketPriceZAR": 780.00,
+    "isPurchased": false,
+    "activeInSync": true,
+    "canonicalCoverUrl": "",
+    "youtubeDemoUrl": ""
+  },
+  {
+    "id": "bizzoptimizer",
+    "seq": 10,
+    "type": "app",
+    "stage": "operations-sandbox",
+    "sku": "BA-008",
+    "name": "bizzoptimizer",
+    "subtitle": "SaaS & Vendor Spend Trimmer Simulator",
+    "description": "Systematic margin trimmer and vendor contract renegotiation framework.",
+    "purpose": "Expand operating margins by trimming 10-25% of non-core overheads.",
+    "billingModel": "once-off",
+    "exclusivePriceZAR": 252.17,
+    "vatZAR": 37.83,
+    "sellingPriceZAR": 290.00,
+    "tokensAllocated": 58.0,
+    "ticketPriceZAR": 348.00,
+    "isPurchased": false,
+    "activeInSync": true,
+    "canonicalCoverUrl": "",
+    "youtubeDemoUrl": ""
+  },
+  {
+    "id": "growth-strategy",
+    "seq": 11,
+    "type": "app",
+    "stage": "operations-sandbox",
+    "sku": "BA-009",
+    "name": "growth-strategy",
+    "subtitle": "Market Expansion & Unit Economics Stress Modeler",
+    "description": "High-level scenario forecasting engine for market sizing, customer acquisition expansion, and scaling bottlenecks.",
+    "purpose": "Test scaling assumptions before deploying expansion capital.",
+    "billingModel": "once-off",
+    "exclusivePriceZAR": 695.65,
+    "vatZAR": 104.35,
+    "sellingPriceZAR": 800.00,
+    "tokensAllocated": 160.0,
+    "ticketPriceZAR": 960.00,
+    "isPurchased": false,
+    "activeInSync": true,
+    "canonicalCoverUrl": "",
+    "youtubeDemoUrl": ""
   }
 ];
 

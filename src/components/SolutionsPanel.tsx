@@ -174,7 +174,7 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
 
   return (
     <aside
-      className={`w-full lg:w-76 border-r lg:border lg:rounded-2xl flex flex-col justify-between overflow-y-auto overflow-x-hidden select-none shrink-0 h-full transition-colors ${
+      className={`w-full lg:w-76 border-r lg:border lg:rounded-2xl flex flex-col justify-between overflow-hidden select-none shrink-0 h-full transition-colors ${
         isDark ? 'bg-[#101424] border-[#252E4A] lg:shadow-xs' : 'bg-[#FAF8F5] border-[#E8E2D8] lg:shadow-xs'
       }`}
     >
@@ -202,7 +202,7 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
       {/* ===================================================================== */}
       {/* 2. BODY CONTENT: SOLUTIONS DIRECTORY                                  */}
       {/* ===================================================================== */}
-      <div className="p-3 space-y-4 flex-grow overflow-y-auto">
+      <div className="p-3 space-y-4 flex-grow overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent">
         <div className="space-y-4 animate-in fade-in duration-150">
           {/* ABOUT BIZZBEAN Button */}
           <div>
@@ -500,6 +500,19 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
             </span>
           </button>
         )}
+
+        <button
+          onClick={() => onSelectSolution('operations-sandbox')}
+          className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between ${getSubtleActiveBtnClass(
+            activeStageId === 'operations-sandbox'
+          )}`}
+          title="Operations Sandbox: Staging & Incubation Lab for testing unallocated SKU projects (e.g. bizzdynamics)"
+        >
+          <span>operations sandbox</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded font-mono lowercase bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-semibold">
+            staging
+          </span>
+        </button>
       </div>
     </aside>
   );
