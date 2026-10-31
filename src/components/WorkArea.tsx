@@ -1400,26 +1400,35 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
     const matchingSolution = BIZZ_SOLUTIONS.find(
       (s) => s.id === p.id || (p.id === 'budget' && s.id === 'bizzbudget')
     );
-    const solToBuy: BizzSolution = matchingSolution
-      ? { ...matchingSolution, isPurchased: false }
-      : {
-          id: p.id,
-          name: p.name,
-          category: p.category || (p.stage === 'operations' ? 'operations' : 'startup'),
-          stage: p.stage || currentStageKey,
-          priceUSD: Math.round((p.sellingPriceZAR || 0) / 18.5),
-          priceZAR: p.sellingPriceZAR || 0,
-          vatRate: 0.15,
-          tokensAllocated: p.tokensAllocated || 0,
-          billingModel: p.billingModel || 'once-off',
-          imageUrl: p.canonicalCoverUrl || p.imageUrl || '',
-          isPurchased: false,
-          description: p.description || '',
-          subtitle: p.subtitle || '',
-          purpose: p.purpose || p.description || '',
-          stageCode: p.sku || '',
-          features: p.modules || p.lessonTitles || [],
-        };
+    const matchingCms = (cmsProducts || []).find(
+      (cp: any) => cp.id === p.id || (p.id === 'budget' && cp.id === 'bizzbudget')
+    );
+    const selling = matchingCms ? matchingCms.sellingPriceZAR : (p.sellingPriceZAR !== undefined ? p.sellingPriceZAR : (matchingSolution?.priceZAR || 0));
+    const excl = matchingCms ? matchingCms.exclusivePriceZAR : (p.exclusivePriceZAR !== undefined ? p.exclusivePriceZAR : Math.round((selling / 1.15) * 100) / 100);
+    const vat = matchingCms ? matchingCms.vatZAR : (p.vatZAR !== undefined ? p.vatZAR : Math.round((selling - excl) * 100) / 100);
+    const tokens = matchingCms ? matchingCms.tokensAllocated : (p.tokensAllocated !== undefined ? p.tokensAllocated : Math.round(selling * 0.20 * 10) / 10);
+
+    const solToBuy: any = {
+      ...(matchingSolution || {}),
+      id: p.id,
+      name: p.name,
+      category: p.category || (p.stage === 'operations' ? 'operations' : 'startup'),
+      stage: p.stage || currentStageKey,
+      priceUSD: Math.round(selling / 18.5),
+      priceZAR: selling,
+      sellingPriceZAR: selling,
+      exclusivePriceZAR: excl,
+      vatZAR: vat,
+      tokensAllocated: tokens,
+      billingModel: p.billingModel || 'once-off',
+      imageUrl: p.canonicalCoverUrl || p.imageUrl || matchingSolution?.imageUrl || '',
+      isPurchased: false,
+      description: p.description || matchingSolution?.description || '',
+      subtitle: p.subtitle || matchingSolution?.subtitle || '',
+      purpose: p.purpose || p.description || matchingSolution?.purpose || '',
+      stageCode: p.sku || matchingSolution?.stageCode || '',
+      features: p.modules || p.lessonTitles || matchingSolution?.features || [],
+    };
     onBuySolution(solToBuy);
   };
 
@@ -2128,7 +2137,21 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                       {hasStageProducts ? (
                         <button
                           type="button"
-                          onClick={() => onBuySolution(currentProd || activeSolution!)}
+                          onClick={() => {
+                            const solToBuy: any = {
+                              ...(matchingCms || currentProd || activeSolution!),
+                              id: targetProdId || currentProd?.id || activeSolution?.id,
+                              name: solutionDisplayName,
+                              subtitle: solutionSubtitle,
+                              priceZAR: effectiveSellingZAR,
+                              sellingPriceZAR: effectiveSellingZAR,
+                              exclusivePriceZAR: effectiveExclusiveZAR,
+                              vatZAR: effectiveVatZAR,
+                              tokensAllocated: effectiveTokens,
+                              isPurchased: false,
+                            };
+                            onBuySolution(solToBuy);
+                          }}
                           className="w-full sm:w-auto flex-1 px-5 py-2.5 rounded-xl bg-[#E02475] hover:bg-[#C91A63] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99] tracking-wide"
                         >
                           <ShoppingCart className="h-4 w-4" />
@@ -2235,7 +2258,18 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const solToBuy = { ...(currentProd || activeSolution!), isPurchased: false };
+                                  const solToBuy: any = {
+                                    ...(matchingCms || currentProd || activeSolution!),
+                                    id: targetProdId || currentProd?.id || activeSolution?.id,
+                                    name: solutionDisplayName,
+                                    subtitle: solutionSubtitle,
+                                    priceZAR: effectiveSellingZAR,
+                                    sellingPriceZAR: effectiveSellingZAR,
+                                    exclusivePriceZAR: effectiveExclusiveZAR,
+                                    vatZAR: effectiveVatZAR,
+                                    tokensAllocated: effectiveTokens,
+                                    isPurchased: false,
+                                  };
                                   onBuySolution(solToBuy);
                                 }}
                                 className="w-full px-4 py-2.5 rounded-xl bg-[#E02475] hover:bg-[#C91A63] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-sm transition-all tracking-wide border border-[#E02475]"

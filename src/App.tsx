@@ -139,9 +139,6 @@ export default function App() {
         if (stored) {
           return JSON.parse(stored);
         }
-        if (email.includes('quentin')) {
-          return ['cost-recovery-calculator', 'cost_rec', 'cost-recovery'];
-        }
       }
     } catch {}
     return [];
@@ -155,13 +152,8 @@ export default function App() {
       const stored = localStorage.getItem(`bizz_user_purchases_${cleanEmail}`);
       if (stored) {
         setUserPurchases(JSON.parse(stored));
-      } else if (cleanEmail.includes('quentin')) {
-        const initial = ['cost-recovery-calculator', 'cost_rec', 'cost-recovery'];
-        setUserPurchases(initial);
-        localStorage.setItem(`bizz_user_purchases_${cleanEmail}`, JSON.stringify(initial));
       } else {
         setUserPurchases([]);
-        localStorage.setItem(`bizz_user_purchases_${cleanEmail}`, JSON.stringify([]));
       }
     } catch {}
   }, [userEmail]);
@@ -784,6 +776,9 @@ export default function App() {
             : matchingCms.purpose,
           priceUSD: isViabilityCourse ? 0 : Math.round(matchingCms.sellingPriceZAR / 18.5),
           priceZAR: isViabilityCourse ? 0 : matchingCms.sellingPriceZAR,
+          sellingPriceZAR: isViabilityCourse ? 0 : matchingCms.sellingPriceZAR,
+          exclusivePriceZAR: isViabilityCourse ? 0 : matchingCms.exclusivePriceZAR,
+          vatZAR: isViabilityCourse ? 0 : matchingCms.vatZAR,
           vatRate: 0.15,
           tokensAllocated: isViabilityCourse ? 0 : matchingCms.tokensAllocated,
           billingModel: matchingCms.billingModel,
@@ -806,6 +801,9 @@ export default function App() {
           purpose: 'No active solutions currently allocated to this stage.',
           priceUSD: 0,
           priceZAR: 0,
+          sellingPriceZAR: 0,
+          exclusivePriceZAR: 0,
+          vatZAR: 0,
           vatRate: 0.15,
           tokensAllocated: 0,
           billingModel: 'once-off' as any,
@@ -825,14 +823,29 @@ export default function App() {
 
       const solId = foundBizzSol.id || '';
       const solCanon = getCanonicalCourseId(solId) || solId;
+      const cmsOverride = (cmsProducts || []).find(
+        (cp) => cp.id === solId || cp.id === solCanon || (cp.name && foundBizzSol.name && cp.name.toLowerCase().trim() === foundBizzSol.name.toLowerCase().trim())
+      );
+      const effectiveSelling = cmsOverride ? cmsOverride.sellingPriceZAR : foundBizzSol.priceZAR;
+      const effectiveExclusive = cmsOverride?.exclusivePriceZAR ?? Math.round((effectiveSelling / 1.15) * 100) / 100;
+      const effectiveVat = cmsOverride?.vatZAR ?? Math.round((effectiveSelling - effectiveExclusive) * 100) / 100;
+      const effectiveTokens = cmsOverride?.tokensAllocated ?? foundBizzSol.tokensAllocated ?? Math.round(effectiveSelling * 0.20 * 10) / 10;
+
       const isOwned =
-        foundBizzSol.priceZAR === 0 ||
-        ['learn-earn-capital', 'how-to-bizzcalc', 'follow-the-money'].includes(solId) ||
+        effectiveSelling === 0 ||
+        ['learn-earn-capital', 'vi-ability'].includes(solId) ||
+        ['learn-earn-capital', 'vi-ability'].includes(solCanon) ||
         userPurchases.includes(solId) ||
         userPurchases.includes(solCanon);
 
       return {
         ...foundBizzSol,
+        priceUSD: Math.round(effectiveSelling / 18.5),
+        priceZAR: effectiveSelling,
+        sellingPriceZAR: effectiveSelling,
+        exclusivePriceZAR: effectiveExclusive,
+        vatZAR: effectiveVat,
+        tokensAllocated: effectiveTokens,
         isPurchased: isOwned,
       };
     }, [activeSolutionId, cmsProducts, userPurchases]);
@@ -1326,10 +1339,40 @@ export default function App() {
   const handleBuySolution = (sol: BizzSolution, targetView?: 'active-app' | 'flashcard') => {
     const id = sol.id || '';
     const canon = getCanonicalCourseId(id) || id;
-    const price = sol.priceZAR ?? 0;
+
+    // Always resolve the freshest product data from cmsProducts so updated prices and details take effect immediately
+    const matchingCms = (cmsProducts || []).find(
+      (cp) => cp.id === id || cp.id === canon || (id === 'budget' && cp.id === 'bizzbudget') || (id === 'bizzbudget' && cp.id === 'budget') || (cp.name && sol.name && cp.name.toLowerCase().trim() === sol.name.toLowerCase().trim())
+    );
+
+    const effectiveSelling = matchingCms ? matchingCms.sellingPriceZAR : ((sol as any).sellingPriceZAR !== undefined ? (sol as any).sellingPriceZAR : (sol.priceZAR ?? 0));
+    const effectiveExclusive = matchingCms?.exclusivePriceZAR ?? (sol as any).exclusivePriceZAR ?? Math.round((effectiveSelling / 1.15) * 100) / 100;
+    const effectiveVat = matchingCms?.vatZAR ?? (sol as any).vatZAR ?? Math.round((effectiveSelling - effectiveExclusive) * 100) / 100;
+    const effectiveTokens = matchingCms?.tokensAllocated ?? (sol as any).tokensAllocated ?? Math.round(effectiveSelling * 0.20 * 10) / 10;
+
+    const enrichedSol: any = {
+      ...sol,
+      id: matchingCms?.id || id,
+      name: matchingCms?.name || sol.name,
+      subtitle: matchingCms?.subtitle || sol.subtitle,
+      description: matchingCms?.description || sol.description,
+      purpose: matchingCms?.purpose || sol.purpose,
+      priceUSD: Math.round(effectiveSelling / 18.5),
+      priceZAR: effectiveSelling,
+      sellingPriceZAR: effectiveSelling,
+      exclusivePriceZAR: effectiveExclusive,
+      vatZAR: effectiveVat,
+      tokensAllocated: effectiveTokens,
+      isPurchased: false,
+    };
+
+    const isFreeCourse =
+      ['learn-earn-capital', 'vi-ability'].includes(id) ||
+      ['learn-earn-capital', 'vi-ability'].includes(canon) ||
+      (effectiveSelling === 0 && (matchingCms?.type === 'course' || (sol as any).type === 'course'));
+
     const isOwned =
-      price === 0 ||
-      ['learn-earn-capital', 'how-to-bizzcalc', 'follow-the-money'].includes(id) ||
+      isFreeCourse ||
       userPurchases.includes(id) ||
       userPurchases.includes(canon);
 
@@ -1341,8 +1384,8 @@ export default function App() {
       return;
     }
 
-    // Open PayFast Product Checkout Modal
-    setCheckoutProduct(sol);
+    // Open PayFast Product Checkout Modal with enriched live pricing
+    setCheckoutProduct(enrichedSol);
   };
 
   // Dialogue messaging with GIM (AI-Driven Engagement Loop with Gemini Search Grounding)

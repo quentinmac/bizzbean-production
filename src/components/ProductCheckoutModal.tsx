@@ -76,26 +76,64 @@ export const ProductCheckoutModal: React.FC<ProductCheckoutModalProps> = ({
     };
   }, [isOpen]);
 
-  // Pricing calculations
+  // Ensure we always reflect the live price from CMS products cache if available
+  let matchedCmsPrice: number | undefined;
+  let matchedCmsExcl: number | undefined;
+  let matchedCmsVat: number | undefined;
+  let matchedCmsTokens: number | undefined;
+
+  try {
+    const rawStored = typeof window !== 'undefined' ? localStorage.getItem('bizzdesk_cms_products_v1') : null;
+    if (rawStored) {
+      const parsed = JSON.parse(rawStored);
+      if (Array.isArray(parsed)) {
+        const found = parsed.find(
+          (p: any) =>
+            p.id === product.id ||
+            (product.id === 'budget' && p.id === 'bizzbudget') ||
+            (product.id === 'bizzbudget' && p.id === 'budget') ||
+            (p.name && product.name && p.name.toLowerCase().trim() === product.name.toLowerCase().trim())
+        );
+        if (found && found.sellingPriceZAR !== undefined) {
+          matchedCmsPrice = Number(found.sellingPriceZAR);
+          matchedCmsExcl = found.exclusivePriceZAR !== undefined ? Number(found.exclusivePriceZAR) : undefined;
+          matchedCmsVat = found.vatZAR !== undefined ? Number(found.vatZAR) : undefined;
+          matchedCmsTokens = found.tokensAllocated !== undefined ? Number(found.tokensAllocated) : undefined;
+        }
+      }
+    }
+  } catch {}
+
+  // Pricing calculations - prioritizes explicit sellingPriceZAR from CMS or product
   const rawPrice =
     (product as any).sellingPriceZAR !== undefined
       ? (product as any).sellingPriceZAR
-      : (product as any).priceZAR || 229.0;
+      : matchedCmsPrice !== undefined
+      ? matchedCmsPrice
+      : (product as any).priceZAR !== undefined
+      ? (product as any).priceZAR
+      : 229.0;
   const sellingPrice = Math.max(0, Number(rawPrice) || 0);
 
   const exclusivePrice =
     (product as any).exclusivePriceZAR !== undefined
       ? (product as any).exclusivePriceZAR
+      : matchedCmsExcl !== undefined
+      ? matchedCmsExcl
       : Math.round((sellingPrice / 1.15) * 100) / 100;
 
   const vat =
     (product as any).vatZAR !== undefined
       ? (product as any).vatZAR
+      : matchedCmsVat !== undefined
+      ? matchedCmsVat
       : Math.round((sellingPrice - exclusivePrice) * 100) / 100;
 
   const tokensEarned =
     (product as any).tokensAllocated !== undefined
       ? (product as any).tokensAllocated
+      : matchedCmsTokens !== undefined
+      ? matchedCmsTokens
       : Math.round(sellingPrice * 0.2 * 10) / 10;
 
   const sku = (product as any).sku || (product as any).stageCode || 'BA-001';
