@@ -51,6 +51,10 @@ import {
 import { BIZZ_SOLUTIONS, INITIAL_DIALOGUE_MESSAGES, INITIAL_LIBRARY_ITEMS } from './data/bizzdeskData';
 import { BizzSolution, DialogueMessage, LibraryItem, UserBusinessProfile } from './types';
 import { listenToAuthChanges, signOutUser, determineUserRole } from './services/firebaseAuthService';
+import { SandboxWelcomeLetter } from './components/SandboxWelcomeLetter';
+import { ProductCheckoutModal } from './components/ProductCheckoutModal';
+import { downloadGettingToValueBook } from './utils/bookDownload';
+import { sendWelcomeEmail } from './services/emailService';
 import {
   Menu,
   Layers,
@@ -68,6 +72,8 @@ import {
 export default function App() {
   // Navigation / View state
   const [inSplashDoors, setInSplashDoors] = useState<boolean>(true);
+  const [showWelcomeLetter, setShowWelcomeLetter] = useState<boolean>(false);
+  const [bookNotice, setBookNotice] = useState<string | null>(null);
   const [isMember, setIsMember] = useState<boolean>(() => {
     try {
       return localStorage.getItem('bizz_is_member') === 'true';
@@ -146,6 +152,7 @@ export default function App() {
 
   // PayFast Transaction Return Listener
   const [payfastNotice, setPayfastNotice] = useState<{ status: 'success' | 'cancelled'; message: string } | null>(null);
+  const [checkoutProduct, setCheckoutProduct] = useState<any | null>(null);
 
   useEffect(() => {
     try {
@@ -154,16 +161,64 @@ export default function App() {
       const pfPaymentId = urlParams.get('payment_id');
 
       if (pfStatus === 'success') {
-        setPayfastNotice({
-          status: 'success',
-          message: `PayFast transaction completed successfully! Payment reference: ${pfPaymentId || 'Verified'}. Your account balance has been updated.`,
-        });
         if (pfPaymentId && pfPaymentId.startsWith('TOKEN_')) {
           const parts = pfPaymentId.split('_');
           const tokensToAdd = parseInt(parts[1], 10);
           if (!isNaN(tokensToAdd) && tokensToAdd > 0) {
             setTokenBalance((prev) => prev + tokensToAdd);
           }
+          setPayfastNotice({
+            status: 'success',
+            message: `PayFast transaction completed successfully! Payment reference: ${pfPaymentId}. Your token balance has been updated.`,
+          });
+        } else if (pfPaymentId && pfPaymentId.startsWith('PROD_')) {
+          const parts = pfPaymentId.split('_');
+          const targetProdId = parts[1];
+          if (targetProdId) {
+            setCmsProducts((prev) => {
+              const updated = prev.map((p) => {
+                const match =
+                  p.id === targetProdId ||
+                  (targetProdId === 'bizzbudget' && p.id === 'budget') ||
+                  (targetProdId === 'budget' && p.id === 'bizzbudget');
+                return match ? { ...p, isPurchased: true } : p;
+              });
+              safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, updated);
+              saveCmsProductsToFirestore(updated).catch(() => {});
+              return updated;
+            });
+
+            // Credit 20% tokens
+            const earnedTokens = 45.8;
+            setTokenBalance((prev) => {
+              const newBal = prev + earnedTokens;
+              safeSaveStorage('bizzdesk_token_balance', newBal);
+              return newBal;
+            });
+
+            const isCourse =
+              targetProdId.includes('course') ||
+              targetProdId.includes('capital') ||
+              targetProdId.includes('calculator') ||
+              ['cost-recovery-calculator', 'learn-earn-capital', 'how-to-bizzcalc', 'profit-optimizer', 'financial-reports', 'your-first-hire'].includes(targetProdId);
+
+            setActiveSolutionId(targetProdId === 'budget' ? 'bizzbudget' : targetProdId);
+            if (isCourse) {
+              setActiveView('bizzclass');
+            } else {
+              setActiveView('active-app');
+            }
+
+            setPayfastNotice({
+              status: 'success',
+              message: `PayFast Payment Confirmed! You have successfully purchased "${targetProdId.replace(/-/g, ' ')}". 45.8 BizzTokens have been credited. Access is now unlocked.`,
+            });
+          }
+        } else {
+          setPayfastNotice({
+            status: 'success',
+            message: `PayFast transaction completed successfully! Payment reference: ${pfPaymentId || 'Verified'}. Your account balance has been updated.`,
+          });
         }
         window.history.replaceState({}, document.title, window.location.pathname);
       } else if (pfStatus === 'cancelled') {
@@ -1158,10 +1213,10 @@ export default function App() {
     }
   };
 
-  // Buy solution with token deduction & persistence in cmsProducts
-  const handleBuySolution = (sol: BizzSolution, targetView?: 'active-app' | 'flashcard') => {
+  // Instant Grant Handler (called when bypassing or granting offline in simulator)
+  const handleInstantGrant = (sol: any) => {
     sol.isPurchased = true;
-    const earnedTokens = sol.tokensAllocated || Math.round((sol.priceZAR || 0) * 0.2);
+    const earnedTokens = sol.tokensAllocated || Math.round(((sol.sellingPriceZAR || sol.priceZAR || 0) * 0.2));
 
     setCmsProducts((prev) => {
       const updated = prev.map((p) =>
@@ -1181,6 +1236,7 @@ export default function App() {
     });
 
     const isCourse =
+      sol.type === 'course' ||
       sol.category === 'education' ||
       sol.id.includes('course') ||
       sol.id.includes('capital') ||
@@ -1190,15 +1246,31 @@ export default function App() {
     setPurchasedNotice({
       solutionName: sol.name,
       tokensCredited: earnedTokens,
-      priceZAR: sol.priceZAR || 0,
+      priceZAR: sol.sellingPriceZAR || sol.priceZAR || 0,
       solutionId: sol.id,
       isCourse,
     });
 
     setActiveSolutionId(sol.id === 'budget' ? 'bizzbudget' : sol.id);
-    if (targetView) {
-      setActiveView(targetView);
+    if (isCourse) {
+      setActiveView('bizzclass');
+    } else {
+      setActiveView('active-app');
     }
+  };
+
+  // Buy solution: Opens PayFast checkout modal if unowned, or launches if already owned
+  const handleBuySolution = (sol: BizzSolution, targetView?: 'active-app' | 'flashcard') => {
+    if (sol.isPurchased) {
+      setActiveSolutionId(sol.id === 'budget' ? 'bizzbudget' : sol.id);
+      if (targetView) {
+        setActiveView(targetView);
+      }
+      return;
+    }
+
+    // Open PayFast Product Checkout Modal
+    setCheckoutProduct(sol);
   };
 
   // Dialogue messaging with GIM (AI-Driven Engagement Loop with Gemini Search Grounding)
@@ -1349,6 +1421,56 @@ export default function App() {
     setDailyObjectives((prev) => [...prev, newObj]);
   };
 
+  const handleDownloadBook = useCallback(() => {
+    downloadGettingToValueBook(userProfile.founderName || 'Entrepreneur');
+    setBookNotice(`'Getting to Value' by Quentin G. McCullough downloaded successfully.`);
+    setTimeout(() => setBookNotice(null), 5000);
+  }, [userProfile.founderName]);
+
+  // Unified Sign-Up handler: updates profile, persists member status, dispatches welcome email & displays Sandbox letter
+  const handleConfirmSignUp = useCallback((name: string, email: string, company: string) => {
+    const cleanName = (name || '').trim() || 'Entrepreneur';
+    const cleanEmail = (email || '').trim();
+    const cleanCompany = (company || '').trim() || 'Apex Cloud Dynamics';
+    const firstName = cleanName.split(' ')[0] || 'Entrepreneur';
+
+    setUserProfile((prev) => ({
+      ...prev,
+      founderName: cleanName,
+      companyName: cleanCompany,
+      email: cleanEmail,
+    }));
+    if (cleanEmail) {
+      setUserEmail(cleanEmail);
+      try {
+        localStorage.setItem('bizzbean_sandbox_email', cleanEmail);
+      } catch (e) {}
+    }
+    setIsMember(true);
+    try {
+      localStorage.setItem('bizz_is_member', 'true');
+    } catch (e) {}
+
+    setShowWelcomeLetter(true);
+
+    if (cleanEmail) {
+      sendWelcomeEmail({
+        recipientEmail: cleanEmail,
+        recipientName: cleanName,
+        firstName,
+        companyName: cleanCompany,
+      }).then((res) => {
+        if (res.success) {
+          console.log(`[BizzBean] Welcome email successfully sent to ${cleanEmail}`);
+        } else {
+          console.warn(`[BizzBean] Welcome email warning: ${res.error}`);
+        }
+      }).catch((err) => {
+        console.warn('[BizzBean] Welcome email error:', err);
+      });
+    }
+  }, []);
+
   // Unified layout behavior: allow BizzCalc to share identical responsive workstation layout with BizzDynamics
   const isStandaloneApp = false;
 
@@ -1364,15 +1486,7 @@ export default function App() {
           activePromotion={activePromotion}
           cmsPromotions={cmsPromotions}
           onTriggerDoorOpening={handleTriggerDoorOpening}
-          onConfirmSignUp={(name, email, company) => {
-            setUserProfile((prev) => ({
-              ...prev,
-              founderName: name,
-              companyName: company,
-            }));
-            setUserEmail(email);
-            setIsMember(true);
-          }}
+          onConfirmSignUp={handleConfirmSignUp}
         />
       ) : (
         /* ========================================================================= */
@@ -1455,6 +1569,10 @@ export default function App() {
                   onOpenTalkToUs={handleOpenTalkToUs}
                   onSelectWorkspace={() => handleSelectSolution('google-workspace')}
                   onSelectFooter={() => handleSelectSolution('website-footer')}
+                  onDownloadBook={() => {
+                    handleDownloadBook();
+                    setShowWelcomeLetter(true);
+                  }}
                   onSelectAdminCentre={() => handleSelectSolution('administration-centre')}
                   onSelectEducationCentre={() => handleSelectSolution('education-centre')}
                   onSelectBizzClass={() => handleSelectSolution('bizzclass')}
@@ -1523,6 +1641,7 @@ export default function App() {
                   onUpdateProfile={(prof) => setUserProfile(prof)}
                   onSelectSolutionById={handleSelectSolution}
                   onOpenSignUp={() => setInSplashDoors(true)}
+                  onConfirmSignUp={handleConfirmSignUp}
                   libraryItems={libraryItems}
                   objectives={dailyObjectives}
                   onToggleObjective={handleToggleObjective}
@@ -2049,6 +2168,54 @@ export default function App() {
                 <span>LAUNCH SOLUTION NOW</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* PayFast Product Checkout Modal */}
+      <ProductCheckoutModal
+        isOpen={Boolean(checkoutProduct)}
+        product={checkoutProduct}
+        userProfile={{
+          founderName: userProfile.founderName,
+          email: userProfile.email || (typeof window !== 'undefined' ? localStorage.getItem('bizzbean_sandbox_email') || '' : '') || 'member@bizzbean.co.za',
+          companyName: userProfile.companyName,
+        }}
+        theme={theme}
+        onClose={() => setCheckoutProduct(null)}
+        onInstantGrant={handleInstantGrant}
+      />
+
+      {/* Sandbox Welcome Letter Modal (Per your sandbox is open.png) */}
+      {showWelcomeLetter && (
+        <SandboxWelcomeLetter
+          recipientName={userProfile.founderName || 'Entrepreneur'}
+          recipientEmail={userProfile.email || userEmail || (typeof window !== 'undefined' ? localStorage.getItem('bizzbean_sandbox_email') || '' : '')}
+          onClose={() => setShowWelcomeLetter(false)}
+          onDownloadBook={handleDownloadBook}
+          onEnterSandbox={() => {
+            setShowWelcomeLetter(false);
+            handleSelectSolution('personal-sandbox');
+          }}
+        />
+      )}
+
+      {/* Book Download Notification Toast */}
+      {bookNotice && (
+        <div className="fixed bottom-6 left-6 z-50 max-w-md animate-in slide-in-from-bottom-5 duration-300">
+          <div className="p-4 rounded-2xl shadow-2xl border bg-emerald-950/90 border-emerald-500/40 text-emerald-100 backdrop-blur-md flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 font-bold">
+              ✓
+            </div>
+            <div className="flex-1 text-xs font-mono font-medium">
+              {bookNotice}
+            </div>
+            <button
+              onClick={() => setBookNotice(null)}
+              className="text-white/60 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
         </div>
       )}

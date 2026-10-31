@@ -4,6 +4,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import payfastRouter from './src/server/payfastRouter.ts';
+import emailRouter from './src/server/emailRouter.ts';
 
 import { exec } from 'child_process';
 import { GoogleGenAI } from '@google/genai';
@@ -23,6 +24,9 @@ async function startServer() {
 
   // PayFast API routes
   app.use('/api/payfast', payfastRouter);
+
+  // Email API routes (Xneelo SMTP Welcome letter & notifications)
+  app.use('/api/email', emailRouter);
 
   // Gemini Search Grounding & Coach GIM Dialogue API
   app.post('/api/gemini/chat', async (req, res) => {

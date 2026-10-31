@@ -56,6 +56,7 @@ interface WorkAreaProps {
   onUpdateProfile: (profile: UserBusinessProfile) => void;
   onSelectSolutionById?: (id: string) => void;
   onOpenSignUp?: () => void;
+  onConfirmSignUp?: (name: string, email: string, company: string) => void;
   libraryItems?: LibraryItem[];
   objectives?: DailyObjective[];
   onToggleObjective?: (id: string) => void;
@@ -99,6 +100,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
   onUpdateProfile,
   onSelectSolutionById,
   onOpenSignUp,
+  onConfirmSignUp,
   libraryItems = [],
   objectives = [],
   onToggleObjective,
@@ -981,6 +983,69 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
             </div>
           </div>
 
+          {/* Sign Up for Google Workspace Value-Add Card (Per workspace.PNG) */}
+          <div className={`p-5 rounded-2xl border ${isDark ? 'bg-[#141A2E] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'} space-y-4`}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#E8E2D8] dark:border-[#252E4A]">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-[#5584B4]/15 border border-[#5584B4]/30 flex items-center justify-center shrink-0">
+                  <ExternalLink className="h-5 w-5 text-[#5584B4]" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                      SIGN UP FOR GOOGLE WORKSPACE
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold uppercase border border-emerald-500/30">
+                      client value-add
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Equip your venture with professional custom domain emails, cloud storage & enterprise productivity
+                  </p>
+                </div>
+              </div>
+
+              <a
+                href="https://workspace.google.com/business/signup"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2.5 rounded-xl bg-[#2E5E88] hover:bg-[#234E73] text-white text-xs font-semibold lowercase transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer font-['Raleway'] shrink-0"
+              >
+                <span>sign up to google workspace</span>
+                <ExternalLink className="h-3.5 w-3.5 text-[#9FC754]" />
+              </a>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs text-slate-600 dark:text-slate-300">
+              <div className={`p-3 rounded-xl border ${isDark ? 'bg-[#0E1220] border-[#222E4E]' : 'bg-[#FAF8F5] border-[#E8E2D8]'}`}>
+                <div className="font-bold text-slate-900 dark:text-white font-mono lowercase mb-1 text-[11px]">
+                  1. custom venture email
+                </div>
+                <p className="text-[11px] leading-relaxed opacity-90">
+                  Operate with institutional credibility using custom addresses like <code className="font-mono text-[#5584B4]">founder@{userProfile.slug || 'company'}.com</code> instead of generic mailboxes.
+                </p>
+              </div>
+
+              <div className={`p-3 rounded-xl border ${isDark ? 'bg-[#0E1220] border-[#222E4E]' : 'bg-[#FAF8F5] border-[#E8E2D8]'}`}>
+                <div className="font-bold text-slate-900 dark:text-white font-mono lowercase mb-1 text-[11px]">
+                  2. automated vdr cloud
+                </div>
+                <p className="text-[11px] leading-relaxed opacity-90">
+                  Pooled 30 GB to 5 TB encrypted Google Drive storage per team member with automated partition folders for investors, cap table, and audits.
+                </p>
+              </div>
+
+              <div className={`p-3 rounded-xl border ${isDark ? 'bg-[#0E1220] border-[#222E4E]' : 'bg-[#FAF8F5] border-[#E8E2D8]'}`}>
+                <div className="font-bold text-slate-900 dark:text-white font-mono lowercase mb-1 text-[11px]">
+                  3. bizz-desk live bridge
+                </div>
+                <p className="text-[11px] leading-relaxed opacity-90">
+                  Export 3-statement models, DCF valuations, and transaction journals into Google Sheets with zero proprietary lock-in.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Direct Action Hub */}
           <div className="p-4 rounded-2xl bg-white border border-[#D8CEBC] shadow-xs flex flex-wrap items-center justify-between gap-3">
             <div className="text-xs text-slate-600">
@@ -989,6 +1054,15 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
+              <a
+                href="https://workspace.google.com/business/signup"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:border-[#5584B4] text-slate-700 dark:text-slate-300 hover:text-slate-950 text-xs font-semibold lowercase transition-colors flex items-center gap-1.5 cursor-pointer font-['Raleway']"
+              >
+                <span>sign up to google workspace</span>
+                <ExternalLink className="h-3 w-3 text-[#5584B4]" />
+              </a>
               <button
                 type="button"
                 onClick={() => {
@@ -1304,7 +1378,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
       (s) => s.id === p.id || (p.id === 'budget' && s.id === 'bizzbudget')
     );
     const solToBuy: BizzSolution = matchingSolution
-      ? { ...matchingSolution, isPurchased: true }
+      ? { ...matchingSolution, isPurchased: false }
       : {
           id: p.id,
           name: p.name,
@@ -1316,7 +1390,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
           tokensAllocated: p.tokensAllocated || 0,
           billingModel: p.billingModel || 'once-off',
           imageUrl: p.canonicalCoverUrl || p.imageUrl || '',
-          isPurchased: true,
+          isPurchased: false,
           description: p.description || '',
           subtitle: p.subtitle || '',
           purpose: p.purpose || p.description || '',
@@ -2115,26 +2189,41 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
 
                           {/* 4. LAUNCH IN WORK AREA / BIZZCLASS */}
                           {isCourse ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const canon = getCanonicalCourseId(currentProd?.id || '') || getCanonicalCourseId(currentProd?.name || '') || getCanonicalCourseId(candidateId);
-                                const courseCandidate =
-                                  canon ||
-                                  (currentProd?.type === 'course' ? currentProd.id : null) ||
-                                  (!isStageId ? candidateId : null) ||
-                                  (currentStageKey === 'fund-ability' ? 'cost-recovery-calculator' : currentStageKey === 'sustain-ability' ? 'profit-optimizer' : 'learn-earn-capital');
-                                const matched = findMatchingCourse(courseCandidate, cmsProducts || []);
-                                const targetId = matched ? matched.id : (courseCandidate || 'cost-recovery-calculator');
-                                if (targetId && onSelectSolutionById) onSelectSolutionById(targetId);
-                                onLaunchSolution(targetId);
-                              }}
-                              className="w-full px-4 py-2.5 rounded-xl bg-[#2E5E88] hover:bg-[#234E73] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-sm transition-all tracking-wide border border-[#487B9F]"
-                              title="Open BizzClass course master suite and lesson delivery stream"
-                            >
-                              <Play className="h-4 w-4 fill-white text-white" />
-                              <span className="truncate">LAUNCH BIZZCLASS</span>
-                            </button>
+                            (isPurchased || currentProd?.id === 'learn-earn-capital') ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const canon = getCanonicalCourseId(currentProd?.id || '') || getCanonicalCourseId(currentProd?.name || '') || getCanonicalCourseId(candidateId);
+                                  const courseCandidate =
+                                    canon ||
+                                    (currentProd?.type === 'course' ? currentProd.id : null) ||
+                                    (!isStageId ? candidateId : null) ||
+                                    (currentStageKey === 'fund-ability' ? 'cost-recovery-calculator' : currentStageKey === 'sustain-ability' ? 'profit-optimizer' : 'learn-earn-capital');
+                                  const matched = findMatchingCourse(courseCandidate, cmsProducts || []);
+                                  const targetId = matched ? matched.id : (courseCandidate || 'cost-recovery-calculator');
+                                  if (targetId && onSelectSolutionById) onSelectSolutionById(targetId);
+                                  onLaunchSolution(targetId);
+                                }}
+                                className="w-full px-4 py-2.5 rounded-xl bg-[#2E5E88] hover:bg-[#234E73] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-sm transition-all tracking-wide border border-[#487B9F]"
+                                title="Open BizzClass course master suite and lesson delivery stream"
+                              >
+                                <Play className="h-4 w-4 fill-white text-white" />
+                                <span className="truncate">LAUNCH BIZZCLASS</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const solToBuy = { ...(currentProd || activeSolution!), isPurchased: false };
+                                  onBuySolution(solToBuy);
+                                }}
+                                className="w-full px-4 py-2.5 rounded-xl bg-[#E02475] hover:bg-[#C91A63] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-sm transition-all tracking-wide border border-[#E02475]"
+                                title="Purchase course via PayFast to access BizzClass"
+                              >
+                                <ShoppingCart className="h-4 w-4" />
+                                <span className="truncate">BUY COURSE (R{effectiveSellingZAR.toFixed(2)})</span>
+                              </button>
+                            )
                           ) : (isPurchased || currentStageKey === 'operations-sandbox') ? (
                             <button
                               type="button"
@@ -2154,20 +2243,18 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                               <span className="truncate">LAUNCH APP</span>
                             </button>
                           ) : (
-                            <div className="w-full flex flex-col items-center">
-                              <button
-                                type="button"
-                                disabled
-                                className="w-full px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 cursor-not-allowed border border-slate-300 dark:border-slate-700"
-                                title="Purchase solution to access work area"
-                              >
-                                <Lock className="h-3.5 w-3.5" />
-                                <span className="truncate">LOCKED</span>
-                              </button>
-                              <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 lowercase mt-0.5 truncate">
-                                (purchase required)
-                              </span>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const solToBuy = { ...(currentProd || activeSolution!), isPurchased: false };
+                                onBuySolution(solToBuy);
+                              }}
+                              className="w-full px-4 py-2.5 rounded-xl bg-[#E02475] hover:bg-[#C91A63] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-sm transition-all tracking-wide border border-[#E02475]"
+                              title="Purchase solution via PayFast to access work area"
+                            >
+                              <ShoppingCart className="h-4 w-4" />
+                              <span className="truncate">BUY APP (R{effectiveSellingZAR.toFixed(2)})</span>
+                            </button>
                           )}
                         </div>
                       );
@@ -2228,6 +2315,9 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                       founderName: name,
                       companyName: company,
                     });
+                    if (onConfirmSignUp) {
+                      onConfirmSignUp(name, email, company);
+                    }
                   }}
                   onOpenDoors={onOpenSignUp}
                 />

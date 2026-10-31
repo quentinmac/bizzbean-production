@@ -82,7 +82,7 @@ const DEFAULT_COURSES: CmsProduct[] = [
     sellingPriceZAR: 172.50,
     tokensAllocated: 35.0,
     ticketPriceZAR: 207.00,
-    isPurchased: true,
+    isPurchased: false,
     activeInSync: true,
     syllabusLessonsCount: 2,
     lessonTitles: [
@@ -111,7 +111,7 @@ const DEFAULT_COURSES: CmsProduct[] = [
     sellingPriceZAR: 229.00,
     tokensAllocated: 45.8,
     ticketPriceZAR: 274.80,
-    isPurchased: true,
+    isPurchased: false,
     activeInSync: true,
     syllabusLessonsCount: 7,
     lessonTitles: [
@@ -152,7 +152,7 @@ const DEFAULT_COURSES: CmsProduct[] = [
     sellingPriceZAR: 286.35,
     tokensAllocated: 50.0,
     ticketPriceZAR: 343.62,
-    isPurchased: true,
+    isPurchased: false,
     activeInSync: true,
     syllabusLessonsCount: 3,
     lessonTitles: ['1 - CASH CONVERSION CYCLE', '2 - WORKING CAPITAL RECOVERY', '3 - RECEIVABLES VELOCITY'],
@@ -180,7 +180,7 @@ const DEFAULT_COURSES: CmsProduct[] = [
     sellingPriceZAR: 343.85,
     tokensAllocated: 60.0,
     ticketPriceZAR: 412.62,
-    isPurchased: true,
+    isPurchased: false,
     activeInSync: true,
     syllabusLessonsCount: 3,
     lessonTitles: ['1 - 3-STATEMENT RECONCILIATION', '2 - EBITDA VS FREE CASH FLOW', '3 - BALANCE SHEET STRESS TEST'],
@@ -208,7 +208,7 @@ const DEFAULT_COURSES: CmsProduct[] = [
     sellingPriceZAR: 228.85,
     tokensAllocated: 40.0,
     ticketPriceZAR: 274.62,
-    isPurchased: true,
+    isPurchased: false,
     activeInSync: true,
     syllabusLessonsCount: 3,
     lessonTitles: ['1 - FULLY BURDENED LABOR RATE', '2 - HIRING REVENUE MULTIPLE', '3 - EMPLOYEE CONTRIBUTION QUOTA'],
@@ -236,7 +236,7 @@ const DEFAULT_COURSES: CmsProduct[] = [
     sellingPriceZAR: 229.00,
     tokensAllocated: 45.8,
     ticketPriceZAR: 274.80,
-    isPurchased: true,
+    isPurchased: false,
     activeInSync: true,
     syllabusLessonsCount: 3,
     lessonTitles: [
@@ -268,7 +268,7 @@ const DEFAULT_COURSES: CmsProduct[] = [
     sellingPriceZAR: 343.85,
     tokensAllocated: 60.0,
     ticketPriceZAR: 412.62,
-    isPurchased: true,
+    isPurchased: false,
     activeInSync: true,
     syllabusLessonsCount: 3,
     lessonTitles: [
@@ -300,7 +300,7 @@ const DEFAULT_COURSES: CmsProduct[] = [
     sellingPriceZAR: 343.85,
     tokensAllocated: 60.0,
     ticketPriceZAR: 412.62,
-    isPurchased: true,
+    isPurchased: false,
     activeInSync: true,
     syllabusLessonsCount: 3,
     lessonTitles: [
@@ -908,13 +908,22 @@ export const BizzClass: React.FC<BizzClassProps> = ({
                 const hasUrl = Boolean(lesson.youtubeUrl && lesson.youtubeUrl.trim());
 
                 return (
-                  <button
+                  <div
                     key={lesson.id || idx}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => {
                       setActiveLessonIdx(idx);
                       setIsPlaying(true);
                     }}
-                    className={`w-full p-2.5 rounded-xl text-left transition-all flex items-center justify-between gap-2 ${
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setActiveLessonIdx(idx);
+                        setIsPlaying(true);
+                      }
+                    }}
+                    className={`w-full p-2.5 rounded-xl text-left transition-all flex items-center justify-between gap-2 cursor-pointer ${
                       isActive
                         ? 'bg-white text-[#20405E] font-bold shadow-md'
                         : 'bg-white/10 hover:bg-white/20 text-white font-medium'
@@ -954,7 +963,7 @@ export const BizzClass: React.FC<BizzClassProps> = ({
                         </button>
                       </div>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>

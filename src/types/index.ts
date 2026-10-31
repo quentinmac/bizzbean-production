@@ -41,6 +41,7 @@ export interface UserBusinessProfile {
   burnRate: number;
   slug: string;
   websiteUrl?: string;
+  email?: string;
   socialMissionEquation?: string;
   socialMissionSubtext?: string;
   whoAreWe?: string;

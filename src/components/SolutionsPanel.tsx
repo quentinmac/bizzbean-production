@@ -21,6 +21,7 @@ interface SolutionsPanelProps {
   onOpenTalkToUs?: () => void;
   onSelectWorkspace: () => void;
   onSelectFooter: () => void;
+  onDownloadBook?: () => void;
   onSelectAdminCentre?: () => void;
   onSelectEducationCentre?: () => void;
   onSelectBizzClass?: () => void;
@@ -44,6 +45,7 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
   onOpenTalkToUs,
   onSelectWorkspace,
   onSelectFooter,
+  onDownloadBook,
   onSelectAdminCentre,
   onSelectEducationCentre,
   onSelectBizzClass,
@@ -487,32 +489,53 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
           website footer
         </button>
 
-        {onSelectAdminCentre && (
+        {/* Dedicated Book Download Button (Per download getting to value.png) */}
+        {onDownloadBook && (
           <button
-            onClick={onSelectAdminCentre}
+            onClick={onDownloadBook}
             className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between ${getSubtleActiveBtnClass(
-              activeSolutionId === 'administration-centre'
+              activeSolutionId === 'download-book'
             )}`}
+            title="Download our free foundational book 'getting to value' by Quentin G. McCullough"
           >
-            <span>administration centre</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded font-mono lowercase bg-[#DDEBF7] text-[#24496B] dark:bg-[#1E3048] dark:text-[#DDEBF7] font-semibold">
-              admin
+            <span>download getting to value</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded font-mono lowercase bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 font-semibold">
+              book
             </span>
           </button>
         )}
 
-        <button
-          onClick={() => onSelectSolution('operations-sandbox')}
-          className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between ${getSubtleActiveBtnClass(
-            activeStageId === 'operations-sandbox'
-          )}`}
-          title="Operations Sandbox: Staging & Incubation Lab for testing unallocated SKU projects (e.g. bizzdynamics)"
-        >
-          <span>operations sandbox</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded font-mono lowercase bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-semibold">
-            staging
-          </span>
-        </button>
+        {/* Administration Centre & Operations Sandbox: Strictly restricted to administrators */}
+        {isAdmin && (
+          <>
+            {onSelectAdminCentre && (
+              <button
+                onClick={onSelectAdminCentre}
+                className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between ${getSubtleActiveBtnClass(
+                  activeSolutionId === 'administration-centre'
+                )}`}
+              >
+                <span>administration centre</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded font-mono lowercase bg-[#DDEBF7] text-[#24496B] dark:bg-[#1E3048] dark:text-[#DDEBF7] font-semibold">
+                  admin
+                </span>
+              </button>
+            )}
+
+            <button
+              onClick={() => onSelectSolution('operations-sandbox')}
+              className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between ${getSubtleActiveBtnClass(
+                activeStageId === 'operations-sandbox'
+              )}`}
+              title="Operations Sandbox: Staging & Incubation Lab for testing unallocated SKU projects (e.g. bizzdynamics)"
+            >
+              <span>operations sandbox</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded font-mono lowercase bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-semibold">
+                staging
+              </span>
+            </button>
+          </>
+        )}
       </div>
     </aside>
   );

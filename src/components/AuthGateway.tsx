@@ -29,6 +29,7 @@ import { getFile } from '../utils/idb';
 import { COUNTRY_OPTIONS } from '../data/countryData';
 import { validateCouponCode, redeemCouponCode } from '../services/promotionService';
 import { PromotionCoupon } from '../types';
+import { sendWelcomeEmail } from '../services/emailService';
 
 interface AuthGatewayProps {
   onAuthenticated: (destination: 'splash' | 'dashboard' | 'bizzbot', userProfile?: any) => void;
@@ -305,6 +306,23 @@ Welcome to the bizzbean Sandbox environment!
       } catch (fbRegErr) {
         console.info('Firebase auth registration notice:', fbRegErr);
       }
+
+      // Dispatch official "your SANDBOX is ready" welcome email via Xneelo SMTP
+      addLog(`Dispatching welcome letter from thebizzbeanchannel@bizzbean.com to ${email.trim()}...`);
+      sendWelcomeEmail({
+        recipientEmail: email.trim(),
+        recipientName: fullName,
+        firstName: firstName.trim() || undefined,
+        companyName: newProfile.companyName,
+      }).then((res) => {
+        if (res.success) {
+          addLog(`✓ Welcome letter delivered to ${email.trim()} via SMTP`);
+        } else {
+          addLog(`Email dispatch note: ${res.error || 'simulated delivery'}`);
+        }
+      }).catch((e) => {
+        console.warn('Welcome email error:', e);
+      });
 
       setTimeout(() => {
         setIsSimulating(false);

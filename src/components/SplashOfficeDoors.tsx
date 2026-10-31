@@ -4,6 +4,7 @@ import { BizzbeanLogoIcon } from './BizzbeanLogoIcon';
 import { CmsPromotionSection } from '../data/cmsConsoleData';
 import { CMS_STORAGE_KEYS } from '../utils/imageStorage';
 import AuthGateway from './AuthGateway';
+import { sendWelcomeEmail } from '../services/emailService';
 
 interface SplashOfficeDoorsProps {
   onEnterWorkspace: (isMember: boolean, userEmail?: string, chosenPromotion?: CmsPromotionSection | null) => void;
@@ -106,14 +107,28 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
   const handleSignUpSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!emailInput.trim()) return;
+    const cleanName = fullNameInput.trim() || 'Venture Founder';
+    const cleanEmail = emailInput.trim();
+    const cleanCompany = companyInput.trim() || 'My Venture';
+
+    // Dispatch welcome email via Xneelo SMTP
+    sendWelcomeEmail({
+      recipientEmail: cleanEmail,
+      recipientName: cleanName,
+      firstName: cleanName.split(' ')[0] || undefined,
+      companyName: cleanCompany,
+    }).then((res) => {
+      if (res.success) {
+        console.log('✓ Welcome email sent to:', cleanEmail);
+      } else {
+        console.warn('Welcome email dispatch note:', res.error);
+      }
+    }).catch((err) => console.warn('Welcome email error:', err));
+
     if (onConfirmSignUp) {
-      onConfirmSignUp(
-        fullNameInput.trim() || 'Venture Founder',
-        emailInput.trim(),
-        companyInput.trim() || 'My Venture'
-      );
+      onConfirmSignUp(cleanName, cleanEmail, cleanCompany);
     }
-    handleTriggerEnter(true, emailInput.trim());
+    handleTriggerEnter(true, cleanEmail);
   };
 
   return (

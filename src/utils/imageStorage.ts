@@ -78,6 +78,21 @@ export async function idbGet<T>(key: string): Promise<T | null> {
   }
 }
 
+export async function idbDelete(key: string): Promise<void> {
+  try {
+    const db = await openIndexedDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.delete(key);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  } catch (err) {
+    console.warn('IDB delete error', err);
+  }
+}
+
 /**
  * Compresses an image File or Data URL to a lightweight high-fidelity JPEG data-URL.
  * Keeps file size under ~70KB to prevent browser localStorage quota exhaustion.
@@ -221,7 +236,7 @@ export function ensureFreshCmsCache(): void {
   try {
     if (typeof localStorage === 'undefined') return;
     const currentVersion = localStorage.getItem('bizzdesk_cms_cache_version');
-    if (currentVersion !== 'v6') {
+    if (currentVersion !== 'v7') {
       const keysToPurge = [
         'bizzdesk_cms_products_v1',
         'bizzdesk_cms_promotions_v1',
@@ -233,6 +248,7 @@ export function ensureFreshCmsCache(): void {
         'bizzdesk_cms_promotions_v2',
         'bizzdesk_cms_articles_v2',
         'bizzdesk_cms_videos_v2',
+        'bizzdesk_cms_products_v3',
       ];
       keysToPurge.forEach((k) => {
         try {
@@ -259,7 +275,7 @@ export function ensureFreshCmsCache(): void {
         } catch (_) {}
       }
 
-      localStorage.setItem('bizzdesk_cms_cache_version', 'v6');
+      localStorage.setItem('bizzdesk_cms_cache_version', 'v7');
     }
   } catch (e) {
     console.warn('Cache migration notice:', e);

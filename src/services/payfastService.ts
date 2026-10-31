@@ -13,6 +13,7 @@ export interface PayfastCheckoutParams {
   paymentId?: string;
   returnUrl?: string;
   cancelUrl?: string;
+  isSandbox?: boolean;
 }
 
 export interface PayfastCheckoutResponse {
@@ -48,6 +49,9 @@ export async function initiatePayfastCheckout(params: PayfastCheckoutParams): Pr
   const form = document.createElement('form');
   form.method = 'POST';
   form.action = data.processUrl;
+  // If embedded in iframe, target _top or _blank to prevent iframe blocking by PayFast
+  const isInIframe = window.self !== window.top;
+  form.target = isInIframe ? '_blank' : '_self';
   form.style.display = 'none';
 
   Object.entries(data.fields).forEach(([key, value]) => {
@@ -76,6 +80,26 @@ export async function getPayfastConfig(): Promise<{
   const response = await fetch('/api/payfast/config');
   if (!response.ok) {
     throw new Error('Could not fetch PayFast configuration.');
+  }
+  return response.json();
+}
+
+/**
+ * Sets PayFast runtime mode on the server (live production vs sandbox)
+ */
+export async function setPayfastMode(isSandbox: boolean): Promise<{
+  success: boolean;
+  isSandbox: boolean;
+  merchantId: string;
+  processUrl: string;
+}> {
+  const response = await fetch('/api/payfast/mode', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ isSandbox }),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to update PayFast mode.');
   }
   return response.json();
 }

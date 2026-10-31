@@ -3,12 +3,16 @@ import crypto from 'crypto';
 
 const payfastRouter = Router();
 
-// PayFast Config with Fallback to Production Credentials
-const getPayfastConfig = () => {
-  const rawSandbox = (process.env.PAYFAST_SANDBOX || '').trim().toLowerCase();
-  const isSandbox = rawSandbox === 'true' || rawSandbox === '1' || rawSandbox === 'sandbox';
+// Runtime sandbox mode setting: default to false for real live production PayFast (Merchant ID: 14980265)
+let runtimeSandboxMode = false;
 
-  // Production credentials for BizzBean (Merchant ID 14980265)
+// PayFast Config with Fallback to Production Credentials
+const getPayfastConfig = (customSandbox?: boolean) => {
+  const rawEnv = (process.env.PAYFAST_SANDBOX || '').trim().toLowerCase();
+  const envSandbox = rawEnv === 'true' || rawEnv === '1' || rawEnv === 'sandbox';
+  const isSandbox = customSandbox !== undefined ? customSandbox : (rawEnv ? envSandbox : runtimeSandboxMode);
+
+  // Production credentials for BizzBean (Merchant ID 14980265) vs Official Sandbox (10000100)
   const defaultMerchantId = isSandbox ? '10000100' : '14980265';
   const defaultMerchantKey = isSandbox ? '46f0cd694581a' : '2pbjmrcu6djwj';
   const defaultPassphrase = isSandbox ? '' : 'w2W2i4eo2R4eL789A2a45';
@@ -70,6 +74,24 @@ payfastRouter.get('/config', (req, res) => {
 });
 
 /**
+ * POST /api/payfast/mode
+ * Allows toggling between Sandbox mode and Live Production mode
+ */
+payfastRouter.post('/mode', (req, res) => {
+  const { isSandbox } = req.body;
+  if (typeof isSandbox === 'boolean') {
+    runtimeSandboxMode = isSandbox;
+  }
+  const config = getPayfastConfig();
+  res.json({
+    success: true,
+    isSandbox: config.isSandbox,
+    merchantId: config.merchantId,
+    processUrl: config.processUrl
+  });
+});
+
+/**
  * POST /api/payfast/checkout
  * Generates signed payment form payload for PayFast redirect
  */
@@ -91,7 +113,8 @@ payfastRouter.post('/checkout', (req, res) => {
       return res.status(400).json({ error: 'amount and itemName are required parameters.' });
     }
 
-    const config = getPayfastConfig();
+    const isSandboxParam = req.body.isSandbox !== undefined ? req.body.isSandbox : undefined;
+    const config = getPayfastConfig(isSandboxParam);
     const reqHost = req.headers['x-forwarded-host'] || req.headers.host;
     const reqProto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
     const dynamicOrigin = reqHost ? `${reqProto}://${reqHost}` : null;

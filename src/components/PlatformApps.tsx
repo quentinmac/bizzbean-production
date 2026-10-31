@@ -540,7 +540,7 @@ export const PlatformApps: React.FC<PlatformAppsProps> = ({
         tokensAllocated: app.tokensAllocated,
         billingModel: app.billingModel,
         imageUrl: '',
-        isPurchased: true,
+        isPurchased: app.isPurchased,
         description: app.description,
         subtitle: app.subtitle,
         purpose: app.purpose,

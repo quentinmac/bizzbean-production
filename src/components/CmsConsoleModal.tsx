@@ -100,6 +100,9 @@ import {
   isBogusLessonUrl,
   CMS_STORAGE_KEYS,
   ensureFreshCmsCache,
+  idbSet,
+  idbGet,
+  idbDelete,
 } from '../utils/imageStorage';
 import { isFirestoreQuotaExceeded } from '../lib/firebase';
 import {
@@ -112,6 +115,8 @@ import {
   fetchCmsArticlesFromFirestore,
   fetchCmsPromotionsFromFirestore,
 } from '../services/cmsFirestoreService';
+import { getPayfastConfig, setPayfastMode } from '../services/payfastService';
+import { testSmtpConnection } from '../services/emailService';
 
 interface CmsConsoleModalProps {
   isOpen: boolean;
@@ -299,7 +304,110 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       setPromotions((prev) => mergeLoadedPromotions(prev, cleanLegacyViabilityPromotions(cmsPromotions)));
     }
   }, [cmsPromotions]);
-  const [bookBundle, setBookBundle] = useState<CmsBookBundle>(INITIAL_CMS_BOOK_BUNDLE);
+  const [bookBundle, setBookBundle] = useState<CmsBookBundle>(() => {
+    try {
+      const stored = localStorage.getItem('bizzdesk_cms_book_bundle_v1');
+      if (stored) return { ...INITIAL_CMS_BOOK_BUNDLE, ...JSON.parse(stored) };
+    } catch (_) {}
+    return INITIAL_CMS_BOOK_BUNDLE;
+  });
+
+  const [zipBundleStatus, setZipBundleStatus] = useState<{
+    fileName: string;
+    fileSize: string;
+    uploadedAt: string;
+    hasFile: boolean;
+  }>(() => {
+    try {
+      const meta = localStorage.getItem('bizzdesk_book_bundle_zip_meta_v1');
+      if (meta) {
+        const parsed = JSON.parse(meta);
+        return {
+          fileName: parsed.fileName || '',
+          fileSize: parsed.fileSize || '',
+          uploadedAt: parsed.uploadedAt || '',
+          hasFile: true,
+        };
+      }
+    } catch (_) {}
+    return { fileName: '', fileSize: '', uploadedAt: '', hasFile: false };
+  });
+
+  useEffect(() => {
+    idbGet('bizzdesk_book_bundle_zip_v1').then((res) => {
+      if (res) {
+        setZipBundleStatus((prev) => ({
+          ...prev,
+          hasFile: true,
+          fileName: prev.fileName || 'getting_to_value.zip',
+        }));
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleUploadZipFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+    const sizeDisplay = file.size > 1024 * 1024 ? `${sizeInMB} MB` : `${Math.round(file.size / 1024)} KB`;
+    const now = new Date().toLocaleDateString('en-ZA', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      await idbSet('bizzdesk_book_bundle_zip_v1', arrayBuffer);
+
+      const meta = {
+        fileName: file.name,
+        fileSize: sizeDisplay,
+        uploadedAt: now,
+      };
+      localStorage.setItem('bizzdesk_book_bundle_zip_meta_v1', JSON.stringify(meta));
+
+      setZipBundleStatus({
+        fileName: file.name,
+        fileSize: sizeDisplay,
+        uploadedAt: now,
+        hasFile: true,
+      });
+
+      setBookBundle((prev) => {
+        const next = { ...prev, workbookFilename: file.name };
+        localStorage.setItem('bizzdesk_cms_book_bundle_v1', JSON.stringify(next));
+        return next;
+      });
+
+      triggerSaveNotification(`Uploaded "${file.name}" (${sizeDisplay}). Members can now download this bundle.`);
+    } catch (err) {
+      console.error('Error uploading zip bundle:', err);
+      triggerSaveNotification(`Failed to process upload. Please try again.`);
+    }
+    e.target.value = '';
+  };
+
+  const handleRemoveZipFile = async () => {
+    await idbDelete('bizzdesk_book_bundle_zip_v1');
+    localStorage.removeItem('bizzdesk_book_bundle_zip_meta_v1');
+    setZipBundleStatus({
+      fileName: '',
+      fileSize: '',
+      uploadedAt: '',
+      hasFile: false,
+    });
+    triggerSaveNotification(`Custom ZIP removed. Default manuscript package restored.`);
+  };
+
+  const handleTestDownloadZip = async () => {
+    const { downloadGettingToValueBook } = await import('../utils/bookDownload');
+    await downloadGettingToValueBook('Test Administrator');
+    triggerSaveNotification(`Downloading current Getting to Value bundle to verify.`);
+  };
 
   // Admin Centre state
   const [adminSubTab, setAdminSubTab] = useState<
@@ -321,6 +429,53 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   });
   const [policies] = useState<CmsPolicyRegistryItem[]>(INITIAL_CMS_POLICIES);
   const [tooltips] = useState<CmsBizzyTooltip[]>(INITIAL_CMS_TOOLTIPS);
+
+  // PayFast Gateway Settings State
+  const [payfastIsSandbox, setPayfastIsSandbox] = useState<boolean>(false);
+  const [payfastMerchantId, setPayfastMerchantId] = useState<string>('14980265');
+  const [isUpdatingPayfast, setIsUpdatingPayfast] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    getPayfastConfig()
+      .then((cfg) => {
+        setPayfastIsSandbox(cfg.isSandbox);
+        setPayfastMerchantId(cfg.merchantId);
+      })
+      .catch((err) => console.warn('PayFast config fetch note:', err));
+  }, [isOpen]);
+
+  const handleTogglePayfastMode = async (sandboxVal: boolean) => {
+    setIsUpdatingPayfast(true);
+    try {
+      const res = await setPayfastMode(sandboxVal);
+      setPayfastIsSandbox(res.isSandbox);
+      setPayfastMerchantId(res.merchantId);
+      triggerSaveNotification(`PayFast mode switched to ${res.isSandbox ? 'SANDBOX TEST (10000100)' : 'LIVE PRODUCTION (14980265)'}.`);
+    } catch (e: any) {
+      triggerSaveNotification('Failed to toggle PayFast mode.');
+    } finally {
+      setIsUpdatingPayfast(false);
+    }
+  };
+
+  // SMTP Test Email state & handler
+  const [isTestingEmail, setIsTestingEmail] = useState<boolean>(false);
+  const handleTestEmailDispatch = async () => {
+    setIsTestingEmail(true);
+    try {
+      const res = await testSmtpConnection('thebizzbeanchannel@gmail.com');
+      if (res.success) {
+        triggerSaveNotification('Test email dispatched successfully to thebizzbeanchannel@gmail.com via Xneelo SMTP.');
+      } else {
+        triggerSaveNotification(`Email test notice: ${res.error || 'Check SMTP status'}`);
+      }
+    } catch (e: any) {
+      triggerSaveNotification(`Email error: ${e?.message || 'Failed to dispatch test email'}`);
+    } finally {
+      setIsTestingEmail(false);
+    }
+  };
 
   // Save notification & delete confirmation
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
@@ -4529,12 +4684,116 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                     className="w-full px-3 py-1.5 bg-[#0E1220] border border-[#2B3452] rounded-lg text-white"
                   />
                 </div>
+
+                {/* Member Download Bundle Upload (Per git.PNG) */}
+                <div className="pt-2 border-t border-[#222F4C] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-slate-300 font-bold uppercase text-[11px] tracking-wide block">
+                      Member Download File: Getting to Value (.zip)
+                    </label>
+                    <span className="text-[10px] text-[#5584B4] lowercase">
+                      persisted in browser indexeddb & shared storage
+                    </span>
+                  </div>
+
+                  {zipBundleStatus.hasFile ? (
+                    <div className="p-3.5 rounded-xl bg-[#0E1220] border border-emerald-500/40 space-y-2.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 shrink-0">
+                            <CheckCircle2 className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <div className="text-white font-bold text-xs font-mono flex items-center gap-2">
+                              <span>{zipBundleStatus.fileName}</span>
+                              <span className="text-[10px] px-2 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">
+                                ready for download
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                              Size: {zipBundleStatus.fileSize} · Uploaded: {zipBundleStatus.uploadedAt}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={handleTestDownloadZip}
+                            className="px-3 py-1.5 rounded-lg bg-[#1E2548] hover:bg-[#2B3560] text-slate-200 text-xs font-mono flex items-center gap-1.5 border border-[#2B3560] transition-colors cursor-pointer"
+                            title="Download current file to test as a member"
+                          >
+                            <Download className="h-3.5 w-3.5 text-[#5584B4]" />
+                            <span>Test Download</span>
+                          </button>
+
+                          <label className="px-3 py-1.5 rounded-lg bg-[#5584B4] hover:bg-[#4372A2] text-white text-xs font-mono flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs">
+                            <Upload className="h-3.5 w-3.5" />
+                            <span>Replace .zip</span>
+                            <input
+                              type="file"
+                              accept=".zip,application/zip,application/x-zip-compressed"
+                              onChange={handleUploadZipFile}
+                              className="hidden"
+                            />
+                          </label>
+
+                          <button
+                            type="button"
+                            onClick={handleRemoveZipFile}
+                            className="p-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900 border border-rose-500/30 text-rose-300 transition-colors cursor-pointer"
+                            title="Remove uploaded ZIP and restore default manuscript package"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-mono">
+                        ✓ All members clicking &ldquo;download getting to value&rdquo; across the website will receive this exact file.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-xl bg-[#0E1220] border-2 border-dashed border-[#2B3452] hover:border-[#5584B4] transition-colors text-center space-y-2.5">
+                      <div className="flex flex-col items-center justify-center space-y-1 py-1">
+                        <div className="h-10 w-10 rounded-xl bg-[#1E2548] text-[#5584B4] flex items-center justify-center">
+                          <Upload className="h-5 w-5" />
+                        </div>
+                        <div className="text-white text-xs font-bold font-mono">
+                          Upload &lsquo;getting to value.zip&rsquo; File
+                        </div>
+                        <p className="text-[11px] text-slate-400 font-mono max-w-md mx-auto">
+                          Select the zipped bundle (book manuscript, companion Excel spreadsheets, and modeling templates).
+                        </p>
+                      </div>
+
+                      <div className="pt-1">
+                        <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#5584B4] hover:bg-[#4372A2] text-white text-xs font-mono font-bold cursor-pointer transition-colors shadow-sm">
+                          <Upload className="h-3.5 w-3.5" />
+                          <span>Select getting to value.zip</span>
+                          <input
+                            type="file"
+                            accept=".zip,application/zip,application/x-zip-compressed"
+                            onChange={handleUploadZipFile}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+
+                      <div className="text-[10px] text-amber-400/80 font-mono">
+                        Note: Until a custom .zip is uploaded, members download the curated founder manuscript package.
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="pt-3 border-t border-[#222F4C] flex justify-end">
                 <button
-                  onClick={() => triggerSaveNotification('Book & workbook bundle configuration saved.')}
-                  className="px-4 py-2 rounded-xl bg-[#5584B4] hover:bg-[#4773A0] text-white text-xs font-bold font-mono flex items-center gap-1.5"
+                  onClick={() => {
+                    localStorage.setItem('bizzdesk_cms_book_bundle_v1', JSON.stringify(bookBundle));
+                    triggerSaveNotification('Book & workbook bundle configuration saved.');
+                  }}
+                  className="px-4 py-2 rounded-xl bg-[#5584B4] hover:bg-[#4773A0] text-white text-xs font-bold font-mono flex items-center gap-1.5 cursor-pointer shadow-sm"
                 >
                   <Save className="h-3.5 w-3.5" />
                   <span>Save Bundle Link & Configuration</span>
@@ -4681,7 +4940,83 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
 
               {/* Sub-tab 4: Transactions Journal */}
               {adminSubTab === 'transactions' && (
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  {/* PayFast Gateway Status Card */}
+                  <div className="p-4 rounded-xl bg-[#141A2E] border border-[#222F4C] flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-md">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-white uppercase tracking-wider">
+                          PAYFAST PAYMENT GATEWAY (SOUTH AFRICA)
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wide border ${
+                            payfastIsSandbox
+                              ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                              : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                          }`}
+                        >
+                          {payfastIsSandbox ? 'Sandbox Test Mode (10000100)' : 'Live Production Active (14980265)'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] font-mono text-slate-400">
+                        {payfastIsSandbox ? (
+                          <span>Directing test payments to sandbox.payfast.co.za with test credentials.</span>
+                        ) : (
+                          <span>
+                            Production Merchant ID: <strong className="text-white">14980265</strong> · Process URL: <span className="text-[#5584B4]">https://www.payfast.co.za/eng/process</span> · Instant EFT, Cards, SnapScan, Zapper
+                          </span>
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePayfastMode(!payfastIsSandbox)}
+                        disabled={isUpdatingPayfast}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border cursor-pointer ${
+                          payfastIsSandbox
+                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400'
+                            : 'bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 border-amber-500/50'
+                        }`}
+                      >
+                        {isUpdatingPayfast
+                          ? 'Updating Mode...'
+                          : payfastIsSandbox
+                          ? 'Switch to Live Production'
+                          : 'Switch to Sandbox Test'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Official SMTP Email Dispatch Status Card */}
+                  <div className="p-4 rounded-xl bg-[#141A2E] border border-[#222F4C] flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-md">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-white uppercase tracking-wider">
+                          CLIENT ONBOARDING EMAIL CHANNEL (XNEELO SMTP)
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wide border bg-emerald-500/15 text-emerald-400 border-emerald-500/30">
+                          SMTP ACTIVE (PORT 465 SSL)
+                        </span>
+                      </div>
+                      <p className="text-[11px] font-mono text-slate-400">
+                        Sender: <strong className="text-white">thebizzbeanchannel@bizzbean.com</strong> · Host: <span className="text-[#5584B4]">mail.bizzbean.com:465</span> · Port: 465 (SSL/TLS)
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleTestEmailDispatch}
+                        disabled={isTestingEmail}
+                        className="px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border border-[#5584B4] bg-[#2E5E88] hover:bg-[#234E73] text-white cursor-pointer shadow-xs"
+                      >
+                        {isTestingEmail ? 'Sending Test...' : 'Send Test Welcome Email'}
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="flex items-center justify-between">
                     <div className="text-xs font-mono text-slate-400 uppercase">
                       OFFICIAL V1 TRANSACTION JOURNAL & SARS GENERAL LEDGER

@@ -141,7 +141,7 @@ export const CategoryCarousel: React.FC<CategoryCarouselProps> = ({
                   c === 'amber' ? 'bg-amber-400' :
                   c === 'rose' ? 'bg-rose-400' : 'bg-purple-400'
                 }`}
-              />
+              ></button>
             ))}
           </div>
           <button
