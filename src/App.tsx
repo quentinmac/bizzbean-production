@@ -50,7 +50,7 @@ import {
 } from './services/cmsFirestoreService';
 import { BIZZ_SOLUTIONS, INITIAL_DIALOGUE_MESSAGES, INITIAL_LIBRARY_ITEMS } from './data/bizzdeskData';
 import { BizzSolution, DialogueMessage, LibraryItem, UserBusinessProfile } from './types';
-import { listenToAuthChanges, signOutUser, determineUserRole } from './services/firebaseAuthService';
+import { listenToAuthChanges, signOutUser, determineUserRole, resolveDisplayName } from './services/firebaseAuthService';
 import { SandboxWelcomeLetter } from './components/SandboxWelcomeLetter';
 import { ProductCheckoutModal } from './components/ProductCheckoutModal';
 import { downloadGettingToValueBook } from './utils/bookDownload';
@@ -130,21 +130,74 @@ export default function App() {
     }
   }, [theme]);
 
+  // Per-user purchased solution IDs (courses and apps)
+  const [userPurchases, setUserPurchases] = useState<string[]>(() => {
+    try {
+      const email = typeof window !== 'undefined' ? (localStorage.getItem('bizzbean_last_login_email') || '').toLowerCase().trim() : '';
+      if (email) {
+        const stored = localStorage.getItem(`bizz_user_purchases_${email}`);
+        if (stored) {
+          return JSON.parse(stored);
+        }
+        if (email.includes('quentin')) {
+          return ['cost-recovery-calculator', 'cost_rec', 'cost-recovery'];
+        }
+      }
+    } catch {}
+    return [];
+  });
+
+  // Sync userPurchases whenever userEmail changes
+  useEffect(() => {
+    const cleanEmail = (userEmail || '').trim().toLowerCase();
+    if (!cleanEmail) return;
+    try {
+      const stored = localStorage.getItem(`bizz_user_purchases_${cleanEmail}`);
+      if (stored) {
+        setUserPurchases(JSON.parse(stored));
+      } else if (cleanEmail.includes('quentin')) {
+        const initial = ['cost-recovery-calculator', 'cost_rec', 'cost-recovery'];
+        setUserPurchases(initial);
+        localStorage.setItem(`bizz_user_purchases_${cleanEmail}`, JSON.stringify(initial));
+      } else {
+        setUserPurchases([]);
+        localStorage.setItem(`bizz_user_purchases_${cleanEmail}`, JSON.stringify([]));
+      }
+    } catch {}
+  }, [userEmail]);
+
+  const markProductPurchasedForUser = useCallback((prodId: string) => {
+    const cleanId = prodId.toLowerCase().trim();
+    const canonId = getCanonicalCourseId(cleanId) || cleanId;
+    const cleanEmail = (userEmail || (typeof window !== 'undefined' ? localStorage.getItem('bizzbean_last_login_email') || '' : '')).toLowerCase().trim();
+
+    setUserPurchases((prev) => {
+      const updated = Array.from(new Set([...prev, cleanId, canonId]));
+      if (cleanEmail) {
+        try {
+          localStorage.setItem(`bizz_user_purchases_${cleanEmail}`, JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
+  }, [userEmail]);
+
   // Firebase Auth state listener
   useEffect(() => {
     const unsubscribe = listenToAuthChanges((fbUser) => {
       if (fbUser) {
-        setUserEmail(fbUser.email || '');
+        const cleanEmail = (fbUser.email || '').trim();
+        setUserEmail(cleanEmail);
         setIsMember(true);
         try {
           localStorage.setItem('bizz_is_member', 'true');
         } catch (e) {}
-        if (fbUser.displayName) {
-          setUserProfile((prev) => ({
-            ...prev,
-            founderName: fbUser.displayName || prev.founderName,
-          }));
-        }
+        const resolvedName = resolveDisplayName(cleanEmail, fbUser.displayName);
+        setUserProfile((prev) => ({
+          ...prev,
+          founderName: resolvedName,
+          email: cleanEmail,
+        }));
       }
     });
     return () => unsubscribe();
@@ -175,18 +228,7 @@ export default function App() {
           const parts = pfPaymentId.split('_');
           const targetProdId = parts[1];
           if (targetProdId) {
-            setCmsProducts((prev) => {
-              const updated = prev.map((p) => {
-                const match =
-                  p.id === targetProdId ||
-                  (targetProdId === 'bizzbudget' && p.id === 'budget') ||
-                  (targetProdId === 'budget' && p.id === 'bizzbudget');
-                return match ? { ...p, isPurchased: true } : p;
-              });
-              safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, updated);
-              saveCmsProductsToFirestore(updated).catch(() => {});
-              return updated;
-            });
+            markProductPurchasedForUser(targetProdId);
 
             // Credit 20% tokens
             const earnedTokens = 45.8;
@@ -712,71 +754,88 @@ export default function App() {
         initialMatch?.canonicalCoverUrl?.trim() ||
         '';
 
+      const id = matchingCms.id || '';
+      const canon = getCanonicalCourseId(id) || id;
+      const effectiveIsPurchased =
+        matchingCms.sellingPriceZAR === 0 ||
+        ['learn-earn-capital', 'how-to-bizzcalc', 'follow-the-money'].includes(id) ||
+        userPurchases.includes(id) ||
+        userPurchases.includes(canon);
+
       return {
-        id: matchingCms.id === 'budget' ? 'bizzbudget' : matchingCms.id,
-        category: (matchingCms.stage === 'operations' ? 'operations' : matchingCms.stage === 'growth' ? 'growth' : 'startup') as any,
-        stage: matchingCms.stage,
-        name: isViabilityCourse ? 'learn how to earn access to capital' : matchingCms.name,
-        subtitle: isViabilityCourse ? 'earn access to capital' : matchingCms.subtitle,
-        stageCode:
-          matchingCms.stage === 'vi-ability'
-            ? 'STAGE 01'
-            : matchingCms.stage === 'fund-ability'
-            ? 'STAGE 02'
-            : matchingCms.stage === 'sustain-ability'
-            ? 'STAGE 03'
-            : matchingCms.stage === 'invest-ability'
-            ? 'STAGE 04'
-            : matchingCms.stage.toUpperCase(),
-        description: isViabilityCourse
-          ? 'This free course will teach you how to earn access to capital.'
-          : matchingCms.description,
-        purpose: isViabilityCourse
-          ? 'This free course will teach you how to earn access to capital.'
-          : matchingCms.purpose,
-        priceUSD: isViabilityCourse ? 0 : Math.round(matchingCms.sellingPriceZAR / 18.5),
-        priceZAR: isViabilityCourse ? 0 : matchingCms.sellingPriceZAR,
-        vatRate: 0.15,
-        tokensAllocated: isViabilityCourse ? 0 : matchingCms.tokensAllocated,
-        billingModel: matchingCms.billingModel,
-        imageUrl: effectiveCover,
-        explainerDuration: '3:00',
-        isPurchased: matchingCms.isPurchased,
-        features: matchingCms.modules || matchingCms.lessonTitles || [],
-      };
-    }
-    const isStageContainer = ['vi-ability', 'fund-ability', 'sustain-ability', 'invest-ability', 'personal-sandbox', 'operations', 'growth', 'operations-sandbox'].includes(activeSolutionId);
-    if (!effectiveSolId && isStageContainer) {
-      return {
-        id: activeSolutionId,
-        category: 'startup' as any,
-        stage: activeSolutionId as any,
-        name: `${activeSolutionId.replace('-', ' ')} (in preparation)`,
-        subtitle: 'this stage is in preparation · allocate solutions via cms console',
-        stageCode: activeSolutionId.toUpperCase(),
-        description: 'No active solutions currently allocated to this stage.',
-        purpose: 'No active solutions currently allocated to this stage.',
-        priceUSD: 0,
-        priceZAR: 0,
-        vatRate: 0.15,
-        tokensAllocated: 0,
-        billingModel: 'once-off' as any,
-        imageUrl: '',
-        explainerDuration: '0:00',
-        isPurchased: false,
-        features: [],
-      };
-    }
-    return (
-      BIZZ_SOLUTIONS.find(
+          id: matchingCms.id,
+          category: (matchingCms.stage === 'operations' ? 'operations' : 'startup') as any,
+          stage: matchingCms.stage as any,
+          name: matchingCms.name,
+          subtitle: matchingCms.subtitle || '',
+          stageCode:
+            matchingCms.stage === 'fund-ability'
+              ? 'STAGE 02'
+              : matchingCms.stage === 'sustain-ability'
+              ? 'STAGE 03'
+              : matchingCms.stage === 'invest-ability'
+              ? 'STAGE 04'
+              : matchingCms.stage.toUpperCase(),
+          description: isViabilityCourse
+            ? 'This free course will teach you how to earn access to capital.'
+            : matchingCms.description,
+          purpose: isViabilityCourse
+            ? 'This free course will teach you how to earn access to capital.'
+            : matchingCms.purpose,
+          priceUSD: isViabilityCourse ? 0 : Math.round(matchingCms.sellingPriceZAR / 18.5),
+          priceZAR: isViabilityCourse ? 0 : matchingCms.sellingPriceZAR,
+          vatRate: 0.15,
+          tokensAllocated: isViabilityCourse ? 0 : matchingCms.tokensAllocated,
+          billingModel: matchingCms.billingModel,
+          imageUrl: effectiveCover,
+          explainerDuration: '3:00',
+          isPurchased: effectiveIsPurchased,
+          features: matchingCms.modules || matchingCms.lessonTitles || [],
+        };
+      }
+      const isStageContainer = ['vi-ability', 'fund-ability', 'sustain-ability', 'invest-ability', 'personal-sandbox', 'operations', 'growth', 'operations-sandbox'].includes(activeSolutionId);
+      if (!effectiveSolId && isStageContainer) {
+        return {
+          id: activeSolutionId,
+          category: 'startup' as any,
+          stage: activeSolutionId as any,
+          name: `${activeSolutionId.replace('-', ' ')} (in preparation)`,
+          subtitle: 'this stage is in preparation · allocate solutions via cms console',
+          stageCode: activeSolutionId.toUpperCase(),
+          description: 'No active solutions currently allocated to this stage.',
+          purpose: 'No active solutions currently allocated to this stage.',
+          priceUSD: 0,
+          priceZAR: 0,
+          vatRate: 0.15,
+          tokensAllocated: 0,
+          billingModel: 'once-off' as any,
+          imageUrl: '',
+          explainerDuration: '0:00',
+          isPurchased: false,
+          features: [],
+        };
+      }
+      const foundBizzSol = BIZZ_SOLUTIONS.find(
         (s) =>
           s.id === effectiveSolId ||
           s.id === activeSolutionId ||
           (effectiveSolId === 'budget' && s.id === 'bizzbudget') ||
           (effectiveSolId === 'bizzbudget' && (s.id === 'bizzbudget' || s.id === 'budget'))
-      ) || BIZZ_SOLUTIONS[0]
-    );
-  }, [activeSolutionId, cmsProducts]);
+      ) || BIZZ_SOLUTIONS[0];
+
+      const solId = foundBizzSol.id || '';
+      const solCanon = getCanonicalCourseId(solId) || solId;
+      const isOwned =
+        foundBizzSol.priceZAR === 0 ||
+        ['learn-earn-capital', 'how-to-bizzcalc', 'follow-the-money'].includes(solId) ||
+        userPurchases.includes(solId) ||
+        userPurchases.includes(solCanon);
+
+      return {
+        ...foundBizzSol,
+        isPurchased: isOwned,
+      };
+    }, [activeSolutionId, cmsProducts, userPurchases]);
 
   // Triggered the instant the sliding doors start opening to immediately randomize the HERO PROMOTION image
   const handleTriggerDoorOpening = useCallback((): CmsPromotionSection | null => {
@@ -860,13 +919,28 @@ export default function App() {
   const handleEnterWorkspace = (
     asMember: boolean,
     email?: string,
-    preSelectedPromo?: CmsPromotionSection | null
+    preSelectedPromo?: CmsPromotionSection | null,
+    userName?: string
   ) => {
     setIsMember(asMember);
     try {
       localStorage.setItem('bizz_is_member', asMember ? 'true' : 'false');
     } catch (e) {}
     if (email) setUserEmail(email);
+    if (userName) {
+      setUserProfile((prev) => ({
+        ...prev,
+        founderName: userName,
+        email: email || prev.email,
+      }));
+    } else if (email) {
+      const resolved = resolveDisplayName(email);
+      setUserProfile((prev) => ({
+        ...prev,
+        founderName: resolved,
+        email: email,
+      }));
+    }
 
     // On opening doors, present a random active HERO PROMOTION image from user-loaded promotions
     let currentPromos = cmsPromotions;
@@ -1215,19 +1289,8 @@ export default function App() {
 
   // Instant Grant Handler (called when bypassing or granting offline in simulator)
   const handleInstantGrant = (sol: any) => {
-    sol.isPurchased = true;
+    markProductPurchasedForUser(sol.id);
     const earnedTokens = sol.tokensAllocated || Math.round(((sol.sellingPriceZAR || sol.priceZAR || 0) * 0.2));
-
-    setCmsProducts((prev) => {
-      const updated = prev.map((p) =>
-        p.id === sol.id || (sol.id === 'bizzbudget' && p.id === 'budget') || (sol.id === 'budget' && p.id === 'bizzbudget')
-          ? { ...p, isPurchased: true }
-          : p
-      );
-      safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, updated);
-      saveCmsProductsToFirestore(updated).catch(() => {});
-      return updated;
-    });
 
     setTokenBalance((prev) => {
       const newBal = prev + earnedTokens;
@@ -1261,7 +1324,16 @@ export default function App() {
 
   // Buy solution: Opens PayFast checkout modal if unowned, or launches if already owned
   const handleBuySolution = (sol: BizzSolution, targetView?: 'active-app' | 'flashcard') => {
-    if (sol.isPurchased) {
+    const id = sol.id || '';
+    const canon = getCanonicalCourseId(id) || id;
+    const price = sol.priceZAR ?? 0;
+    const isOwned =
+      price === 0 ||
+      ['learn-earn-capital', 'how-to-bizzcalc', 'follow-the-money'].includes(id) ||
+      userPurchases.includes(id) ||
+      userPurchases.includes(canon);
+
+    if (isOwned) {
       setActiveSolutionId(sol.id === 'budget' ? 'bizzbudget' : sol.id);
       if (targetView) {
         setActiveView(targetView);
@@ -1619,6 +1691,7 @@ export default function App() {
                   adminInitialTab={adminInitialTab}
                   isMember={isMember}
                   isAdmin={isAdmin}
+                  userPurchases={userPurchases}
                   tokenBalance={tokenBalance}
                   quickLinkIds={quickLinkIds}
                   userProfile={userProfile}

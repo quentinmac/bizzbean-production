@@ -166,7 +166,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     tokensAllocated: 45.8,
     imageUrl: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '3:00',
-    isPurchased: true,
+    isPurchased: false,
     features: [
       'Overhead Reclaim Rate Matrix',
       'Fixed Expenditures Ledger Modeler',
@@ -214,7 +214,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     tokensAllocated: 69.8,
     imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '3:30',
-    isPurchased: true,
+    isPurchased: false,
     features: [
       'Dynamic 5-Year Horizon Rate Adjustment Tool',
       'Voice Prompt Enabled Monthly Scheduling',
@@ -240,7 +240,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     tokensAllocated: 112.0,
     imageUrl: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '4:00',
-    isPurchased: true,
+    isPurchased: false,
     features: [
       '36-Month 3-Statement Forecast Engine',
       'ARR Multiple & DCF Valuation Bridge',
@@ -283,7 +283,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     tokensAllocated: 45.8,
     imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '3:30',
-    isPurchased: true,
+    isPurchased: false,
     features: [
       '1 - INTRODUCTION',
       '2 - PRODUCTION CALCULATOR',
@@ -329,7 +329,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     tokensAllocated: 60.0,
     imageUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '3:00',
-    isPurchased: true,
+    isPurchased: false,
     features: ['1 - 3-STATEMENT RECONCILIATION', '2 - EBITDA VS FREE CASH FLOW', '3 - BALANCE SHEET STRESS TEST'],
     integrationNote: 'Audit-proof reconciliation framework.',
   },
@@ -392,7 +392,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     tokensAllocated: 60.0,
     imageUrl: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '3:00',
-    isPurchased: true,
+    isPurchased: false,
     features: [
       '1 - BASE, BULL & BEAR SCENARIO MATRIX',
       '2 - RUNWAY ALARM & WORKING CAPITAL DRIFT',
@@ -415,7 +415,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     tokensAllocated: 60.0,
     imageUrl: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '3:00',
-    isPurchased: true,
+    isPurchased: false,
     features: [
       '1 - ANNUAL OPERATING CADENCE & MILESTONES',
       '2 - DEPARTMENTAL BUDGET RECONCILIATION',
@@ -463,7 +463,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     billingModel: 'monthly subscription',
     imageUrl: 'https://images.unsplash.com/photo-1556742049-0a67c5574f73?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '3:30',
-    isPurchased: true,
+    isPurchased: false,
     features: [
       '62-Account General Ledger',
       'Voice-to-Transaction Input',
@@ -535,7 +535,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     tokensAllocated: 40.0,
     imageUrl: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '2:30',
-    isPurchased: true,
+    isPurchased: false,
     features: ['1 - FULLY BURDENED LABOR RATE', '2 - HIRING REVENUE MULTIPLE', '3 - EMPLOYEE CONTRIBUTION QUOTA'],
     integrationNote: 'Hiring economics masterclass.',
   },
@@ -653,7 +653,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     tokensAllocated: 80,
     imageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '2:15',
-    isPurchased: true,
+    isPurchased: false,
     features: [
       '4K Step-by-Step Financial Modeling Lessons',
       'Full Synchronized Searchable Transcripts for GEO/AI',
@@ -678,7 +678,7 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     tokensAllocated: 50,
     imageUrl: 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=1200&q=80',
     explainerDuration: '2:00',
-    isPurchased: true,
+    isPurchased: false,
     features: [
       'Schema.org Structured Knowledge Articles',
       'The 4-Stage Venture Maturity Spectrum Analysis',

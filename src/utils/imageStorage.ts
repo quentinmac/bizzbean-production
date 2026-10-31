@@ -236,7 +236,7 @@ export function ensureFreshCmsCache(): void {
   try {
     if (typeof localStorage === 'undefined') return;
     const currentVersion = localStorage.getItem('bizzdesk_cms_cache_version');
-    if (currentVersion !== 'v7') {
+    if (currentVersion !== 'v8') {
       const keysToPurge = [
         'bizzdesk_cms_products_v1',
         'bizzdesk_cms_promotions_v1',
@@ -249,12 +249,14 @@ export function ensureFreshCmsCache(): void {
         'bizzdesk_cms_articles_v2',
         'bizzdesk_cms_videos_v2',
         'bizzdesk_cms_products_v3',
+        CMS_STORAGE_KEYS.PRODUCTS,
       ];
       keysToPurge.forEach((k) => {
         try {
           localStorage.removeItem(k);
         } catch (_) {}
       });
+      localStorage.setItem('bizzdesk_cms_cache_version', 'v8');
 
       // Clear any accidental deletion blocks on essential courses (How to Use bizzcalc and Cost Recovery Calculator)
       const deletedRaw = localStorage.getItem(DELETED_PRODUCTS_KEY);
@@ -1007,6 +1009,7 @@ export function cleanLegacyProducts(products: CmsProduct[]): CmsProduct[] {
       courseLessons: courseLessons ? courseLessons.map((l) => ({ ...l })) : [],
       syllabusLessonsCount: syllabusLessonsCount || (courseLessons ? courseLessons.length : 0),
       lessonTitles: lessonTitles || (courseLessons ? courseLessons.map((l) => l.name) : []),
+      isPurchased: effectiveSellingPrice === 0 || p.id === 'learn-earn-capital' || p.id === 'how-to-bizzcalc' || p.id === 'follow-the-money',
     };
   });
 

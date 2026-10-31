@@ -70,6 +70,7 @@ interface WorkAreaProps {
   onBackToWorkstation?: () => void;
   adminInitialTab?: 'transactions' | 'dialogue-centre' | 'bulk-imports' | 'promo-emails' | 'cms-console' | 'about-bizzbean';
   onOpenTalkToUs?: () => void;
+  userPurchases?: string[];
 }
 
 export const WorkArea: React.FC<WorkAreaProps> = ({
@@ -78,6 +79,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
   activeView,
   isMember,
   isAdmin = false,
+  userPurchases = [],
   tokenBalance,
   quickLinkIds,
   userProfile,
@@ -1308,6 +1310,27 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
       return (a.seq || 0) - (b.seq || 0);
     });
 
+  // Helper to determine whether a product/course is owned by the current user
+  const checkIsPurchased = (p: any): boolean => {
+    if (!p) return false;
+    const price = p.sellingPriceZAR !== undefined ? p.sellingPriceZAR : (p.priceZAR ?? 0);
+    if (price === 0) return true;
+    const id = (p.id || '').trim();
+    if (['learn-earn-capital', 'how-to-bizzcalc', 'follow-the-money'].includes(id)) return true;
+    const canon = getCanonicalCourseId(id) || id;
+    const name = (p.name || '').toLowerCase().trim();
+    return (
+      (userPurchases || []).includes(id) ||
+      (userPurchases || []).includes(canon) ||
+      (userPurchases || []).some(
+        (up) =>
+          up.toLowerCase() === id.toLowerCase() ||
+          up.toLowerCase() === canon.toLowerCase() ||
+          (name && up.toLowerCase() === name)
+      )
+    );
+  };
+
   // Fallback solutions strictly restricted to the current stage or all public solutions if personal-sandbox
   const fallbackStageSolutions = BIZZ_SOLUTIONS.filter(
     (s: BizzSolution) => {
@@ -1343,7 +1366,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
       name: s.name,
       sku: `BA-00${idx + 1}`,
       type: 'solution' as const,
-      isPurchased: s.isPurchased || false,
+      isPurchased: checkIsPurchased(s),
       billingModel: s.billingModel || 'once-off',
       exclusivePriceZAR: excl,
       vatZAR: vat,
@@ -1828,9 +1851,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
             const isMonthlySubscription = hasStageProducts &&
               ((matchingCms?.billingModel || currentProd?.billingModel || activeSolution?.billingModel) === 'monthly subscription');
 
-            const isPurchased = hasStageProducts
-              ? Boolean(matchingCms?.isPurchased ?? currentProd?.isPurchased ?? activeSolution?.isPurchased)
-              : true;
+            const isPurchased = checkIsPurchased(matchingCms || currentProd || activeSolution);
 
             const isCourse =
               matchingCms?.type === 'course' ||
@@ -2379,7 +2400,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                           <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase">{p.sku} · {p.type}</div>
                         </td>
                         <td className="py-2.5 px-3 text-center">
-                          {p.isPurchased ? (
+                          {checkIsPurchased(p) ? (
                             <span className="px-2 py-0.5 rounded text-[10px] bg-[#DDEBF7] text-[#24496B] dark:bg-[#1E3048] dark:text-[#DDEBF7] font-semibold lowercase">
                               yes
                             </span>

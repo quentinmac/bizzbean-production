@@ -77,6 +77,72 @@ export function determineUserRole(email: string | null | undefined): 'admin' | '
 }
 
 /**
+ * Intelligently resolve a clean display name from email or profile data
+ */
+export function resolveDisplayName(
+  email: string | null | undefined, 
+  currentDisplayName?: string | null
+): string {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const trimmedName = (currentDisplayName || '').trim();
+
+  const genericPlaceholders = [
+    'bizzbean member',
+    'bizzbean sandbox member',
+    'new entrepreneur',
+    'entrepreneur',
+    'verified member',
+    'guest explorer',
+    'admin',
+  ];
+
+  if (trimmedName && !genericPlaceholders.includes(trimmedName.toLowerCase())) {
+    return trimmedName;
+  }
+
+  // Check saved profile in localStorage
+  if (typeof window !== 'undefined') {
+    try {
+      const storedProfiles = localStorage.getItem('bizzbean_client_profiles');
+      if (storedProfiles) {
+        const parsed = JSON.parse(storedProfiles);
+        if (Array.isArray(parsed)) {
+          const match = parsed.find((p: any) => p.email && p.email.toLowerCase() === cleanEmail);
+          if (match && match.name && !genericPlaceholders.includes(match.name.toLowerCase())) {
+            return match.name;
+          }
+        }
+      }
+      const lastRegName = localStorage.getItem('bizzbean_registered_name_' + cleanEmail);
+      if (lastRegName && !genericPlaceholders.includes(lastRegName.toLowerCase())) {
+        return lastRegName;
+      }
+    } catch {}
+  }
+
+  // Known account holders
+  if (cleanEmail.includes('quentin')) {
+    return 'Quentin McCullough';
+  }
+  if (cleanEmail.includes('carol')) {
+    return 'Carol McCullough';
+  }
+
+  // Derive from email prefix (e.g. carol.mccullough@... -> Carol McCullough)
+  if (cleanEmail.includes('@')) {
+    const prefix = cleanEmail.split('@')[0];
+    const parts = prefix.split(/[._-]/).filter(Boolean);
+    if (parts.length > 0) {
+      return parts
+        .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+        .join(' ');
+    }
+  }
+
+  return 'Entrepreneur';
+}
+
+/**
  * Sign in using Firebase Authentication
  * Automatically handles uncreated accounts by provisioning them seamlessly if needed.
  */
@@ -95,8 +161,7 @@ export async function signInUser(email: string, password: string): Promise<{ use
         try {
           const newCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
           fbUser = newCredential.user;
-          const assignedRole = determineUserRole(fbUser.email);
-          const defaultName = assignedRole === 'admin' ? 'Quentin McCullough' : 'BizzBean Member';
+          const defaultName = resolveDisplayName(cleanEmail);
           await updateProfile(fbUser, { displayName: defaultName });
         } catch (createErr: any) {
           if (createErr?.code === 'auth/email-already-in-use') {
@@ -117,46 +182,24 @@ export async function signInUser(email: string, password: string): Promise<{ use
   }
 
   const role = determineUserRole(fbUser.email);
+  const resolvedName = resolveDisplayName(fbUser.email, fbUser.displayName);
+
+  // If current displayName is generic or missing, update Firebase profile in background
+  if (!fbUser.displayName || fbUser.displayName === 'BizzBean Member' || fbUser.displayName === 'New Entrepreneur') {
+    try {
+      updateProfile(fbUser, { displayName: resolvedName }).catch(() => {});
+    } catch {}
+  }
 
   const profile: AuthProfileData = {
     uid: fbUser.uid,
     email: fbUser.email || email.trim(),
-    name: fbUser.displayName || (role === 'admin' ? 'Quentin McCullough' : 'BizzBean Member'),
+    name: resolvedName,
     role: role,
     isPro: true,
-    purchasedApps: role === 'admin' 
-      ? [
-          'bizzcalc',
-          'bizzdynamics',
-          'bizzmodel',
-          'bizzplan',
-          'bizzcalculators',
-          'hl_forecast',
-          'buy_up_hi_level_forecast',
-          'buy_up_bizzdynamics',
-          'buy_up_bizzmodel',
-          'bizzbudget',
-          'bizzoptimizer',
-          'bizzvaluation',
-          'bizzbot',
-          'bizzy'
-        ]
-      : [],
+    purchasedApps: [],
     purchasedCourses: role === 'admin' 
-      ? [
-          'access_cap',
-          'use_bizzcalc',
-          'cost_rec',
-          'annual_cycle',
-          'fin_rep',
-          'first_hire',
-          'raise_cap',
-          'lead_turn',
-          'sustain_biz',
-          'val_bus',
-          'equity_split',
-          'follow_money'
-        ] 
+      ? ['cost-recovery-calculator', 'cost_rec', 'cost-recovery'] 
       : [],
     googleWalletAllocation: 15,
     googleWalletBalance: role === 'admin' ? 325.50 : 25.00,
@@ -210,7 +253,7 @@ export async function registerUser(
   const fbUser = userCredential.user;
 
   const role = determineUserRole(fbUser.email);
-  const finalName = displayName?.trim() || (role === 'admin' ? 'Quentin McCullough' : 'New Entrepreneur');
+  const finalName = resolveDisplayName(fbUser.email, displayName);
 
   try {
     await updateProfile(fbUser, { displayName: finalName });
@@ -222,12 +265,8 @@ export async function registerUser(
     name: finalName,
     role: role,
     isPro: true,
-    purchasedApps: role === 'admin' 
-      ? ['bizzcalc', 'bizzdynamics', 'bizzmodel', 'bizzplan', 'bizzcalculators']
-      : [],
-    purchasedCourses: role === 'admin' 
-      ? ['access_cap', 'use_bizzcalc', 'cost_rec', 'annual_cycle', 'fin_rep', 'first_hire']
-      : [],
+    purchasedApps: [],
+    purchasedCourses: [],
     googleWalletAllocation: 15,
     googleWalletBalance: role === 'admin' ? 325.50 : 25.00,
     tokens: role === 'admin' ? 15000 : 500,

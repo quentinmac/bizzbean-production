@@ -22,6 +22,7 @@ import {
   sendPasswordReset, 
   formatAuthErrorMessage, 
   determineUserRole,
+  resolveDisplayName,
   AuthProfileData
 } from '../services/firebaseAuthService';
 import SandboxWelcomeLetter from './SandboxWelcomeLetter';
@@ -370,29 +371,16 @@ Welcome to the bizzbean Sandbox environment!
 
   const handleContinueAsSandboxUser = () => {
     const role = determineUserRole(loginEmail);
+    const resolvedName = resolveDisplayName(loginEmail);
     const profile: AuthProfileData = {
       uid: 'sandbox_' + Date.now(),
       email: loginEmail.trim() || 'founder@bizzbean.com',
-      name: role === 'admin' ? 'Quentin McCullough' : 'BizzBean Sandbox Member',
+      name: resolvedName,
       role: role,
       isPro: true,
-      purchasedApps: role === 'admin'
-        ? [
-            'bizzcalc',
-            'bizzdynamics',
-            'bizzmodel',
-            'bizzplan',
-            'bizzcalculators',
-            'hl_forecast',
-            'bizzbudget',
-            'bizzoptimizer',
-            'bizzvaluation',
-            'bizzbot',
-            'bizzy'
-          ]
-        : [],
+      purchasedApps: [],
       purchasedCourses: role === 'admin'
-        ? ['access_cap', 'use_bizzcalc', 'cost_rec', 'annual_cycle', 'fin_rep', 'first_hire']
+        ? ['cost-recovery-calculator', 'cost_rec', 'cost-recovery']
         : [],
       googleWalletAllocation: 15,
       googleWalletBalance: role === 'admin' ? 325.50 : 25.00,
@@ -419,8 +407,7 @@ Welcome to the bizzbean Sandbox environment!
     addLog(`Creating new Firebase user account for: ${loginEmail.trim()}...`);
 
     try {
-      const role = determineUserRole(loginEmail);
-      const defaultName = role === 'admin' ? 'Quentin McCullough' : 'BizzBean Member';
+      const defaultName = resolveDisplayName(loginEmail);
       const { user: fbUser, profile } = await registerUser(loginEmail.trim(), loginPassword, defaultName);
       localStorage.setItem('bizzbean_last_login_email', loginEmail.trim());
 

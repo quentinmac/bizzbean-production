@@ -5,9 +5,10 @@ import { CmsPromotionSection } from '../data/cmsConsoleData';
 import { CMS_STORAGE_KEYS } from '../utils/imageStorage';
 import AuthGateway from './AuthGateway';
 import { sendWelcomeEmail } from '../services/emailService';
+import { resolveDisplayName } from '../services/firebaseAuthService';
 
 interface SplashOfficeDoorsProps {
-  onEnterWorkspace: (isMember: boolean, userEmail?: string, chosenPromotion?: CmsPromotionSection | null) => void;
+  onEnterWorkspace: (isMember: boolean, userEmail?: string, chosenPromotion?: CmsPromotionSection | null, userName?: string) => void;
   onOpenAboutModal: () => void;
   activePromotion?: CmsPromotionSection | null;
   cmsPromotions?: CmsPromotionSection[];
@@ -81,7 +82,7 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
     return (activePromotion && activePromotion.isActive !== false) ? activePromotion : null;
   };
 
-  const handleTriggerEnter = (asMember: boolean, customEmail?: string) => {
+  const handleTriggerEnter = (asMember: boolean, customEmail?: string, customName?: string) => {
     // 1. Immediately present a random HERO PROMOTION image when doors open (only if active)
     const chosen = pickRandomPromo();
     if (chosen && chosen.isActive !== false) {
@@ -94,14 +95,15 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
 
     // Executive gravitas door opening duration (2200ms)
     setTimeout(() => {
-      onEnterWorkspace(asMember, customEmail || (asMember ? emailInput : undefined), chosen);
+      onEnterWorkspace(asMember, customEmail || (asMember ? emailInput : undefined), chosen, customName);
     }, 2200);
   };
 
   const handleSignInSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!emailInput.trim()) return;
-    handleTriggerEnter(true, emailInput.trim());
+    const resolved = resolveDisplayName(emailInput.trim());
+    handleTriggerEnter(true, emailInput.trim(), resolved);
   };
 
   const handleSignUpSubmit = (e: React.FormEvent) => {
@@ -404,14 +406,15 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
           <AuthGateway
             onAuthenticated={(_destination, profile) => {
+              const resolvedName = resolveDisplayName(profile?.email, profile?.name || profile?.displayName);
               if (onConfirmSignUp && profile) {
                 onConfirmSignUp(
-                  profile.name || profile.displayName || 'Entrepreneur',
+                  resolvedName,
                   profile.email || '',
                   profile.companyName || 'Apex Cloud Dynamics'
                 );
               }
-              handleTriggerEnter(true, profile?.email);
+              handleTriggerEnter(true, profile?.email, resolvedName);
             }}
             onClose={() => setAuthMode('none')}
           />
