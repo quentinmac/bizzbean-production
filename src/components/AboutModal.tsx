@@ -102,10 +102,10 @@ We help founders build assets of sustainable value through rigorous quantitative
           }`}
         >
           <div className="font-mono text-xs sm:text-sm font-bold text-slate-900 dark:text-white tracking-tight leading-relaxed">
-            [ Validated Businesses + Grown Entrepreneurs ] x Scaled AI Sandbox = The Solution to Youth Unemployment
+            {userProfile?.socialMissionEquation || '[ Validated Businesses + Grown Entrepreneurs ] x Scaled AI Sandbox = The Solution to Youth Unemployment'}
           </div>
           <div className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-2xl mx-auto leading-relaxed">
-            Youth unemployment is one of the greatest challenges of our time. We believe scaled, fundamental entrepreneurship is the definitive answer.
+            {userProfile?.socialMissionSubtext || 'Youth unemployment is one of the greatest challenges of our time. We believe scaled, fundamental entrepreneurship is the definitive answer.'}
           </div>
         </div>
 
@@ -123,7 +123,7 @@ We help founders build assets of sustainable value through rigorous quantitative
                 <span className="text-[10px] font-mono text-[#C59B63] lowercase font-normal">identity & purpose</span>
               </div>
               <FormattedAboutContent
-                content={DEFAULT_WHO_ARE_WE}
+                content={userProfile?.whoAreWe || DEFAULT_WHO_ARE_WE}
                 isDark={isDark}
               />
             </div>
@@ -141,7 +141,7 @@ We help founders build assets of sustainable value through rigorous quantitative
                 <span className="text-[10px] font-mono text-[#C59B63] lowercase font-normal">mechanics & tools</span>
               </div>
               <FormattedAboutContent
-                content={DEFAULT_WHAT_WE_DO}
+                content={userProfile?.whatWeDoPanel || DEFAULT_WHAT_WE_DO}
                 isDark={isDark}
               />
             </div>
@@ -159,7 +159,7 @@ We help founders build assets of sustainable value through rigorous quantitative
                 <span className="text-[10px] font-mono text-[#C59B63] lowercase font-normal">vision & trajectory</span>
               </div>
               <FormattedAboutContent
-                content={DEFAULT_WHERE_ARE_WE_GOING}
+                content={userProfile?.whereAreWeGoing || DEFAULT_WHERE_ARE_WE_GOING}
                 isDark={isDark}
               />
             </div>
@@ -177,7 +177,7 @@ We help founders build assets of sustainable value through rigorous quantitative
                 <span className="text-[10px] font-mono text-[#C59B63] lowercase font-normal">spectrum & outcomes</span>
               </div>
               <FormattedAboutContent
-                content={DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH}
+                content={userProfile?.howSolutionsEnableGrowth || DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH}
                 isDark={isDark}
               />
             </div>
