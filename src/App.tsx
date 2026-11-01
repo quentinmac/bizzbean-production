@@ -53,6 +53,7 @@ import { BizzSolution, DialogueMessage, LibraryItem, UserBusinessProfile } from 
 import { listenToAuthChanges, signOutUser, determineUserRole, resolveDisplayName } from './services/firebaseAuthService';
 import { SandboxWelcomeLetter } from './components/SandboxWelcomeLetter';
 import { ProductCheckoutModal } from './components/ProductCheckoutModal';
+import { ClientProfileJournalModal } from './components/ClientProfileJournalModal';
 import { downloadGettingToValueBook } from './utils/bookDownload';
 import { sendWelcomeEmail } from './services/emailService';
 import {
@@ -287,32 +288,27 @@ export default function App() {
   } | null>(null);
 
   // Quick Links / Pinboard Pinning (persisted across reloads) - Strictly courses & apps, never stages
+  // Cleared previous items and set default 3 courses: learn how to earn access to capital, how to use bizzcalc, follow the money
+  const DEFAULT_PINBOARD_COURSES = ['learn-earn-capital', 'how-to-bizzcalc', 'follow-the-money'];
+
   const [quickLinkIds, setQuickLinkIds] = useState<string[]>(() => {
     try {
-      const saved = localStorage.getItem('bizzdesk_pinboard_items_v1');
+      const saved = localStorage.getItem('bizzdesk_pinboard_items_v2');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const mapped = parsed.map((id: string) => {
-            if (id === 'fund-ability') return 'cost-recovery-calculator';
-            if (id === 'vi-ability') return 'learn-earn-capital';
-            if (id === 'sustain-ability') return 'profit-optimizer';
-            if (id === 'invest-ability') return 'financial-reports';
-            if (id === 'personal-sandbox') return 'bizzcalc';
-            return id;
-          });
           const stageSet = new Set(['vi-ability', 'fund-ability', 'sustain-ability', 'invest-ability', 'personal-sandbox', 'operations', 'growth', 'education']);
-          const cleaned = Array.from(new Set(mapped)).filter((id) => typeof id === 'string' && !stageSet.has(id));
+          const cleaned = Array.from(new Set(parsed)).filter((id) => typeof id === 'string' && !stageSet.has(id));
           if (cleaned.length > 0) return cleaned;
         }
       }
     } catch (e) {}
-    return ['cost-recovery-calculator', 'learn-earn-capital', 'bizzdynamics', 'bizzcalc', 'bizzmodel'];
+    return DEFAULT_PINBOARD_COURSES;
   });
 
   useEffect(() => {
     try {
-      localStorage.setItem('bizzdesk_pinboard_items_v1', JSON.stringify(quickLinkIds));
+      localStorage.setItem('bizzdesk_pinboard_items_v2', JSON.stringify(quickLinkIds));
     } catch (e) {}
   }, [quickLinkIds]);
 
@@ -322,7 +318,7 @@ export default function App() {
   // Library items state
   const [libraryItems, setLibraryItems] = useState<LibraryItem[]>(INITIAL_LIBRARY_ITEMS);
 
-  // User Business Profile state with localStorage persistence
+  // User Business Profile state with localStorage persistence (Defaulted to Quentin McCullough per pinboard.PNG)
   const [userProfile, setUserProfile] = useState<UserBusinessProfile>(() => {
     try {
       const saved = localStorage.getItem('bizzdesk_user_profile_v1');
@@ -330,15 +326,24 @@ export default function App() {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.companyName) {
           return {
-            websiteUrl: 'https://apexclouddynamics.com',
+            websiteUrl: 'https://bizzbean.com',
+            phone: '+27 82 555 0192',
+            country: 'South Africa',
+            city: 'Johannesburg',
+            email: 'quentin@bizzbean.com',
             ...parsed,
+            founderName: parsed.founderName === 'Elena Vance' ? 'Quentin McCullough' : parsed.founderName,
           };
         }
       }
     } catch (e) {}
     return {
       companyName: 'Apex Cloud Dynamics',
-      founderName: 'Elena Vance',
+      founderName: 'Quentin McCullough',
+      email: 'quentin@bizzbean.com',
+      phone: '+27 82 555 0192',
+      country: 'South Africa',
+      city: 'Johannesburg',
       industry: 'Enterprise Software',
       stage: 'fund-ABILITY',
       vision: 'Deliver enterprise AI data pipeline orchestration with institutional financial sustainability.',
@@ -348,7 +353,7 @@ export default function App() {
       monthlyRevenue: 30000,
       burnRate: 12000,
       slug: 'apex-cloud-dynamics',
-      websiteUrl: 'https://apexclouddynamics.com',
+      websiteUrl: 'https://bizzbean.com',
     };
   });
 
@@ -362,6 +367,7 @@ export default function App() {
   const [isAboutModalOpen, setIsAboutModalOpen] = useState<boolean>(false);
   const [isCloseShopModalOpen, setIsCloseShopModalOpen] = useState<boolean>(false);
   const [isCmsConsoleOpen, setIsCmsConsoleOpen] = useState<boolean>(false);
+  const [isClientProfileJournalOpen, setIsClientProfileJournalOpen] = useState<boolean>(false);
   const [isBuyTokensModalOpen, setIsBuyTokensModalOpen] = useState<boolean>(false);
   const [isTalkToUsModalOpen, setIsTalkToUsModalOpen] = useState<boolean>(false);
   const [adminInitialTab, setAdminInitialTab] = useState<'transactions' | 'dialogue-centre' | 'bulk-imports' | 'promo-emails' | 'cms-console' | 'about-bizzbean'>('transactions');
@@ -1300,6 +1306,24 @@ export default function App() {
     }
   };
 
+  // Reset pinboard to exact 3 default courses
+  const handleResetPinboardDefault = () => {
+    setQuickLinkIds(DEFAULT_PINBOARD_COURSES);
+    safeSaveStorage('bizzdesk_pinboard_items_v2', DEFAULT_PINBOARD_COURSES);
+  };
+
+  // Clear all items from pinboard
+  const handleClearPinboard = () => {
+    setQuickLinkIds([]);
+    safeSaveStorage('bizzdesk_pinboard_items_v2', []);
+  };
+
+  // Update client personal profile
+  const handleUpdateUserProfile = (updated: UserBusinessProfile) => {
+    setUserProfile(updated);
+    safeSaveStorage('bizzdesk_user_profile_v1', updated);
+  };
+
   // Instant Grant Handler (called when bypassing or granting offline in simulator)
   const handleInstantGrant = (sol: any) => {
     markProductPurchasedForUser(sol.id);
@@ -1657,6 +1681,9 @@ export default function App() {
               cmsProducts={cmsProducts}
               onLaunchApp={handleLaunchAppDirectly}
               onLaunchSolution={handleLaunchSolution}
+              onOpenClientProfileJournal={() => setIsClientProfileJournalOpen(true)}
+              onResetPinboardDefault={handleResetPinboardDefault}
+              onClearPinboard={handleClearPinboard}
             />
           )}
 
@@ -2314,6 +2341,16 @@ export default function App() {
         theme={theme}
         onClose={() => setCheckoutProduct(null)}
         onInstantGrant={handleInstantGrant}
+      />
+
+      {/* Client Profile & Transaction Journal Modal (per pinboard.PNG request) */}
+      <ClientProfileJournalModal
+        isOpen={isClientProfileJournalOpen}
+        onClose={() => setIsClientProfileJournalOpen(false)}
+        theme={theme}
+        userProfile={userProfile}
+        userEmail={userEmail}
+        onUpdateProfile={handleUpdateUserProfile}
       />
 
       {/* Sandbox Welcome Letter Modal (Per your sandbox is open.png) */}

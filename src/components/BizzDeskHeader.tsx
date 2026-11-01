@@ -51,6 +51,9 @@ interface BizzDeskHeaderProps {
   cmsProducts?: CmsProduct[];
   onLaunchApp?: (appId: string) => void;
   onLaunchSolution?: (id: string) => void;
+  onOpenClientProfileJournal?: () => void;
+  onResetPinboardDefault?: () => void;
+  onClearPinboard?: () => void;
 }
 
 export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
@@ -74,6 +77,9 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
   cmsProducts = [],
   onLaunchApp,
   onLaunchSolution,
+  onOpenClientProfileJournal,
+  onResetPinboardDefault,
+  onClearPinboard,
 }) => {
   const isDark = theme === 'dark';
   const [isPinboardOpen, setIsPinboardOpen] = useState(false);
@@ -252,30 +258,42 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
           : 'bg-[#FAF8F5] border-[#E8E2D8] text-slate-800'
       }`}
     >
-      {/* Zone 1: Reserved to welcome the logged-in user with bizzbean-favicon.jpg */}
+      {/* Zone 1: Reserved to welcome the logged-in user with bizzbean-favicon.jpg & discreet link to transaction journal / client profile */}
       <div className="flex items-center gap-2.5 shrink-0 min-w-0">
-        <div className="h-8 w-8 rounded-full overflow-hidden flex items-center justify-center shrink-0 border border-[#D8CEBC] dark:border-[#252E4A] bg-white shadow-2xs">
-          <img
-            src="/bizzbean-favicon.jpg"
-            alt="bizzbean favicon"
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              const target = e.currentTarget;
-              if (!target.dataset.triedPng) {
-                target.dataset.triedPng = 'true';
-                target.src = '/bizzbean-favicon.png';
-              }
-            }}
-          />
-        </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-[10px] font-mono text-[#9A7B4F] dark:text-[#D4A373] uppercase tracking-wider leading-none">
-            welcome,
-          </span>
-          <span className="font-mono text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[160px] sm:max-w-[220px]">
-            {welcomeName}
-          </span>
-        </div>
+        <button
+          type="button"
+          onClick={onOpenClientProfileJournal}
+          className="group flex items-center gap-2.5 text-left p-1 -ml-1 rounded-xl hover:bg-slate-200/50 dark:hover:bg-slate-800/60 transition-all cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#5584B4]"
+          title="Open Client Profile & Transaction Journal (view slips, download invoices, edit profile)"
+        >
+          <div className="h-8 w-8 rounded-full overflow-hidden flex items-center justify-center shrink-0 border border-[#D8CEBC] dark:border-[#252E4A] bg-white shadow-2xs group-hover:scale-105 transition-transform">
+            <img
+              src="/bizzbean-favicon.jpg"
+              alt="bizzbean favicon"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (!target.dataset.triedPng) {
+                  target.dataset.triedPng = 'true';
+                  target.src = '/bizzbean-favicon.png';
+                }
+              }}
+            />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-mono text-[#9A7B4F] dark:text-[#D4A373] uppercase tracking-wider leading-none">
+                welcome,
+              </span>
+              <span className="text-[8px] font-mono font-bold uppercase tracking-wider px-1 py-0.2 rounded bg-[#5584B4]/15 text-[#5584B4] dark:text-[#90CDF4] opacity-75 group-hover:opacity-100 group-hover:underline transition-all">
+                slips
+              </span>
+            </div>
+            <span className="font-mono text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[160px] sm:max-w-[220px] group-hover:text-[#5584B4] dark:group-hover:text-[#90CDF4] transition-colors">
+              {welcomeName}
+            </span>
+          </div>
+        </button>
       </div>
 
       {/* Zone 2: Mobile Apps Launcher (Mobile) vs PINBOARD Dropdown (Desktop) */}
@@ -413,18 +431,33 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
                   <div className="py-8 px-4 text-center">
                     <PinOff className="h-8 w-8 mx-auto text-slate-400 mb-2 stroke-[1.5]" />
                     <p className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300 uppercase">
-                      No Items Pinned Yet
+                      Pinboard is Empty
                     </p>
                     <p className="text-[11px] font-mono text-slate-400 mt-1">
-                      Switch to "SELECT / PIN ALL" tab to customize your pinboard.
+                      Add the 3 default courses or browse solutions to pin.
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => setPinboardTab('manage')}
-                      className="mt-3 px-3 py-1 rounded-lg bg-[#5584B4] text-white text-xs font-mono font-semibold"
-                    >
-                      Pin Solutions Now
-                    </button>
+                    <div className="mt-3 flex items-center justify-center gap-2">
+                      {onResetPinboardDefault && (
+                        <button
+                          type="button"
+                          onClick={onResetPinboardDefault}
+                          className="px-3 py-1 rounded-lg bg-[#5584B4] text-white text-xs font-mono font-semibold hover:bg-[#4773A0] transition-colors"
+                        >
+                          Pin 3 Default Courses
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setPinboardTab('manage')}
+                        className={`px-3 py-1 rounded-lg text-xs font-mono font-semibold border ${
+                          isDark
+                            ? 'bg-[#1E2548] text-slate-200 border-[#252E4A]'
+                            : 'bg-white text-slate-700 border-[#D8CEBC]'
+                        }`}
+                      >
+                        Browse All
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   quickLinkIds.map((id) => {
@@ -632,9 +665,28 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
                 isDark ? 'border-[#252E4A] bg-[#0E1220]' : 'border-[#E8E2D8] bg-[#FAF8F5]'
               }`}
             >
-              <span className="text-slate-400 lowercase">
-                click item to open workspace
-              </span>
+              <div className="flex items-center gap-2">
+                {onResetPinboardDefault && (
+                  <button
+                    type="button"
+                    onClick={onResetPinboardDefault}
+                    className="text-[10px] text-slate-500 hover:text-[#5584B4] dark:hover:text-[#90CDF4] transition-colors underline cursor-pointer"
+                    title="Reset Pinboard to the 3 default courses"
+                  >
+                    reset 3 defaults
+                  </button>
+                )}
+                {onClearPinboard && quickLinkIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={onClearPinboard}
+                    className="text-[10px] text-slate-400 hover:text-red-500 transition-colors underline cursor-pointer"
+                    title="Clear all pinned items from Pinboard"
+                  >
+                    clear all
+                  </button>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => setIsPinboardOpen(false)}

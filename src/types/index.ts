@@ -42,6 +42,9 @@ export interface UserBusinessProfile {
   slug: string;
   websiteUrl?: string;
   email?: string;
+  phone?: string;
+  country?: string;
+  city?: string;
   socialMissionEquation?: string;
   socialMissionSubtext?: string;
   whoAreWe?: string;
