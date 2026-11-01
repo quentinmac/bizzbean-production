@@ -1503,8 +1503,8 @@ export const INITIAL_CMS_BOOK_BUNDLE: CmsBookBundle = {
   "subtitle": "Official Getting to Value publication: cover artwork, video walkthrough review, and companion Excel workbook bundle.",
   "description": "The definitive handbook detailing the 4 Stages of enterprise viability, from initial hypothesis testing to institutional capital due diligence.",
   "coverImage": "/media/book_cover_main.jpg",
-  "youtubeVideoUrl": "https://www.youtube.com/embed/book_review_hd",
-  "workbookFilename": "Getting_To_Value_Companion_Suite_v2.xlsx",
+  "youtubeVideoUrl": "https://youtu.be/QIMAmfoK6nk",
+  "workbookFilename": "getting to value.zip",
   "isActive": true
 };
 

@@ -1566,8 +1566,6 @@ export default function App() {
       localStorage.setItem('bizz_is_member', 'true');
     } catch (e) {}
 
-    setShowWelcomeLetter(true);
-
     if (cleanEmail) {
       sendWelcomeEmail({
         recipientEmail: cleanEmail,
@@ -1583,6 +1581,24 @@ export default function App() {
       }).catch((err) => {
         console.warn('[BizzBean] Welcome email error:', err);
       });
+    }
+  }, []);
+
+  // Open 'About the Book' YouTube walkthrough review from CMS Console
+  const handleOpenAboutBook = useCallback(() => {
+    let videoUrl = 'https://youtu.be/QIMAmfoK6nk';
+    try {
+      const stored = localStorage.getItem('bizzdesk_cms_book_bundle_v1');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.youtubeVideoUrl && parsed.youtubeVideoUrl.trim()) {
+          videoUrl = parsed.youtubeVideoUrl.trim();
+        }
+      }
+    } catch (e) {}
+
+    if (typeof window !== 'undefined') {
+      window.open(videoUrl, '_blank', 'noopener,noreferrer');
     }
   }, []);
 
@@ -1684,10 +1700,8 @@ export default function App() {
                   onOpenTalkToUs={handleOpenTalkToUs}
                   onSelectWorkspace={() => handleSelectSolution('google-workspace')}
                   onSelectFooter={() => handleSelectSolution('website-footer')}
-                  onDownloadBook={() => {
-                    handleDownloadBook();
-                    setShowWelcomeLetter(true);
-                  }}
+                  onDownloadBook={handleDownloadBook}
+                  onOpenAboutBook={handleOpenAboutBook}
                   onSelectAdminCentre={() => handleSelectSolution('administration-centre')}
                   onSelectEducationCentre={() => handleSelectSolution('education-centre')}
                   onSelectBizzClass={() => handleSelectSolution('bizzclass')}

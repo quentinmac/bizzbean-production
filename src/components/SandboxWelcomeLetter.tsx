@@ -72,7 +72,7 @@ export const SandboxWelcomeLetter: React.FC<SandboxWelcomeLetterProps> = ({
 
           {/* Salutation */}
           <div className="text-[#3E74A6] font-['Raleway'] text-base sm:text-lg font-normal">
-            Hi, &lsquo;{firstName}&rsquo;
+            Hi, {firstName}
           </div>
 
           {/* Letter Body Paragraphs (Exact copy from your sandbox is open.png) */}
@@ -97,20 +97,6 @@ export const SandboxWelcomeLetter: React.FC<SandboxWelcomeLetterProps> = ({
             <div className="pt-2">
               <p className="italic text-[#4A7DAA] font-serif text-sm">sincerely,</p>
               <p className="font-bold text-[#20476E] text-base font-['Raleway'] mt-0.5">the bizzbean team</p>
-            </div>
-
-            {/* Email Dispatch & Anti-Impersonation Notice */}
-            <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] font-mono text-emerald-800 bg-emerald-50/90 border border-emerald-200/80 rounded-xl px-3.5 py-2.5">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
-                <span>
-                  Welcome letter dispatched to{' '}
-                  <strong className="text-emerald-900 underline underline-offset-2">
-                    {recipientEmail || 'your email'}
-                  </strong>{' '}
-                  from <strong>thebizzbeanchannel@bizzbean.com</strong>.
-                </span>
-              </div>
             </div>
           </div>
 

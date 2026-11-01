@@ -170,7 +170,7 @@ instant viability. infinite wisdom. always on.
 Security notice: This email was sent to ${recipientEmail} because a sandbox account was created at bizzbean. If you did not create this account, please notify us immediately at ${config.fromEmail}.
     `.trim();
 
-    // Responsive HTML Email matching exact BizzBean letter styling
+    // Responsive HTML Email matching exact BizzBean Letter 2 styling
     const htmlContent = `
 <!DOCTYPE html>
 <html>
@@ -178,88 +178,94 @@ Security notice: This email was sent to ${recipientEmail} because a sandbox acco
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>your SANDBOX is ready</title>
+  <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@100;300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body style="margin: 0; padding: 0; background-color: #EBF1F6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1E293B;">
+<body style="margin: 0; padding: 0; background-color: #EBF1F6; font-family: 'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #3E74A6;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #EBF1F6; padding: 30px 10px;">
     <tr>
       <td align="center">
-        <!-- Main Card Container -->
-        <table role="presentation" width="100%" max-width="640" cellspacing="0" cellpadding="0" border="0" style="max-width: 640px; background-color: #FFFFFF; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.06); border: 1px solid #D8CEBC;">
+        <!-- Main Card Container (Letter 2 Layout) -->
+        <table role="presentation" width="100%" max-width="640" cellspacing="0" cellpadding="0" border="0" style="max-width: 640px; background-color: #FFFFFF; border-radius: 20px; overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,0.08); border: 1px solid #D8CEBC;">
           
-          <!-- Top Accent Bar -->
+          <!-- Top Slate-Blue Banner (Letter 2) -->
           <tr>
-            <td style="background-color: #4C7B9E; height: 12px; line-height: 12px; font-size: 1px;">&nbsp;</td>
+            <td style="background-color: #5584B4; height: 26px; line-height: 26px; font-size: 1px;">&nbsp;</td>
           </tr>
 
-          <!-- Header with Logo -->
+          <!-- Header with Centered Logo & Title -->
           <tr>
-            <td align="center" style="padding: 36px 30px 10px 30px;">
+            <td align="center" style="padding: 34px 30px 8px 30px;">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center">
                 <tr>
-                  <td valign="middle" style="padding-right: 10px;">
-                    <!-- Circular Icon Symbol -->
-                    <div style="width: 38px; height: 38px; border-radius: 50%; border: 3px solid #3A5D7C; background: #FFFFFF; text-align: center; line-height: 38px; font-weight: bold; color: #84CC16; font-size: 20px;">
-                      ●
-                    </div>
+                  <td valign="middle" style="padding-right: 12px;">
+                    <!-- BizzBean Dual-tone Droplet Icon -->
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                      <tr>
+                        <td style="width: 17px; height: 38px; background-color: #5584B4; border-top-left-radius: 17px; border-bottom-left-radius: 17px; border-top-right-radius: 4px; border-bottom-right-radius: 4px;">&nbsp;</td>
+                        <td style="width: 4px;">&nbsp;</td>
+                        <td style="width: 17px; height: 38px; background-color: #9FC754; border-top-right-radius: 17px; border-bottom-right-radius: 17px; border-top-left-radius: 4px; border-bottom-left-radius: 4px;">&nbsp;</td>
+                      </tr>
+                    </table>
                   </td>
                   <td valign="middle">
-                    <span style="font-size: 34px; font-weight: 300; letter-spacing: -0.5px; color: #3A5D7C; font-family: 'Century Gothic', -apple-system, sans-serif;">
-                      bizz<strong style="font-weight: 600; color: #3A5D7C;">bean</strong>
-                    </span>
-                    <span style="font-size: 11px; vertical-align: top; color: #64748B;">™</span>
+                    <span style="font-size: 38px; font-weight: 300; letter-spacing: -0.5px; color: #707070; font-family: 'Raleway', -apple-system, sans-serif;">bizz</span><span style="font-size: 38px; font-weight: 100; letter-spacing: -0.5px; color: #707070; font-family: 'Raleway', -apple-system, sans-serif;">bean</span><sup style="font-size: 12px; font-weight: 400; color: #707070; vertical-align: super; margin-left: 2px; font-family: 'Raleway', sans-serif;">TM</sup>
                   </td>
                 </tr>
               </table>
+
+              <!-- Main Title: your SANDBOX is ready -->
+              <h2 style="margin: 16px 0 0 0; font-size: 27px; font-weight: 300; color: #3E74A6; font-family: 'Raleway', -apple-system, sans-serif; letter-spacing: 0.8px;">
+                your SANDBOX is ready
+              </h2>
             </td>
           </tr>
 
-          <!-- Main Title: your SANDBOX is ready -->
+          <!-- Salutation & Body Paragraphs (Letter 2) -->
           <tr>
-            <td align="center" style="padding: 10px 30px 24px 30px;">
-              <h1 style="margin: 0; font-size: 26px; font-weight: 400; color: #2E5E88; font-family: 'Century Gothic', -apple-system, sans-serif; letter-spacing: 0.5px;">
-                your <span style="font-weight: 700; letter-spacing: 1.5px;">SANDBOX</span> is ready
-              </h1>
-            </td>
-          </tr>
-
-          <!-- Greeting & Letter Body -->
-          <tr>
-            <td style="padding: 10px 42px 30px 42px; font-size: 15px; line-height: 1.7; color: #254B6D;">
+            <td style="padding: 16px 42px 28px 42px; font-size: 14px; line-height: 1.7; color: #3E74A6; font-family: 'Raleway', -apple-system, sans-serif;">
               
-              <p style="margin: 0 0 20px 0; font-size: 16px; color: #2E5E88; font-weight: 500;">
-                Hi, '${displayName}'
+              <!-- Salutation without apostrophes per user instruction -->
+              <p style="margin: 0 0 18px 0; font-size: 16px; color: #3E74A6; font-weight: 400; font-family: 'Raleway', sans-serif;">
+                Hi, ${displayName}
               </p>
 
-              <p style="margin: 0 0 18px 0; color: #2E5E88; font-size: 15px;">
-                Thank you for creating a <strong>SANDBOX</strong> account with us at <strong>bizzbean</strong>. We hope that by doing this we can help you discover, build, grow and even invest in your entrepreneurial <strong>ABILITY</strong>.
+              <p style="margin: 0 0 16px 0; color: #3E74A6; font-size: 13.5px; font-weight: 400; font-family: 'Raleway', sans-serif;">
+                Thank you for creating a SANDBOX account with us at bizzbean. We hope that by doing this we can help you discover, build, grow and even enable investment in your entrepreneurial ABILITY.
               </p>
 
-              <p style="margin: 0 0 18px 0; color: #2E5E88; font-size: 15px;">
-                Please download your free copy of our book <strong>'getting to value'</strong>. Also, keep an eye out for any message notifications. If you have an idea for a business model-set or an education programme, please use <strong>TALK TO US</strong> - we promise to consider all submissions.
+              <p style="margin: 0 0 16px 0; color: #3E74A6; font-size: 13.5px; font-weight: 400; font-family: 'Raleway', sans-serif;">
+                Please download your free copy of our book &lsquo;getting to value&rsquo;. Also, keep an eye out for any message notifications. If you have an idea for a business model-set or an education programme, please use TALK TO US - we promise to consider all submissions.
               </p>
 
-              <p style="margin: 0 0 22px 0; color: #2E5E88; font-size: 15px;">
-                You can update your business profile in the <strong>'about'</strong>, located in the top left of the landing page. When updated, you can use it to market your business.
+              <p style="margin: 0 0 16px 0; color: #3E74A6; font-size: 13.5px; font-weight: 400; font-family: 'Raleway', sans-serif;">
+                You can update your business profile in the &lsquo;about&rsquo;, located in the top left of the landing page. When updated, you can use it to market your business.
               </p>
 
-              <p style="margin: 0 0 26px 0; color: #2E5E88; font-size: 15px;">
+              <p style="margin: 0 0 20px 0; color: #3E74A6; font-size: 13.5px; font-weight: 400; font-family: 'Raleway', sans-serif;">
                 We wish you all the best with your entrepreneurial journey.
               </p>
 
-              <!-- Action Buttons Container -->
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 28px 0;">
+              <!-- Letter Sign-off (Letter 2) -->
+              <div style="margin-top: 18px; margin-bottom: 26px;">
+                <p style="margin: 0; font-style: italic; color: #4A7DAA; font-family: Georgia, serif; font-size: 14px;">sincerely,</p>
+                <p style="margin: 3px 0 0 0; font-weight: 700; font-size: 16px; color: #20476E; font-family: 'Raleway', sans-serif;">the bizzbean team</p>
+              </div>
+
+              <!-- Action Row: Book Download + Proceed to Workstation (Letter 2 Buttons) -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="padding-top: 20px; border-top: 1px solid #EAE3D4;">
                 <tr>
                   <td align="center">
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                       <tr>
-                        <td align="center" style="padding-right: 12px;">
-                          <a href="${loginLink}" target="_blank" style="display: inline-block; background-color: #2E5E88; color: #FFFFFF; font-weight: bold; font-size: 13px; text-transform: uppercase; letter-spacing: 0.8px; text-decoration: none; padding: 13px 24px; border-radius: 12px; box-shadow: 0 4px 12px rgba(46, 94, 136, 0.25);">
-                            ENTER MY SANDBOX →
+                        <td align="left" style="padding-right: 8px;">
+                          <a href="${bookDownloadLink}" target="_blank" style="display: inline-block; background-color: #5584B4; color: #FFFFFF; font-family: 'Raleway', sans-serif; font-size: 13px; font-weight: 500; text-decoration: none; padding: 12px 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(85,132,180,0.3); text-transform: lowercase;">
+                            &#8681;&nbsp;download &lsquo;getting to value&rsquo;
                           </a>
                         </td>
-                        <td align="center">
-                          <a href="${bookDownloadLink}" target="_blank" style="display: inline-block; background-color: #FFFFFF; color: #2E5E88; border: 1.5px solid #2E5E88; font-weight: bold; font-size: 13px; text-transform: uppercase; letter-spacing: 0.8px; text-decoration: none; padding: 11.5px 22px; border-radius: 12px;">
-                            DOWNLOAD BOOK
+                        <td align="right" style="padding-left: 8px;">
+                          <a href="${loginLink}" target="_blank" style="display: inline-block; background-color: #12172A; color: #FFFFFF; font-family: 'Raleway', sans-serif; font-size: 13px; font-weight: 500; text-decoration: none; padding: 12px 22px; border-radius: 12px; box-shadow: 0 4px 12px rgba(18,23,42,0.35); text-transform: lowercase;">
+                            <span>enter personal sandbox</span>
+                            <span style="color: #9FC754; font-weight: bold; margin-left: 6px;">&rarr;</span>
                           </a>
                         </td>
                       </tr>
@@ -268,19 +274,13 @@ Security notice: This email was sent to ${recipientEmail} because a sandbox acco
                 </tr>
               </table>
 
-              <!-- Sign-off -->
-              <div style="margin-top: 24px;">
-                <p style="margin: 0; font-style: italic; color: #4B6E8F; font-size: 14px;">sincerely,</p>
-                <p style="margin: 4px 0 0 0; font-weight: bold; font-size: 15px; color: #1E3A56;">the bizzbean team</p>
-              </div>
-
             </td>
           </tr>
 
-          <!-- Green Footer Tagline (Matching letter screenshot) -->
+          <!-- Green Bottom Banner (Letter 2) -->
           <tr>
-            <td align="center" style="background-color: #8EB737; padding: 15px 20px;">
-              <span style="font-size: 14px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.6px; font-family: 'Century Gothic', -apple-system, sans-serif;">
+            <td align="center" style="background-color: #9FC754; padding: 14px 20px;">
+              <span style="font-size: 13px; font-weight: 400; color: #FFFFFF; letter-spacing: 0.5px; font-family: 'Raleway', -apple-system, sans-serif; text-transform: lowercase;">
                 instant viability. infinite wisdom. always on.
               </span>
             </td>
@@ -289,12 +289,12 @@ Security notice: This email was sent to ${recipientEmail} because a sandbox acco
         </table>
 
         <!-- Security / Anti-Impersonation Footer -->
-        <table role="presentation" width="100%" max-width="640" cellspacing="0" cellpadding="0" border="0" style="max-width: 640px; margin-top: 16px;">
+        <table role="presentation" width="100%" max-width="640" cellspacing="0" cellpadding="0" border="0" style="max-width: 640px; margin-top: 14px;">
           <tr>
             <td align="center" style="font-size: 11px; color: #64748B; line-height: 1.6; font-family: monospace;">
               This onboarding email was dispatched to <strong>${recipientEmail}</strong> for security verification.<br>
-              If you did not register this sandbox, please report it to <a href="mailto:${config.fromEmail}" style="color: #2E5E88;">${config.fromEmail}</a>.<br>
-              © ${new Date().getFullYear()} bizzbean™. All rights reserved.
+              If you did not register this sandbox, please report it to <a href="mailto:${config.fromEmail}" style="color: #5584B4;">${config.fromEmail}</a>.<br>
+              &copy; ${new Date().getFullYear()} bizzbean&trade;. All rights reserved.
             </td>
           </tr>
         </table>

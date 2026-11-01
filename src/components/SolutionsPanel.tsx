@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Info,
   Layers,
+  Play,
 } from 'lucide-react';
 
 interface SolutionsPanelProps {
@@ -22,6 +23,7 @@ interface SolutionsPanelProps {
   onSelectWorkspace: () => void;
   onSelectFooter: () => void;
   onDownloadBook?: () => void;
+  onOpenAboutBook?: () => void;
   onSelectAdminCentre?: () => void;
   onSelectEducationCentre?: () => void;
   onSelectBizzClass?: () => void;
@@ -46,6 +48,7 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
   onSelectWorkspace,
   onSelectFooter,
   onDownloadBook,
+  onOpenAboutBook,
   onSelectAdminCentre,
   onSelectEducationCentre,
   onSelectBizzClass,
@@ -489,11 +492,12 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
           website footer
         </button>
 
-        {/* Dedicated Book Download Button (Per download getting to value.png) */}
+        {/* Dedicated Book Download Button */}
         {onDownloadBook && (
           <button
+            type="button"
             onClick={onDownloadBook}
-            className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between ${getSubtleActiveBtnClass(
+            className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between cursor-pointer ${getSubtleActiveBtnClass(
               activeSolutionId === 'download-book'
             )}`}
             title="Download our free foundational book 'getting to value' by Quentin G. McCullough"
@@ -501,6 +505,22 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
             <span>download getting to value</span>
             <span className="text-[10px] px-1.5 py-0.2 rounded font-mono lowercase bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 font-semibold">
               book
+            </span>
+          </button>
+        )}
+
+        {/* About the Book Button (links to CMS YouTube channel walkthrough) */}
+        {onOpenAboutBook && (
+          <button
+            type="button"
+            onClick={onOpenAboutBook}
+            className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300`}
+            title="Watch the Getting to Value walkthrough on YouTube"
+          >
+            <span>about the book</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded font-mono lowercase bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 font-semibold flex items-center gap-1">
+              <Play className="h-2.5 w-2.5 fill-current" />
+              <span>video</span>
             </span>
           </button>
         )}
