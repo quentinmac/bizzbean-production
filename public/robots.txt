@@ -1,0 +1,8 @@
+# Robots.txt for BizzBean (https://bizzbean.com)
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+
+# Sitemap location for Google Search Console & other search engines
+Sitemap: https://bizzbean.com/sitemap.xml

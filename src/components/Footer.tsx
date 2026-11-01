@@ -226,6 +226,20 @@ export const Footer: React.FC<FooterProps> = ({
                   </button>
                 </li>
               ))}
+              <li>
+                <a
+                  href="/sitemap.xml"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition-colors cursor-pointer flex items-center justify-between w-full group text-left py-0.5 text-slate-300"
+                >
+                  <span className="group-hover:underline flex items-center gap-1.5">
+                    <span>Google Search XML Sitemap</span>
+                    <ExternalLink size={10} className="text-[#9fc754]" />
+                  </span>
+                  <span className="text-[10px] text-slate-500">↗</span>
+                </a>
+              </li>
             </ul>
           </div>
 

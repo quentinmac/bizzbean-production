@@ -273,6 +273,34 @@ Use real-time Google Search grounding when current facts, market benchmarks, SAR
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
+  // Explicit Sitemap Handler: Guarantees text/xml response to Googlebot and web crawlers
+  app.get('/sitemap.xml', (_req, res) => {
+    res.setHeader('Content-Type', 'text/xml; charset=UTF-8');
+    const sitemapPath = path.resolve(__dirname, 'public', 'sitemap.xml');
+    if (fs.existsSync(sitemapPath)) {
+      return res.sendFile(sitemapPath);
+    }
+    const distSitemap = path.resolve(__dirname, 'dist', 'sitemap.xml');
+    if (fs.existsSync(distSitemap)) {
+      return res.sendFile(distSitemap);
+    }
+    return res.status(404).send('Sitemap not found');
+  });
+
+  // Explicit Robots Handler: Guarantees text/plain response
+  app.get('/robots.txt', (_req, res) => {
+    res.setHeader('Content-Type', 'text/plain; charset=UTF-8');
+    const robotsPath = path.resolve(__dirname, 'public', 'robots.txt');
+    if (fs.existsSync(robotsPath)) {
+      return res.sendFile(robotsPath);
+    }
+    const distRobots = path.resolve(__dirname, 'dist', 'robots.txt');
+    if (fs.existsSync(distRobots)) {
+      return res.sendFile(distRobots);
+    }
+    return res.status(404).send('Robots.txt not found');
+  });
+
   if (process.env.NODE_ENV === 'production') {
     // Serve static files in production
     app.use(express.static(path.resolve(__dirname, 'dist'), {
