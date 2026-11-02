@@ -324,7 +324,7 @@ export default function App() {
       const saved = localStorage.getItem('bizzdesk_user_profile_v1');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && parsed.companyName) {
+        if (parsed && (parsed.companyName || parsed.founderName)) {
           return {
             websiteUrl: 'https://bizzbean.com',
             phone: '+27 82 555 0192',
@@ -332,13 +332,16 @@ export default function App() {
             city: 'Johannesburg',
             email: 'quentin@bizzbean.com',
             ...parsed,
+            companyName: (parsed.companyName === 'Apex Cloud Dynamics' || !parsed.companyName)
+              ? 'BizzBean Holdings (Pty) Ltd' 
+              : parsed.companyName,
             founderName: parsed.founderName === 'Elena Vance' ? 'Quentin McCullough' : parsed.founderName,
           };
         }
       }
     } catch (e) {}
     return {
-      companyName: 'Apex Cloud Dynamics',
+      companyName: 'BizzBean Holdings (Pty) Ltd',
       founderName: 'Quentin McCullough',
       email: 'quentin@bizzbean.com',
       phone: '+27 82 555 0192',
@@ -352,7 +355,7 @@ export default function App() {
       targetMarket: 'Tier-2 Logistics Operators & Supply Chain Hubs',
       monthlyRevenue: 30000,
       burnRate: 12000,
-      slug: 'apex-cloud-dynamics',
+      slug: 'bizzbean-holdings',
       websiteUrl: 'https://bizzbean.com',
     };
   });
@@ -1570,14 +1573,14 @@ export default function App() {
   const handleConfirmSignUp = useCallback((name: string, email: string, company: string) => {
     const cleanName = (name || '').trim() || 'Entrepreneur';
     const cleanEmail = (email || '').trim();
-    const cleanCompany = (company || '').trim() || 'Apex Cloud Dynamics';
+    const cleanCompany = (company || '').trim();
     const firstName = cleanName.split(' ')[0] || 'Entrepreneur';
 
     setUserProfile((prev) => ({
       ...prev,
       founderName: cleanName,
-      companyName: cleanCompany,
-      email: cleanEmail,
+      companyName: cleanCompany || (prev.companyName && prev.companyName !== 'Apex Cloud Dynamics' ? prev.companyName : 'BizzBean Holdings (Pty) Ltd'),
+      email: cleanEmail || prev.email,
     }));
     if (cleanEmail) {
       setUserEmail(cleanEmail);

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   X,
   Receipt,
@@ -24,6 +24,8 @@ import {
   Check,
   Copy,
 } from 'lucide-react';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db, isFirestoreQuotaExceeded } from '../lib/firebase';
 import { TransactionRecord, UserBusinessProfile, ClientProfile } from '../types';
 import { INITIAL_V1_TRANSACTIONS } from '../data/cmsConsoleData';
 import { safeSaveStorage } from '../utils/imageStorage';
@@ -55,10 +57,13 @@ export const ClientProfileJournalModal: React.FC<ClientProfileJournalModalProps>
   // Load all transactions from localStorage or initial master list
   const [transactions, setTransactions] = useState<TransactionRecord[]>(() => {
     try {
+      if (localStorage.getItem('bizzdesk_v1_transactions_reset_zero') === 'true') {
+        return [];
+      }
       const stored = localStorage.getItem('bizzdesk_v1_transactions');
-      if (stored) {
+      if (stored !== null) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed.filter(
             (t): t is TransactionRecord => Boolean(t && typeof t === 'object' && t.invoiceNumber)
           );
@@ -67,7 +72,7 @@ export const ClientProfileJournalModal: React.FC<ClientProfileJournalModalProps>
     } catch (e) {
       console.warn('Error reading transactions from storage:', e);
     }
-    return INITIAL_V1_TRANSACTIONS;
+    return [];
   });
 
   // Filter & Search state
@@ -89,6 +94,37 @@ export const ClientProfileJournalModal: React.FC<ClientProfileJournalModalProps>
   const [formStage, setFormStage] = useState(userProfile.stage || 'fund-ABILITY');
   const [formWhatWeDo, setFormWhatWeDo] = useState(userProfile.whatWeDo || '');
   const [profileSuccessMessage, setProfileSuccessMessage] = useState<string | null>(null);
+
+  // Re-synchronize form fields whenever modal opens or user profile / email changes
+  useEffect(() => {
+    if (isOpen) {
+      const emailToMatch = (userProfile.email || userEmail || '').toLowerCase().trim();
+      let matchedClient: ClientProfile | undefined;
+      try {
+        const stored = localStorage.getItem('bizzdesk_v1_client_profiles');
+        if (stored) {
+          const profiles: ClientProfile[] = JSON.parse(stored);
+          matchedClient = profiles.find((c) => c.email && c.email.toLowerCase().trim() === emailToMatch);
+        }
+      } catch {}
+
+      const effectiveCompany =
+        (matchedClient?.companyName && matchedClient.companyName !== 'Apex Cloud Dynamics')
+          ? matchedClient.companyName
+          : (userProfile.companyName && userProfile.companyName !== 'Apex Cloud Dynamics')
+          ? userProfile.companyName
+          : 'BizzBean Holdings (Pty) Ltd';
+
+      setFormName(matchedClient?.name || userProfile.founderName || 'Quentin McCullough');
+      setFormEmail(userProfile.email || userEmail || matchedClient?.email || 'quentin@bizzbean.com');
+      setFormCompany(effectiveCompany);
+      setFormVatNumber(matchedClient?.vatNumber || userProfile.vatNumber || '4920281920');
+      setFormPhone(matchedClient?.phone || userProfile.phone || '+27 82 555 0192');
+      setFormCountry(matchedClient?.country || userProfile.country || 'South Africa');
+      setFormCity(matchedClient?.city || userProfile.city || 'Johannesburg');
+      setFormNotes(matchedClient?.notes || userProfile.notes || 'Key founder account. Primary administrator and enterprise test account.');
+    }
+  }, [isOpen, userProfile, userEmail]);
 
   // Resolve matching transactions for this client
   const clientEmailNorm = (userProfile.email || userEmail || 'quentin@bizzbean.com').toLowerCase().trim();
@@ -122,14 +158,18 @@ export const ClientProfileJournalModal: React.FC<ClientProfileJournalModalProps>
     );
   }, [scopeFilter, myTransactions, transactions, txSearch]);
 
-  // Handle Profile Update Submission
-  const handleSaveProfile = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Handle Profile Update Submission (Called on form submit OR when clicking Done)
+  const handleSaveProfile = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const cleanEmail = formEmail.trim() || userEmail || 'quentin@bizzbean.com';
+    const cleanCompany = formCompany.trim() || 'BizzBean Holdings (Pty) Ltd';
+    const cleanName = formName.trim() || 'Quentin McCullough';
+
     const updated: UserBusinessProfile = {
       ...userProfile,
-      founderName: formName.trim() || 'Quentin McCullough',
-      email: formEmail.trim() || 'quentin@bizzbean.com',
-      companyName: formCompany.trim() || 'BizzBean Client',
+      founderName: cleanName,
+      email: cleanEmail,
+      companyName: cleanCompany,
       vatNumber: formVatNumber.trim(),
       phone: formPhone.trim(),
       country: formCountry.trim(),
@@ -142,19 +182,22 @@ export const ClientProfileJournalModal: React.FC<ClientProfileJournalModalProps>
 
     onUpdateProfile(updated);
     safeSaveStorage('bizzdesk_user_profile_v1', updated);
+    if (cleanEmail) {
+      safeSaveStorage(`bizzdesk_user_profile_${cleanEmail.toLowerCase()}`, updated);
+    }
 
     // Also sync client profile in v1 client profiles list if exists
     try {
       const stored = localStorage.getItem('bizzdesk_v1_client_profiles');
       let profiles: ClientProfile[] = stored ? JSON.parse(stored) : [];
       const existingIdx = profiles.findIndex(
-        (c) => (c.email && c.email.toLowerCase() === updated.email?.toLowerCase()) || c.name.toLowerCase() === updated.founderName.toLowerCase()
+        (c) => (c.email && c.email.toLowerCase() === cleanEmail.toLowerCase()) || c.name.toLowerCase() === cleanName.toLowerCase()
       );
       const updatedClientRecord: ClientProfile = {
         id: existingIdx >= 0 ? profiles[existingIdx].id : `cp-${Date.now()}`,
-        name: updated.founderName,
-        email: updated.email || 'quentin@bizzbean.com',
-        companyName: updated.companyName,
+        name: cleanName,
+        email: cleanEmail,
+        companyName: cleanCompany,
         vatNumber: updated.vatNumber,
         phone: updated.phone,
         city: updated.city,
@@ -172,8 +215,49 @@ export const ClientProfileJournalModal: React.FC<ClientProfileJournalModalProps>
       console.warn('Sync client profiles err:', err);
     }
 
-    setProfileSuccessMessage('Personal profile and billing details updated successfully.');
+    // Save directly to Firebase Firestore users and client_profiles
+    try {
+      if (!isFirestoreQuotaExceeded()) {
+        if (auth.currentUser) {
+          setDoc(
+            doc(db, 'users', auth.currentUser.uid),
+            {
+              name: cleanName,
+              email: cleanEmail,
+              companyName: cleanCompany,
+              vatNumber: updated.vatNumber,
+              phone: updated.phone,
+              city: updated.city,
+              country: updated.country,
+              notes: updated.notes,
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true }
+          ).catch(() => {});
+        }
+        if (cleanEmail) {
+          setDoc(
+            doc(db, 'client_profiles', cleanEmail.toLowerCase()),
+            {
+              name: cleanName,
+              email: cleanEmail.toLowerCase(),
+              companyName: cleanCompany,
+              vatNumber: updated.vatNumber,
+              phone: updated.phone,
+              city: updated.city,
+              country: updated.country,
+              notes: updated.notes,
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true }
+          ).catch(() => {});
+        }
+      }
+    } catch (e) {}
+
+    setProfileSuccessMessage('Personal profile and billing details updated & saved to cloud successfully.');
     setTimeout(() => setProfileSuccessMessage(null), 3500);
+    return updated;
   };
 
   // Generate downloadable official SARS PDF Tax Invoice
@@ -699,7 +783,7 @@ export const ClientProfileJournalModal: React.FC<ClientProfileJournalModalProps>
                     className="px-5 py-2.5 rounded-xl bg-[#8CB843] hover:bg-[#7ba43b] text-slate-950 font-bold text-xs uppercase flex items-center gap-2 shadow-md transition-all active:scale-[0.99] cursor-pointer"
                   >
                     <Save className="h-4 w-4" />
-                    <span>ESTABLISH BILLING PROFILE</span>
+                    <span>SAVE & UPDATE BILLING PROFILE</span>
                   </button>
                 </div>
               </div>
@@ -718,8 +802,13 @@ export const ClientProfileJournalModal: React.FC<ClientProfileJournalModalProps>
           </span>
           <button
             type="button"
-            onClick={onClose}
-            className="text-[#5584B4] hover:underline font-bold uppercase tracking-wider"
+            onClick={() => {
+              if (activeTab === 'profile') {
+                handleSaveProfile();
+              }
+              onClose();
+            }}
+            className="px-4 py-1.5 rounded-lg bg-[#5584B4] hover:bg-[#4773A0] text-white font-bold uppercase tracking-wider text-xs transition-colors cursor-pointer"
           >
             Done
           </button>

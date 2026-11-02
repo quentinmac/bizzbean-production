@@ -418,16 +418,52 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   const [associateBatches] = useState<CmsAssociateImport[]>(INITIAL_CMS_ASSOCIATE_BATCHES);
   const [sponsors] = useState<CmsSponsorAccount[]>(INITIAL_CMS_SPONSORS);
   const [transactions] = useState<CmsTransactionRecord[]>(INITIAL_CMS_TRANSACTIONS);
-  const [v1Transactions] = useState<TransactionRecord[]>(() => {
+  const [v1Transactions, setV1Transactions] = useState<TransactionRecord[]>(() => {
     try {
+      if (localStorage.getItem('bizzdesk_v1_transactions_reset_zero') === 'true') {
+        const stored = localStorage.getItem('bizzdesk_v1_transactions');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) return parsed;
+        }
+        return [];
+      }
       const stored = localStorage.getItem('bizzdesk_v1_transactions');
-      if (stored) {
+      if (stored !== null) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {}
     return INITIAL_V1_TRANSACTIONS;
   });
+
+  useEffect(() => {
+    const handleSyncTx = () => {
+      try {
+        if (localStorage.getItem('bizzdesk_v1_transactions_reset_zero') === 'true') {
+          const stored = localStorage.getItem('bizzdesk_v1_transactions');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) {
+              setV1Transactions(parsed);
+              return;
+            }
+          }
+          setV1Transactions([]);
+          return;
+        }
+        const stored = localStorage.getItem('bizzdesk_v1_transactions');
+        if (stored !== null) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            setV1Transactions(parsed);
+          }
+        }
+      } catch (e) {}
+    };
+    window.addEventListener('bizzdesk_transactions_updated', handleSyncTx);
+    return () => window.removeEventListener('bizzdesk_transactions_updated', handleSyncTx);
+  }, []);
   const [policies] = useState<CmsPolicyRegistryItem[]>(INITIAL_CMS_POLICIES);
   const [tooltips] = useState<CmsBizzyTooltip[]>(INITIAL_CMS_TOOLTIPS);
 

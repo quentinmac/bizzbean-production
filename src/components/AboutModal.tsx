@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ArrowRight, ShieldCheck, QrCode, Share2, Check, ExternalLink, Sparkles } from 'lucide-react';
 import { UserBusinessProfile } from '../types';
 import { FormattedAboutContent } from './FormattedAboutContent';
@@ -9,6 +9,11 @@ import {
   DEFAULT_WHERE_ARE_WE_GOING,
   DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH,
 } from '../data/aboutDefaults';
+import {
+  getCachedAboutContent,
+  fetchAboutContentFromCloud,
+  AboutBizzbeanContent,
+} from '../services/siteContentService';
 
 interface AboutModalProps {
   isOpen: boolean;
@@ -27,6 +32,24 @@ export const AboutModal: React.FC<AboutModalProps> = ({
 }) => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [aboutContent, setAboutContent] = useState<AboutBizzbeanContent>(() => getCachedAboutContent());
+
+  useEffect(() => {
+    if (isOpen) {
+      setAboutContent(getCachedAboutContent());
+      fetchAboutContentFromCloud().then((cloudData) => {
+        if (cloudData) setAboutContent(cloudData);
+      });
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleUpdated = (e: any) => {
+      if (e?.detail) setAboutContent(e.detail);
+    };
+    window.addEventListener('bizzbean_about_content_updated', handleUpdated);
+    return () => window.removeEventListener('bizzbean_about_content_updated', handleUpdated);
+  }, []);
 
   if (!isOpen) return null;
 
@@ -123,7 +146,7 @@ We help founders build assets of sustainable value through rigorous quantitative
                 <span className="text-[10px] font-mono text-[#C59B63] lowercase font-normal">identity & purpose</span>
               </div>
               <FormattedAboutContent
-                content={userProfile?.whoAreWe || DEFAULT_WHO_ARE_WE}
+                content={aboutContent.whoAreWe || userProfile?.whoAreWe || DEFAULT_WHO_ARE_WE}
                 isDark={isDark}
               />
             </div>
@@ -141,7 +164,7 @@ We help founders build assets of sustainable value through rigorous quantitative
                 <span className="text-[10px] font-mono text-[#C59B63] lowercase font-normal">mechanics & tools</span>
               </div>
               <FormattedAboutContent
-                content={userProfile?.whatWeDoPanel || DEFAULT_WHAT_WE_DO}
+                content={aboutContent.whatWeDoPanel || userProfile?.whatWeDoPanel || DEFAULT_WHAT_WE_DO}
                 isDark={isDark}
               />
             </div>
@@ -159,7 +182,7 @@ We help founders build assets of sustainable value through rigorous quantitative
                 <span className="text-[10px] font-mono text-[#C59B63] lowercase font-normal">vision & trajectory</span>
               </div>
               <FormattedAboutContent
-                content={userProfile?.whereAreWeGoing || DEFAULT_WHERE_ARE_WE_GOING}
+                content={aboutContent.whereAreWeGoing || userProfile?.whereAreWeGoing || DEFAULT_WHERE_ARE_WE_GOING}
                 isDark={isDark}
               />
             </div>
@@ -177,7 +200,7 @@ We help founders build assets of sustainable value through rigorous quantitative
                 <span className="text-[10px] font-mono text-[#C59B63] lowercase font-normal">spectrum & outcomes</span>
               </div>
               <FormattedAboutContent
-                content={userProfile?.howSolutionsEnableGrowth || DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH}
+                content={aboutContent.howSolutionsEnableGrowth || userProfile?.howSolutionsEnableGrowth || DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH}
                 isDark={isDark}
               />
             </div>

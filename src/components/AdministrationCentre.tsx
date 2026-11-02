@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   FileText,
   Mail,
@@ -17,6 +17,7 @@ import {
   RefreshCw,
   ExternalLink,
   ChevronRight,
+  ChevronLeft,
   Sparkles,
   Layers,
   Coins,
@@ -55,6 +56,12 @@ import {
   DEFAULT_WHERE_ARE_WE_GOING,
   DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH,
 } from '../data/aboutDefaults';
+import {
+  AboutContent,
+  getCachedAboutContent,
+  fetchAboutContentFromCloud,
+  saveAboutContentToCloud,
+} from '../services/siteContentService';
 import {
   CmsProduct,
   CmsVideo,
@@ -175,25 +182,52 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
 
   const [transactions, setTransactions] = useState<TransactionRecord[]>(() => {
     try {
+      if (localStorage.getItem('bizzdesk_v1_transactions_reset_zero') === 'true') {
+        const stored = localStorage.getItem('bizzdesk_v1_transactions');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) return parsed;
+        }
+        return [];
+      }
       const stored = localStorage.getItem('bizzdesk_v1_transactions');
-      if (stored) {
+      if (stored !== null) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const hasLegacyMock = parsed.some((t: any) =>
-            t.customerEmail === 'quentin@bizzbean.com' ||
-            t.customer === 'Quentin McCullough' ||
-            (t.sku === 'bizzcalc' && t.invoiceNumber === 'INV-2026-0001')
-          );
-          if (!hasLegacyMock) {
-            return parsed.filter((t): t is TransactionRecord => Boolean(t && typeof t === 'object' && t.invoiceNumber));
-          } else {
-            localStorage.setItem('bizzdesk_v1_transactions', JSON.stringify([]));
-          }
+        if (Array.isArray(parsed)) {
+          return parsed.filter((t): t is TransactionRecord => Boolean(t && typeof t === 'object' && t.invoiceNumber));
         }
       }
     } catch (e) {}
     return INITIAL_V1_TRANSACTIONS;
   });
+
+  useEffect(() => {
+    const handleTxUpdate = () => {
+      try {
+        if (localStorage.getItem('bizzdesk_v1_transactions_reset_zero') === 'true') {
+          const stored = localStorage.getItem('bizzdesk_v1_transactions');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) {
+              setTransactions(parsed);
+              return;
+            }
+          }
+          setTransactions([]);
+          return;
+        }
+        const stored = localStorage.getItem('bizzdesk_v1_transactions');
+        if (stored !== null) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            setTransactions(parsed);
+          }
+        }
+      } catch (e) {}
+    };
+    window.addEventListener('bizzdesk_transactions_updated', handleTxUpdate);
+    return () => window.removeEventListener('bizzdesk_transactions_updated', handleTxUpdate);
+  }, []);
 
   const [clientProfiles, setClientProfiles] = useState<ClientProfile[]>(() => {
     try {
@@ -264,6 +298,29 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
   });
   const [newAdminInput, setNewAdminInput] = useState('');
   const [showAdminManager, setShowAdminManager] = useState(false);
+
+  // Journal Reset In-App Confirmation Modal (Bypasses browser window.confirm sandbox block)
+  const [showResetJournalModal, setShowResetJournalModal] = useState(false);
+
+  // About Bizzbean Live Content State & Cloud Synchronization
+  const [aboutData, setAboutData] = useState<AboutContent>(() => getCachedAboutContent());
+  const [isEditingAbout, setIsEditingAbout] = useState(false);
+  const [editWhoAreWe, setEditWhoAreWe] = useState('');
+  const [editWhatWeDo, setEditWhatWeDo] = useState('');
+  const [editWhereGoing, setEditWhereGoing] = useState('');
+  const [editHowSolutions, setEditHowSolutions] = useState('');
+  const [isSavingAbout, setIsSavingAbout] = useState(false);
+
+  useEffect(() => {
+    fetchAboutContentFromCloud().then((cloudData) => {
+      setAboutData(cloudData);
+    });
+    const handleAboutUpdate = (e: any) => {
+      if (e.detail) setAboutData(e.detail);
+    };
+    window.addEventListener('bizzbean_about_content_updated', handleAboutUpdate);
+    return () => window.removeEventListener('bizzbean_about_content_updated', handleAboutUpdate);
+  }, []);
 
   // Standard catalogue presets for quick entry
   const STANDARD_CATALOGUE_ITEMS = [
@@ -370,11 +427,16 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
   };
 
   const handleResetJournalSeq = () => {
-    if (window.confirm('Reset the transaction journal so the sequence starts fresh at Invoice #1?')) {
-      setTransactions([]);
-      localStorage.setItem('bizzdesk_v1_transactions', JSON.stringify([]));
-      showToast('Journal sequence reset. The next recorded invoice starts at Invoice #1 (INV-2026-0001).');
-    }
+    setShowResetJournalModal(true);
+  };
+
+  const handleConfirmResetJournalZero = () => {
+    setTransactions([]);
+    localStorage.setItem('bizzdesk_v1_transactions', JSON.stringify([]));
+    localStorage.setItem('bizzdesk_v1_transactions_reset_zero', 'true');
+    window.dispatchEvent(new CustomEvent('bizzdesk_transactions_updated'));
+    setShowResetJournalModal(false);
+    showToast('Transaction journal successfully reset to zero. The next invoice sequence starts at Invoice #1 (INV-2026-0001).');
   };
 
   const handleSort = (col: typeof txSortColumn) => {
@@ -913,6 +975,77 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
     );
   });
 
+  // Master navigation tabs for carousel container (Reference: carosoul.PNG)
+  const ADMIN_TABS = [
+    { id: 'transactions', label: 'Transaction Journal', icon: FileText, badge: transactions.length },
+    { id: 'dialogue-centre', label: 'Talk To Us Dialogue (#3)', icon: Mail, badge: inquiries.length },
+    { id: 'bulk-imports', label: 'Associate Bulk Imports (#9)', icon: Users, badge: associateBatches.length },
+    { id: 'promo-emails', label: 'Personal Promotion Emails (#10)', icon: Send, badge: promoEmails.length },
+    { id: 'cms-console', label: 'CMS Console (Master Matrix)', icon: Database, badge: 'Live' },
+    { id: 'about-bizzbean', label: 'About Bizzbean Content', icon: Info, badge: 'Official' },
+  ] as const;
+
+  const tabsCarouselRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const checkTabsScroll = useCallback(() => {
+    const el = tabsCarouselRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    setCanScrollLeft(scrollLeft > 6);
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 6);
+  }, []);
+
+  useEffect(() => {
+    const el = tabsCarouselRef.current;
+    if (!el) return;
+    checkTabsScroll();
+    el.addEventListener('scroll', checkTabsScroll, { passive: true });
+    window.addEventListener('resize', checkTabsScroll);
+    return () => {
+      el.removeEventListener('scroll', checkTabsScroll);
+      window.removeEventListener('resize', checkTabsScroll);
+    };
+  }, [checkTabsScroll]);
+
+  // Auto-scroll active tab into view whenever activeTab changes
+  useEffect(() => {
+    const el = tabsCarouselRef.current;
+    if (!el) return;
+    const activeBtn = el.querySelector<HTMLElement>(`[data-tab-id="${activeTab}"]`);
+    if (activeBtn) {
+      activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+    setTimeout(checkTabsScroll, 300);
+  }, [activeTab, checkTabsScroll]);
+
+  const handleScrollTabs = (direction: 'left' | 'right') => {
+    const el = tabsCarouselRef.current;
+    if (!el) return;
+    const scrollAmount = Math.max(260, Math.floor(el.clientWidth * 0.65));
+    el.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth',
+    });
+    setTimeout(checkTabsScroll, 350);
+  };
+
+  const activeTabIndex = Math.max(
+    0,
+    ADMIN_TABS.findIndex((t) => t.id === activeTab)
+  );
+
+  const handleNextTab = () => {
+    const nextIndex = (activeTabIndex + 1) % ADMIN_TABS.length;
+    setActiveTab(ADMIN_TABS[nextIndex].id as any);
+  };
+
+  const handlePrevTab = () => {
+    const prevIndex = (activeTabIndex - 1 + ADMIN_TABS.length) % ADMIN_TABS.length;
+    setActiveTab(ADMIN_TABS[prevIndex].id as any);
+  };
+
   // ---------------------------------------------------------------------------
   // RENDER COMPONENT
   // ---------------------------------------------------------------------------
@@ -981,54 +1114,201 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
         </div>
       </header>
 
-      {/* NAVIGATION TABS: Transferred V1 Platform Apps Suite + Management Tabs */}
+      {/* NAVIGATION TABS: CAROUSEL CONTAINER (Reference: carosoul.PNG) */}
       <div
-        className={`px-4 sm:px-6 py-2 border-b overflow-x-auto flex items-center gap-1.5 shrink-0 scrollbar-none ${
+        className={`border-b shrink-0 relative transition-colors ${
           isDark ? 'bg-[#0E1322] border-[#1D2644]' : 'bg-[#F4EFE6] border-[#E8E2D8]'
         }`}
       >
-        {[
-          { id: 'transactions', label: 'Transaction Journal', icon: FileText, badge: transactions.length },
-          { id: 'dialogue-centre', label: 'Talk To Us Dialogue (#3)', icon: Mail, badge: inquiries.length },
-          { id: 'bulk-imports', label: 'Associate Bulk Imports (#9)', icon: Users, badge: associateBatches.length },
-          { id: 'promo-emails', label: 'Personal Promotion Emails (#10)', icon: Send, badge: promoEmails.length },
-          { id: 'cms-console', label: 'CMS Console (Master Matrix)', icon: Database, badge: 'Live' },
-          { id: 'about-bizzbean', label: 'About Bizzbean Content', icon: Info, badge: 'Official' },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-mono font-semibold transition-all whitespace-nowrap border ${
-                isActive
-                  ? isDark
-                    ? 'bg-[#1E2745]/40 text-[#D4A373] border-[#5584B4]/40 shadow-xs'
-                    : 'bg-[#F2ECE1]/80 text-[#8C6D3F] border-[#D8CEBC] shadow-xs'
-                  : isDark
-                  ? 'text-slate-400 hover:text-white bg-[#13182B]/60 hover:bg-[#182038] border-transparent'
-                  : 'text-slate-600 hover:text-slate-900 bg-white/60 hover:bg-white border-[#E8E2D8]'
-              }`}
-            >
-              <Icon className={`h-3.5 w-3.5 ${isActive ? (isDark ? 'text-[#D4A373]' : 'text-[#8C6D3F]') : 'opacity-70'}`} />
-              <span>{tab.label}</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
-                  isActive
-                    ? isDark
-                      ? 'bg-[#D4A373]/20 text-[#D4A373] font-bold'
-                      : 'bg-[#8C6D3F]/15 text-[#8C6D3F] font-bold'
-                    : isDark
-                    ? 'bg-[#1F2742] text-slate-400'
-                    : 'bg-slate-200 text-slate-700'
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 flex items-center gap-2 py-2">
+          {/* Carousel Left Navigation Arrow Button */}
+          <button
+            type="button"
+            onClick={() => handleScrollTabs('left')}
+            disabled={!canScrollLeft}
+            aria-label="Scroll menu left"
+            title="Scroll menu left"
+            className={`p-2 rounded-xl transition-all shrink-0 flex items-center justify-center border cursor-pointer ${
+              canScrollLeft
+                ? isDark
+                  ? 'bg-[#182038] hover:bg-[#253258] text-white border-[#314170] shadow-sm hover:scale-105 active:scale-95'
+                  : 'bg-white hover:bg-slate-100 text-slate-800 border-[#D8CEBC] shadow-sm hover:scale-105 active:scale-95'
+                : isDark
+                ? 'opacity-25 text-slate-600 border-transparent cursor-not-allowed pointer-events-none'
+                : 'opacity-25 text-slate-400 border-transparent cursor-not-allowed pointer-events-none'
+            }`}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+
+          {/* Carousel Track with Gradient Fades */}
+          <div className="relative flex-1 overflow-hidden min-w-0">
+            {/* Left Edge Gradient Indicator */}
+            {canScrollLeft && (
+              <div
+                className={`absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none transition-opacity ${
+                  isDark
+                    ? 'bg-gradient-to-r from-[#0E1322] to-transparent'
+                    : 'bg-gradient-to-r from-[#F4EFE6] to-transparent'
                 }`}
-              >
-                {tab.badge}
-              </span>
-            </button>
-          );
-        })}
+              />
+            )}
+
+            {/* Scrollable Tabs Carousel Track */}
+            <div
+              ref={tabsCarouselRef}
+              className="overflow-x-auto scroll-smooth flex items-center gap-2 py-0.5 px-1 scrollbar-none"
+            >
+              {ADMIN_TABS.map((tab, idx) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    data-tab-id={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-mono font-semibold transition-all whitespace-nowrap border shrink-0 cursor-pointer ${
+                      isActive
+                        ? isDark
+                          ? 'bg-[#1E2745] text-[#E0B182] border-[#5584B4] shadow-md ring-1 ring-[#5584B4]/50'
+                          : 'bg-white text-[#7B5927] border-[#8CB843] shadow-md ring-1 ring-[#8CB843]/40'
+                        : isDark
+                        ? 'text-slate-400 hover:text-white bg-[#13182B]/80 hover:bg-[#182038] border-[#1D2644]'
+                        : 'text-slate-600 hover:text-slate-900 bg-white/70 hover:bg-white border-[#E8E2D8]'
+                    }`}
+                  >
+                    <Icon
+                      className={`h-3.5 w-3.5 ${
+                        isActive ? (isDark ? 'text-[#E0B182]' : 'text-[#7B5927]') : 'opacity-70'
+                      }`}
+                    />
+                    <span>{tab.label}</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+                        isActive
+                          ? isDark
+                            ? 'bg-[#E0B182]/20 text-[#E0B182] font-bold'
+                            : 'bg-[#8CB843]/20 text-[#557827] font-bold'
+                          : isDark
+                          ? 'bg-[#1F2742] text-slate-400'
+                          : 'bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {tab.badge}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Right Edge Gradient Indicator */}
+            {canScrollRight && (
+              <div
+                className={`absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none transition-opacity ${
+                  isDark
+                    ? 'bg-gradient-to-l from-[#0E1322] to-transparent'
+                    : 'bg-gradient-to-l from-[#F4EFE6] to-transparent'
+                }`}
+              />
+            )}
+          </div>
+
+          {/* Carousel Right Navigation Arrow Button */}
+          <button
+            type="button"
+            onClick={() => handleScrollTabs('right')}
+            disabled={!canScrollRight}
+            aria-label="Scroll menu right"
+            title="Scroll menu right to discover more items"
+            className={`p-2 rounded-xl transition-all shrink-0 flex items-center justify-center border cursor-pointer ${
+              canScrollRight
+                ? isDark
+                  ? 'bg-[#182038] hover:bg-[#253258] text-[#E0B182] border-[#314170] shadow-sm hover:scale-105 active:scale-95 ring-1 ring-amber-400/40 animate-pulse'
+                  : 'bg-white hover:bg-slate-100 text-[#7B5927] border-[#D8CEBC] shadow-sm hover:scale-105 active:scale-95 ring-1 ring-amber-500/40 animate-pulse'
+                : isDark
+                ? 'opacity-25 text-slate-600 border-transparent cursor-not-allowed pointer-events-none'
+                : 'opacity-25 text-slate-400 border-transparent cursor-not-allowed pointer-events-none'
+            }`}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+
+          {/* Carousel Navigation Index & Pagination Dots */}
+          <div className="hidden lg:flex items-center gap-2.5 pl-2 border-l border-slate-300 dark:border-slate-800 shrink-0">
+            {/* Quick Step Indicator */}
+            <div className="font-mono text-[11px] text-slate-400">
+              <span className="font-bold text-slate-800 dark:text-slate-200">{activeTabIndex + 1}</span>
+              <span className="mx-0.5">/</span>
+              <span>{ADMIN_TABS.length}</span>
+            </div>
+
+            {/* Interactive Carousel Pagination Dots */}
+            <div className="flex items-center gap-1.5" title="Jump to management center">
+              {ADMIN_TABS.map((tab, idx) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id as any)}
+                    title={`${idx + 1}. ${tab.label}`}
+                    className={`h-2 rounded-full transition-all cursor-pointer ${
+                      isActive
+                        ? isDark
+                          ? 'w-5 bg-[#E0B182]'
+                          : 'w-5 bg-[#8CB843]'
+                        : isDark
+                        ? 'w-2 bg-slate-700 hover:bg-slate-500'
+                        : 'w-2 bg-slate-300 hover:bg-slate-400'
+                    }`}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile / Tablet Quick Carousel Indicator Strip */}
+        <div className="flex lg:hidden items-center justify-between px-3 py-1 border-t border-black/5 dark:border-white/5 font-mono text-[10px] text-slate-400">
+          <button
+            type="button"
+            onClick={handlePrevTab}
+            className="flex items-center gap-1 hover:text-white transition-colors py-0.5"
+          >
+            <ChevronLeft className="h-3 w-3" />
+            <span>Prev Center</span>
+          </button>
+
+          <div className="flex items-center gap-1.5">
+            {ADMIN_TABS.map((tab, idx) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`h-1.5 rounded-full transition-all ${
+                    isActive
+                      ? isDark
+                        ? 'w-4 bg-[#E0B182]'
+                        : 'w-4 bg-[#8CB843]'
+                      : 'w-1.5 bg-slate-600/40'
+                  }`}
+                  title={`${idx + 1}. ${tab.label}`}
+                />
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleNextTab}
+            className="flex items-center gap-1 hover:text-white transition-colors py-0.5"
+          >
+            <span>Next Center</span>
+            <ChevronRight className="h-3 w-3" />
+          </button>
+        </div>
       </div>
 
       {/* MAIN CONTENT AREA */}
@@ -3327,9 +3607,27 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
             <div className={`p-6 sm:p-8 rounded-2xl border space-y-4 ${
               isDark ? 'bg-[#12172A] border-[#222F4C]' : 'bg-white border-[#E8E2D8] shadow-2xs'
             }`}>
-              <div className="flex items-center gap-2 text-xs text-amber-400 uppercase tracking-wider">
-                <Sparkles className="h-4 w-4" />
-                <span>Official Mission & Manifesto · Bizzbean v2</span>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs text-amber-400 uppercase tracking-wider">
+                  <Sparkles className="h-4 w-4" />
+                  <span>Official Mission & Manifesto · Cloud Synchronized</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditWhoAreWe(aboutData.whoAreWe);
+                      setEditWhatWeDo(aboutData.whatWeDoPanel || aboutData.whatWeDo || DEFAULT_WHAT_WE_DO);
+                      setEditWhereGoing(aboutData.whereAreWeGoing);
+                      setEditHowSolutions(aboutData.howSolutionsEnableGrowth);
+                      setIsEditingAbout(true);
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#8CB843] hover:bg-[#7ba43b] text-slate-950 font-bold text-xs uppercase transition-colors cursor-pointer shadow-xs"
+                  >
+                    <Edit2 className="h-3.5 w-3.5" />
+                    <span>Edit & Publish to Cloud</span>
+                  </button>
+                </div>
               </div>
               <h2 className="text-xl sm:text-2xl font-bold text-white tracking-wide uppercase font-sans">
                 ABOUT BIZZBEAN
@@ -3348,7 +3646,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                   <span>1. WHO ARE WE</span>
                   <span className="text-[10px] text-[#C59B63] font-normal">identity & purpose</span>
                 </div>
-                <FormattedAboutContent content={DEFAULT_WHO_ARE_WE} isDark={isDark} />
+                <FormattedAboutContent content={aboutData.whoAreWe || DEFAULT_WHO_ARE_WE} isDark={isDark} />
               </div>
 
               <div className={`p-5 rounded-2xl border space-y-2 ${
@@ -3358,7 +3656,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                   <span>2. WHAT WE DO</span>
                   <span className="text-[10px] text-[#C59B63] font-normal">mechanics & tools</span>
                 </div>
-                <FormattedAboutContent content={DEFAULT_WHAT_WE_DO} isDark={isDark} />
+                <FormattedAboutContent content={aboutData.whatWeDoPanel || aboutData.whatWeDo || DEFAULT_WHAT_WE_DO} isDark={isDark} />
               </div>
 
               <div className={`p-5 rounded-2xl border space-y-2 ${
@@ -3368,7 +3666,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                   <span>3. WHERE ARE WE GOING</span>
                   <span className="text-[10px] text-[#C59B63] font-normal">vision & trajectory</span>
                 </div>
-                <FormattedAboutContent content={DEFAULT_WHERE_ARE_WE_GOING} isDark={isDark} />
+                <FormattedAboutContent content={aboutData.whereAreWeGoing || DEFAULT_WHERE_ARE_WE_GOING} isDark={isDark} />
               </div>
 
               <div className={`p-5 rounded-2xl border space-y-2 ${
@@ -3378,7 +3676,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                   <span>4. HOW SOLUTIONS ENABLE GROWTH</span>
                   <span className="text-[10px] text-[#C59B63] font-normal">spectrum & outcomes</span>
                 </div>
-                <FormattedAboutContent content={DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH} isDark={isDark} />
+                <FormattedAboutContent content={aboutData.howSolutionsEnableGrowth || DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH} isDark={isDark} />
               </div>
             </div>
 
@@ -3393,7 +3691,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                     Google Workspace & Gemini Core Architecture
                   </div>
                   <div className="text-[11px] text-slate-400">
-                    Macro-free Google Sheets, Google Slides, Google Drive VDR structures, and AES-256 standard.
+                    Cloud Firestore synced · Macro-free Google Sheets, Google Slides, Google Drive VDR structures.
                   </div>
                 </div>
               </div>
@@ -3415,6 +3713,171 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
         )}
 
       </div>
+
+      {/* ======================================================================= */}
+      {/* EDIT ABOUT BIZZBEAN CLOUD CONTENT MODAL                                 */}
+      {/* ======================================================================= */}
+      {isEditingAbout && (
+        <div className="fixed inset-0 z-60 bg-black/85 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div className="w-full max-w-3xl rounded-2xl bg-[#0E1322] border border-[#2B3452] p-6 space-y-4 text-slate-100 font-mono shadow-2xl my-8">
+            <div className="flex items-center justify-between border-b border-[#222F4C] pb-3">
+              <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
+                <Sparkles className="h-4 w-4" />
+                <span>Edit & Publish About Bizzbean to Cloud</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditingAbout(false)}
+                className="text-slate-400 hover:text-white text-base px-2 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Updates made here are saved directly to Cloud Firestore (<code className="text-emerald-400">site_content/about_bizzbean</code>) and instantly synchronize across <code className="text-amber-300">bizzbean.com</code> and all sliding door panels.
+            </p>
+
+            <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+              <div>
+                <label className="block text-amber-300 font-bold text-xs uppercase mb-1">
+                  1. WHO ARE WE
+                </label>
+                <textarea
+                  rows={4}
+                  value={editWhoAreWe}
+                  onChange={(e) => setEditWhoAreWe(e.target.value)}
+                  className="w-full p-3 rounded-xl bg-[#141A2E] border border-[#2B3452] text-xs font-mono text-white focus:outline-hidden focus:border-[#8CB843]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-amber-300 font-bold text-xs uppercase mb-1">
+                  2. WHAT WE DO
+                </label>
+                <textarea
+                  rows={4}
+                  value={editWhatWeDo}
+                  onChange={(e) => setEditWhatWeDo(e.target.value)}
+                  className="w-full p-3 rounded-xl bg-[#141A2E] border border-[#2B3452] text-xs font-mono text-white focus:outline-hidden focus:border-[#8CB843]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-amber-300 font-bold text-xs uppercase mb-1">
+                  3. WHERE ARE WE GOING
+                </label>
+                <textarea
+                  rows={4}
+                  value={editWhereGoing}
+                  onChange={(e) => setEditWhereGoing(e.target.value)}
+                  className="w-full p-3 rounded-xl bg-[#141A2E] border border-[#2B3452] text-xs font-mono text-white focus:outline-hidden focus:border-[#8CB843]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-amber-300 font-bold text-xs uppercase mb-1">
+                  4. HOW SOLUTIONS ENABLE GROWTH
+                </label>
+                <textarea
+                  rows={5}
+                  value={editHowSolutions}
+                  onChange={(e) => setEditHowSolutions(e.target.value)}
+                  className="w-full p-3 rounded-xl bg-[#141A2E] border border-[#2B3452] text-xs font-mono text-white focus:outline-hidden focus:border-[#8CB843]"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-[#222F4C]">
+              <button
+                type="button"
+                onClick={() => setIsEditingAbout(false)}
+                className="px-4 py-2 rounded-xl text-xs font-mono font-bold bg-[#141A2E] hover:bg-[#1C2542] text-slate-300 border border-[#242F4C] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSavingAbout}
+                onClick={async () => {
+                  try {
+                    setIsSavingAbout(true);
+                    const updated: AboutContent = {
+                      whoAreWe: editWhoAreWe,
+                      whatWeDoPanel: editWhatWeDo,
+                      whatWeDo: editWhatWeDo,
+                      whereAreWeGoing: editWhereGoing,
+                      howSolutionsEnableGrowth: editHowSolutions,
+                      updatedAt: new Date().toISOString(),
+                    };
+                    await saveAboutContentToCloud(updated);
+                    setAboutData(updated);
+                    showToast('About BizzBean published live to Cloud Firestore & synchronized across all domains.');
+                    setIsEditingAbout(false);
+                  } catch (err) {
+                    console.error('Error saving about content:', err);
+                    showToast('Failed to save to cloud. Saved locally.');
+                  } finally {
+                    setIsSavingAbout(false);
+                  }
+                }}
+                className="px-5 py-2.5 rounded-xl bg-[#8CB843] hover:bg-[#7ba43b] text-slate-950 font-bold text-xs uppercase flex items-center gap-2 shadow-md transition-all active:scale-[0.99] cursor-pointer"
+              >
+                <Save className="h-4 w-4" />
+                <span>{isSavingAbout ? 'Publishing...' : 'Publish Live to Cloud'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================================= */}
+      {/* RESET JOURNAL TO ZERO (#1) IN-APP CONFIRMATION MODAL                   */}
+      {/* ======================================================================= */}
+      {showResetJournalModal && (
+        <div className="fixed inset-0 z-60 bg-black/85 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl bg-[#0F1424] border border-[#2B3554] p-6 space-y-4 text-white font-mono shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 text-rose-400">
+              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30">
+                <RotateCcw className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm uppercase tracking-wider text-rose-300">
+                  Reset Transaction Journal
+                </h3>
+                <span className="text-[11px] text-slate-400">Start Sequence at Invoice #1</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Are you sure you want to reset the transaction journal to zero?
+            </p>
+            <div className="p-3.5 rounded-xl bg-[#141A2E] border border-[#242F4C] text-[11px] text-slate-400 space-y-1.5">
+              <div>• All current mock and draft journal entries will be cleared.</div>
+              <div>• Sequence will reset to start fresh at <strong className="text-emerald-400">Invoice #1 (INV-2026-0001)</strong>.</div>
+              <div>• Real customer purchases and issued slips will commence from sequence #1.</div>
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-[#222F4C]">
+              <button
+                type="button"
+                onClick={() => setShowResetJournalModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-[#1A2238] hover:bg-[#253050] text-slate-300 border border-[#2F3E64] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmResetJournalZero}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition-colors cursor-pointer shadow-md flex items-center gap-1.5"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span>Confirm Reset to Zero (#1)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

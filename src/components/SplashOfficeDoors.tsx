@@ -411,7 +411,7 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
                 onConfirmSignUp(
                   resolvedName,
                   profile.email || '',
-                  profile.companyName || 'Apex Cloud Dynamics'
+                  profile.companyName || ''
                 );
               }
               handleTriggerEnter(true, profile?.email, resolvedName);
