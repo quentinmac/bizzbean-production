@@ -41,6 +41,7 @@ import {
   GitBranch,
 } from 'lucide-react';
 import { CoaManagementView } from './coa/CoaManagementView';
+import { generateTaxInvoicePdf } from '../utils/taxInvoicePdf';
 import {
   generateCmsConsoleDataTs,
   downloadCmsDataFile,
@@ -5017,9 +5018,41 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                     </div>
                   </div>
 
+                  {/* Consolidated Unified Journal Notice Banner */}
+                  <div className="p-4 rounded-xl bg-[#0E1322] border border-[#5584B4]/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-md">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-[#5584B4]" />
+                        <span className="font-mono text-xs font-bold text-white uppercase tracking-wider">
+                          UNIFIED SALES JOURNAL & GENERAL LEDGER
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wide border bg-[#5584B4]/20 text-[#DDEBF7] border-[#5584B4]/40">
+                          MASTER RECONCILIATION
+                        </span>
+                      </div>
+                      <p className="text-[11px] font-mono text-slate-400">
+                        The primary interactive journal (with country filter, SARS VAT statutory calculator, client directory profiles, and PDF slip dispatches) is centralized in the Administration Centre.
+                      </p>
+                    </div>
+
+                    {onLaunchSolution && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onLaunchSolution('administration-centre');
+                        }}
+                        className="px-3.5 py-2 rounded-lg text-xs font-mono font-bold transition-all border border-[#5584B4] bg-[#5584B4] hover:bg-[#4372A2] text-white cursor-pointer shadow-sm flex items-center gap-1.5 shrink-0"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        <span>Open Administration Centre Journal</span>
+                      </button>
+                    )}
+                  </div>
+
                   <div className="flex items-center justify-between">
                     <div className="text-xs font-mono text-slate-400 uppercase">
-                      OFFICIAL V1 TRANSACTION JOURNAL & SARS GENERAL LEDGER
+                      OFFICIAL V1 TRANSACTION JOURNAL & SARS GENERAL LEDGER ({v1Transactions.length} INVOICES)
                     </div>
                     <div className="text-[11px] font-mono text-emerald-400 font-bold">
                       Total Gross Invoiced: R{' '}
@@ -5033,12 +5066,14 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                           <th className="py-2.5 px-3">Invoice #</th>
                           <th className="py-2.5 px-3">Date</th>
                           <th className="py-2.5 px-3">Customer</th>
+                          <th className="py-2.5 px-3">🌐 Country</th>
                           <th className="py-2.5 px-3">Product (SKU)</th>
                           <th className="py-2.5 px-2 text-center">Type</th>
                           <th className="py-2.5 px-2 text-center">Qty</th>
                           <th className="py-2.5 px-3 text-right">Line Value</th>
                           <th className="py-2.5 px-3 text-right">VAT (15%)</th>
                           <th className="py-2.5 px-3 text-right">Gross Total</th>
+                          <th className="py-2.5 px-3 text-center">Slip (PDF)</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#1D2644]">
@@ -5049,6 +5084,11 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                             <td className="py-2.5 px-3">
                               <span className="text-white font-medium">{tx.customer}</span>
                               <span className="text-[10px] text-slate-500 block">{tx.customerEmail}</span>
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-300">
+                              <span className="inline-flex items-center gap-1">
+                                {tx.country || 'South Africa'}
+                              </span>
                             </td>
                             <td className="py-2.5 px-3 text-slate-300">
                               <span>{tx.productName}</span>
@@ -5074,6 +5114,17 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                             </td>
                             <td className="py-2.5 px-3 text-right text-emerald-400 font-bold">
                               R {tx.invoiceValue.toFixed(2)}
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => generateTaxInvoicePdf(tx)}
+                                title="Download SARS Tax Invoice PDF"
+                                className="px-2.5 py-1 rounded bg-[#1F2942] hover:bg-[#2B395C] text-emerald-400 border border-[#35456E] text-[11px] font-bold transition-colors inline-flex items-center gap-1 cursor-pointer"
+                              >
+                                <Download className="h-3 w-3" />
+                                <span>PDF</span>
+                              </button>
                             </td>
                           </tr>
                         ))}

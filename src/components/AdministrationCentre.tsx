@@ -37,7 +37,17 @@ import {
   Eye,
   FileSpreadsheet,
   Phone,
+  Calculator,
+  RotateCcw,
+  Globe,
+  Percent,
+  TrendingUp,
+  ArrowUpDown,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
+import { generateTaxInvoicePdf } from '../utils/taxInvoicePdf';
+import { COUNTRIES } from '../data/countryData';
 import { FormattedAboutContent } from './FormattedAboutContent';
 import {
   DEFAULT_WHO_ARE_WE,
@@ -88,6 +98,12 @@ import {
   deleteEnquiry,
   TalkToUsEnquiry,
 } from '../services/enquiryService';
+import {
+  getStoredAdminEmails,
+  addAdminEmail,
+  removeAdminEmail,
+  determineUserRole,
+} from '../services/firebaseAuthService';
 
 interface AdministrationCentreProps {
   theme: 'light' | 'dark';
@@ -153,7 +169,9 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
   // ---------------------------------------------------------------------------
   // TAB 1: TRANSACTIONS JOURNAL STATE (V1 Implementation)
   // ---------------------------------------------------------------------------
-  const [journalSubTab, setJournalSubTab] = useState<'transactions' | 'clients' | 'notifications'>('transactions');
+  // TAB 1: TRANSACTIONS JOURNAL & CLIENT PROFILES STATE (Unified Master Hub)
+  // ---------------------------------------------------------------------------
+  const [journalSubTab, setJournalSubTab] = useState<'transactions' | 'clients' | 'nudges'>('transactions');
 
   const [transactions, setTransactions] = useState<TransactionRecord[]>(() => {
     try {
@@ -161,11 +179,10 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // If stored contains legacy mock items, clear them so user starts fresh at invoice 1
           const hasLegacyMock = parsed.some((t: any) =>
             t.customerEmail === 'quentin@bizzbean.com' ||
             t.customer === 'Quentin McCullough' ||
-            t.sku === 'bizzcalc' && t.invoiceNumber === 'INV-2026-0001'
+            (t.sku === 'bizzcalc' && t.invoiceNumber === 'INV-2026-0001')
           );
           if (!hasLegacyMock) {
             return parsed.filter((t): t is TransactionRecord => Boolean(t && typeof t === 'object' && t.invoiceNumber));
@@ -191,22 +208,24 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
     return INITIAL_CLIENT_PROFILES;
   });
 
-  const [clientNotifications, setClientNotifications] = useState<ClientNotification[]>(() => {
-    try {
-      const stored = localStorage.getItem('bizzdesk_v1_client_notifications');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.filter((n): n is ClientNotification => Boolean(n && typeof n === 'object' && n.id));
-        }
-      }
-    } catch (e) {}
-    return INITIAL_CLIENT_NOTIFICATIONS;
-  });
-
+  // Query Controls & Filtering States (Ref: filter.PNG)
   const [txSearch, setTxSearch] = useState('');
-  const [txTypeFilter, setTxTypeFilter] = useState<'all' | 'app' | 'course'>('all');
+  const [txDateFrom, setTxDateFrom] = useState('');
+  const [txDateTo, setTxDateTo] = useState('');
+  const [txCountryFilter, setTxCountryFilter] = useState<string>('all');
   const [txAssociateFilter, setTxAssociateFilter] = useState<string>('all');
+  const [txProductFilter, setTxProductFilter] = useState<string>('all');
+  const [txTypeFilter, setTxTypeFilter] = useState<'all' | 'app' | 'course'>('all');
+  const [txSortColumn, setTxSortColumn] = useState<
+    'invoiceNumber' | 'transactionDate' | 'customer' | 'customerEmail' | 'country' | 'associate' | 'productName' | 'lineValue' | 'vatAmount' | 'invoiceValue'
+  >('transactionDate');
+  const [txSortDirection, setTxSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  // SARS Statutory VAT Calculator banner state
+  const [isVatCalculatorOpen, setIsVatCalculatorOpen] = useState(false);
+  const [vatCalcAmount, setVatCalcAmount] = useState<number>(1000);
+  const [vatCalcMode, setVatCalcMode] = useState<'exclusive' | 'inclusive'>('exclusive');
+
   const [viewingInvoice, setViewingInvoice] = useState<TransactionRecord | null>(null);
 
   // New Transaction Modal State
@@ -226,8 +245,9 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
   const [newTxVatRate, setNewTxVatRate] = useState<number>(0.15);
   const [newTxAutoNotify, setNewTxAutoNotify] = useState<boolean>(true);
 
-  // Client Profile Modal State
+  // Client Profile Modal State (Ref: client profile.PNG)
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<ClientProfile | null>(null);
   const [newClientName, setNewClientName] = useState('');
   const [newClientEmail, setNewClientEmail] = useState('');
   const [newClientCompany, setNewClientCompany] = useState('');
@@ -236,14 +256,14 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
   const [newClientCity, setNewClientCity] = useState('');
   const [newClientCountry, setNewClientCountry] = useState('South Africa');
   const [newClientNotes, setNewClientNotes] = useState('');
+  const [newClientRole, setNewClientRole] = useState<'member' | 'admin'>('member');
 
-  // Notification Modal State
-  const [isNewNotifModalOpen, setIsNewNotifModalOpen] = useState(false);
-  const [newNotifEmail, setNewNotifEmail] = useState('');
-  const [newNotifSubject, setNewNotifSubject] = useState('');
-  const [newNotifContent, setNewNotifContent] = useState('');
-  const [newNotifServiceName, setNewNotifServiceName] = useState('');
-  const [newNotifAmount, setNewNotifAmount] = useState<number>(0);
+  // Administrator Management State
+  const [adminEmailsList, setAdminEmailsList] = useState<string[]>(() => {
+    return getStoredAdminEmails();
+  });
+  const [newAdminInput, setNewAdminInput] = useState('');
+  const [showAdminManager, setShowAdminManager] = useState(false);
 
   // Standard catalogue presets for quick entry
   const STANDARD_CATALOGUE_ITEMS = [
@@ -276,6 +296,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
     if (client) {
       setNewTxCustomer(client.name || '');
       setNewTxEmail(client.email || '');
+      if (client.companyName) setNewClientCompany(client.companyName);
       if (client.country) setNewTxCountry(client.country);
     }
   };
@@ -287,22 +308,118 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
     setIsNewTxModalOpen(true);
   };
 
-  const filteredTransactions = (transactions || []).filter((tx) => {
-    if (!tx) return false;
-    const matchType = txTypeFilter === 'all' || tx.productType === txTypeFilter;
-    const matchAssociate = txAssociateFilter === 'all' || tx.associate === txAssociateFilter;
-    const q = (txSearch || '').toLowerCase().trim();
-    const matchSearch =
-      !q ||
-      (tx.invoiceNumber || '').toLowerCase().includes(q) ||
-      (tx.customer || '').toLowerCase().includes(q) ||
-      (tx.customerEmail || '').toLowerCase().includes(q) ||
-      (tx.sku || '').toLowerCase().includes(q) ||
-      (tx.productName || '').toLowerCase().includes(q) ||
-      (tx.associate || '').toLowerCase().includes(q) ||
-      Boolean(tx.country && (tx.country || '').toLowerCase().includes(q));
-    return matchType && matchAssociate && matchSearch;
-  });
+  // Distinct Filter Option Extraction
+  const distinctAssociates = Array.from(
+    new Set((transactions || []).map((tx) => tx?.associate).filter(Boolean))
+  ) as string[];
+
+  const distinctCountries = Array.from(
+    new Set([
+      'South Africa',
+      'United Kingdom',
+      'United States',
+      'Australia',
+      'Canada',
+      'Germany',
+      'France',
+      'Netherlands',
+      'Namibia',
+      'Botswana',
+      'Kenya',
+      'Nigeria',
+      ...(transactions || []).map((tx) => tx?.country).filter(Boolean),
+      ...(clientProfiles || []).map((c) => c?.country).filter(Boolean),
+    ])
+  ) as string[];
+
+  const distinctProducts = Array.from(
+    new Set((transactions || []).map((tx) => tx?.productName).filter(Boolean))
+  ) as string[];
+
+  // Quick Date Preset Handlers
+  const handleSetDatePreset = (preset: 'today' | 'this-month' | 'last-30' | 'ytd') => {
+    const now = new Date();
+    const toStr = now.toISOString().slice(0, 10);
+    if (preset === 'today') {
+      setTxDateFrom(toStr);
+      setTxDateTo(toStr);
+    } else if (preset === 'this-month') {
+      const fromStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      setTxDateFrom(fromStr);
+      setTxDateTo(toStr);
+    } else if (preset === 'last-30') {
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      setTxDateFrom(thirtyDaysAgo.toISOString().slice(0, 10));
+      setTxDateTo(toStr);
+    } else if (preset === 'ytd') {
+      const fromStr = `${now.getFullYear()}-01-01`;
+      setTxDateFrom(fromStr);
+      setTxDateTo(toStr);
+    }
+  };
+
+  const handleResetFilters = () => {
+    setTxDateFrom('');
+    setTxDateTo('');
+    setTxSearch('');
+    setTxCountryFilter('all');
+    setTxAssociateFilter('all');
+    setTxProductFilter('all');
+    setTxTypeFilter('all');
+    showToast('Query filters reset.');
+  };
+
+  const handleResetJournalSeq = () => {
+    if (window.confirm('Reset the transaction journal so the sequence starts fresh at Invoice #1?')) {
+      setTransactions([]);
+      localStorage.setItem('bizzdesk_v1_transactions', JSON.stringify([]));
+      showToast('Journal sequence reset. The next recorded invoice starts at Invoice #1 (INV-2026-0001).');
+    }
+  };
+
+  const handleSort = (col: typeof txSortColumn) => {
+    if (txSortColumn === col) {
+      setTxSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setTxSortColumn(col);
+      setTxSortDirection('desc');
+    }
+  };
+
+  // Filtered & Sorted Transactions Matrix
+  const filteredTransactions = (transactions || [])
+    .filter((tx) => {
+      if (!tx) return false;
+      if (txTypeFilter !== 'all' && tx.productType !== txTypeFilter) return false;
+      if (txAssociateFilter !== 'all' && tx.associate !== txAssociateFilter) return false;
+      if (txCountryFilter !== 'all' && (tx.country || 'South Africa') !== txCountryFilter) return false;
+      if (txProductFilter !== 'all' && tx.productName !== txProductFilter) return false;
+      if (txDateFrom && tx.transactionDate && tx.transactionDate < txDateFrom) return false;
+      if (txDateTo && tx.transactionDate && tx.transactionDate > txDateTo) return false;
+
+      const q = (txSearch || '').toLowerCase().trim();
+      if (q) {
+        const matchSearch =
+          (tx.invoiceNumber || '').toLowerCase().includes(q) ||
+          (tx.customer || '').toLowerCase().includes(q) ||
+          (tx.customerEmail || '').toLowerCase().includes(q) ||
+          (tx.sku || '').toLowerCase().includes(q) ||
+          (tx.productName || '').toLowerCase().includes(q) ||
+          (tx.associate || '').toLowerCase().includes(q) ||
+          Boolean(tx.country && (tx.country || '').toLowerCase().includes(q));
+        if (!matchSearch) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      let valA: any = a[txSortColumn] ?? '';
+      let valB: any = b[txSortColumn] ?? '';
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (valA < valB) return txSortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return txSortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
 
   const totalGrossZar = (transactions || []).reduce((acc, tx) => acc + (Number(tx?.invoiceValue) || 0), 0);
   const totalNetZar = (transactions || []).reduce((acc, tx) => acc + (Number(tx?.lineValue) || 0), 0);
@@ -310,7 +427,140 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
   const appTransactionsCount = (transactions || []).filter((tx) => tx?.productType === 'app').length;
   const courseTransactionsCount = (transactions || []).filter((tx) => tx?.productType === 'course').length;
 
-  const distinctAssociates = Array.from(new Set((transactions || []).map((tx) => tx?.associate).filter(Boolean))) as string[];
+  const handleOpenNewClientModal = () => {
+    setEditingClient(null);
+    setNewClientName('');
+    setNewClientEmail('');
+    setNewClientCompany('');
+    setNewClientVat('');
+    setNewClientPhone('');
+    setNewClientCity('');
+    setNewClientCountry('South Africa');
+    setNewClientNotes('');
+    setNewClientRole('member');
+    setIsNewClientModalOpen(true);
+  };
+
+  const handleOpenEditClientModal = (client: ClientProfile) => {
+    setEditingClient(client);
+    setNewClientName(client.name || '');
+    setNewClientEmail(client.email || '');
+    setNewClientCompany(client.companyName || '');
+    setNewClientVat(client.vatNumber || '');
+    setNewClientPhone(client.phone || '');
+    setNewClientCity(client.city || '');
+    setNewClientCountry(client.country || 'South Africa');
+    setNewClientNotes(client.notes || '');
+    setNewClientRole(client.role || (determineUserRole(client.email) === 'admin' ? 'admin' : 'member'));
+    setIsNewClientModalOpen(true);
+  };
+
+  const handleAddNewAdmin = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const clean = newAdminInput.trim().toLowerCase();
+    if (!clean || !clean.includes('@')) {
+      showToast('Please enter a valid email address to add as an administrator.');
+      return;
+    }
+    const updated = addAdminEmail(clean);
+    setAdminEmailsList(updated);
+    // Also if there is a matching client profile, update their role to admin
+    const updatedProfiles = clientProfiles.map((c) =>
+      c.email.toLowerCase().trim() === clean ? { ...c, role: 'admin' as const } : c
+    );
+    setClientProfiles(updatedProfiles);
+    safeSaveStorage('bizzdesk_v1_client_profiles', updatedProfiles);
+    setNewAdminInput('');
+    showToast(`Administrator privileges granted to ${clean}.`);
+  };
+
+  const handleRevokeAdmin = (email: string) => {
+    const clean = email.toLowerCase().trim();
+    const updated = removeAdminEmail(clean);
+    setAdminEmailsList(updated);
+    const updatedProfiles = clientProfiles.map((c) =>
+      c.email.toLowerCase().trim() === clean ? { ...c, role: 'member' as const } : c
+    );
+    setClientProfiles(updatedProfiles);
+    safeSaveStorage('bizzdesk_v1_client_profiles', updatedProfiles);
+    showToast(`Administrator privileges revoked for ${clean}.`);
+  };
+
+  const handleToggleClientAdminRole = (client: ClientProfile) => {
+    const isCurrentlyAdmin = client.role === 'admin' || determineUserRole(client.email) === 'admin';
+    const nextRole: 'admin' | 'member' = isCurrentlyAdmin ? 'member' : 'admin';
+    if (nextRole === 'admin') {
+      const updatedAdmins = addAdminEmail(client.email);
+      setAdminEmailsList(updatedAdmins);
+    } else {
+      const updatedAdmins = removeAdminEmail(client.email);
+      setAdminEmailsList(updatedAdmins);
+    }
+    const updatedProfiles = clientProfiles.map((c) =>
+      c.id === client.id ? { ...c, role: nextRole } : c
+    );
+    setClientProfiles(updatedProfiles);
+    safeSaveStorage('bizzdesk_v1_client_profiles', updatedProfiles);
+    showToast(`${client.name || client.email} is now ${nextRole === 'admin' ? 'an Administrator' : 'a Client Member'}.`);
+  };
+
+  const handleSaveClientProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newClientName.trim() || !newClientEmail.trim()) {
+      showToast('Contact person name and primary email are required.');
+      return;
+    }
+
+    if (newClientRole === 'admin') {
+      const updatedAdmins = addAdminEmail(newClientEmail.trim());
+      setAdminEmailsList(updatedAdmins);
+    } else {
+      const updatedAdmins = removeAdminEmail(newClientEmail.trim());
+      setAdminEmailsList(updatedAdmins);
+    }
+
+    if (editingClient) {
+      const updated = clientProfiles.map((c) =>
+        c.id === editingClient.id
+          ? {
+              ...c,
+              name: newClientName.trim(),
+              email: newClientEmail.trim(),
+              companyName: newClientCompany.trim() || 'Independent Founder',
+              vatNumber: newClientVat.trim() || undefined,
+              phone: newClientPhone.trim() || undefined,
+              city: newClientCity.trim() || undefined,
+              country: newClientCountry.trim() || 'South Africa',
+              notes: newClientNotes.trim() || undefined,
+              role: newClientRole,
+            }
+          : c
+      );
+      setClientProfiles(updated);
+      safeSaveStorage('bizzdesk_v1_client_profiles', updated);
+      setIsNewClientModalOpen(false);
+      setEditingClient(null);
+      showToast(`Client profile for ${newClientName} updated successfully (${newClientRole === 'admin' ? 'Administrator' : 'Member'}).`);
+    } else {
+      const newClient: ClientProfile = {
+        id: `cli-${Date.now().toString().slice(-4)}`,
+        name: newClientName.trim(),
+        email: newClientEmail.trim(),
+        companyName: newClientCompany.trim() || 'Independent Founder',
+        vatNumber: newClientVat.trim() || undefined,
+        phone: newClientPhone.trim() || undefined,
+        city: newClientCity.trim() || undefined,
+        country: newClientCountry.trim() || 'South Africa',
+        notes: newClientNotes.trim() || undefined,
+        role: newClientRole,
+      };
+      const updated = [newClient, ...clientProfiles];
+      setClientProfiles(updated);
+      safeSaveStorage('bizzdesk_v1_client_profiles', updated);
+      setIsNewClientModalOpen(false);
+      showToast(`Client profile for ${newClient.name} established (${newClientRole === 'admin' ? 'Administrator' : 'Member'}).`);
+    }
+  };
 
   const handleRecordNewTx = (e: React.FormEvent) => {
     e.preventDefault();
@@ -367,86 +617,8 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
       safeSaveStorage('bizzdesk_v1_client_profiles', updatedClients);
     }
 
-    // Auto-dispatch client notification
-    if (newTxAutoNotify) {
-      const newNotif: ClientNotification = {
-        id: `notif-${Date.now().toString().slice(-4)}`,
-        recipientEmail: newRecord.customerEmail,
-        subject: `Tax Invoice ${newRecord.invoiceNumber}: ${newRecord.productName}`,
-        content: `Your official tax invoice ${newRecord.invoiceNumber} for ${newRecord.productName} has been recorded. Gross value: R ${(Number(newRecord.invoiceValue) || 0).toFixed(2)} (incl. 15% SARS VAT).`,
-        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
-        isRead: false,
-        sender: 'Bizzbean Finance Desk',
-        serviceName: newRecord.productName,
-        amountInvoiced: newRecord.invoiceValue,
-      };
-      const updatedNotifs = [newNotif, ...clientNotifications];
-      setClientNotifications(updatedNotifs);
-      safeSaveStorage('bizzdesk_v1_client_notifications', updatedNotifs);
-    }
-
     setIsNewTxModalOpen(false);
     showToast(`Tax invoice ${newRecord.invoiceNumber} posted to General Ledger!`);
-  };
-
-  const handleSaveNewClient = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newClientName.trim() || !newClientEmail.trim()) {
-      showToast('Client name and email are required.');
-      return;
-    }
-    const newClient: ClientProfile = {
-      id: `cli-${Date.now().toString().slice(-4)}`,
-      name: newClientName.trim(),
-      email: newClientEmail.trim(),
-      companyName: newClientCompany.trim() || 'Independent Founder',
-      vatNumber: newClientVat.trim() || undefined,
-      phone: newClientPhone.trim() || undefined,
-      city: newClientCity.trim() || undefined,
-      country: newClientCountry.trim() || 'South Africa',
-      notes: newClientNotes.trim() || undefined,
-    };
-    const updated = [newClient, ...clientProfiles];
-    setClientProfiles(updated);
-    safeSaveStorage('bizzdesk_v1_client_profiles', updated);
-    setIsNewClientModalOpen(false);
-    setNewClientName('');
-    setNewClientEmail('');
-    setNewClientCompany('');
-    setNewClientVat('');
-    setNewClientPhone('');
-    setNewClientCity('');
-    setNewClientNotes('');
-    showToast(`Client profile for ${newClient.name} created.`);
-  };
-
-  const handleSendClientNotification = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newNotifEmail.trim() || !newNotifSubject.trim()) {
-      showToast('Recipient email and subject are required.');
-      return;
-    }
-    const notif: ClientNotification = {
-      id: `notif-${Date.now().toString().slice(-4)}`,
-      recipientEmail: newNotifEmail.trim(),
-      subject: newNotifSubject.trim(),
-      content: newNotifContent.trim(),
-      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
-      isRead: false,
-      sender: 'Bizzbean Finance Desk',
-      serviceName: newNotifServiceName.trim() || undefined,
-      amountInvoiced: Number(newNotifAmount) || undefined,
-    };
-    const updated = [notif, ...clientNotifications];
-    setClientNotifications(updated);
-    safeSaveStorage('bizzdesk_v1_client_notifications', updated);
-    setIsNewNotifModalOpen(false);
-    setNewNotifEmail('');
-    setNewNotifSubject('');
-    setNewNotifContent('');
-    setNewNotifServiceName('');
-    setNewNotifAmount(0);
-    showToast(`Dispatch sent to ${notif.recipientEmail}.`);
   };
 
   const handleOpenInvoiceFromClient = (client: ClientProfile) => {
@@ -866,24 +1038,35 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
         {/* TAB 1: TRANSACTION JOURNAL (V1 Implementation)                      */}
         {/* =================================================================== */}
         {activeTab === 'transactions' && (
-          <div className="space-y-6 max-w-6xl mx-auto">
-            {/* Sub-tab Navigation */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#222F4C] pb-3">
-              <div className="flex items-center gap-2">
+          <div className="space-y-6 max-w-7xl mx-auto font-mono">
+            {/* Top Header & Sub-tab Navigation (Matching filter.PNG) */}
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#222F4C] pb-4">
+              <div className="space-y-0.5">
+                <div className="text-[11px] font-mono font-bold text-amber-500 uppercase tracking-wider flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>ADMINISTRATIVE RECORDS PORTAL</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black font-mono tracking-tight text-white uppercase">
+                  bizzbean transaction journal
+                </h2>
+              </div>
+
+              {/* Sub-tabs on Right */}
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setJournalSubTab('transactions')}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all border ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all border ${
                     journalSubTab === 'transactions'
-                      ? 'bg-[#5584B4] text-white border-[#5584B4] shadow-xs'
+                      ? 'bg-[#84CC16] text-black border-[#84CC16] shadow-md'
                       : isDark
                       ? 'bg-[#141A2E] text-slate-300 border-[#222F4C] hover:text-white'
                       : 'bg-white text-slate-700 border-[#E8E2D8] hover:bg-slate-50'
                   }`}
                 >
-                  <FileText className="h-3.5 w-3.5" />
-                  <span>1. General Ledger & Invoices</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-black/20 text-white font-mono">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  <span>SALES JOURNAL</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-black/20 text-current font-mono">
                     {transactions.length}
                   </span>
                 </button>
@@ -891,104 +1074,353 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                 <button
                   type="button"
                   onClick={() => setJournalSubTab('clients')}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all border ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all border ${
                     journalSubTab === 'clients'
-                      ? 'bg-[#5584B4] text-white border-[#5584B4] shadow-xs'
+                      ? 'bg-[#84CC16] text-black border-[#84CC16] shadow-md'
                       : isDark
                       ? 'bg-[#141A2E] text-slate-300 border-[#222F4C] hover:text-white'
                       : 'bg-white text-slate-700 border-[#E8E2D8] hover:bg-slate-50'
                   }`}
                 >
                   <Users className="h-3.5 w-3.5" />
-                  <span>2. Client Directory & VAT CRM</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-black/20 text-white font-mono">
+                  <span>CLIENT PROFILES</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-black/20 text-current font-mono">
                     {clientProfiles.length}
                   </span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setJournalSubTab('notifications')}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all border ${
-                    journalSubTab === 'notifications'
-                      ? 'bg-[#5584B4] text-white border-[#5584B4] shadow-xs'
+                  onClick={() => setJournalSubTab('nudges')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all border ${
+                    journalSubTab === 'nudges'
+                      ? 'bg-[#84CC16] text-black border-[#84CC16] shadow-md'
                       : isDark
                       ? 'bg-[#141A2E] text-slate-300 border-[#222F4C] hover:text-white'
                       : 'bg-white text-slate-700 border-[#E8E2D8] hover:bg-slate-50'
                   }`}
                 >
                   <Bell className="h-3.5 w-3.5" />
-                  <span>3. Invoicing Dispatch Log</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-black/20 text-white font-mono">
-                    {clientNotifications.length}
-                  </span>
+                  <span>CLIENT COMMUNICATION & NUDGES</span>
                 </button>
-              </div>
 
-              <div className="flex items-center gap-2 text-[11px] font-mono text-slate-400">
-                <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>SARS VAT Rate: 15% Standard</span>
+                {onBackToWorkstation && (
+                  <button
+                    type="button"
+                    onClick={onBackToWorkstation}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-mono font-bold bg-[#141A2E] hover:bg-[#1E2745] text-slate-300 border border-[#222F4C] transition-colors"
+                  >
+                    <span>CLOSE JOURNAL ←</span>
+                  </button>
+                )}
               </div>
             </div>
 
             {/* ------------------------------------------------------------- */}
-            {/* SUB-VIEW 1: GENERAL LEDGER & INVOICES                         */}
+            {/* SUB-VIEW 1: SALES JOURNAL (Matching filter.PNG)               */}
             {/* ------------------------------------------------------------- */}
             {journalSubTab === 'transactions' && (
               <>
-                {/* Top Stat Metrics */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
-                  <div className={`p-4 rounded-2xl border ${isDark ? 'bg-[#12172A] border-[#222F4C]' : 'bg-white border-[#E8E2D8] shadow-2xs'}`}>
-                    <div className="text-[11px] text-slate-400 uppercase">Gross Invoiced (Incl VAT)</div>
-                    <div className="text-xl font-bold mt-1 text-emerald-400">R {(Number(totalGrossZar) || 0).toFixed(2)}</div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">Total billable value</div>
+                {/* 4 Metric Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {/* Card 1: Gross Revenue */}
+                  <div className={`p-4 rounded-2xl border flex items-center justify-between gap-3 ${
+                    isDark ? 'bg-[#12172A] border-[#222F4C]' : 'bg-white border-[#E8E2D8] shadow-2xs'
+                  }`}>
+                    <div>
+                      <div className="text-[11px] text-slate-400 uppercase font-semibold">GROSS REVENUE (INCL VAT)</div>
+                      <div className="text-xl sm:text-2xl font-bold mt-1 text-emerald-400">
+                        R {totalGrossZar.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <div className="text-[10px] text-emerald-400/80 mt-0.5">Total billing output</div>
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                      <span className="text-emerald-400 text-lg font-bold">$</span>
+                    </div>
                   </div>
-                  <div className={`p-4 rounded-2xl border ${isDark ? 'bg-[#12172A] border-[#222F4C]' : 'bg-white border-[#E8E2D8] shadow-2xs'}`}>
-                    <div className="text-[11px] text-slate-400 uppercase">Net Sales (Excl VAT)</div>
-                    <div className="text-xl font-bold mt-1 text-[#5584B4]">R {(Number(totalNetZar) || 0).toFixed(2)}</div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">Revenue before tax</div>
+
+                  {/* Card 2: Net Revenue */}
+                  <div className={`p-4 rounded-2xl border flex items-center justify-between gap-3 ${
+                    isDark ? 'bg-[#12172A] border-[#222F4C]' : 'bg-white border-[#E8E2D8] shadow-2xs'
+                  }`}>
+                    <div>
+                      <div className="text-[11px] text-slate-400 uppercase font-semibold">NET REVENUE (EXCL VAT)</div>
+                      <div className="text-xl sm:text-2xl font-bold mt-1 text-[#5584B4]">
+                        R {totalNetZar.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">Bizzbean base earnings</div>
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-[#5584B4]/15 border border-[#5584B4]/30 flex items-center justify-center shrink-0">
+                      <TrendingUp className="h-5 w-5 text-[#5584B4]" />
+                    </div>
                   </div>
-                  <div className={`p-4 rounded-2xl border ${isDark ? 'bg-[#12172A] border-[#222F4C]' : 'bg-white border-[#E8E2D8] shadow-2xs'}`}>
-                    <div className="text-[11px] text-slate-400 uppercase">Output VAT (15%)</div>
-                    <div className="text-xl font-bold mt-1 text-amber-400">R {(Number(totalVatZar) || 0).toFixed(2)}</div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">SARS standard compliance</div>
+
+                  {/* Card 3: VAT Collected */}
+                  <div className={`p-4 rounded-2xl border flex items-center justify-between gap-3 ${
+                    isDark ? 'bg-[#12172A] border-[#222F4C]' : 'bg-white border-[#E8E2D8] shadow-2xs'
+                  }`}>
+                    <div>
+                      <div className="text-[11px] text-slate-400 uppercase font-semibold">VAT COLLECTED (15%)</div>
+                      <div className="text-xl sm:text-2xl font-bold mt-1 text-amber-400">
+                        R {totalVatZar.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">Statutory South African Tax</div>
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
+                      <span className="text-amber-400 text-lg font-bold">%</span>
+                    </div>
                   </div>
-                  <div className={`p-4 rounded-2xl border ${isDark ? 'bg-[#12172A] border-[#222F4C]' : 'bg-white border-[#E8E2D8] shadow-2xs'}`}>
-                    <div className="text-[11px] text-slate-400 uppercase">Total Invoices</div>
-                    <div className="text-xl font-bold mt-1 text-white">{transactions.length}</div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">{appTransactionsCount} Apps • {courseTransactionsCount} Courses</div>
+
+                  {/* Card 4: Sales Count */}
+                  <div className={`p-4 rounded-2xl border flex items-center justify-between gap-3 ${
+                    isDark ? 'bg-[#12172A] border-[#222F4C]' : 'bg-white border-[#E8E2D8] shadow-2xs'
+                  }`}>
+                    <div>
+                      <div className="text-[11px] text-slate-400 uppercase font-semibold">SALES COUNT</div>
+                      <div className="text-xl sm:text-2xl font-bold mt-1 text-white">
+                        {transactions.length} <span className="text-xs font-normal text-slate-400">invoices</span>
+                      </div>
+                      <div className="text-[10px] text-emerald-400/90 mt-0.5">Successfully captured</div>
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-slate-700/30 border border-slate-600 flex items-center justify-center shrink-0">
+                      <Check className="h-5 w-5 text-slate-300" />
+                    </div>
                   </div>
                 </div>
 
-                {/* Actions & Filters Bar */}
-                <div className={`p-4 rounded-2xl border flex flex-wrap items-center justify-between gap-3 ${
-                  isDark ? 'bg-[#12172A] border-[#222F4C]' : 'bg-white border-[#E8E2D8] shadow-2xs'
+                {/* Collapsible SARS Statutory VAT Calculator Banner (Matching filter.PNG) */}
+                <div className={`rounded-2xl border transition-all overflow-hidden ${
+                  isDark ? 'bg-[#0E1322] border-[#222F4C]' : 'bg-[#F4EFE6] border-[#E8E2D8]'
                 }`}>
-                  <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[260px]">
-                    <div className="relative flex-1 min-w-[200px]">
-                      <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                  <button
+                    type="button"
+                    onClick={() => setIsVatCalculatorOpen(!isVatCalculatorOpen)}
+                    className="w-full p-4 flex items-center justify-between gap-3 text-left transition-colors hover:bg-white/5 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                        <Calculator className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-xs uppercase tracking-wider text-white">
+                            SARS STATUTORY VAT CALCULATOR
+                          </span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            SARS 15%
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Instantly compute VAT Inclusive / Exclusive tax adjustments for accounting journals.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-slate-400 p-1.5 rounded-lg bg-[#141A2E] border border-[#222F4C]">
+                      {isVatCalculatorOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </div>
+                  </button>
+
+                  {/* Expanded Calculator Widget */}
+                  {isVatCalculatorOpen && (
+                    <div className="p-5 border-t border-[#222F4C] bg-[#12172A] space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-slate-400 text-xs mb-1">Enter Transaction Amount (ZAR):</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={vatCalcAmount}
+                            onChange={(e) => setVatCalcAmount(Math.max(0, Number(e.target.value) || 0))}
+                            className="w-full p-2.5 rounded-xl bg-[#0B0F19] border border-[#222F4C] text-white font-bold text-sm focus:outline-hidden focus:border-[#5584B4]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-slate-400 text-xs mb-1">Tax Computation Mode:</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setVatCalcMode('exclusive')}
+                              className={`p-2.5 rounded-xl text-xs font-bold transition-all border ${
+                                vatCalcMode === 'exclusive'
+                                  ? 'bg-[#5584B4] text-white border-[#5584B4]'
+                                  : 'bg-[#0B0F19] text-slate-400 border-[#222F4C] hover:text-white'
+                              }`}
+                            >
+                              Exclusive (+15% VAT)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setVatCalcMode('inclusive')}
+                              className={`p-2.5 rounded-xl text-xs font-bold transition-all border ${
+                                vatCalcMode === 'inclusive'
+                                  ? 'bg-[#5584B4] text-white border-[#5584B4]'
+                                  : 'bg-[#0B0F19] text-slate-400 border-[#222F4C] hover:text-white'
+                              }`}
+                            >
+                              Inclusive (Extract 15%)
+                            </button>
+                          </div>
+                        </div>
+                        <div className="p-3 rounded-xl bg-[#0B0F19] border border-[#222F4C] flex flex-col justify-between">
+                          <div className="text-[10px] text-slate-400 uppercase">Statutory Standard Compliance</div>
+                          <div className="text-xs text-slate-300">
+                            Applicable in terms of Section 20(4) of the Value-Added Tax Act, 1991 of South Africa.
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Computed Summary */}
+                      {(() => {
+                        const amt = Math.max(0, Number(vatCalcAmount) || 0);
+                        const netVal = vatCalcMode === 'exclusive' ? amt : amt / 1.15;
+                        const vatVal = vatCalcMode === 'exclusive' ? amt * 0.15 : amt - netVal;
+                        const grossVal = netVal + vatVal;
+                        return (
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                            <div className="p-3.5 rounded-xl bg-[#0B0F19] border border-[#222F4C]">
+                              <div className="text-[10px] text-slate-400 uppercase">Net Base Value (Excl. VAT)</div>
+                              <div className="text-lg font-bold text-slate-200 mt-1">R {netVal.toFixed(2)}</div>
+                              <div className="text-[10px] text-slate-500 mt-0.5">Base revenue account entry</div>
+                            </div>
+                            <div className="p-3.5 rounded-xl bg-[#0B0F19] border border-[#222F4C]">
+                              <div className="text-[10px] text-amber-400 uppercase">SARS Output VAT (15%)</div>
+                              <div className="text-lg font-bold text-amber-400 mt-1">R {vatVal.toFixed(2)}</div>
+                              <div className="text-[10px] text-slate-500 mt-0.5">Statutory tax liability</div>
+                            </div>
+                            <div className="p-3.5 rounded-xl bg-[#0B0F19] border border-emerald-500/30">
+                              <div className="text-[10px] text-emerald-400 uppercase">Gross Billing Output (Total)</div>
+                              <div className="text-lg font-bold text-emerald-400 mt-1">R {grossVal.toFixed(2)}</div>
+                              <div className="text-[10px] text-slate-500 mt-0.5">Total customer payable</div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+
+                {/* Red Box: INTERACTIVE QUERY CONTROLS (Matching filter.PNG) */}
+                <div className="rounded-2xl border-2 border-rose-600/90 bg-[#12172A] p-5 space-y-4 shadow-xl">
+                  {/* Title & Action Buttons Row */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#222F4C] pb-3">
+                    <div>
+                      <h3 className="font-bold text-sm tracking-wide text-white uppercase flex items-center gap-2">
+                        <span>INTERACTIVE QUERY CONTROLS</span>
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Search invoice indices, date parameters, and partition results instantly.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleResetFilters}
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold bg-[#1B233D] hover:bg-[#253252] text-slate-200 border border-[#2F3E66] transition-colors"
+                      >
+                        RESET FILTERS
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleExportTxCsv}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold bg-[#334155] hover:bg-[#475569] text-white border border-slate-500 transition-colors"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        <span>EXPORT CSV WORKSHEET</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleResetJournalSeq}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 transition-colors"
+                        title="Reset sequence to start at Invoice #1"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        <span>RESET JOURNAL (#1)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={openNewTxModalWithNextInvoice}
+                        className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-mono font-bold bg-[#84CC16] hover:bg-[#65A30D] text-slate-950 shadow-md transition-colors"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>+ NEW MANUAL INVOICE</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Filter Form Row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
+                    <div>
+                      <label className="block text-slate-400 mb-1 flex items-center gap-1">
+                        <span>📅 DATE FROM</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={txDateFrom}
+                        onChange={(e) => setTxDateFrom(e.target.value)}
+                        placeholder="yyyy/mm/dd"
+                        className="w-full p-2 rounded-xl bg-[#0B0F19] border border-[#222F4C] text-white focus:outline-hidden focus:border-[#5584B4]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-400 mb-1 flex items-center gap-1">
+                        <span>📅 DATE TO</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={txDateTo}
+                        onChange={(e) => setTxDateTo(e.target.value)}
+                        placeholder="yyyy/mm/dd"
+                        className="w-full p-2 rounded-xl bg-[#0B0F19] border border-[#222F4C] text-white focus:outline-hidden focus:border-[#5584B4]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-400 mb-1 flex items-center gap-1">
+                        <Search className="h-3 w-3 text-slate-400" />
+                        <span>CLIENT / INVOICE / COUNTRY</span>
+                      </label>
                       <input
                         type="text"
                         value={txSearch}
                         onChange={(e) => setTxSearch(e.target.value)}
-                        placeholder="Search invoice #, customer, SKU, associate..."
-                        className="w-full pl-9 pr-3 py-1.5 rounded-xl text-xs font-mono bg-[#0B0F19] border border-[#222F4C] text-white focus:outline-hidden focus:border-[#5584B4]"
+                        placeholder="Search name, email, country"
+                        className="w-full p-2 rounded-xl bg-[#0B0F19] border border-[#222F4C] text-white focus:outline-hidden focus:border-[#5584B4]"
                       />
                     </div>
-                    <select
-                      value={txTypeFilter}
-                      onChange={(e) => setTxTypeFilter(e.target.value as any)}
-                      className="px-3 py-1.5 rounded-xl text-xs font-mono bg-[#0B0F19] border border-[#222F4C] text-slate-200 focus:outline-hidden"
-                    >
-                      <option value="all">All Types (Apps & Courses)</option>
-                      <option value="app">Apps Only</option>
-                      <option value="course">Courses Only</option>
-                    </select>
-                    {distinctAssociates.length > 0 && (
+
+                    <div>
+                      <label className="block text-slate-400 mb-1 flex items-center gap-1">
+                        <Globe className="h-3 w-3 text-slate-400" />
+                        <span>COUNTRY</span>
+                      </label>
+                      <select
+                        value={txCountryFilter}
+                        onChange={(e) => setTxCountryFilter(e.target.value)}
+                        className="w-full p-2 rounded-xl bg-[#0B0F19] border border-[#222F4C] text-slate-200 focus:outline-hidden"
+                      >
+                        <option value="all">All Countries ({distinctCountries.length})</option>
+                        {distinctCountries.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-400 mb-1 flex items-center gap-1">
+                        <Users className="h-3 w-3 text-slate-400" />
+                        <span>BIZZPARTNER</span>
+                      </label>
                       <select
                         value={txAssociateFilter}
                         onChange={(e) => setTxAssociateFilter(e.target.value)}
-                        className="px-3 py-1.5 rounded-xl text-xs font-mono bg-[#0B0F19] border border-[#222F4C] text-slate-200 focus:outline-hidden"
+                        className="w-full p-2 rounded-xl bg-[#0B0F19] border border-[#222F4C] text-slate-200 focus:outline-hidden"
                       >
                         <option value="all">All Associates</option>
                         {distinctAssociates.map((assoc) => (
@@ -997,68 +1429,144 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                           </option>
                         ))}
                       </select>
-                    )}
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-400 mb-1 flex items-center gap-1">
+                        <Receipt className="h-3 w-3 text-slate-400" />
+                        <span>APPLICATION / COURSE</span>
+                      </label>
+                      <select
+                        value={txProductFilter}
+                        onChange={(e) => setTxProductFilter(e.target.value)}
+                        className="w-full p-2 rounded-xl bg-[#0B0F19] border border-[#222F4C] text-slate-200 focus:outline-hidden"
+                      >
+                        <option value="all">All Products</option>
+                        {distinctProducts.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {transactions.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (window.confirm('Clear all entries in the transaction journal and reset invoice sequence to 1?')) {
-                            setTransactions([]);
-                            localStorage.setItem('bizzdesk_v1_transactions', JSON.stringify([]));
-                            showToast('Transaction journal cleared. Next invoice starts at INV-2026-0001 (Invoice #1).');
-                          }
-                        }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-bold bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/40 transition-colors"
-                        title="Clear all transactions and reset invoice sequence to 1"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        <span>Clear Journal</span>
-                      </button>
-                    )}
+                  {/* Quick Date Presets Row */}
+                  <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                    <span className="text-slate-400 text-[11px] uppercase font-bold">QUICK DATE PRESETS:</span>
                     <button
                       type="button"
-                      onClick={handleExportTxCsv}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-bold bg-[#1B243B] hover:bg-[#253252] text-slate-200 border border-[#2F3E66] transition-colors"
+                      onClick={() => handleSetDatePreset('today')}
+                      className="px-3 py-1 rounded-lg bg-[#0B0F19] hover:bg-[#1E2745] text-slate-200 border border-[#222F4C] transition-colors"
                     >
-                      <FileSpreadsheet className="h-3.5 w-3.5 text-[#5584B4]" />
-                      <span>Export CSV</span>
+                      Today
                     </button>
                     <button
                       type="button"
-                      onClick={openNewTxModalWithNextInvoice}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold bg-[#5584B4] hover:bg-[#4773A0] text-white shadow-xs transition-colors"
+                      onClick={() => handleSetDatePreset('this-month')}
+                      className="px-3 py-1 rounded-lg bg-[#0B0F19] hover:bg-[#1E2745] text-slate-200 border border-[#222F4C] transition-colors"
                     >
-                      <Plus className="h-3.5 w-3.5" />
-                      <span>Record Transaction</span>
+                      This Month
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetDatePreset('last-30')}
+                      className="px-3 py-1 rounded-lg bg-[#0B0F19] hover:bg-[#1E2745] text-slate-200 border border-[#222F4C] transition-colors"
+                    >
+                      Last 30 Days
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetDatePreset('ytd')}
+                      className="px-3 py-1 rounded-lg bg-[#0B0F19] hover:bg-[#1E2745] text-slate-200 border border-[#222F4C] transition-colors"
+                    >
+                      Year to Date (YTD)
                     </button>
                   </div>
                 </div>
 
-                {/* V1 Transaction Journal Table */}
+                {/* Journal Records Table */}
                 <div className={`rounded-2xl border overflow-hidden ${
                   isDark ? 'bg-[#12172A] border-[#222F4C]' : 'bg-white border-[#E8E2D8] shadow-2xs'
                 }`}>
+                  {/* Table Header Info Bar */}
+                  <div className="p-3.5 border-b border-[#222F4C] flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="font-bold text-white uppercase">
+                      JOURNAL RECORDS TABLE ({filteredTransactions.length} MATCHING INVOICES)
+                    </div>
+                    <div className="text-[11px] text-slate-400 italic">
+                      *Click column headers to sort by Country, Customer, Email, Date, or Values.
+                    </div>
+                  </div>
+
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs font-mono">
                       <thead className={`text-[11px] uppercase border-b ${
                         isDark ? 'bg-[#151D33] text-slate-400 border-[#222F4C]' : 'bg-[#F4EFE6] text-slate-600 border-[#E8E2D8]'
                       }`}>
                         <tr>
-                          <th className="py-3 px-3">Invoice #</th>
-                          <th className="py-3 px-3">Date</th>
-                          <th className="py-3 px-3">Customer</th>
-                          <th className="py-3 px-3">Product (SKU)</th>
-                          <th className="py-3 px-2 text-center">Type</th>
-                          <th className="py-3 px-3">Associate</th>
-                          <th className="py-3 px-2 text-center">Qty</th>
-                          <th className="py-3 px-3 text-right">Unit Price (Excl)</th>
-                          <th className="py-3 px-3 text-right">Line Value</th>
-                          <th className="py-3 px-3 text-right">VAT (15%)</th>
-                          <th className="py-3 px-3 text-right">Gross Total</th>
-                          <th className="py-3 px-2 text-center">Slip</th>
+                          <th onClick={() => handleSort('invoiceNumber')} className="py-3 px-3 cursor-pointer hover:text-white">
+                            <span className="flex items-center gap-1">
+                              <span>INVOICE NO</span>
+                              <ArrowUpDown className="h-3 w-3 opacity-60" />
+                            </span>
+                          </th>
+                          <th onClick={() => handleSort('transactionDate')} className="py-3 px-3 cursor-pointer hover:text-white">
+                            <span className="flex items-center gap-1">
+                              <span>DATE</span>
+                              <ArrowUpDown className="h-3 w-3 opacity-60" />
+                            </span>
+                          </th>
+                          <th onClick={() => handleSort('customer')} className="py-3 px-3 cursor-pointer hover:text-white">
+                            <span className="flex items-center gap-1">
+                              <span>CUSTOMER</span>
+                              <ArrowUpDown className="h-3 w-3 opacity-60" />
+                            </span>
+                          </th>
+                          <th onClick={() => handleSort('customerEmail')} className="py-3 px-3 cursor-pointer hover:text-white">
+                            <span className="flex items-center gap-1">
+                              <span>EMAIL ADDRESS</span>
+                              <ArrowUpDown className="h-3 w-3 opacity-60" />
+                            </span>
+                          </th>
+                          <th onClick={() => handleSort('country')} className="py-3 px-3 cursor-pointer hover:text-white">
+                            <span className="flex items-center gap-1 text-emerald-400">
+                              <span>🌐 COUNTRY</span>
+                              <ArrowUpDown className="h-3 w-3 opacity-60" />
+                            </span>
+                          </th>
+                          <th onClick={() => handleSort('associate')} className="py-3 px-3 cursor-pointer hover:text-white">
+                            <span className="flex items-center gap-1">
+                              <span>ASSOCIATE</span>
+                              <ArrowUpDown className="h-3 w-3 opacity-60" />
+                            </span>
+                          </th>
+                          <th onClick={() => handleSort('productName')} className="py-3 px-3 cursor-pointer hover:text-white">
+                            <span className="flex items-center gap-1">
+                              <span>APPLICATION / COURSE</span>
+                              <ArrowUpDown className="h-3 w-3 opacity-60" />
+                            </span>
+                          </th>
+                          <th className="py-3 px-2 text-center">QTY & PRICE</th>
+                          <th onClick={() => handleSort('lineValue')} className="py-3 px-3 text-right cursor-pointer hover:text-white">
+                            <span className="flex items-center justify-end gap-1">
+                              <span>NET (EXCL VAT)</span>
+                              <ArrowUpDown className="h-3 w-3 opacity-60" />
+                            </span>
+                          </th>
+                          <th onClick={() => handleSort('vatAmount')} className="py-3 px-3 text-right cursor-pointer hover:text-white">
+                            <span className="flex items-center justify-end gap-1">
+                              <span>VAT</span>
+                              <ArrowUpDown className="h-3 w-3 opacity-60" />
+                            </span>
+                          </th>
+                          <th onClick={() => handleSort('invoiceValue')} className="py-3 px-3 text-right cursor-pointer hover:text-white">
+                            <span className="flex items-center justify-end gap-1">
+                              <span>GROSS (INCL VAT)</span>
+                              <ArrowUpDown className="h-3 w-3 opacity-60" />
+                            </span>
+                          </th>
+                          <th className="py-3 px-2 text-center">ACTIONS</th>
                         </tr>
                       </thead>
                       <tbody className={`divide-y ${isDark ? 'divide-[#1D2644]' : 'divide-[#E8E2D8]'}`}>
@@ -1069,7 +1577,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                                 type="button"
                                 onClick={() => setViewingInvoice(tx)}
                                 className="font-bold text-[#5584B4] hover:underline flex items-center gap-1 cursor-pointer"
-                                title="Click to view full Tax Invoice"
+                                title="Click to view full Tax Invoice Slip"
                               >
                                 <span>{tx.invoiceNumber}</span>
                               </button>
@@ -1077,27 +1585,24 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                             <td className="py-3 px-3 text-slate-400 whitespace-nowrap">{tx.transactionDate}</td>
                             <td className="py-3 px-3">
                               <div className="text-white font-medium">{tx.customer}</div>
-                              <div className="text-[10px] text-slate-400">{tx.customerEmail}</div>
+                            </td>
+                            <td className="py-3 px-3 text-slate-300">
+                              <div className="text-[11px] text-slate-400">{tx.customerEmail}</div>
                             </td>
                             <td className="py-3 px-3">
-                              <div className="text-slate-200">{tx.productName}</div>
-                              <div className="text-[10px] text-slate-500 font-mono">{tx.sku}</div>
-                            </td>
-                            <td className="py-3 px-2 text-center">
-                              <span
-                                className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
-                                  tx.productType === 'app'
-                                    ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
-                                    : 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                                }`}
-                              >
-                                {tx.productType}
+                              <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#141A2E] text-slate-200 border border-[#2B3452]">
+                                {tx.country || 'South Africa'}
                               </span>
                             </td>
                             <td className="py-3 px-3 text-slate-300 text-[11px]">{tx.associate}</td>
-                            <td className="py-3 px-2 text-center text-slate-300">{tx.quantity}</td>
-                            <td className="py-3 px-3 text-right text-slate-400">
-                              R {(Number(tx.unitPrice) || 0).toFixed(2)}
+                            <td className="py-3 px-3">
+                              <div className="text-slate-200">{tx.productName}</div>
+                              <div className="text-[10px] text-slate-500 font-mono">
+                                [{tx.productType.toUpperCase()}] {tx.sku}
+                              </div>
+                            </td>
+                            <td className="py-3 px-2 text-center text-slate-300">
+                              {tx.quantity} × R {(Number(tx.unitPrice) || 0).toFixed(2)}
                             </td>
                             <td className="py-3 px-3 text-right text-slate-300 font-medium">
                               R {(Number(tx.lineValue) || 0).toFixed(2)}
@@ -1109,61 +1614,191 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                               R {(Number(tx.invoiceValue) || 0).toFixed(2)}
                             </td>
                             <td className="py-3 px-2 text-center">
-                              <button
-                                type="button"
-                                onClick={() => setViewingInvoice(tx)}
-                                title="View SARS Tax Invoice Slip"
-                                className="p-1.5 rounded-lg bg-[#1B233D] hover:bg-[#253252] text-slate-300 hover:text-white transition-colors"
-                              >
-                                <Eye className="h-3.5 w-3.5 text-[#5584B4]" />
-                              </button>
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => generateTaxInvoicePdf(tx)}
+                                  title="Download Official SARS PDF Tax Invoice"
+                                  className="p-1.5 rounded-lg bg-[#1F2942] hover:bg-[#2B395C] text-emerald-400 border border-[#35456E] transition-colors"
+                                >
+                                  <Download className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingInvoice(tx)}
+                                  title="View SARS Tax Invoice Slip"
+                                  className="p-1.5 rounded-lg bg-[#1F2942] hover:bg-[#2B395C] text-slate-300 hover:text-white border border-[#35456E] transition-colors"
+                                >
+                                  <Eye className="h-3.5 w-3.5 text-[#5584B4]" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
                         {filteredTransactions.length === 0 && (
                           <tr>
-                            <td colSpan={12} className="py-8 text-center text-slate-400">
-                              No transaction records matching query.
+                            <td colSpan={12} className="py-12 text-center text-slate-400 text-sm">
+                              No transactions found matching your filter parameters.
                             </td>
                           </tr>
                         )}
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Table Footer Bar */}
+                  <div className="p-3.5 border-t border-[#222F4C] flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+                    <div>
+                      Showing {filteredTransactions.length} of {transactions.length} entries listed
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      Standard statutory South African tax rules logged under 15% VAT threshold.
+                    </div>
+                  </div>
                 </div>
               </>
             )}
 
             {/* ------------------------------------------------------------- */}
-            {/* SUB-VIEW 2: CLIENT DIRECTORY & VAT CRM                        */}
+            {/* SUB-VIEW 2: CLIENT DIRECTORY (Matching client directory.PNG) */}
             {/* ------------------------------------------------------------- */}
             {journalSubTab === 'clients' && (
               <div className="space-y-4">
-                <div className={`p-4 rounded-2xl border flex items-center justify-between gap-3 ${
+                {/* Banner & Action Buttons */}
+                <div className={`p-4 rounded-2xl border flex flex-wrap items-center justify-between gap-3 ${
                   isDark ? 'bg-[#12172A] border-[#222F4C]' : 'bg-white border-[#E8E2D8] shadow-2xs'
                 }`}>
-                  <div>
-                    <h3 className="font-bold text-sm text-white font-mono uppercase">
-                      Client Profile Directory & SARS Tax Entities
-                    </h3>
-                    <p className="text-xs text-slate-400 mt-0.5 font-mono">
-                      Profiles registered for instant tax invoicing, automated dispatch & CRM tracking
-                    </p>
+                  <p className="text-xs text-slate-400 font-mono">
+                    Profiles registered for instant tax invoicing, automated dispatch & CRM tracking
+                  </p>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAdminManager(!showAdminManager)}
+                      className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all border cursor-pointer ${
+                        showAdminManager
+                          ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
+                          : 'bg-[#161D32] hover:bg-[#1E2746] text-amber-300 border-amber-500/30'
+                      }`}
+                      title="Manage System Administrators and Roles"
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      <span>Administrators ({adminEmailsList.length + 3})</span>
+                      <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${showAdminManager ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleOpenNewClientModal}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-mono font-bold bg-[#5584B4] hover:bg-[#4773A0] text-white shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>+ Add Client Profile</span>
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsNewClientModalOpen(true)}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold bg-[#5584B4] hover:bg-[#4773A0] text-white shadow-xs transition-colors"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    <span>Add Client Profile</span>
-                  </button>
                 </div>
 
+                {/* ========================================================= */}
+                {/* ADMINISTRATOR ACCESS & TEAM ROLES MANAGER PANEL          */}
+                {/* ========================================================= */}
+                {showAdminManager && (
+                  <div className="p-5 rounded-2xl bg-[#0F1424] border border-amber-500/30 font-mono space-y-4 shadow-xl animate-in fade-in duration-200">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#222F4C] pb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400">
+                          <ShieldCheck className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-white uppercase tracking-wider">
+                            Administrator Access & Team Roles
+                          </h4>
+                          <p className="text-[11px] text-slate-400">
+                            Administrators have full privileges: Administration Centre, Master Transactions, CMS Consoles, and CRM Records.
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-amber-400 uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                        Live Role Access Control
+                      </span>
+                    </div>
+
+                    {/* Quick Add Administrator Form */}
+                    <form onSubmit={handleAddNewAdmin} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                      <div className="relative flex-1">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+                        <input
+                          type="email"
+                          required
+                          value={newAdminInput}
+                          onChange={(e) => setNewAdminInput(e.target.value)}
+                          placeholder="e.g. partner@bizzbean.com or cofounder@gmail.com"
+                          className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#090C16] border border-[#2B3452] text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-amber-400"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                      >
+                        <Plus className="h-3.5 w-3.5 text-slate-950" />
+                        <span>Grant Administrator Access</span>
+                      </button>
+                    </form>
+
+                    {/* Active Administrator Badges List */}
+                    <div className="space-y-2 pt-2">
+                      <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                        Active Administrator Accounts:
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {/* Built-in system root accounts */}
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#141A2E] border border-amber-500/30 text-[11px] text-amber-300">
+                          <ShieldCheck className="h-3 w-3 text-amber-400" />
+                          <span>thebizzbeanchannel@gmail.com</span>
+                          <span className="text-[9px] text-amber-400/70 font-sans uppercase font-bold px-1 rounded bg-amber-500/10">Root</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#141A2E] border border-amber-500/30 text-[11px] text-amber-300">
+                          <ShieldCheck className="h-3 w-3 text-amber-400" />
+                          <span>quentinmac@bizzbean.com</span>
+                          <span className="text-[9px] text-amber-400/70 font-sans uppercase font-bold px-1 rounded bg-amber-500/10">Founder</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#141A2E] border border-amber-500/30 text-[11px] text-amber-300">
+                          <ShieldCheck className="h-3 w-3 text-amber-400" />
+                          <span>quentin@bizzbean.com</span>
+                          <span className="text-[9px] text-amber-400/70 font-sans uppercase font-bold px-1 rounded bg-amber-500/10">Admin</span>
+                        </div>
+
+                        {/* Custom added admins */}
+                        {adminEmailsList
+                          .filter((em) => em !== 'thebizzbeanchannel@gmail.com' && em !== 'quentinmac@bizzbean.com' && em !== 'quentin@bizzbean.com')
+                          .map((email) => (
+                            <div
+                              key={email}
+                              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#1E2540] border border-amber-400/40 text-[11px] text-amber-200"
+                            >
+                              <ShieldCheck className="h-3 w-3 text-amber-400" />
+                              <span>{email}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRevokeAdmin(email)}
+                                className="ml-1 text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 rounded p-0.5 cursor-pointer"
+                                title={`Revoke administrator access for ${email}`}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Client Cards Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {clientProfiles.map((client) => {
                     if (!client) return null;
                     const clientEmail = (client.email || '').toLowerCase().trim();
+                    const isClientAdmin = client.role === 'admin' || determineUserRole(client.email) === 'admin';
                     const clientInvoices = (transactions || []).filter(
                       (t) => Boolean(t && (t.customerEmail || '').toLowerCase().trim() === clientEmail)
                     );
@@ -1172,70 +1807,105 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                     return (
                       <div
                         key={client.id}
-                        className={`p-5 rounded-2xl border flex flex-col justify-between space-y-4 font-mono ${
+                        className={`p-5 rounded-2xl border flex flex-col justify-between space-y-4 font-mono transition-all ${
                           isDark ? 'bg-[#12172A] border-[#222F4C]' : 'bg-white border-[#E8E2D8] shadow-2xs'
                         }`}
                       >
-                        <div className="space-y-2">
+                        <div className="space-y-3">
+                          {/* Card Top: Company Name and Badges */}
                           <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <div className="font-bold text-sm text-white">{client.name}</div>
-                              <div className="text-xs text-[#5584B4] font-medium flex items-center gap-1 mt-0.5">
-                                <Building className="h-3 w-3" />
-                                <span>{client.companyName}</span>
-                              </div>
+                            <div className="flex items-center gap-2 font-bold text-sm text-[#5584B4]">
+                              <Building className="h-4 w-4 shrink-0 text-[#5584B4]" />
+                              <span className="text-white text-base">{client.companyName || client.name}</span>
                             </div>
-                            {client.vatNumber ? (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                                VAT: {client.vatNumber}
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-700/30 text-slate-400">
-                                Non-VAT Registered
-                              </span>
-                            )}
+
+                            <div className="flex items-center gap-1.5">
+                              {isClientAdmin && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                                  <ShieldCheck className="h-3 w-3 text-amber-400" />
+                                  <span>ADMIN</span>
+                                </span>
+                              )}
+
+                              {client.vatNumber ? (
+                                <span className="px-2.5 py-0.5 rounded text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                                  VAT: {client.vatNumber}
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-0.5 rounded text-[10px] font-medium bg-slate-700/30 text-slate-400">
+                                  Non-VAT
+                                </span>
+                              )}
+                            </div>
                           </div>
 
-                          <div className="text-xs space-y-1 text-slate-300 pt-1 border-t border-[#1D2644]">
+                          {/* Contact Details */}
+                          <div className="text-xs space-y-1.5 text-slate-300 pt-2 border-t border-[#1D2644]">
                             <div className="flex items-center gap-2">
-                              <Mail className="h-3 w-3 text-slate-500" />
+                              <Mail className="h-3.5 w-3.5 text-slate-500 shrink-0" />
                               <span className="text-slate-300">{client.email}</span>
                             </div>
                             {client.phone && (
                               <div className="flex items-center gap-2">
-                                <Phone className="h-3 w-3 text-slate-500" />
+                                <Phone className="h-3.5 w-3.5 text-slate-500 shrink-0" />
                                 <span className="text-slate-400">{client.phone}</span>
                               </div>
                             )}
-                            {(client.city || client.country) && (
-                              <div className="text-[11px] text-slate-400">
-                                Location: {[client.city, client.country].filter(Boolean).join(', ')}
-                              </div>
-                            )}
+                            <div className="text-[11px] text-slate-400">
+                              Location: {[client.city, client.country].filter(Boolean).join(', ') || 'South Africa'}
+                            </div>
                           </div>
 
-                          {client.notes && (
-                            <p className="text-[11px] text-slate-400 italic bg-[#0E1322] p-2 rounded-lg border border-[#1D2644]">
-                              "{client.notes}"
-                            </p>
-                          )}
+                          {/* Styled Quote Box */}
+                          <p className="text-[11px] text-slate-300 italic bg-[#0B0F19] p-3 rounded-xl border border-[#1D2644] leading-relaxed">
+                            "{client.notes || 'Key founder account registered for enterprise venture modeling.'}"
+                          </p>
                         </div>
 
-                        <div className="pt-2 border-t border-[#1D2644] flex items-center justify-between">
+                        {/* Card Footer: Invoice Total & Action Buttons */}
+                        <div className="pt-3 border-t border-[#1D2644] flex flex-wrap items-center justify-between gap-2">
                           <div className="text-xs">
                             <span className="text-slate-400">Invoices: </span>
-                            <span className="font-bold text-white">{clientInvoices.length}</span>
                             <span className="text-slate-500"> • </span>
                             <span className="text-emerald-400 font-bold">R {(Number(clientTotalZar) || 0).toFixed(2)}</span>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenInvoiceFromClient(client)}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-[#1F2942] hover:bg-[#2B395C] text-slate-200 border border-[#35456E] transition-colors"
-                          >
-                            <Receipt className="h-3 w-3 text-[#5584B4]" />
-                            <span>Create Invoice</span>
-                          </button>
+
+                          <div className="flex items-center gap-1.5">
+                            {/* Toggle Admin Role Shortcut */}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleClientAdminRole(client)}
+                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                                isClientAdmin
+                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30'
+                                  : 'bg-[#141A2E] text-slate-400 border border-[#2B3452] hover:text-amber-300 hover:border-amber-500/30'
+                              }`}
+                              title={isClientAdmin ? "Revoke administrator privileges" : "Grant administrator privileges"}
+                            >
+                              <ShieldCheck className={`h-3 w-3 ${isClientAdmin ? 'text-amber-400' : 'text-slate-500'}`} />
+                              <span>{isClientAdmin ? 'Admin Role' : '+ Make Admin'}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditClientModal(client)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs bg-[#1A233D] hover:bg-[#253252] text-slate-200 border border-[#2F3E66] transition-colors cursor-pointer"
+                              title="Edit Client Billing Profile"
+                            >
+                              <Edit2 className="h-3 w-3 text-slate-400" />
+                              <span>Edit</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleOpenInvoiceFromClient(client)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs bg-[#0E1322] hover:bg-[#1A233D] text-slate-200 border border-[#2B3452] transition-colors cursor-pointer"
+                              title="Create Invoice for this Client"
+                            >
+                              <Receipt className="h-3 w-3 text-[#5584B4]" />
+                              <span>Invoice</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1245,77 +1915,31 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
             )}
 
             {/* ------------------------------------------------------------- */}
-            {/* SUB-VIEW 3: CLIENT NOTIFICATIONS LOG                          */}
+            {/* SUB-VIEW 3: CLIENT COMMUNICATION & NUDGES                     */}
             {/* ------------------------------------------------------------- */}
-            {journalSubTab === 'notifications' && (
-              <div className="space-y-4">
-                <div className={`p-4 rounded-2xl border flex items-center justify-between gap-3 ${
-                  isDark ? 'bg-[#12172A] border-[#222F4C]' : 'bg-white border-[#E8E2D8] shadow-2xs'
-                }`}>
+            {journalSubTab === 'nudges' && (
+              <div className="p-6 rounded-2xl bg-[#12172A] border border-[#222F4C] space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
+                    <Bell className="h-5 w-5" />
+                  </div>
                   <div>
-                    <h3 className="font-bold text-sm text-white font-mono uppercase">
-                      Client Invoicing Dispatches & Notices
+                    <h3 className="font-bold text-sm text-white uppercase">
+                      Client Communication & Automated Buy-Up Nudges
                     </h3>
-                    <p className="text-xs text-slate-400 mt-0.5 font-mono">
-                      Log of automated invoice receipts, tax notices, and membership dispatches
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Targeted client engagement engine utilizing transaction history and client directory profile data.
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsNewNotifModalOpen(true)}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold bg-[#5584B4] hover:bg-[#4773A0] text-white shadow-xs transition-colors"
-                  >
-                    <Send className="h-3.5 w-3.5" />
-                    <span>Dispatch Notice</span>
-                  </button>
                 </div>
 
-                <div className={`rounded-2xl border overflow-hidden ${
-                  isDark ? 'bg-[#12172A] border-[#222F4C]' : 'bg-white border-[#E8E2D8] shadow-2xs'
-                }`}>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs font-mono">
-                      <thead className={`text-[11px] uppercase border-b ${
-                        isDark ? 'bg-[#151D33] text-slate-400 border-[#222F4C]' : 'bg-[#F4EFE6] text-slate-600 border-[#E8E2D8]'
-                      }`}>
-                        <tr>
-                          <th className="py-3 px-4">Timestamp</th>
-                          <th className="py-3 px-4">Recipient</th>
-                          <th className="py-3 px-4">Subject</th>
-                          <th className="py-3 px-4">Service</th>
-                          <th className="py-3 px-4 text-right">Invoiced Amount</th>
-                          <th className="py-3 px-4 text-center">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className={`divide-y ${isDark ? 'divide-[#1D2644]' : 'divide-[#E8E2D8]'}`}>
-                        {clientNotifications.map((notif) => (
-                          <tr key={notif.id} className={isDark ? 'hover:bg-[#161F38]/50' : 'hover:bg-slate-50'}>
-                            <td className="py-3 px-4 text-slate-400">{notif.timestamp}</td>
-                            <td className="py-3 px-4 text-white font-medium">{notif.recipientEmail}</td>
-                            <td className="py-3 px-4">
-                              <div className="text-slate-200 font-bold">{notif.subject}</div>
-                              <div className="text-[10px] text-slate-400 line-clamp-1">{notif.content}</div>
-                            </td>
-                            <td className="py-3 px-4 text-slate-300">{notif.serviceName || 'General Desk'}</td>
-                            <td className="py-3 px-4 text-right font-bold text-emerald-400">
-                              {notif.amountInvoiced ? `R ${(Number(notif.amountInvoiced) || 0).toFixed(2)}` : '—'}
-                            </td>
-                            <td className="py-3 px-4 text-center">
-                              <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                  notif.isRead
-                                    ? 'bg-slate-700/30 text-slate-400'
-                                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                }`}
-                              >
-                                {notif.isRead ? 'Delivered' : 'New Dispatch'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                <div className="p-4 rounded-xl bg-[#0B0F19] border border-[#222F4C] text-xs space-y-2 text-slate-300 leading-relaxed">
+                  <p>
+                    <strong className="text-white">Active Nudge Strategy:</strong> Clients with completed zero-cost introductory masterclasses (e.g. <em>learn how to earn access to capital</em>) are segmented for buy-up nudges towards full numerical modeling engines (<em>bizzcalc</em>, <em>cost_rec</em>, <em>bizzmodel</em>).
+                  </p>
+                  <p className="text-slate-400">
+                    This automated channel will be fully wired in the upcoming Communications Centre project with personalized WhatsApp/email dispatch triggers.
+                  </p>
                 </div>
               </div>
             )}
@@ -1552,20 +2176,6 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                       </div>
                     </div>
 
-                    {/* Auto-dispatch checkbox */}
-                    <div className="flex items-center gap-2 pt-1">
-                      <input
-                        type="checkbox"
-                        id="autoNotifyCheckbox"
-                        checked={newTxAutoNotify}
-                        onChange={(e) => setNewTxAutoNotify(e.target.checked)}
-                        className="rounded accent-[#5584B4]"
-                      />
-                      <label htmlFor="autoNotifyCheckbox" className="text-slate-300 text-xs cursor-pointer">
-                        Auto-dispatch notification memo and tax invoice receipt to customer
-                      </label>
-                    </div>
-
                     <div className="pt-3 flex justify-end gap-2 border-t border-[#222F4C]">
                       <button
                         type="button"
@@ -1576,7 +2186,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                       </button>
                       <button
                         type="submit"
-                        className="px-5 py-1.5 rounded-lg bg-[#5584B4] hover:bg-[#4773A0] text-white font-bold shadow-md transition-colors"
+                        className="px-5 py-1.5 rounded-lg bg-[#84CC16] hover:bg-[#65A30D] text-black font-bold shadow-md transition-colors"
                       >
                         Post to General Ledger
                       </button>
@@ -1587,12 +2197,12 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
             )}
 
             {/* ============================================================= */}
-            {/* MODAL 2: SARS TAX INVOICE SLIP (VIEW / PRINT)                 */}
+            {/* MODAL 2: SARS TAX INVOICE SLIP (VIEW / DOWNLOAD / PRINT)      */}
             {/* ============================================================= */}
             {viewingInvoice && (
               <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
                 <div className="w-full max-w-2xl rounded-2xl bg-[#0E1322] border border-[#2B3452] p-6 space-y-6 text-slate-100 font-mono shadow-2xl my-8">
-                  {/* Top Bar with Print and Close */}
+                  {/* Top Bar with Print, PDF Download, and Close */}
                   <div className="flex items-center justify-between border-b border-[#222F4C] pb-3">
                     <div className="flex items-center gap-2">
                       <Receipt className="h-4 w-4 text-emerald-400" />
@@ -1603,16 +2213,24 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => window.print()}
-                        className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs bg-[#1F2942] hover:bg-[#2B395C] text-slate-200 border border-[#35456E] transition-colors"
+                        onClick={() => generateTaxInvoicePdf(viewingInvoice)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-colors shadow-xs"
                       >
-                        <Printer className="h-3 w-3 text-[#5584B4]" />
-                        <span>Print Invoice</span>
+                        <Download className="h-3.5 w-3.5" />
+                        <span>Download PDF Invoice</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => window.print()}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-[#1F2942] hover:bg-[#2B395C] text-slate-200 border border-[#35456E] transition-colors"
+                      >
+                        <Printer className="h-3.5 w-3.5 text-[#5584B4]" />
+                        <span>Print Slip</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setViewingInvoice(null)}
-                        className="text-slate-400 hover:text-white text-sm px-2"
+                        className="text-slate-400 hover:text-white text-sm px-2 cursor-pointer"
                       >
                         ✕
                       </button>
@@ -1625,17 +2243,17 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                     <div className="flex items-start justify-between border-b border-[#222F4C] pb-4">
                       <div>
                         <div className="text-xl font-black text-white tracking-wider flex items-center gap-2">
-                          <span className="text-[#5584B4]">BIZZBEAN</span>
-                          <span className="text-slate-400 text-xs font-normal">HOLDINGS (PTY) LTD</span>
+                          <span className="text-[#5584B4]">BIZZBEAN SA</span>
+                          <span className="text-slate-400 text-xs font-normal">(PTY) LTD</span>
                         </div>
-                        <div className="text-[11px] text-slate-400 mt-1">
-                          Enterprise Entrepreneurial Modeling Infrastructure
+                        <div className="text-[11px] text-slate-300 mt-1">
+                          67 Blouberg Cresent, Van Riebeeck Park, Kempton Park, South Africa, 1619
                         </div>
-                        <div className="text-[10px] text-slate-500">
-                          Reg No: 2024/098712/07 • VAT Registration: 4920281920
+                        <div className="text-[10px] text-amber-400 mt-0.5">
+                          VAT number will be provided shortly (Application in Process)
                         </div>
-                        <div className="text-[10px] text-slate-500">
-                          Johannesburg, South Africa • accounts@bizzbean.com
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          Johannesburg, South Africa • accounts@bizzbean.com • https://bizzbean.com
                         </div>
                       </div>
 
@@ -1655,10 +2273,10 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                     {/* Customer & Associate Information */}
                     <div className="grid grid-cols-2 gap-6 text-xs">
                       <div>
-                        <div className="text-[10px] text-slate-400 uppercase font-bold">Billed To:</div>
+                        <div className="text-[10px] text-slate-400 uppercase font-bold">Billed To (Customer):</div>
                         <div className="text-sm font-bold text-white mt-1">{viewingInvoice.customer}</div>
                         <div className="text-slate-300">{viewingInvoice.customerEmail}</div>
-                        <div className="text-slate-400">{viewingInvoice.country || 'South Africa'}</div>
+                        <div className="text-slate-400">Country of Origin: {viewingInvoice.country || 'South Africa'}</div>
                       </div>
                       <div className="text-right">
                         <div className="text-[10px] text-slate-400 uppercase font-bold">Sales Channel / Associate:</div>
@@ -1710,7 +2328,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                           <span className="font-mono">R {(Number(viewingInvoice.lineValue) || 0).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-amber-400">
-                          <span>SARS VAT @ {((Number(viewingInvoice.vatRate) || 0.15) * 100).toFixed(0)}%:</span>
+                          <span>SARS Output VAT @ {((Number(viewingInvoice.vatRate) || 0.15) * 100).toFixed(0)}%:</span>
                           <span className="font-mono">R {(Number(viewingInvoice.vatAmount) || 0).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-base font-bold text-emerald-400 pt-2 border-t border-[#222F4C]">
@@ -1722,8 +2340,8 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
 
                     {/* SARS Compliance Notice */}
                     <div className="p-3 rounded-xl bg-[#0E1322] border border-[#222F4C] text-[10px] text-slate-400 leading-relaxed">
-                      Official Tax Invoice issued in terms of Section 20(4) of the Value Added Tax Act, 1991 of South Africa.
-                      All transactions recorded in the BizzBean immutable general ledger.
+                      Official Tax Invoice issued in terms of Section 20(4) of the Value-Added Tax Act, 1991 of South Africa.
+                      All transactions verified and recorded in the BizzBean immutable general ledger.
                     </div>
                   </div>
                 </div>
@@ -1731,223 +2349,179 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
             )}
 
             {/* ============================================================= */}
-            {/* MODAL 3: ADD NEW CLIENT PROFILE                               */}
+            {/* MODAL 3: SETUP / EDIT CLIENT BILLING PROFILE (Matching client profile.PNG) */}
             {/* ============================================================= */}
             {isNewClientModalOpen && (
               <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-                <div className="w-full max-w-md rounded-2xl bg-[#141A2E] border border-[#2B3452] p-6 space-y-4 text-slate-100 font-mono shadow-2xl">
+                <div className="w-full max-w-2xl rounded-2xl bg-[#141A2E] border border-[#2B3452] p-6 space-y-5 text-slate-100 font-mono shadow-2xl my-8">
+                  {/* Modal Header */}
                   <div className="flex items-center justify-between border-b border-[#222F4C] pb-3">
-                    <h3 className="font-bold text-sm text-white uppercase flex items-center gap-2">
-                      <Users className="h-4 w-4 text-[#5584B4]" />
-                      <span>Create Client Profile</span>
+                    <h3 className="font-bold text-sm text-emerald-400 uppercase flex items-center gap-2">
+                      <UserCheck className="h-4 w-4 text-emerald-400" />
+                      <span>{editingClient ? 'EDIT CLIENT BILLING PROFILE' : '+ SETUP CLIENT BILLING PROFILE'}</span>
                     </h3>
                     <button
                       type="button"
                       onClick={() => setIsNewClientModalOpen(false)}
-                      className="text-slate-400 hover:text-white"
+                      className="text-slate-400 hover:text-white cursor-pointer"
                     >
                       ✕
                     </button>
                   </div>
 
-                  <form onSubmit={handleSaveNewClient} className="space-y-3 text-xs">
-                    <div>
-                      <label className="block text-slate-400 mb-1">Full Name:</label>
-                      <input
-                        type="text"
-                        required
-                        value={newClientName}
-                        onChange={(e) => setNewClientName(e.target.value)}
-                        placeholder="John Doe"
-                        className="w-full p-2 rounded-lg bg-[#0E1220] border border-[#2B3452] text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-400 mb-1">Email Address:</label>
-                      <input
-                        type="email"
-                        required
-                        value={newClientEmail}
-                        onChange={(e) => setNewClientEmail(e.target.value)}
-                        placeholder="john@example.co.za"
-                        className="w-full p-2 rounded-lg bg-[#0E1220] border border-[#2B3452] text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-400 mb-1">Company / Entity Name:</label>
-                      <input
-                        type="text"
-                        value={newClientCompany}
-                        onChange={(e) => setNewClientCompany(e.target.value)}
-                        placeholder="Venture Apex (Pty) Ltd"
-                        className="w-full p-2 rounded-lg bg-[#0E1220] border border-[#2B3452] text-white"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
+                  {/* 2-Column Form Matching client profile.PNG */}
+                  <form onSubmit={handleSaveClientProfile} className="space-y-4 text-xs">
+                    {/* Row 1: Contact Person & Primary Email */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-slate-400 mb-1">VAT Number:</label>
+                        <label className="block text-slate-300 font-bold mb-1 uppercase text-[11px]">
+                          CONTACT PERSON NAME *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={newClientName}
+                          onChange={(e) => setNewClientName(e.target.value)}
+                          placeholder="e.g. Lerato Molefe"
+                          className="w-full p-2.5 rounded-xl bg-[#0E1220] border border-[#2B3452] text-white focus:outline-hidden focus:border-[#5584B4]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-300 font-bold mb-1 uppercase text-[11px]">
+                          PRIMARY EMAIL *
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          value={newClientEmail}
+                          onChange={(e) => setNewClientEmail(e.target.value)}
+                          placeholder="e.g. lerato@molefeconsulting.com"
+                          className="w-full p-2.5 rounded-xl bg-[#0E1220] border border-[#2B3452] text-white focus:outline-hidden focus:border-[#5584B4]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 2: Registered Company Name & VAT Number */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-slate-300 font-bold mb-1 uppercase text-[11px]">
+                          REGISTERED COMPANY NAME
+                        </label>
+                        <input
+                          type="text"
+                          value={newClientCompany}
+                          onChange={(e) => setNewClientCompany(e.target.value)}
+                          placeholder="e.g. Molefe Capital Group (Pty) Ltd"
+                          className="w-full p-2.5 rounded-xl bg-[#0E1220] border border-[#2B3452] text-white focus:outline-hidden focus:border-[#5584B4]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-300 font-bold mb-1 uppercase text-[11px]">
+                          VAT REGISTRATION NUMBER (SOUTH AFRICA)
+                        </label>
                         <input
                           type="text"
                           value={newClientVat}
                           onChange={(e) => setNewClientVat(e.target.value)}
-                          placeholder="4920281920"
-                          className="w-full p-2 rounded-lg bg-[#0E1220] border border-[#2B3452] text-white"
+                          placeholder="e.g. 4010258199"
+                          className="w-full p-2.5 rounded-xl bg-[#0E1220] border border-[#2B3452] text-white focus:outline-hidden focus:border-[#5584B4]"
                         />
                       </div>
+                    </div>
+
+                    {/* Row 3: Mobile/Phone Portfolio, City Location, Country of Association */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div>
-                        <label className="block text-slate-400 mb-1">Phone:</label>
+                        <label className="block text-slate-300 font-bold mb-1 uppercase text-[11px]">
+                          MOBILE/PHONE PORTFOLIO
+                        </label>
                         <input
                           type="text"
                           value={newClientPhone}
                           onChange={(e) => setNewClientPhone(e.target.value)}
-                          placeholder="+27 82 000 0000"
-                          className="w-full p-2 rounded-lg bg-[#0E1220] border border-[#2B3452] text-white"
+                          placeholder="e.g. +27 82 555 4321"
+                          className="w-full p-2.5 rounded-xl bg-[#0E1220] border border-[#2B3452] text-white focus:outline-hidden focus:border-[#5584B4]"
                         />
                       </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-slate-400 mb-1">City:</label>
+                        <label className="block text-slate-300 font-bold mb-1 uppercase text-[11px]">
+                          CITY LOCATION
+                        </label>
                         <input
                           type="text"
                           value={newClientCity}
                           onChange={(e) => setNewClientCity(e.target.value)}
-                          placeholder="Johannesburg"
-                          className="w-full p-2 rounded-lg bg-[#0E1220] border border-[#2B3452] text-white"
+                          placeholder="e.g. Johannesburg"
+                          className="w-full p-2.5 rounded-xl bg-[#0E1220] border border-[#2B3452] text-white focus:outline-hidden focus:border-[#5584B4]"
                         />
                       </div>
                       <div>
-                        <label className="block text-slate-400 mb-1">Country:</label>
-                        <input
-                          type="text"
+                        <label className="block text-slate-300 font-bold mb-1 uppercase text-[11px]">
+                          🌐 COUNTRY OF ASSOCIATION
+                        </label>
+                        <select
                           value={newClientCountry}
                           onChange={(e) => setNewClientCountry(e.target.value)}
-                          placeholder="South Africa"
-                          className="w-full p-2 rounded-lg bg-[#0E1220] border border-[#2B3452] text-white"
-                        />
+                          className="w-full p-2.5 rounded-xl bg-[#0E1220] border border-[#2B3452] text-white focus:outline-hidden focus:border-[#5584B4]"
+                        >
+                          {COUNTRIES.map((c) => (
+                            <option key={c.code} value={c.name}>
+                              {c.code} {c.name} ({c.code})
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
+
+                    {/* Role & Access Privileges */}
+                    <div className="p-3.5 rounded-xl bg-[#0B0F19] border border-amber-500/25 space-y-1.5">
+                      <label className="block text-slate-200 font-bold uppercase text-[11px] flex items-center gap-1.5">
+                        <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
+                        <span>ROLE & ACCESS PRIVILEGES</span>
+                      </label>
+                      <select
+                        value={newClientRole}
+                        onChange={(e) => setNewClientRole(e.target.value as 'member' | 'admin')}
+                        className="w-full p-2.5 rounded-xl bg-[#0E1220] border border-[#2B3452] text-white focus:outline-hidden focus:border-amber-400"
+                      >
+                        <option value="member">Client Member (Standard Client Portal Access)</option>
+                        <option value="admin">Administrator (Full Administration Centre, CMS & Ledger Access)</option>
+                      </select>
+                      <p className="text-[10px] text-slate-400 leading-relaxed">
+                        {newClientRole === 'admin'
+                          ? '🛡️ This user is granted Administrator status and can access all transaction journals, CMS controls, and client directories.'
+                          : 'Standard member account for venture tools, modeling, and client slips.'}
+                      </p>
+                    </div>
+
+                    {/* Row 4: Internal Billing Notes */}
                     <div>
-                      <label className="block text-slate-400 mb-1">Notes / CRM Memo:</label>
+                      <label className="block text-slate-300 font-bold mb-1 uppercase text-[11px]">
+                        INTERNAL BILLING NOTES
+                      </label>
                       <textarea
-                        rows={2}
+                        rows={3}
                         value={newClientNotes}
                         onChange={(e) => setNewClientNotes(e.target.value)}
-                        placeholder="Founding team notes..."
-                        className="w-full p-2 rounded-lg bg-[#0E1220] border border-[#2B3452] text-white"
+                        placeholder="Enterprise discount arrangements, payment cycle conditions, contract limits..."
+                        className="w-full p-2.5 rounded-xl bg-[#0E1220] border border-[#2B3452] text-white focus:outline-hidden focus:border-[#5584B4]"
                       />
                     </div>
 
-                    <div className="pt-2 flex justify-end gap-2 border-t border-[#222F4C]">
+                    {/* Bottom Buttons */}
+                    <div className="pt-3 flex justify-end gap-3 border-t border-[#222F4C]">
                       <button
                         type="button"
                         onClick={() => setIsNewClientModalOpen(false)}
-                        className="px-3.5 py-1.5 rounded-lg bg-[#1B233D] text-slate-300"
+                        className="px-5 py-2 rounded-xl bg-[#1B233D] hover:bg-[#253252] text-slate-300 border border-[#2F3E66] transition-colors font-bold cursor-pointer"
                       >
-                        Cancel
+                        CANCEL
                       </button>
                       <button
                         type="submit"
-                        className="px-4 py-1.5 rounded-lg bg-[#5584B4] hover:bg-[#4773A0] text-white font-bold"
+                        className="px-6 py-2 rounded-xl bg-[#84CC16] hover:bg-[#65A30D] text-black font-bold shadow-md transition-colors cursor-pointer"
                       >
-                        Save Client Profile
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            )}
-
-            {/* ============================================================= */}
-            {/* MODAL 4: DISPATCH MANUAL NOTIFICATION                         */}
-            {/* ============================================================= */}
-            {isNewNotifModalOpen && (
-              <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-                <div className="w-full max-w-md rounded-2xl bg-[#141A2E] border border-[#2B3452] p-6 space-y-4 text-slate-100 font-mono shadow-2xl">
-                  <div className="flex items-center justify-between border-b border-[#222F4C] pb-3">
-                    <h3 className="font-bold text-sm text-white uppercase flex items-center gap-2">
-                      <Send className="h-4 w-4 text-[#5584B4]" />
-                      <span>Dispatch Invoicing Notice</span>
-                    </h3>
-                    <button
-                      type="button"
-                      onClick={() => setIsNewNotifModalOpen(false)}
-                      className="text-slate-400 hover:text-white"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  <form onSubmit={handleSendClientNotification} className="space-y-3 text-xs">
-                    <div>
-                      <label className="block text-slate-400 mb-1">Recipient Email:</label>
-                      <input
-                        type="email"
-                        required
-                        value={newNotifEmail}
-                        onChange={(e) => setNewNotifEmail(e.target.value)}
-                        placeholder="client@venture.co.za"
-                        className="w-full p-2 rounded-lg bg-[#0E1220] border border-[#2B3452] text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-400 mb-1">Subject:</label>
-                      <input
-                        type="text"
-                        required
-                        value={newNotifSubject}
-                        onChange={(e) => setNewNotifSubject(e.target.value)}
-                        placeholder="Tax Invoice Slip: bizzcalc app"
-                        className="w-full p-2 rounded-lg bg-[#0E1220] border border-[#2B3452] text-white"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-slate-400 mb-1">Service / SKU:</label>
-                        <input
-                          type="text"
-                          value={newNotifServiceName}
-                          onChange={(e) => setNewNotifServiceName(e.target.value)}
-                          placeholder="bizzcalc app"
-                          className="w-full p-2 rounded-lg bg-[#0E1220] border border-[#2B3452] text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-slate-400 mb-1">Amount Invoiced (ZAR):</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={newNotifAmount}
-                          onChange={(e) => setNewNotifAmount(Number(e.target.value))}
-                          className="w-full p-2 rounded-lg bg-[#0E1220] border border-[#2B3452] text-white"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-slate-400 mb-1">Notice Content:</label>
-                      <textarea
-                        rows={3}
-                        required
-                        value={newNotifContent}
-                        onChange={(e) => setNewNotifContent(e.target.value)}
-                        placeholder="Details of the tax invoice or credit..."
-                        className="w-full p-2 rounded-lg bg-[#0E1220] border border-[#2B3452] text-white"
-                      />
-                    </div>
-
-                    <div className="pt-2 flex justify-end gap-2 border-t border-[#222F4C]">
-                      <button
-                        type="button"
-                        onClick={() => setIsNewNotifModalOpen(false)}
-                        className="px-3.5 py-1.5 rounded-lg bg-[#1B233D] text-slate-300"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        className="px-4 py-1.5 rounded-lg bg-[#5584B4] hover:bg-[#4773A0] text-white font-bold"
-                      >
-                        Dispatch Notice
+                        {editingClient ? 'UPDATE BILLING PROFILE' : 'ESTABLISH BILLING PROFILE'}
                       </button>
                     </div>
                   </form>

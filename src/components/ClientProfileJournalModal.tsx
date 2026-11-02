@@ -27,6 +27,8 @@ import {
 import { TransactionRecord, UserBusinessProfile, ClientProfile } from '../types';
 import { INITIAL_V1_TRANSACTIONS } from '../data/cmsConsoleData';
 import { safeSaveStorage } from '../utils/imageStorage';
+import { generateTaxInvoicePdf, BIZZBEAN_COMPANY_DETAILS } from '../utils/taxInvoicePdf';
+import { COUNTRIES } from '../data/countryData';
 
 interface ClientProfileJournalModalProps {
   isOpen: boolean;
@@ -74,13 +76,15 @@ export const ClientProfileJournalModal: React.FC<ClientProfileJournalModalProps>
   const [selectedInvoice, setSelectedInvoice] = useState<TransactionRecord | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
 
-  // Form State for Profile Updating
+  // Form State for Profile Updating (matching V1 client profile.PNG)
   const [formName, setFormName] = useState(userProfile.founderName || 'Quentin McCullough');
   const [formEmail, setFormEmail] = useState(userProfile.email || userEmail || 'quentin@bizzbean.com');
-  const [formCompany, setFormCompany] = useState(userProfile.companyName || 'BizzBean Client');
+  const [formCompany, setFormCompany] = useState(userProfile.companyName || 'BizzBean Holdings (Pty) Ltd');
+  const [formVatNumber, setFormVatNumber] = useState(userProfile.vatNumber || '4920281920');
   const [formPhone, setFormPhone] = useState(userProfile.phone || '+27 82 555 0192');
   const [formCountry, setFormCountry] = useState(userProfile.country || 'South Africa');
   const [formCity, setFormCity] = useState(userProfile.city || 'Johannesburg');
+  const [formNotes, setFormNotes] = useState(userProfile.notes || 'Key founder account. Primary administrator and enterprise test account.');
   const [formIndustry, setFormIndustry] = useState(userProfile.industry || 'Enterprise Software');
   const [formStage, setFormStage] = useState(userProfile.stage || 'fund-ABILITY');
   const [formWhatWeDo, setFormWhatWeDo] = useState(userProfile.whatWeDo || '');
@@ -113,7 +117,8 @@ export const ClientProfileJournalModal: React.FC<ClientProfileJournalModalProps>
         (t.productName || '').toLowerCase().includes(q) ||
         (t.sku || '').toLowerCase().includes(q) ||
         (t.customer || '').toLowerCase().includes(q) ||
-        (t.associate || '').toLowerCase().includes(q)
+        (t.associate || '').toLowerCase().includes(q) ||
+        (t.country || '').toLowerCase().includes(q)
     );
   }, [scopeFilter, myTransactions, transactions, txSearch]);
 
@@ -125,9 +130,11 @@ export const ClientProfileJournalModal: React.FC<ClientProfileJournalModalProps>
       founderName: formName.trim() || 'Quentin McCullough',
       email: formEmail.trim() || 'quentin@bizzbean.com',
       companyName: formCompany.trim() || 'BizzBean Client',
+      vatNumber: formVatNumber.trim(),
       phone: formPhone.trim(),
       country: formCountry.trim(),
       city: formCity.trim(),
+      notes: formNotes.trim(),
       industry: formIndustry.trim(),
       stage: formStage.trim(),
       whatWeDo: formWhatWeDo.trim(),
@@ -148,10 +155,11 @@ export const ClientProfileJournalModal: React.FC<ClientProfileJournalModalProps>
         name: updated.founderName,
         email: updated.email || 'quentin@bizzbean.com',
         companyName: updated.companyName,
+        vatNumber: updated.vatNumber,
         phone: updated.phone,
         city: updated.city,
         country: updated.country,
-        notes: `Updated from client profile workstation dialog.`,
+        notes: updated.notes || 'Updated from client billing profile workstation dialog.',
       };
 
       if (existingIdx >= 0) {
@@ -168,54 +176,9 @@ export const ClientProfileJournalModal: React.FC<ClientProfileJournalModalProps>
     setTimeout(() => setProfileSuccessMessage(null), 3500);
   };
 
-  // Helper to generate downloadable text receipt slip
-  const handleDownloadSlipText = (invoice: TransactionRecord) => {
-    const slipText = `================================================================
-BIZZBEAN HOLDINGS (PTY) LTD
-Enterprise Entrepreneurial Modeling Infrastructure
-Reg No: 2024/098712/07 • VAT Registration: 4920281920
-Merchant ID: 14980265 • Johannesburg, South Africa
-Contact: accounts@bizzbean.com • https://bizzbean.com
-================================================================
-OFFICIAL SARS TAX INVOICE & CLIENT TRANSACTION SLIP
-Invoice Number: ${invoice.invoiceNumber}
-Date of Issue:  ${invoice.transactionDate}
-Payment Status: PAID IN FULL (Instant Settlement)
-Payment Channel: PayFast Gateway / Instant EFT
-================================================================
-BILLED TO:
-Customer:       ${invoice.customer}
-Email:          ${invoice.customerEmail}
-Country:        ${invoice.country || 'South Africa'}
-Sales Channel:  ${invoice.associate || 'BizzBean Direct'}
-================================================================
-PURCHASED SERVICE / ITEM SPECIFICATION:
-SKU:            ${invoice.sku}
-Item Name:      ${invoice.productName}
-Classification: ${invoice.productType.toUpperCase()}
-Quantity:       ${invoice.quantity}
-Unit Price:     R ${(Number(invoice.unitPrice) || 0).toFixed(2)} (Excl. VAT)
-Line Subtotal:  R ${(Number(invoice.lineValue) || 0).toFixed(2)} (Excl. VAT)
-----------------------------------------------------------------
-SARS VAT (${((Number(invoice.vatRate) || 0.15) * 100).toFixed(0)}%):    R ${(Number(invoice.vatAmount) || 0).toFixed(2)}
-TOTAL INVOICE VALUE: R ${(Number(invoice.invoiceValue) || 0).toFixed(2)} (Gross Incl. VAT)
-================================================================
-SARS COMPLIANCE RECORD:
-This official tax invoice is issued in terms of Section 20(4) of
-the Value Added Tax Act, 1991 of the Republic of South Africa.
-All digital product access and tokens are authenticated in the
-BizzBean immutable general ledger.
-================================================================`;
-
-    const blob = new Blob([slipText], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `BizzBean_Slip_${invoice.invoiceNumber}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  // Generate downloadable official SARS PDF Tax Invoice
+  const handleDownloadSlipPdf = (invoice: TransactionRecord) => {
+    generateTaxInvoicePdf(invoice);
   };
 
   const handleCopyInvoiceNumber = (invNum: string) => {
@@ -510,16 +473,16 @@ BizzBean immutable general ledger.
                           {/* Download Slip File */}
                           <button
                             type="button"
-                            onClick={() => handleDownloadSlipText(tx)}
-                            title="Download formatted slip text file"
-                            className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                            onClick={() => handleDownloadSlipPdf(tx)}
+                            title="Download official SARS Tax Invoice PDF"
+                            className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all cursor-pointer ${
                               isDark
                                 ? 'bg-[#1F2942] hover:bg-[#2B395C] text-slate-200 border-[#35456E]'
                                 : 'bg-[#FAF8F5] hover:bg-[#E8E2D8] text-slate-800 border-[#D8CEBC]'
                             }`}
                           >
                             <Download className="h-3.5 w-3.5 text-emerald-500" />
-                            <span className="hidden sm:inline">Download Slip</span>
+                            <span className="hidden sm:inline">Download Slip (PDF)</span>
                           </button>
 
                           {/* View SARS Tax Invoice Slip */}
@@ -527,7 +490,7 @@ BizzBean immutable general ledger.
                             type="button"
                             onClick={() => setSelectedInvoice(tx)}
                             title="View official SARS Tax Invoice and print"
-                            className="px-3 py-2 rounded-xl text-xs font-bold text-white bg-[#5584B4] hover:bg-[#4773A0] transition-colors flex items-center gap-1.5 shadow-2xs"
+                            className="px-3 py-2 rounded-xl text-xs font-bold text-white bg-[#5584B4] hover:bg-[#4773A0] transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
                           >
                             <Eye className="h-3.5 w-3.5" />
                             <span>View Slip</span>
@@ -541,22 +504,22 @@ BizzBean immutable general ledger.
             </div>
           )}
 
-          {/* TAB 2: UPDATE PERSONAL INFORMATION */}
+          {/* TAB 2: UPDATE PERSONAL INFORMATION (MATCHING V1 CLIENT PROFILE) */}
           {activeTab === 'profile' && (
             <form onSubmit={handleSaveProfile} className="space-y-4 font-mono text-xs">
               <div
-                className={`p-4 rounded-xl border ${
+                className={`p-5 rounded-2xl border ${
                   isDark ? 'bg-[#141A2E] border-[#252E4A]' : 'bg-white border-[#E8E2D8]'
                 }`}
               >
-                <div className="flex items-center gap-2 mb-3">
-                  <User className="h-4 w-4 text-[#5584B4]" />
-                  <h3 className="font-bold text-sm uppercase text-slate-900 dark:text-white">
-                    Founder & Client Profile Details
+                <div className="flex items-center gap-2 mb-2">
+                  <User className="h-4 w-4 text-[#8CB843]" />
+                  <h3 className="font-bold text-xs uppercase tracking-wider text-[#8CB843]">
+                    SETUP CLIENT BILLING PROFILE
                   </h3>
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
-                  These details appear on your workstation welcome greeting, transactional invoices, and SARS tax slips.
+                  These verified billing details appear on your workstation welcome greeting, transactional invoices, and SARS tax slips.
                 </p>
 
                 {profileSuccessMessage && (
@@ -567,163 +530,153 @@ BizzBean immutable general ledger.
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Founder Name */}
+                  {/* CONTACT PERSON NAME * */}
                   <div>
-                    <label className="block text-slate-500 dark:text-slate-400 mb-1">
-                      Full Name / Founder:
+                    <label className="block text-slate-600 dark:text-slate-300 font-bold uppercase text-[11px] mb-1.5">
+                      CONTACT PERSON NAME *
                     </label>
                     <input
                       type="text"
                       required
                       value={formName}
                       onChange={(e) => setFormName(e.target.value)}
-                      placeholder="Quentin McCullough"
-                      className={`w-full p-2.5 rounded-xl border text-xs font-bold ${
+                      placeholder="e.g. Lerato Molefe"
+                      className={`w-full p-2.5 rounded-xl border text-xs font-mono ${
                         isDark
-                          ? 'bg-[#0E1220] border-[#252E4A] text-white'
-                          : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900'
+                          ? 'bg-[#0E1220] border-[#252E4A] text-white focus:border-[#8CB843]'
+                          : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900 focus:border-[#8CB843]'
                       }`}
                     />
                   </div>
 
-                  {/* Email */}
+                  {/* PRIMARY EMAIL * */}
                   <div>
-                    <label className="block text-slate-500 dark:text-slate-400 mb-1">
-                      Client Email Address:
+                    <label className="block text-slate-600 dark:text-slate-300 font-bold uppercase text-[11px] mb-1.5">
+                      PRIMARY EMAIL *
                     </label>
                     <input
                       type="email"
                       required
                       value={formEmail}
                       onChange={(e) => setFormEmail(e.target.value)}
-                      placeholder="quentin@bizzbean.com"
-                      className={`w-full p-2.5 rounded-xl border text-xs ${
+                      placeholder="e.g. lerato@molefeconsulting.com"
+                      className={`w-full p-2.5 rounded-xl border text-xs font-mono ${
                         isDark
-                          ? 'bg-[#0E1220] border-[#252E4A] text-white'
-                          : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900'
+                          ? 'bg-[#0E1220] border-[#252E4A] text-white focus:border-[#8CB843]'
+                          : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900 focus:border-[#8CB843]'
                       }`}
                     />
                   </div>
 
-                  {/* Company Name */}
+                  {/* REGISTERED COMPANY NAME */}
                   <div>
-                    <label className="block text-slate-500 dark:text-slate-400 mb-1">
-                      Business / Company Name:
+                    <label className="block text-slate-600 dark:text-slate-300 font-bold uppercase text-[11px] mb-1.5">
+                      REGISTERED COMPANY NAME
                     </label>
                     <input
                       type="text"
                       value={formCompany}
                       onChange={(e) => setFormCompany(e.target.value)}
-                      placeholder="Apex Cloud Dynamics"
-                      className={`w-full p-2.5 rounded-xl border text-xs ${
+                      placeholder="e.g. Molefe Capital Group (Pty) Ltd"
+                      className={`w-full p-2.5 rounded-xl border text-xs font-mono ${
                         isDark
-                          ? 'bg-[#0E1220] border-[#252E4A] text-white'
-                          : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900'
+                          ? 'bg-[#0E1220] border-[#252E4A] text-white focus:border-[#8CB843]'
+                          : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900 focus:border-[#8CB843]'
                       }`}
                     />
                   </div>
 
-                  {/* Phone */}
+                  {/* VAT REGISTRATION NUMBER (SOUTH AFRICA) */}
                   <div>
-                    <label className="block text-slate-500 dark:text-slate-400 mb-1">
-                      Contact Phone / WhatsApp:
+                    <label className="block text-slate-600 dark:text-slate-300 font-bold uppercase text-[11px] mb-1.5">
+                      VAT REGISTRATION NUMBER (SOUTH AFRICA)
+                    </label>
+                    <input
+                      type="text"
+                      value={formVatNumber}
+                      onChange={(e) => setFormVatNumber(e.target.value)}
+                      placeholder="e.g. 4010258199"
+                      className={`w-full p-2.5 rounded-xl border text-xs font-mono ${
+                        isDark
+                          ? 'bg-[#0E1220] border-[#252E4A] text-white focus:border-[#8CB843]'
+                          : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900 focus:border-[#8CB843]'
+                      }`}
+                    />
+                  </div>
+
+                  {/* MOBILE/PHONE PORTFOLIO */}
+                  <div>
+                    <label className="block text-slate-600 dark:text-slate-300 font-bold uppercase text-[11px] mb-1.5">
+                      MOBILE/PHONE PORTFOLIO
                     </label>
                     <input
                       type="text"
                       value={formPhone}
                       onChange={(e) => setFormPhone(e.target.value)}
-                      placeholder="+27 82 555 0192"
-                      className={`w-full p-2.5 rounded-xl border text-xs ${
+                      placeholder="e.g. +27 82 555 4321"
+                      className={`w-full p-2.5 rounded-xl border text-xs font-mono ${
                         isDark
-                          ? 'bg-[#0E1220] border-[#252E4A] text-white'
-                          : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900'
+                          ? 'bg-[#0E1220] border-[#252E4A] text-white focus:border-[#8CB843]'
+                          : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900 focus:border-[#8CB843]'
                       }`}
                     />
                   </div>
 
-                  {/* City */}
+                  {/* CITY LOCATION */}
                   <div>
-                    <label className="block text-slate-500 dark:text-slate-400 mb-1">City / Region:</label>
+                    <label className="block text-slate-600 dark:text-slate-300 font-bold uppercase text-[11px] mb-1.5">
+                      CITY LOCATION
+                    </label>
                     <input
                       type="text"
                       value={formCity}
                       onChange={(e) => setFormCity(e.target.value)}
-                      placeholder="Johannesburg"
-                      className={`w-full p-2.5 rounded-xl border text-xs ${
+                      placeholder="e.g. Johannesburg"
+                      className={`w-full p-2.5 rounded-xl border text-xs font-mono ${
                         isDark
-                          ? 'bg-[#0E1220] border-[#252E4A] text-white'
-                          : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900'
+                          ? 'bg-[#0E1220] border-[#252E4A] text-white focus:border-[#8CB843]'
+                          : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900 focus:border-[#8CB843]'
                       }`}
                     />
-                  </div>
-
-                  {/* Country */}
-                  <div>
-                    <label className="block text-slate-500 dark:text-slate-400 mb-1">Country:</label>
-                    <input
-                      type="text"
-                      value={formCountry}
-                      onChange={(e) => setFormCountry(e.target.value)}
-                      placeholder="South Africa"
-                      className={`w-full p-2.5 rounded-xl border text-xs ${
-                        isDark
-                          ? 'bg-[#0E1220] border-[#252E4A] text-white'
-                          : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900'
-                      }`}
-                    />
-                  </div>
-
-                  {/* Industry */}
-                  <div>
-                    <label className="block text-slate-500 dark:text-slate-400 mb-1">Industry:</label>
-                    <input
-                      type="text"
-                      value={formIndustry}
-                      onChange={(e) => setFormIndustry(e.target.value)}
-                      placeholder="Enterprise Software / Fintech"
-                      className={`w-full p-2.5 rounded-xl border text-xs ${
-                        isDark
-                          ? 'bg-[#0E1220] border-[#252E4A] text-white'
-                          : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900'
-                      }`}
-                    />
-                  </div>
-
-                  {/* Venture Stage */}
-                  <div>
-                    <label className="block text-slate-500 dark:text-slate-400 mb-1">Venture Stage:</label>
-                    <select
-                      value={formStage}
-                      onChange={(e) => setFormStage(e.target.value)}
-                      className={`w-full p-2.5 rounded-xl border text-xs ${
-                        isDark
-                          ? 'bg-[#0E1220] border-[#252E4A] text-white'
-                          : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900'
-                      }`}
-                    >
-                      <option value="vi-ability">vi-ability · Stage 01</option>
-                      <option value="fund-ability">fund-ability · Stage 02</option>
-                      <option value="sustain-ability">sustain-ability · Stage 03</option>
-                      <option value="invest-ability">invest-ability · Stage 04</option>
-                      <option value="personal-sandbox">personal-sandbox</option>
-                    </select>
                   </div>
                 </div>
 
-                {/* What We Do Summary */}
+                {/* 🌐 COUNTRY OF ASSOCIATION */}
                 <div className="mt-4">
-                  <label className="block text-slate-500 dark:text-slate-400 mb-1">
-                    Business Overview / Value Proposition:
+                  <label className="block text-slate-600 dark:text-slate-300 font-bold uppercase text-[11px] mb-1.5 flex items-center gap-1.5">
+                    <span>🌐 COUNTRY OF ASSOCIATION</span>
+                  </label>
+                  <select
+                    value={formCountry}
+                    onChange={(e) => setFormCountry(e.target.value)}
+                    className={`w-full p-2.5 rounded-xl border text-xs font-mono ${
+                      isDark
+                        ? 'bg-[#0E1220] border-[#252E4A] text-white focus:border-[#8CB843]'
+                        : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900 focus:border-[#8CB843]'
+                    }`}
+                  >
+                    {COUNTRIES.map((c) => (
+                      <option key={c.code} value={c.name}>
+                        {c.code} {c.name} ({c.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* INTERNAL BILLING NOTES */}
+                <div className="mt-4">
+                  <label className="block text-slate-600 dark:text-slate-300 font-bold uppercase text-[11px] mb-1.5">
+                    INTERNAL BILLING NOTES
                   </label>
                   <textarea
-                    rows={2}
-                    value={formWhatWeDo}
-                    onChange={(e) => setFormWhatWeDo(e.target.value)}
-                    placeholder="Brief description of your products, market focus, and business model..."
-                    className={`w-full p-2.5 rounded-xl border text-xs ${
+                    rows={3}
+                    value={formNotes}
+                    onChange={(e) => setFormNotes(e.target.value)}
+                    placeholder="Enterprise discount arrangements, payment cycle conditions, contract limits..."
+                    className={`w-full p-2.5 rounded-xl border text-xs font-mono ${
                       isDark
-                        ? 'bg-[#0E1220] border-[#252E4A] text-white'
-                        : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900'
+                        ? 'bg-[#0E1220] border-[#252E4A] text-white focus:border-[#8CB843]'
+                        : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900 focus:border-[#8CB843]'
                     }`}
                   />
                 </div>
@@ -733,20 +686,20 @@ BizzBean immutable general ledger.
                   <button
                     type="button"
                     onClick={onClose}
-                    className={`px-4 py-2 rounded-xl text-xs font-mono transition-colors ${
+                    className={`px-4 py-2 rounded-xl text-xs font-mono font-bold transition-colors border ${
                       isDark
-                        ? 'bg-[#161C30] hover:bg-[#1E2548] text-slate-300'
-                        : 'bg-[#FAF8F5] hover:bg-[#E8E2D8] text-slate-700'
+                        ? 'bg-[#161C30] hover:bg-[#1E2548] text-slate-300 border-[#252E4A]'
+                        : 'bg-[#FAF8F5] hover:bg-[#E8E2D8] text-slate-700 border-[#D8CEBC]'
                     }`}
                   >
-                    Cancel
+                    CANCEL
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl bg-[#5584B4] hover:bg-[#4773A0] text-white font-bold text-xs uppercase flex items-center gap-2 shadow-md transition-all active:scale-[0.99] cursor-pointer"
+                    className="px-5 py-2.5 rounded-xl bg-[#8CB843] hover:bg-[#7ba43b] text-slate-950 font-bold text-xs uppercase flex items-center gap-2 shadow-md transition-all active:scale-[0.99] cursor-pointer"
                   >
                     <Save className="h-4 w-4" />
-                    <span>Save Information</span>
+                    <span>ESTABLISH BILLING PROFILE</span>
                   </button>
                 </div>
               </div>
@@ -779,7 +732,7 @@ BizzBean immutable general ledger.
       {selectedInvoice && (
         <div className="fixed inset-0 z-60 bg-black/85 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in zoom-in-95 duration-150">
           <div className="w-full max-w-2xl rounded-2xl bg-[#0E1322] border border-[#2B3452] p-6 space-y-6 text-slate-100 font-mono shadow-2xl my-8">
-            {/* Top Bar with Print and Close */}
+            {/* Top Bar with Print, PDF Download, and Close */}
             <div className="flex items-center justify-between border-b border-[#222F4C] pb-3">
               <div className="flex items-center gap-2">
                 <Receipt className="h-4 w-4 text-emerald-400" />
@@ -790,18 +743,18 @@ BizzBean immutable general ledger.
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => handleDownloadSlipText(selectedInvoice)}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs bg-[#1F2942] hover:bg-[#2B395C] text-slate-200 border border-[#35456E] transition-colors"
+                  onClick={() => handleDownloadSlipPdf(selectedInvoice)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-colors cursor-pointer shadow-xs"
                 >
-                  <Download className="h-3 w-3 text-emerald-400" />
-                  <span>Download Slip</span>
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Download PDF</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs bg-[#5584B4] hover:bg-[#4773A0] text-white transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-[#5584B4] hover:bg-[#4773A0] text-white transition-colors cursor-pointer"
                 >
-                  <Printer className="h-3 w-3" />
+                  <Printer className="h-3.5 w-3.5" />
                   <span>Print Invoice</span>
                 </button>
                 <button
@@ -820,17 +773,20 @@ BizzBean immutable general ledger.
               <div className="flex items-start justify-between border-b border-[#222F4C] pb-4">
                 <div>
                   <div className="text-xl font-black text-white tracking-wider flex items-center gap-2">
-                    <span className="text-[#5584B4]">BIZZBEAN</span>
-                    <span className="text-slate-400 text-xs font-normal">HOLDINGS (PTY) LTD</span>
+                    <span className="text-[#5584B4]">BIZZBEAN SA</span>
+                    <span className="text-slate-400 text-xs font-normal">(Pty) Ltd</span>
                   </div>
-                  <div className="text-[11px] text-slate-400 mt-1">
+                  <div className="text-[11px] text-slate-300 mt-1">
                     Enterprise Entrepreneurial Modeling Infrastructure
                   </div>
-                  <div className="text-[10px] text-slate-500">
-                    Reg No: 2024/098712/07 • VAT Registration: 4920281920
+                  <div className="text-[10px] text-slate-400">
+                    67 Blouberg Cresent, Van Riebeeck Park, Kempton Park, South Africa, 1619
+                  </div>
+                  <div className="text-[10px] text-amber-300/90 font-medium">
+                    VAT number will be provided shortly (Application in Process)
                   </div>
                   <div className="text-[10px] text-slate-500">
-                    Johannesburg, South Africa • accounts@bizzbean.com
+                    Reg No: 2024/098712/07 • accounts@bizzbean.com • https://bizzbean.com
                   </div>
                 </div>
 

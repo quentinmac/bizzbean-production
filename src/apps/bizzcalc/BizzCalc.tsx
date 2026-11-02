@@ -15,6 +15,7 @@ import {
   Maximize2,
   Minimize2,
   FileSpreadsheet,
+  RotateCcw,
 } from 'lucide-react';
 import {
   BUSINESS_TYPES,
@@ -97,26 +98,16 @@ const DEFAULT_HOLIDAYS = [
 ];
 
 function createInitialScenario(scenario: ScenarioId): BizzCalcScenarioData {
-  const isLearn = scenario === 'learn';
-  const isDream = scenario === 'my dream';
-  const isConstraint = scenario === 'break that constraint';
-
-  const baseRev = isLearn ? 5000 : isDream ? 8500 : isConstraint ? 6200 : 4500;
-  const gpMargin = isLearn ? 20 : isDream ? 35 : isConstraint ? 28 : 22;
-
-  // default opex values
+  // All operating expense line items initialized with monthly rate of 0
   const defaultOpex: { [name: string]: { startMonth: number; monthlyRate: number } } = {};
-  STANDARD_OPEX_NAMES.forEach((name, idx) => {
-    let rate = 0;
-    if (idx < 8) {
-      rate = isLearn ? 1500 : 2500;
-    }
-    defaultOpex[name] = { startMonth: 1, monthlyRate: rate };
+  STANDARD_OPEX_NAMES.forEach((name) => {
+    defaultOpex[name] = { startMonth: 1, monthlyRate: 0 };
   });
 
   return {
-    businessName: isLearn ? 'bizzbean learning enterprise' : 'my dream venture',
-    startDate: '2026-03',
+    // 1. Business details (defaults matching user profile & reference bizzcalc.PNG)
+    businessName: 'my dream venture',
+    startDate: '2026-11',
     scenario,
     workingDays: {
       monday: true,
@@ -130,47 +121,32 @@ function createInitialScenario(scenario: ScenarioId): BizzCalcScenarioData {
     deductHolidays: true,
     holidays: [...DEFAULT_HOLIDAYS],
 
+    // 2. Revenue calculator: all page values reset to zero
     revStartMonth: 1,
-    baseDailyRevenue: baseRev,
-    grossProfitMarginPct: gpMargin,
-    monthlyRevenueAdjustmentsPct: [0, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
+    baseDailyRevenue: 0,
+    grossProfitMarginPct: 0,
+    monthlyRevenueAdjustmentsPct: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 
+    // 3. Employment: all page values reset to zero
     empReviewMonth: 7,
-    empReviewRatePct: 10,
-    staff: [
-      { id: 's1', title: 'operations director', startMonth: 2, baseRate: 10000, number: 1 },
-      { id: 's2', title: 'support specialist', startMonth: 1, baseRate: 6500, number: 2 },
-    ],
+    empReviewRatePct: 0,
+    staff: [],
 
+    // 4. Operating expenses: all page values reset to zero
     opexReviewMonth: 7,
-    opexReviewRatePct: 10,
+    opexReviewRatePct: 0,
     opexValues: defaultOpex,
 
-    assets: [
-      {
-        id: 'a1',
-        description: 'commercial delivery vehicle',
-        category: 'Commercial vehicles',
-        purchaseMonth: 1,
-        qty: 1,
-        unitCost: 100000,
-      },
-      {
-        id: 'a2',
-        description: 'office workstations',
-        category: 'Computer hardware',
-        purchaseMonth: 1,
-        qty: 3,
-        unitCost: 15000,
-      },
-    ],
+    // 5. Fixed assets: all page values reset to zero
+    assets: [],
 
-    inventoryDays: 30,
-    receivablesDays: 30,
-    payablesDays: 30,
-    deposits: 15000,
-    floats: 15000,
-    pettyCash: 15000,
+    // 6. Funding calculator: all page values reset to zero
+    inventoryDays: 0,
+    receivablesDays: 0,
+    payablesDays: 0,
+    deposits: 0,
+    floats: 0,
+    pettyCash: 0,
   };
 }
 
@@ -216,25 +192,88 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
   // Mobile container view toggle (fullscreen vs simulated mobile viewport on desktop)
   const [isPhoneFrame, setIsPhoneFrame] = useState<boolean>(false);
 
-  // State per scenario stored in localStorage
+  const BIZZCALC_VERSION_KEY = 'bizzcalc_zero_defaults_v3';
+
+  // State per scenario stored in localStorage (defaults reset to zero page values with Mon-Fri working days)
   const [scenarioData, setScenarioData] = useState<Record<ScenarioId, BizzCalcScenarioData>>(() => {
+    const isUpgraded = localStorage.getItem('bizzcalc_defaults_version') === BIZZCALC_VERSION_KEY;
     const map: Partial<Record<ScenarioId, BizzCalcScenarioData>> = {};
+
     for (const sc of SCENARIOS) {
+      if (isUpgraded) {
+        try {
+          const saved = localStorage.getItem(`bizzcalc_scenario_${sc}`);
+          if (saved) {
+            map[sc] = JSON.parse(saved);
+            continue;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+      map[sc] = createInitialScenario(sc);
+    }
+
+    if (!isUpgraded) {
       try {
-        const saved = localStorage.getItem(`bizzcalc_scenario_${sc}`);
-        if (saved) {
-          map[sc] = JSON.parse(saved);
-          continue;
+        localStorage.setItem('bizzcalc_defaults_version', BIZZCALC_VERSION_KEY);
+        for (const sc of SCENARIOS) {
+          localStorage.setItem(`bizzcalc_scenario_${sc}`, JSON.stringify(map[sc]));
         }
       } catch (e) {
         // ignore
       }
-      map[sc] = createInitialScenario(sc);
     }
+
     return map as Record<ScenarioId, BizzCalcScenarioData>;
   });
 
   const current = scenarioData[activeScenario] || createInitialScenario('learn');
+
+  // Scenario reset modal and notification toast state
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
+  };
+
+  const handleResetCurrentScenario = () => {
+    const fresh = createInitialScenario(activeScenario);
+    setScenarioData((prev) => ({
+      ...prev,
+      [activeScenario]: fresh,
+    }));
+    try {
+      localStorage.setItem(`bizzcalc_scenario_${activeScenario}`, JSON.stringify(fresh));
+    } catch (e) {
+      // ignore
+    }
+    setShowResetConfirmModal(false);
+    showToast(`scenario '${activeScenario}' reset to default zero baseline.`);
+  };
+
+  const handleResetAllScenarios = () => {
+    const newMap: Record<ScenarioId, BizzCalcScenarioData> = {
+      'learn': createInitialScenario('learn'),
+      'my dream': createInitialScenario('my dream'),
+      'break that constraint': createInitialScenario('break that constraint'),
+      'when this happens': createInitialScenario('when this happens'),
+    };
+    setScenarioData(newMap);
+    for (const sc of SCENARIOS) {
+      try {
+        localStorage.setItem(`bizzcalc_scenario_${sc}`, JSON.stringify(newMap[sc]));
+      } catch (e) {
+        // ignore
+      }
+    }
+    setShowResetConfirmModal(false);
+    showToast('all 4 scenarios reset to default zero baseline.');
+  };
 
   // Persist current scenario to localStorage
   useEffect(() => {
@@ -901,8 +940,17 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
             </div>
           </div>
 
-          {/* Right: Actions (PDF Download & X Logout) */}
+          {/* Right: Actions (Scenario Reset, PDF Download & X Logout) */}
           <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setShowResetConfirmModal(true)}
+              className="p-1.5 rounded-xl text-slate-400 hover:text-[#8CB843] dark:hover:text-[#8CB843] hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              title={`scenario reset: reset '${activeScenario}' to defaults`}
+              aria-label="scenario reset"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </button>
             <button
               type="button"
               onClick={handleDownloadPdf}
@@ -1036,7 +1084,18 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-slate-500 lowercase block">scenario:</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-slate-500 lowercase block">scenario:</label>
+                        <button
+                          type="button"
+                          onClick={() => setShowResetConfirmModal(true)}
+                          className="text-[10px] text-slate-400 hover:text-[#2E5E88] dark:hover:text-[#5584B4] flex items-center gap-1 cursor-pointer transition-colors"
+                          title="reset scenario to default zero baseline"
+                        >
+                          <RotateCcw className="h-2.5 w-2.5" />
+                          <span>scenario reset</span>
+                        </button>
+                      </div>
                       <select
                         value={activeScenario}
                         onChange={(e) => setActiveScenario(e.target.value as ScenarioId)}
@@ -1102,6 +1161,22 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
                     >
                       {current.deductHolidays ? 'enabled' : 'disabled'}
                     </button>
+                  </div>
+
+                  {/* Scenario Reset Action Bar (Matching Reference bizzcalc.PNG annotation) */}
+                  <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowResetConfirmModal(true)}
+                      className="w-full py-2.5 px-4 rounded-xl text-xs font-mono font-medium lowercase bg-[#5CA338] hover:bg-[#4E8B30] text-white transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer active:scale-[0.99]"
+                      title="re-set this scenario to default settings (all page values zero, mon-fri working calendar)"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      <span>re-set to default for scenario</span>
+                    </button>
+                    <p className="text-[10px] text-slate-400 text-center lowercase font-mono">
+                      * resets all page values to zero for scenario &ldquo;{activeScenario}&rdquo; (mon, tue, wed, thu, fri)
+                    </p>
                   </div>
                 </div>
               )}
@@ -2681,6 +2756,86 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* SCENARIO RESET CONFIRMATION MODAL                                     */}
+      {/* ===================================================================== */}
+      {showResetConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div
+            className={`w-full max-w-sm rounded-3xl border p-5 space-y-4 shadow-2xl font-mono ${
+              isDark ? 'bg-[#101626] border-[#222F4C] text-[#E2E8F0]' : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-800'
+            }`}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2 text-xs lowercase font-normal text-[#5CA338]">
+                <div className="p-1.5 rounded-lg bg-[#5CA338]/20 text-[#5CA338]">
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </div>
+                <span className="font-bold text-slate-900 dark:text-white">re-set to default for scenario</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowResetConfirmModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs font-normal lowercase leading-relaxed">
+              <p className="text-slate-700 dark:text-slate-300">
+                Are you sure you want to reset scenario <strong className="text-[#2E5E88] dark:text-[#5584B4] font-bold">&ldquo;{activeScenario}&rdquo;</strong> to default zero values?
+              </p>
+              <div className="p-3 rounded-2xl bg-white dark:bg-[#0E1322] border border-[#D8CEBC] dark:border-[#222F4C] text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
+                <div>✓ working days: <strong className="text-slate-900 dark:text-slate-100">mon, tue, wed, thu, fri</strong></div>
+                <div>✓ deduct public holidays: <strong className="text-slate-900 dark:text-slate-100">enabled</strong></div>
+                <div>✓ revenue calculator: <strong className="text-slate-900 dark:text-slate-100">all page values 0</strong></div>
+                <div>✓ employment & payroll: <strong className="text-slate-900 dark:text-slate-100">all page values 0</strong></div>
+                <div>✓ operating expenses: <strong className="text-slate-900 dark:text-slate-100">all page values 0</strong></div>
+                <div>✓ fixed assets & funding: <strong className="text-slate-900 dark:text-slate-100">all page values 0</strong></div>
+              </div>
+            </div>
+
+            <div className="pt-2 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={handleResetCurrentScenario}
+                className="w-full py-2.5 px-3 rounded-xl bg-[#5CA338] hover:bg-[#4E8B30] text-white text-xs lowercase font-bold shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.99]"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span>reset &ldquo;{activeScenario}&rdquo; to defaults</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleResetAllScenarios}
+                className="w-full py-2 px-3 rounded-xl bg-slate-200/80 hover:bg-slate-300 dark:bg-[#1A233D] dark:hover:bg-[#253252] text-slate-700 dark:text-slate-200 text-xs lowercase transition-colors text-center cursor-pointer"
+              >
+                reset all 4 scenarios to defaults
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowResetConfirmModal(false)}
+                className="w-full py-1 text-xs lowercase text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-center cursor-pointer"
+              >
+                cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* FLOATING SUCCESS TOAST NOTIFICATION                                   */}
+      {/* ===================================================================== */}
+      {toastMessage && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] px-4 py-2 rounded-2xl bg-[#5CA338] text-white text-xs font-mono shadow-xl border border-white/20 flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+          <Check className="h-4 w-4 shrink-0" />
+          <span>{toastMessage}</span>
         </div>
       )}
     </div>

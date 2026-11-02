@@ -45,6 +45,8 @@ export interface UserBusinessProfile {
   phone?: string;
   country?: string;
   city?: string;
+  vatNumber?: string;
+  notes?: string;
   socialMissionEquation?: string;
   socialMissionSubtext?: string;
   whoAreWe?: string;
@@ -205,6 +207,7 @@ export interface ClientProfile {
   city?: string;
   country?: string;
   notes?: string;
+  role?: 'admin' | 'member';
 }
 
 export interface ClientNotification {

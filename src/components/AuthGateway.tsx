@@ -132,12 +132,18 @@ export default function AuthGateway({ onAuthenticated, onClose }: AuthGatewayPro
 
   // Login State
   const [loginEmail, setLoginEmail] = useState(() => {
-    return (typeof window !== 'undefined' && localStorage.getItem('bizzbean_last_login_email')) || 'quentinmac@bizzbean.com';
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('bizzbean_last_login_email');
+      if (saved && saved !== 'quentinmac@bizzbean.com' && saved !== 'quentin@bizzbean.com') {
+        return saved;
+      }
+    }
+    return 'example@bizzbean.com';
   });
   const [loginPassword, setLoginPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [destination] = useState<'splash' | 'dashboard' | 'bizzbot'>('splash');
-  const [signInRole, setSignInRole] = useState<'member' | 'admin'>('admin');
+  const [signInRole, setSignInRole] = useState<'member' | 'admin'>('member');
   const [authError, setAuthError] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState<string | null>(null);
   const [canQuickRegister, setCanQuickRegister] = useState(false);
@@ -489,8 +495,8 @@ Welcome to the bizzbean Sandbox environment!
                   type="button"
                   onClick={() => {
                     setSignInRole('member');
-                    if (loginEmail === 'quentinmac@bizzbean.com' || loginEmail === 'quentin@bizzbean.com') {
-                      setLoginEmail('demo@bizzbean.com');
+                    if (loginEmail === 'admin@bizzbean.com' || loginEmail === 'quentinmac@bizzbean.com' || loginEmail === 'quentin@bizzbean.com') {
+                      setLoginEmail('example@bizzbean.com');
                     }
                     setAuthError(null);
                   }}
@@ -506,7 +512,9 @@ Welcome to the bizzbean Sandbox environment!
                   type="button"
                   onClick={() => {
                     setSignInRole('admin');
-                    setLoginEmail('quentinmac@bizzbean.com');
+                    if (loginEmail === 'example@bizzbean.com' || loginEmail === 'demo@bizzbean.com') {
+                      setLoginEmail('admin@bizzbean.com');
+                    }
                     setAuthError(null);
                   }}
                   className={`flex-1 py-2 text-[11px] font-black tracking-widest uppercase rounded-sm transition-all cursor-pointer ${
@@ -574,13 +582,13 @@ Welcome to the bizzbean Sandbox environment!
                     <button
                       type="button"
                       onClick={() => {
-                        setLoginEmail('quentinmac@bizzbean.com');
-                        setSignInRole('admin');
+                        const exampleAccount = signInRole === 'admin' ? 'admin@bizzbean.com' : 'example@bizzbean.com';
+                        setLoginEmail(exampleAccount);
                         setAuthError(null);
                       }}
                       className="text-[10px] font-bold text-[#5085b6] hover:underline cursor-pointer lowercase"
                     >
-                      fill: quentinmac@bizzbean.com
+                      fill: {signInRole === 'admin' ? 'admin@bizzbean.com' : 'example@bizzbean.com'}
                     </button>
                   </div>
                   <div className="relative">
@@ -592,7 +600,7 @@ Welcome to the bizzbean Sandbox environment!
                         setLoginEmail(e.target.value);
                         setAuthError(null);
                       }}
-                      placeholder="e.g. quentinmac@bizzbean.com"
+                      placeholder={signInRole === 'admin' ? "e.g. admin@bizzbean.com" : "e.g. example@bizzbean.com"}
                       className="w-full bg-[#DDebf7] border-[0.5px] border-slate-300 py-3.5 px-4 pl-10 rounded-sm focus:outline-none focus:border-[#5085b6] transition-all text-[14px] text-slate-800 font-medium"
                     />
                     <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />

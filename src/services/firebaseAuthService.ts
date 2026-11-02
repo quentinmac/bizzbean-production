@@ -59,11 +59,89 @@ export function formatAuthErrorMessage(error: any): string {
 }
 
 /**
+ * Get dynamic list of designated administrator emails
+ */
+export function getStoredAdminEmails(): string[] {
+  try {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('bizzbean_admin_emails');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          return parsed.map((e) => String(e).toLowerCase().trim()).filter(Boolean);
+        }
+      }
+    }
+  } catch {}
+  return [];
+}
+
+/**
+ * Add an email address as a verified administrator
+ */
+export function addAdminEmail(email: string): string[] {
+  try {
+    if (typeof window !== 'undefined') {
+      const clean = email.toLowerCase().trim();
+      if (!clean) return getStoredAdminEmails();
+      const current = getStoredAdminEmails();
+      if (!current.includes(clean)) {
+        const updated = [...current, clean];
+        localStorage.setItem('bizzbean_admin_emails', JSON.stringify(updated));
+        return updated;
+      }
+      return current;
+    }
+  } catch {}
+  return [];
+}
+
+/**
+ * Remove an email from the custom administrator list
+ */
+export function removeAdminEmail(email: string): string[] {
+  try {
+    if (typeof window !== 'undefined') {
+      const clean = email.toLowerCase().trim();
+      const current = getStoredAdminEmails();
+      const updated = current.filter((e) => e !== clean);
+      localStorage.setItem('bizzbean_admin_emails', JSON.stringify(updated));
+      return updated;
+    }
+  } catch {}
+  return [];
+}
+
+/**
  * Determine admin or member role based on email address
  */
 export function determineUserRole(email: string | null | undefined): 'admin' | 'member' {
   if (!email) return 'member';
   const clean = email.trim().toLowerCase();
+
+  // 1. Dynamic admin list
+  const customAdmins = getStoredAdminEmails();
+  if (customAdmins.includes(clean)) {
+    return 'admin';
+  }
+
+  // 2. Client profiles with admin role in directory
+  try {
+    if (typeof window !== 'undefined') {
+      const clientProfiles = localStorage.getItem('bizzdesk_client_profiles');
+      if (clientProfiles) {
+        const parsed = JSON.parse(clientProfiles);
+        if (Array.isArray(parsed)) {
+          const match = parsed.find((c: any) => c?.email && String(c.email).toLowerCase().trim() === clean);
+          if (match && match.role === 'admin') {
+            return 'admin';
+          }
+        }
+      }
+    }
+  } catch {}
+
+  // 3. Known built-in administrators & admin prefix
   if (
     clean === 'quentinmac@bizzbean.com' ||
     clean === 'quentin@bizzbean.com' ||
