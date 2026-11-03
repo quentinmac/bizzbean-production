@@ -273,6 +273,83 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
       {/* ========================================================================= */}
       {/* TINTED GLASS SLIDING DOORS (THE OUTSIDE CORPORATE PROFILE)                */}
       {/* ========================================================================= */}
+      {/* FLOATING TOP NAVIGATION (ABOUT BIZZBEAN & MEMBER SIGN IN)                */}
+      {/* ========================================================================= */}
+      <div className={`fixed top-0 left-0 right-0 z-40 px-4 sm:px-8 py-3 sm:py-5 flex items-center justify-between pointer-events-none transition-opacity duration-500 ${
+        doorsOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
+      }`}>
+        {/* Left: About Bizzbean Ghost Link */}
+        <button
+          type="button"
+          onClick={onOpenAboutModal}
+          className="pointer-events-auto px-3.5 sm:px-4 py-2 rounded-full bg-white/80 hover:bg-white text-slate-700 hover:text-slate-900 text-xs sm:text-[13px] font-medium border border-[#D8CEBC]/80 shadow-2xs hover:shadow-xs transition-all flex items-center gap-2 cursor-pointer font-['Raleway'] lowercase select-none"
+          title="Learn about Bizzbean's Mission & Manifesto"
+        >
+          <span className="text-[#5584B4] font-bold">✦</span>
+          <span>about bizzbean</span>
+        </button>
+
+        {/* Right: Member Sign In Ghost Button */}
+        <button
+          type="button"
+          onClick={() => {
+            try {
+              localStorage.removeItem('bizz_auth_register_mode');
+            } catch (e) {}
+            setAuthMode('signin');
+          }}
+          className="pointer-events-auto px-3.5 sm:px-4 py-2 rounded-full bg-white/80 hover:bg-white text-slate-700 hover:text-slate-900 text-xs sm:text-[13px] font-medium border border-[#D8CEBC]/80 shadow-2xs hover:shadow-xs transition-all flex items-center gap-2 cursor-pointer font-['Raleway'] lowercase select-none"
+          title="Sign in to your verified member account"
+        >
+          <KeyRound className="w-3.5 h-3.5 text-slate-500" />
+          <span>member sign in</span>
+        </button>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* UNIFIED MAGNETIC PRIMARY CALL-TO-ACTION (ACROSS CENTER SEAM)             */}
+      {/* ========================================================================= */}
+      <div
+        className={`absolute top-[calc(50%-10px)] left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 flex flex-col items-center pointer-events-auto transition-all duration-700 ease-out px-4 w-full max-w-md ${
+          doorsOpen ? 'opacity-0 scale-90 pointer-events-none' : 'opacity-100 scale-100'
+        }`}
+      >
+        <button
+          type="button"
+          onClick={() => handleTriggerEnter(false)}
+          className="group relative w-full sm:w-auto px-6 sm:px-9 py-3.5 sm:py-4 rounded-xl bg-[#12172A] hover:bg-[#1E2548] text-white shadow-2xl hover:shadow-[0_20px_45px_rgba(18,23,42,0.35)] border border-[#C59B63]/50 hover:border-[#C59B63] active:scale-[0.98] transition-all flex items-center justify-center gap-3 cursor-pointer"
+          title="Explore Bizz-Desk Sandbox (No Account Required)"
+        >
+          {/* Ambient glow behind CTA */}
+          <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-emerald-500/10 via-amber-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity blur-md" />
+
+          {/* Live pulsing indicator dot */}
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+          </span>
+
+          {/* Primary CTA Label */}
+          <span className="font-['Raleway'] font-bold text-xs sm:text-sm md:text-base tracking-wider uppercase text-white drop-shadow-xs">
+            explore bizz-desk sandbox
+          </span>
+
+          {/* Animated forward arrow */}
+          <ArrowRight className="w-4 h-4 text-[#C59B63] group-hover:translate-x-1 transition-transform duration-200 shrink-0" />
+        </button>
+
+        {/* Friction-reducing microcopy */}
+        <div className="mt-2.5 sm:mt-3 flex items-center justify-center gap-1.5 sm:gap-2 px-3.5 py-1.5 rounded-full bg-white/85 backdrop-blur-sm border border-[#D8CEBC]/70 shadow-2xs text-[11px] sm:text-xs text-slate-600 font-mono select-none text-center">
+          <span className="text-emerald-600 font-bold">✓</span>
+          <span className="font-medium text-slate-800">no account required</span>
+          <span className="text-slate-300">•</span>
+          <span className="text-slate-600">instant sandbox preview</span>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* TINTED GLASS SLIDING DOORS (THE OUTSIDE CORPORATE PROFILE)                */}
+      {/* ========================================================================= */}
       
       {/* LEFT GLASS SLIDING DOOR (0% to 50% width) */}
       <div
@@ -283,13 +360,14 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
           boxShadow: 'inset -2px 0 24px rgba(85,132,180,0.04)',
         }}
       >
-        {/* TOP: Left half of logo stitched against center seam - Moved down closer to computer screen */}
-        <div className="absolute right-0 bottom-[calc(50%+108px)] sm:bottom-[calc(50%+138px)] md:bottom-[calc(50%+172px)] flex items-center pr-0 select-none pointer-events-none">
-          <div className="flex items-center gap-1.5 sm:gap-2.5">
+        {/* TOP: Left half of logo stitched against center seam - Stacked version with favicon above bizz */}
+        <div className="absolute right-0 bottom-[calc(50%+115px)] sm:bottom-[calc(50%+145px)] md:bottom-[calc(50%+180px)] flex flex-col items-end pr-0 select-none pointer-events-none">
+          {/* Favicon - Left Half */}
+          <div className="w-5 sm:w-7 md:w-8 lg:w-9 h-10 sm:h-14 md:h-16 lg:h-18 overflow-hidden flex justify-start">
             <img
               src="/bizzbean-favicon.jpg"
               alt="bizzbean favicon"
-              className="h-8 w-8 sm:h-12 sm:w-12 md:h-14 md:w-14 lg:h-16 lg:w-16 object-contain mix-blend-multiply drop-shadow-xs select-none pointer-events-none"
+              className="h-10 sm:h-14 md:h-16 lg:h-18 w-10 sm:w-14 md:w-16 lg:w-18 max-w-none object-contain mix-blend-multiply drop-shadow-xs select-none pointer-events-none"
               onError={(e) => {
                 const target = e.currentTarget;
                 if (!target.dataset.triedFavicon) {
@@ -304,6 +382,9 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
                 }
               }}
             />
+          </div>
+          {/* Wordmark: bizz */}
+          <div className="flex items-baseline mt-1">
             <span
               className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl text-[#707070] tracking-tight leading-none select-none font-['Raleway']"
               style={{ fontWeight: 300 }}
@@ -311,38 +392,14 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
               bizz
             </span>
           </div>
+          {/* Subtitle: the illuminated */}
+          <span className="text-[8px] sm:text-[10px] md:text-[11px] font-mono tracking-widest text-slate-400 uppercase mt-1">
+            the illuminated&nbsp;
+          </span>
         </div>
 
-        {/* MIDDLE: "explore bizz-desk" button kept strictly within laptop dark outline, equal size & centered */}
-        <div className="absolute right-0 top-[calc(50%-12px)] -translate-y-1/2 pr-3 sm:pr-4 md:pr-6 flex items-center justify-end">
-          <button
-            type="button"
-            onClick={() => handleTriggerEnter(false)}
-            className="w-[124px] sm:w-[155px] md:w-[180px] py-2 sm:py-2.5 rounded-lg bg-white/95 hover:bg-white text-slate-800 text-[11px] sm:text-xs md:text-sm font-normal border border-[#D8CEBC] shadow-xs hover:shadow-sm transition-all flex items-center justify-center text-center lowercase font-['Raleway']"
-            title="Explore Bizz-Desk"
-          >
-            <span className="text-slate-800 hover:text-slate-950 truncate">explore bizz-desk</span>
-          </button>
-        </div>
-
-        {/* BOTTOM: "sign in" button on left door - Moved up closer to computer base */}
-        <div className="absolute right-0 top-[calc(50%+102px)] sm:top-[calc(50%+130px)] md:top-[calc(50%+162px)] pr-2.5 sm:pr-3.5 md:pr-4 flex items-center justify-end">
-          <button
-            type="button"
-            onClick={() => {
-              try {
-                localStorage.removeItem('bizz_auth_register_mode');
-              } catch (e) {}
-              setAuthMode('signin');
-            }}
-            className="w-24 sm:w-32 md:w-36 py-2 sm:py-2.5 md:py-3 rounded-lg bg-white/95 hover:bg-white text-slate-800 text-xs sm:text-sm font-normal border border-[#D8CEBC] shadow-2xs hover:shadow-xs transition-all text-center lowercase font-['Raleway'] cursor-pointer"
-          >
-            sign in
-          </button>
-        </div>
-
-        {/* Sliding Door Sleek Vertical Metal Handle on right edge */}
-        <div className="absolute top-[calc(50%-12px)] -translate-y-1/2 right-1.5 sm:right-2.5 w-1.5 sm:w-2 h-20 sm:h-28 rounded-full bg-gradient-to-b from-[#C4B7A3] via-[#FAF8F5] to-[#C4B7A3] shadow-xs border border-[#D8CEBC]/60" />
+        {/* Sliding Door Sleek Vertical Metal Handle on right edge - positioned below CTA */}
+        <div className="absolute top-[calc(50%+65px)] sm:top-[calc(50%+75px)] right-1.5 sm:right-2.5 w-1.5 sm:w-2 h-20 sm:h-24 rounded-full bg-gradient-to-b from-[#C4B7A3] via-[#FAF8F5] to-[#C4B7A3] shadow-xs border border-[#D8CEBC]/60" />
       </div>
 
       {/* RIGHT GLASS SLIDING DOOR (50% to 100% width) */}
@@ -354,49 +411,49 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
           boxShadow: 'inset 2px 0 24px rgba(85,132,180,0.04)',
         }}
       >
-        {/* TOP: Right half of logo stitched against center seam - Moved down closer to computer screen */}
-        <div className="absolute left-0 bottom-[calc(50%+108px)] sm:bottom-[calc(50%+138px)] md:bottom-[calc(50%+172px)] flex items-center pl-0 select-none pointer-events-none">
-          <span
-            className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl text-[#707070] tracking-tight leading-none select-none font-['Raleway'] inline-flex items-baseline"
-            style={{ fontWeight: 100 }}
-          >
-            bean
-            <sup className="text-[10px] sm:text-xs md:text-sm font-normal text-[#707070] ml-0.5 -top-2.5 sm:-top-4 md:-top-5 font-['Raleway']">
-              TM
-            </sup>
+        {/* TOP: Right half of logo stitched against center seam - Stacked version with favicon above bean */}
+        <div className="absolute left-0 bottom-[calc(50%+115px)] sm:bottom-[calc(50%+145px)] md:bottom-[calc(50%+180px)] flex flex-col items-start pl-0 select-none pointer-events-none">
+          {/* Favicon - Right Half */}
+          <div className="w-5 sm:w-7 md:w-8 lg:w-9 h-10 sm:h-14 md:h-16 lg:h-18 overflow-hidden flex justify-start">
+            <img
+              src="/bizzbean-favicon.jpg"
+              alt="bizzbean favicon"
+              className="h-10 sm:h-14 md:h-16 lg:h-18 w-10 sm:w-14 md:w-16 lg:w-18 max-w-none object-contain mix-blend-multiply drop-shadow-xs select-none pointer-events-none -ml-5 sm:-ml-7 md:-ml-8 lg:-ml-9"
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (!target.dataset.triedFavicon) {
+                  target.dataset.triedFavicon = 'true';
+                  target.src = '/favicon.jpg';
+                } else if (!target.dataset.triedPng) {
+                  target.dataset.triedPng = 'true';
+                  target.src = '/bizzbean-favicon.png';
+                } else if (!target.dataset.triedSvg) {
+                  target.dataset.triedSvg = 'true';
+                  target.src = '/bizzbean-favicon.svg';
+                }
+              }}
+            />
+          </div>
+          {/* Wordmark: bean™ */}
+          <div className="flex items-baseline mt-1">
+            <span
+              className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl text-[#707070] tracking-tight leading-none select-none font-['Raleway'] inline-flex items-baseline"
+              style={{ fontWeight: 100 }}
+            >
+              bean
+              <sup className="text-[10px] sm:text-xs md:text-sm font-normal text-[#707070] ml-0.5 -top-2.5 sm:-top-4 md:-top-5 font-['Raleway']">
+                TM
+              </sup>
+            </span>
+          </div>
+          {/* Subtitle: sandbox */}
+          <span className="text-[8px] sm:text-[10px] md:text-[11px] font-mono tracking-widest text-slate-400 uppercase mt-1">
+            sandbox
           </span>
         </div>
 
-        {/* MIDDLE: "about bizzbean" button adjacent to explore bizz-desk, kept strictly within laptop dark outline, equal size & centered */}
-        <div className="absolute left-0 top-[calc(50%-12px)] -translate-y-1/2 pl-3 sm:pl-4 md:pl-6 flex items-center justify-start">
-          <button
-            type="button"
-            onClick={onOpenAboutModal}
-            className="w-[124px] sm:w-[155px] md:w-[180px] py-2 sm:py-2.5 rounded-lg bg-white/95 hover:bg-white text-slate-800 text-[11px] sm:text-xs md:text-sm font-normal border border-[#D8CEBC] shadow-xs hover:shadow-sm transition-all flex items-center justify-center text-center lowercase font-['Raleway']"
-            title="About Bizzbean"
-          >
-            <span className="text-slate-800 hover:text-slate-950 truncate">about bizzbean</span>
-          </button>
-        </div>
-
-        {/* BOTTOM: "sign up" button on right door - Moved up closer to computer base */}
-        <div className="absolute left-0 top-[calc(50%+102px)] sm:top-[calc(50%+130px)] md:top-[calc(50%+162px)] pl-2.5 sm:pl-3.5 md:pl-4 flex items-center justify-start">
-          <button
-            type="button"
-            onClick={() => {
-              try {
-                localStorage.setItem('bizz_auth_register_mode', 'true');
-              } catch (e) {}
-              setAuthMode('signup');
-            }}
-            className="w-24 sm:w-32 md:w-36 py-2 sm:py-2.5 md:py-3 rounded-lg bg-[#12172A] hover:bg-[#1E2548] text-white text-xs sm:text-sm font-normal shadow-2xs hover:shadow-xs transition-all text-center lowercase border border-[#2B3452] font-['Raleway'] cursor-pointer"
-          >
-            sign up
-          </button>
-        </div>
-
-        {/* Sliding Door Sleek Vertical Metal Handle on left edge */}
-        <div className="absolute top-[calc(50%-12px)] -translate-y-1/2 left-1.5 sm:left-2.5 w-1.5 sm:w-2 h-20 sm:h-28 rounded-full bg-gradient-to-b from-[#C4B7A3] via-[#FAF8F5] to-[#C4B7A3] shadow-xs border border-[#D8CEBC]/60" />
+        {/* Sliding Door Sleek Vertical Metal Handle on left edge - positioned below CTA */}
+        <div className="absolute top-[calc(50%+65px)] sm:top-[calc(50%+75px)] left-1.5 sm:left-2.5 w-1.5 sm:w-2 h-20 sm:h-24 rounded-full bg-gradient-to-b from-[#C4B7A3] via-[#FAF8F5] to-[#C4B7A3] shadow-xs border border-[#D8CEBC]/60" />
       </div>
 
       {/* ========================================================================= */}

@@ -61,6 +61,8 @@ import {
   getCachedAboutContent,
   fetchAboutContentFromCloud,
   saveAboutContentToCloud,
+  DEFAULT_MISSION_EQUATION,
+  DEFAULT_MISSION_SUBTEXT,
 } from '../services/siteContentService';
 import {
   CmsProduct,
@@ -305,6 +307,8 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
   // About Bizzbean Live Content State & Cloud Synchronization
   const [aboutData, setAboutData] = useState<AboutContent>(() => getCachedAboutContent());
   const [isEditingAbout, setIsEditingAbout] = useState(false);
+  const [editSocialMissionEquation, setEditSocialMissionEquation] = useState('');
+  const [editSocialMissionSubtext, setEditSocialMissionSubtext] = useState('');
   const [editWhoAreWe, setEditWhoAreWe] = useState('');
   const [editWhatWeDo, setEditWhatWeDo] = useState('');
   const [editWhereGoing, setEditWhereGoing] = useState('');
@@ -3616,6 +3620,8 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      setEditSocialMissionEquation(aboutData.socialMissionEquation || DEFAULT_MISSION_EQUATION);
+                      setEditSocialMissionSubtext(aboutData.socialMissionSubtext || DEFAULT_MISSION_SUBTEXT);
                       setEditWhoAreWe(aboutData.whoAreWe);
                       setEditWhatWeDo(aboutData.whatWeDoPanel || aboutData.whatWeDo || DEFAULT_WHAT_WE_DO);
                       setEditWhereGoing(aboutData.whereAreWeGoing);
@@ -3635,6 +3641,23 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
               <p className="text-xs sm:text-sm text-slate-400 font-mono">
                 infinite wisdom · instant viability · always on
               </p>
+            </div>
+
+            {/* Live Profile Heading & Mission Equation (Reference: profile heading.PNG) */}
+            <div
+              className={`p-5 rounded-2xl border text-center shadow-xs ${
+                isDark ? 'bg-[#141A2E] border-[#222F4C]' : 'bg-white border-[#D8CEBC]'
+              }`}
+            >
+              <div className="text-[10px] uppercase font-mono font-bold text-amber-500 mb-1.5 tracking-wider">
+                LIVE PUBLISHED PROFILE HEADING (WEBSITE & SLIDING DOORS)
+              </div>
+              <div className="font-mono text-xs sm:text-sm font-bold text-white tracking-tight leading-relaxed uppercase">
+                {aboutData.socialMissionEquation || DEFAULT_MISSION_EQUATION}
+              </div>
+              <div className="text-xs text-slate-400 mt-1.5 max-w-2xl mx-auto leading-relaxed">
+                {aboutData.socialMissionSubtext || DEFAULT_MISSION_SUBTEXT}
+              </div>
             </div>
 
             {/* The 4 Foundational Questions with Headings, Paragraphs, and Bullet Points */}
@@ -3699,7 +3722,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
               <button
                 onClick={() => {
                   navigator.clipboard?.writeText(
-                    `ABOUT BIZZBEAN\n"infinite wisdom. instant viability. always on."\n\n1. WHO ARE WE: Entrepreneurial infrastructure partner transforming early-stage businesses into capital-ready enterprises.\n2. WHAT WE DO: The bizz-DESK workstation to LEARN, MODEL, and PLAN.\n3. WHERE ARE WE GOING: Practical equivalent of an uncertified MBA.\n4. HOW SOLUTIONS ENABLE GROWTH: 4-Stage Spectrum: vi-ABILITY, fund-ABILITY, sustain-ABILITY, invest-ABILITY.`
+                    `ABOUT BIZZBEAN\n"infinite wisdom. instant viability. always on."\n\nProfile Heading: ${aboutData.socialMissionEquation || DEFAULT_MISSION_EQUATION}\n${aboutData.socialMissionSubtext || DEFAULT_MISSION_SUBTEXT}\n\n1. WHO ARE WE: Entrepreneurial infrastructure partner transforming early-stage businesses into capital-ready enterprises.\n2. WHAT WE DO: The bizz-DESK workstation to LEARN, MODEL, and PLAN.\n3. WHERE ARE WE GOING: Practical equivalent of an uncertified MBA.\n4. HOW SOLUTIONS ENABLE GROWTH: 4-Stage Spectrum: vi-ABILITY, fund-ABILITY, sustain-ABILITY, invest-ABILITY.`
                   );
                   showToast('About Bizzbean Manifesto copied to clipboard.');
                 }}
@@ -3735,10 +3758,42 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
             </div>
 
             <p className="text-xs text-slate-400">
-              Updates made here are saved directly to Cloud Firestore (<code className="text-emerald-400">site_content/about_bizzbean</code>) and instantly synchronize across <code className="text-amber-300">bizzbean.com</code> and all sliding door panels.
+              Updates made here are saved directly to Cloud Firestore (<code className="text-emerald-400">site_content/about_bizzbean</code>) and instantly synchronize across <code className="text-amber-300">bizzbean.com</code>, the sliding door panels, and workstation displays.
             </p>
 
             <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+              {/* Profile Heading & Subtext (Reference: profile heading.PNG) */}
+              <div className="p-4 rounded-xl bg-[#141A2E] border border-amber-500/40 space-y-3">
+                <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wide">
+                  <Sparkles className="h-4 w-4" />
+                  <span>Profile Heading & Mission Equation (Top Header Banner)</span>
+                </div>
+                <div>
+                  <label className="block text-amber-300 font-bold text-xs uppercase mb-1">
+                    Profile Heading / Equation Title:
+                  </label>
+                  <input
+                    type="text"
+                    value={editSocialMissionEquation}
+                    onChange={(e) => setEditSocialMissionEquation(e.target.value)}
+                    placeholder="e.g. SCALING ENTREPRENEURSHIP THROUGH REAL INTELLIGENCE"
+                    className="w-full p-2.5 rounded-xl bg-[#0B0F19] border border-[#2B3452] text-xs font-mono text-white focus:outline-hidden focus:border-[#8CB843]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-amber-300 font-bold text-xs uppercase mb-1">
+                    Profile Subtext / Mission Context:
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={editSocialMissionSubtext}
+                    onChange={(e) => setEditSocialMissionSubtext(e.target.value)}
+                    placeholder="bizzbean is a high-scale virtual and financial calibration platform that bridges the gap between ambitions founders and traditional capital providers..."
+                    className="w-full p-2.5 rounded-xl bg-[#0B0F19] border border-[#2B3452] text-xs font-mono text-white focus:outline-hidden focus:border-[#8CB843]"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-amber-300 font-bold text-xs uppercase mb-1">
                   1. WHO ARE WE
@@ -3803,6 +3858,8 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                   try {
                     setIsSavingAbout(true);
                     const updated: AboutContent = {
+                      socialMissionEquation: editSocialMissionEquation.trim() || DEFAULT_MISSION_EQUATION,
+                      socialMissionSubtext: editSocialMissionSubtext.trim() || DEFAULT_MISSION_SUBTEXT,
                       whoAreWe: editWhoAreWe,
                       whatWeDoPanel: editWhatWeDo,
                       whatWeDo: editWhatWeDo,
@@ -3812,7 +3869,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                     };
                     await saveAboutContentToCloud(updated);
                     setAboutData(updated);
-                    showToast('About BizzBean published live to Cloud Firestore & synchronized across all domains.');
+                    showToast('About BizzBean profile heading & content published live to Cloud Firestore & synchronized across all domains.');
                     setIsEditingAbout(false);
                   } catch (err) {
                     console.error('Error saving about content:', err);

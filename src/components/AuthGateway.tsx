@@ -14,7 +14,8 @@ import {
   RefreshCw, 
   X, 
   FileText, 
-  Globe 
+  Globe,
+  ArrowRight
 } from 'lucide-react';
 import { 
   signInUser, 
@@ -489,6 +490,39 @@ Welcome to the bizzbean Sandbox environment!
             /* ==================== SIGN IN ==================== */
             <div className="space-y-6">
               
+              {/* First-Time Visitor On-Ramp Card */}
+              <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50/90 via-[#FAF8F5] to-emerald-50/80 border border-blue-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-800">
+                      New to Bizzbean?
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-snug">
+                    No account or password needed. Jump straight into the live illuminated sandbox to explore freely.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onAuthenticated('splash', {
+                      name: '',
+                      role: 'public',
+                      isPro: false,
+                      purchasedApps: [],
+                      purchasedCourses: [],
+                      googleWalletAllocation: 15,
+                      googleWalletBalance: 0
+                    });
+                  }}
+                  className="shrink-0 w-full sm:w-auto px-4 py-2.5 bg-[#12172A] hover:bg-[#1E2548] text-white rounded-lg text-xs font-bold tracking-wider uppercase transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <span>Enter Sandbox</span>
+                  <ArrowRight size={14} className="text-[#C59B63]" />
+                </button>
+              </div>
+
               {/* Role Switcher */}
               <div className="flex bg-slate-100 p-1 rounded-sm gap-1 mb-3 select-none">
                 <button
@@ -696,10 +730,10 @@ Welcome to the bizzbean Sandbox environment!
                         googleWalletBalance: 0
                       });
                     }}
-                    className="w-full bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 py-3 px-6 font-black tracking-widest lowercase rounded-sm shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-300 hover:border-[#5085b6] py-3.5 px-6 font-bold tracking-wider uppercase text-xs rounded-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <Globe size={15} className="text-[#5085b6]" />
-                    explore as public visitor
+                    <Globe size={16} className="text-[#5085b6]" />
+                    <span>Jump Straight Into Sandbox (No Account) →</span>
                   </button>
                 </div>
               </form>

@@ -24,6 +24,7 @@ import {
   Mail,
   Layers,
   GraduationCap,
+  Lock,
 } from 'lucide-react';
 import { BIZZ_SOLUTIONS } from '../data/bizzdeskData';
 import { CmsProduct } from '../data/cmsConsoleData';
@@ -49,6 +50,8 @@ interface BizzDeskHeaderProps {
   onSelectLibrary?: () => void;
   onOpenTalkToUs?: () => void;
   cmsProducts?: CmsProduct[];
+  userPurchases?: string[];
+  onBuySolution?: (sol: any) => void;
   onLaunchApp?: (appId: string) => void;
   onLaunchSolution?: (id: string) => void;
   onOpenClientProfileJournal?: () => void;
@@ -75,6 +78,8 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
   onSelectLibrary,
   onOpenTalkToUs,
   cmsProducts = [],
+  userPurchases = [],
+  onBuySolution,
   onLaunchApp,
   onLaunchSolution,
   onOpenClientProfileJournal,
@@ -87,6 +92,14 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
   const [pinboardTab, setPinboardTab] = useState<'pinned' | 'manage'>('pinned');
   const [searchQuery, setSearchQuery] = useState('');
   const pinboardRef = useRef<HTMLDivElement>(null);
+
+  const isAppOwned = (appId: string) => {
+    const cleanId = appId.toLowerCase().trim();
+    const canon = (getCanonicalCourseId(cleanId) || cleanId).toLowerCase().trim();
+    return userPurchases.includes(cleanId) || userPurchases.includes(canon);
+  };
+
+  const ownedMobileAppsCount = ['bizzcalc', 'bizzcalculators'].filter(isAppOwned).length;
 
   const welcomeName =
     userName ||
@@ -307,9 +320,15 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
         >
           <Smartphone className="h-3.5 w-3.5 text-[#84CC16]" />
           <span className="uppercase">APPS</span>
-          <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-500 font-bold border border-emerald-500/30">
-            2 READY
-          </span>
+          {ownedMobileAppsCount > 0 ? (
+            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-500 font-bold border border-emerald-500/30">
+              {ownedMobileAppsCount} READY
+            </span>
+          ) : (
+            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-500 dark:text-amber-400 font-bold border border-amber-500/30 flex items-center gap-0.5">
+              <Lock className="h-2.5 w-2.5" /> STORE
+            </span>
+          )}
         </button>
       </div>
 
@@ -857,66 +876,144 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
 
                 <div className="space-y-2">
                   {/* bizzcalc */}
-                  <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
-                    isDark ? 'bg-[#141A2E] border-[#252E4A]' : 'bg-white border-[#D8CEBC]'
-                  }`}>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-slate-900 dark:text-white lowercase text-sm">bizzcalc</span>
-                        <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-500 font-bold border border-emerald-500/30">
-                          mobile ready
-                        </span>
+                  {(() => {
+                    const isOwned = isAppOwned('bizzcalc');
+                    const matching = (cmsProducts || []).find((p) => p.id === 'bizzcalc');
+                    const price = matching?.sellingPriceZAR || 229;
+
+                    return (
+                      <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+                        isDark ? 'bg-[#141A2E] border-[#252E4A]' : 'bg-white border-[#D8CEBC]'
+                      }`}>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-900 dark:text-white lowercase text-sm">bizzcalc</span>
+                            {isOwned ? (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-500 font-bold border border-emerald-500/30">
+                                owned · ready
+                              </span>
+                            ) : (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-500 dark:text-amber-400 font-bold border border-amber-500/30 flex items-center gap-0.5">
+                                <Lock className="h-2.5 w-2.5" /> R{price}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            Cost Recovery, Break-Even & Contribution Margin Simulator
+                          </p>
+                        </div>
+                        {isOwned ? (
+                          <button
+                            onClick={() => {
+                              setIsMobileAppsModalOpen(false);
+                              if (onLaunchApp) {
+                                onLaunchApp('bizzcalc');
+                              } else {
+                                onSelectSolution('bizzcalc');
+                              }
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-[#5584B4] hover:bg-[#4372A2] text-white text-[11px] font-bold uppercase shrink-0 flex items-center gap-1 cursor-pointer shadow-xs"
+                          >
+                            <Play className="h-3 w-3 fill-white" />
+                            <span>Launch</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setIsMobileAppsModalOpen(false);
+                              if (onBuySolution) {
+                                const solToBuy: any = matching || {
+                                  id: 'bizzcalc',
+                                  name: 'bizzcalc',
+                                  subtitle: 'Cost Recovery, Break-Even & Contribution Margin Simulator',
+                                  priceZAR: price,
+                                  sellingPriceZAR: price,
+                                };
+                                onBuySolution(solToBuy);
+                              } else if (onLaunchApp) {
+                                onLaunchApp('bizzcalc');
+                              }
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-[#E02475] hover:bg-[#C91A63] text-white text-[11px] font-bold uppercase shrink-0 flex items-center gap-1 cursor-pointer shadow-sm"
+                            title="Purchase bizzcalc to unlock"
+                          >
+                            <Lock className="h-3 w-3" />
+                            <span>Buy R{price}</span>
+                          </button>
+                        )}
                       </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Cost Recovery, Break-Even & Contribution Margin Simulator
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setIsMobileAppsModalOpen(false);
-                        if (onLaunchApp) {
-                          onLaunchApp('bizzcalc');
-                        } else {
-                          onSelectSolution('bizzcalc');
-                        }
-                      }}
-                      className="px-3 py-1.5 rounded-lg bg-[#5584B4] hover:bg-[#4372A2] text-white text-[11px] font-bold uppercase shrink-0 flex items-center gap-1"
-                    >
-                      <Play className="h-3 w-3 fill-white" />
-                      <span>Launch</span>
-                    </button>
-                  </div>
+                    );
+                  })()}
 
                   {/* bizzcalculators */}
-                  <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
-                    isDark ? 'bg-[#141A2E] border-[#252E4A]' : 'bg-white border-[#D8CEBC]'
-                  }`}>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-slate-900 dark:text-white lowercase text-sm">bizzcalculators</span>
-                        <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-500 font-bold border border-emerald-500/30">
-                          mobile ready
-                        </span>
+                  {(() => {
+                    const isOwned = isAppOwned('bizzcalculators');
+                    const matching = (cmsProducts || []).find((p) => p.id === 'bizzcalculators');
+                    const price = matching?.sellingPriceZAR || 229;
+
+                    return (
+                      <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+                        isDark ? 'bg-[#141A2E] border-[#252E4A]' : 'bg-white border-[#D8CEBC]'
+                      }`}>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-900 dark:text-white lowercase text-sm">bizzcalculators</span>
+                            {isOwned ? (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-500 font-bold border border-emerald-500/30">
+                                owned · ready
+                              </span>
+                            ) : (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-500 dark:text-amber-400 font-bold border border-amber-500/30 flex items-center gap-0.5">
+                                <Lock className="h-2.5 w-2.5" /> R{price}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            CAC : LTV, Working Capital & True Hourly Labor Suite
+                          </p>
+                        </div>
+                        {isOwned ? (
+                          <button
+                            onClick={() => {
+                              setIsMobileAppsModalOpen(false);
+                              if (onLaunchApp) {
+                                onLaunchApp('bizzcalculators');
+                              } else {
+                                onSelectSolution('bizzcalculators');
+                              }
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-[#5584B4] hover:bg-[#4372A2] text-white text-[11px] font-bold uppercase shrink-0 flex items-center gap-1 cursor-pointer shadow-xs"
+                          >
+                            <Play className="h-3 w-3 fill-white" />
+                            <span>Launch</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setIsMobileAppsModalOpen(false);
+                              if (onBuySolution) {
+                                const solToBuy: any = matching || {
+                                  id: 'bizzcalculators',
+                                  name: 'bizzcalculators',
+                                  subtitle: 'CAC : LTV, Working Capital & True Hourly Labor Suite',
+                                  priceZAR: price,
+                                  sellingPriceZAR: price,
+                                };
+                                onBuySolution(solToBuy);
+                              } else if (onLaunchApp) {
+                                onLaunchApp('bizzcalculators');
+                              }
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-[#E02475] hover:bg-[#C91A63] text-white text-[11px] font-bold uppercase shrink-0 flex items-center gap-1 cursor-pointer shadow-sm"
+                            title="Purchase bizzcalculators to unlock"
+                          >
+                            <Lock className="h-3 w-3" />
+                            <span>Buy R{price}</span>
+                          </button>
+                        )}
                       </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        CAC : LTV, Working Capital & True Hourly Labor Suite
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setIsMobileAppsModalOpen(false);
-                        if (onLaunchApp) {
-                          onLaunchApp('bizzcalculators');
-                        } else {
-                          onSelectSolution('bizzcalculators');
-                        }
-                      }}
-                      className="px-3 py-1.5 rounded-lg bg-[#5584B4] hover:bg-[#4372A2] text-white text-[11px] font-bold uppercase shrink-0 flex items-center gap-1"
-                    >
-                      <Play className="h-3 w-3 fill-white" />
-                      <span>Launch</span>
-                    </button>
-                  </div>
+                    );
+                  })()}
                 </div>
               </div>
 

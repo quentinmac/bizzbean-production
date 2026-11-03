@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BizzSolution, UserBusinessProfile, LibraryItem } from '../types';
 import { CmsProduct, CmsVideo, CmsArticle, CmsPromotionSection, INITIAL_CMS_ARTICLES, INITIAL_CMS_VIDEOS, INITIAL_CMS_PRODUCTS } from '../data/cmsConsoleData';
-import { Play, ArrowRight, Check, Coins, Bookmark, Sparkles, X, Calculator, ShieldCheck, DollarSign, QrCode, Share2, Layers, RefreshCw, Mic, ChevronLeft, ChevronRight, BookOpen, ShoppingCart, Info, Lock, Pin, UserCheck, Library, ExternalLink, Edit3, Save, RotateCcw, Eye } from 'lucide-react';
+import { Play, ArrowRight, Check, Coins, Bookmark, Sparkles, X, Calculator, ShieldCheck, DollarSign, QrCode, Share2, Layers, RefreshCw, Mic, ChevronLeft, ChevronRight, BookOpen, ShoppingCart, Info, Lock, Pin, UserCheck, Library, ExternalLink, Edit3, Save, RotateCcw, Eye, Database } from 'lucide-react';
 import { formatCurrency } from '../utils/financialCalculations';
 import { BIZZ_SOLUTIONS } from '../data/bizzdeskData';
 import { SmartPricingModal } from './SmartPricingModal';
@@ -26,6 +26,13 @@ import {
   DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH,
   DEFAULT_COMPANY_WHAT_WE_DO,
 } from '../data/aboutDefaults';
+import {
+  getCachedAboutContent,
+  fetchAboutContentFromCloud,
+  AboutBizzbeanContent,
+  DEFAULT_MISSION_EQUATION,
+  DEFAULT_MISSION_SUBTEXT,
+} from '../services/siteContentService';
 import { findMatchingCourse, getCanonicalCourseId, getDeletedProductIds, getDeletedVideoIds, getDeletedArticleIds } from '../utils/imageStorage';
 
 interface WorkAreaProps {
@@ -155,6 +162,20 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
   const [showQrModal, setShowQrModal] = useState(false);
   const [workspaceSyncState, setWorkspaceSyncState] = useState<'idle' | 'syncing' | 'synced'>('idle');
   const [workspaceNotice, setWorkspaceNotice] = useState<string | null>(null);
+
+  // Official About Bizzbean Cloud-synced content (view-only styling on bizz-desk)
+  const [aboutData, setAboutData] = useState<AboutBizzbeanContent>(getCachedAboutContent);
+
+  React.useEffect(() => {
+    fetchAboutContentFromCloud().then((cloud) => {
+      if (cloud) setAboutData(cloud);
+    });
+    const handleUpdate = () => {
+      setAboutData(getCachedAboutContent());
+    };
+    window.addEventListener('bizzbean_about_content_updated', handleUpdate);
+    return () => window.removeEventListener('bizzbean_about_content_updated', handleUpdate);
+  }, []);
 
   // Unit economics computations
   const avgLifetimeMonths = churnRate > 0 ? 1 / (churnRate / 100) : 36;
@@ -289,6 +310,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
       <PlatformApps
         theme={theme}
         cmsProducts={cmsProducts}
+        userPurchases={userPurchases}
         userProfile={userProfile}
         tokenBalance={tokenBalance}
         initialAppId={activeSolution?.id}
@@ -407,133 +429,58 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
           
           {/* Header */}
           <div
-            className={`flex items-center justify-between pb-3 border-b ${
+            className={`flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b gap-3 ${
               isDark ? 'border-[#252E4A]' : 'border-[#E8E2D8]'
             }`}
           >
             <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">
-                {isAdmin
-                  ? 'ABOUT BIZZBEAN'
-                  : `ABOUT ${(userProfile.companyName || 'APEX CLOUD DYNAMICS').toUpperCase()}`}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+                  ABOUT BIZZBEAN
+                </h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#8CB843]/15 text-[#557827] dark:text-[#A3E635] border border-[#8CB843]/30">
+                  OFFICIAL MANIFESTO
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                infinite wisdom • instant viability • always on
+              </p>
             </div>
 
-            {/* Panel Editing Control for Authorised Member / Admin */}
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsEditingPanels(!isEditingPanels)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all border ${
-                  isEditingPanels
-                    ? 'bg-[#5584B4] text-white border-[#5584B4] shadow-xs'
-                    : isDark
-                    ? 'bg-[#161C30] border-[#252E4A] text-slate-300 hover:text-white hover:border-slate-500'
-                    : 'bg-white border-[#D8CEBC] text-slate-700 hover:text-slate-950 hover:bg-[#FAF8F5] shadow-2xs'
-                }`}
-              >
-                <Edit3 className="h-3 w-3" />
-                <span>{isEditingPanels ? 'Done Editing' : 'Edit Panels'}</span>
-              </button>
-              {isEditingPanels && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onUpdateProfile({
-                        ...userProfile,
-                        whoAreWe: DEFAULT_WHO_ARE_WE,
-                        whatWeDoPanel: DEFAULT_WHAT_WE_DO,
-                        whereAreWeGoing: DEFAULT_WHERE_ARE_WE_GOING,
-                        howSolutionsEnableGrowth: DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH,
-                      });
-                    }}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-mono bg-[#C59B63]/15 text-[#C59B63] dark:text-[#E2BD88] hover:bg-[#C59B63]/25 border border-[#C59B63]/40 transition-colors"
-                    title="Load formatted template with headings, paragraphs, and bullet points"
-                  >
-                    <Sparkles className="h-3 w-3" />
-                    <span>Formatted Template</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onUpdateProfile({
-                        ...userProfile,
-                        socialMissionEquation: undefined,
-                        socialMissionSubtext: undefined,
-                        whoAreWe: undefined,
-                        whatWeDoPanel: undefined,
-                        whereAreWeGoing: undefined,
-                        howSolutionsEnableGrowth: undefined,
-                      });
-                    }}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-mono text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 border border-slate-300 dark:border-slate-700 transition-colors"
-                    title="Reset panels to default template"
-                  >
-                    <RotateCcw className="h-3 w-3" />
-                    <span>Reset</span>
-                  </button>
-                </>
+              <span className="px-2.5 py-1 rounded-lg text-xs font-mono text-slate-500 bg-slate-100 dark:bg-[#161C30] border border-slate-200 dark:border-[#252E4A] flex items-center gap-1.5">
+                <Eye className="h-3 w-3 text-slate-400" />
+                <span>Presentation Styling Only</span>
+              </span>
+              {isAdmin && onOpenStandaloneCmsModal && (
+                <button
+                  type="button"
+                  onClick={onOpenStandaloneCmsModal}
+                  className="px-2.5 py-1 rounded-lg text-xs font-mono bg-[#5584B4]/15 hover:bg-[#5584B4]/25 text-[#5584B4] dark:text-[#DDEBF7] border border-[#5584B4]/30 transition-colors flex items-center gap-1.5 cursor-pointer"
+                  title="Open CMS Console to edit and publish live content"
+                >
+                  <Database className="h-3 w-3" />
+                  <span>CMS Console</span>
+                </button>
               )}
             </div>
           </div>
 
-          {/* Social Mission Equation from Presentation Slide 8 */}
+          {/* Official Profile Heading & Mission Equation (Reference: profile heading.PNG) */}
           <div
-            className={`p-4 rounded-2xl border shadow-xs transition-colors ${
+            className={`p-5 rounded-2xl border shadow-xs transition-colors text-center ${
               isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC]'
             }`}
           >
-            {isEditingPanels ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 uppercase">
-                  <span>Mission Equation</span>
-                  <span className="text-[#5584B4]">Editing Mode</span>
-                </div>
-                <input
-                  type="text"
-                  value={
-                    userProfile.socialMissionEquation ??
-                    '[ Validated Businesses + Grown Entrepreneurs ] x Scaled AI Sandbox = The Solution to Youth Unemployment'
-                  }
-                  onChange={(e) =>
-                    onUpdateProfile({ ...userProfile, socialMissionEquation: e.target.value })
-                  }
-                  className={`w-full px-3 py-1.5 rounded-lg border font-mono text-xs focus:outline-none ${
-                    isDark
-                      ? 'bg-[#0A0D14] border-[#252E4A] text-white focus:border-[#5584B4]'
-                      : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900 focus:border-[#12172A]'
-                  }`}
-                />
-                <textarea
-                  rows={2}
-                  value={
-                    userProfile.socialMissionSubtext ??
-                    'Youth unemployment is one of the greatest challenges of our time. We believe scaled, fundamental entrepreneurship is the definitive answer.'
-                  }
-                  onChange={(e) =>
-                    onUpdateProfile({ ...userProfile, socialMissionSubtext: e.target.value })
-                  }
-                  placeholder="Subtext / Context"
-                  className={`w-full px-3 py-1.5 rounded-lg border text-xs focus:outline-none ${
-                    isDark
-                      ? 'bg-[#0A0D14] border-[#252E4A] text-white focus:border-[#5584B4]'
-                      : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900 focus:border-[#12172A]'
-                  }`}
-                />
-              </div>
-            ) : (
-              <div className="text-center">
-                <div className="font-mono text-xs font-bold text-slate-900 dark:text-white tracking-tight leading-relaxed">
-                  {userProfile.socialMissionEquation ||
-                    '[ Validated Businesses + Grown Entrepreneurs ] x Scaled AI Sandbox = The Solution to Youth Unemployment'}
-                </div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  {userProfile.socialMissionSubtext ||
-                    'Youth unemployment is one of the greatest challenges of our time. We believe scaled, fundamental entrepreneurship is the definitive answer.'}
-                </div>
-              </div>
-            )}
+            <div className="text-[10px] uppercase font-mono font-bold text-amber-500 mb-1.5 tracking-wider">
+              LIVE PUBLISHED PROFILE HEADING
+            </div>
+            <div className="font-mono text-xs sm:text-sm font-bold text-slate-900 dark:text-white tracking-tight leading-relaxed uppercase">
+              {aboutData.socialMissionEquation || DEFAULT_MISSION_EQUATION}
+            </div>
+            <div className="text-xs text-slate-600 dark:text-slate-400 mt-2 max-w-2xl mx-auto leading-relaxed">
+              {aboutData.socialMissionSubtext || DEFAULT_MISSION_SUBTEXT}
+            </div>
           </div>
 
           {/* 4 Foundational Questions with Paragraphs, Headings, and Bullet Points */}
@@ -549,21 +496,10 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                   <span>01. WHO ARE WE</span>
                   <span className="text-[10px] font-mono text-[#C59B63] lowercase font-normal">identity & purpose</span>
                 </div>
-                {isEditingPanels ? (
-                  <AboutPanelTextEditor
-                    value={userProfile.whoAreWe ?? DEFAULT_WHO_ARE_WE}
-                    onChange={(val) => onUpdateProfile({ ...userProfile, whoAreWe: val })}
-                    isDark={isDark}
-                    defaultTemplate={DEFAULT_WHO_ARE_WE}
-                    placeholder="Enter 'Who Are We' with headings, paragraphs, and bullet points..."
-                    rows={6}
-                  />
-                ) : (
-                  <FormattedAboutContent
-                    content={userProfile.whoAreWe || DEFAULT_WHO_ARE_WE}
-                    isDark={isDark}
-                  />
-                )}
+                <FormattedAboutContent
+                  content={aboutData.whoAreWe || DEFAULT_WHO_ARE_WE}
+                  isDark={isDark}
+                />
               </div>
             </div>
 
@@ -578,21 +514,10 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                   <span>02. WHAT WE DO</span>
                   <span className="text-[10px] font-mono text-[#C59B63] lowercase font-normal">mechanics & tools</span>
                 </div>
-                {isEditingPanels ? (
-                  <AboutPanelTextEditor
-                    value={userProfile.whatWeDoPanel ?? DEFAULT_WHAT_WE_DO}
-                    onChange={(val) => onUpdateProfile({ ...userProfile, whatWeDoPanel: val })}
-                    isDark={isDark}
-                    defaultTemplate={DEFAULT_WHAT_WE_DO}
-                    placeholder="Enter 'What We Do' with headings, paragraphs, and bullet points..."
-                    rows={6}
-                  />
-                ) : (
-                  <FormattedAboutContent
-                    content={userProfile.whatWeDoPanel || DEFAULT_WHAT_WE_DO}
-                    isDark={isDark}
-                  />
-                )}
+                <FormattedAboutContent
+                  content={aboutData.whatWeDoPanel || aboutData.whatWeDo || DEFAULT_WHAT_WE_DO}
+                  isDark={isDark}
+                />
               </div>
             </div>
 
@@ -607,21 +532,10 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                   <span>03. WHERE ARE WE GOING</span>
                   <span className="text-[10px] font-mono text-[#C59B63] lowercase font-normal">vision & trajectory</span>
                 </div>
-                {isEditingPanels ? (
-                  <AboutPanelTextEditor
-                    value={userProfile.whereAreWeGoing ?? DEFAULT_WHERE_ARE_WE_GOING}
-                    onChange={(val) => onUpdateProfile({ ...userProfile, whereAreWeGoing: val })}
-                    isDark={isDark}
-                    defaultTemplate={DEFAULT_WHERE_ARE_WE_GOING}
-                    placeholder="Enter 'Where Are We Going' with headings, paragraphs, and bullet points..."
-                    rows={6}
-                  />
-                ) : (
-                  <FormattedAboutContent
-                    content={userProfile.whereAreWeGoing || DEFAULT_WHERE_ARE_WE_GOING}
-                    isDark={isDark}
-                  />
-                )}
+                <FormattedAboutContent
+                  content={aboutData.whereAreWeGoing || DEFAULT_WHERE_ARE_WE_GOING}
+                  isDark={isDark}
+                />
               </div>
             </div>
 
@@ -636,21 +550,10 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                   <span>04. HOW SOLUTIONS ENABLE GROWTH</span>
                   <span className="text-[10px] font-mono text-[#C59B63] lowercase font-normal">spectrum & outcomes</span>
                 </div>
-                {isEditingPanels ? (
-                  <AboutPanelTextEditor
-                    value={userProfile.howSolutionsEnableGrowth ?? DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH}
-                    onChange={(val) => onUpdateProfile({ ...userProfile, howSolutionsEnableGrowth: val })}
-                    isDark={isDark}
-                    defaultTemplate={DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH}
-                    placeholder="Enter 'How Solutions Enable Growth' with headings, paragraphs, and bullet points..."
-                    rows={6}
-                  />
-                ) : (
-                  <FormattedAboutContent
-                    content={userProfile.howSolutionsEnableGrowth || DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH}
-                    isDark={isDark}
-                  />
-                )}
+                <FormattedAboutContent
+                  content={aboutData.howSolutionsEnableGrowth || DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH}
+                  isDark={isDark}
+                />
               </div>
             </div>
           </div>
@@ -754,27 +657,17 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
 
               <div className="sm:col-span-2">
                 <label className="block text-slate-500 lowercase mb-1">what we do / value proposition</label>
-                {isEditingPanels ? (
-                  <AboutPanelTextEditor
-                    value={userProfile.whatWeDo || DEFAULT_COMPANY_WHAT_WE_DO}
-                    onChange={(val) => onUpdateProfile({ ...userProfile, whatWeDo: val })}
-                    isDark={isDark}
-                    defaultTemplate={DEFAULT_COMPANY_WHAT_WE_DO}
-                    placeholder="Enter company value proposition with headings, paragraphs, and bullet points..."
-                    rows={4}
-                  />
-                ) : (
-                  <div
-                    className={`p-3 rounded-lg border ${
-                      isDark ? 'bg-[#0A0D14] border-[#252E4A]' : 'bg-[#FAF8F5] border-[#D8CEBC]'
-                    }`}
-                  >
-                    <FormattedAboutContent
-                      content={userProfile.whatWeDo || DEFAULT_COMPANY_WHAT_WE_DO}
-                      isDark={isDark}
-                    />
-                  </div>
-                )}
+                <textarea
+                  rows={4}
+                  value={userProfile.whatWeDo || ''}
+                  onChange={(e) => onUpdateProfile({ ...userProfile, whatWeDo: e.target.value })}
+                  placeholder="Enter company value proposition..."
+                  className={`w-full px-3 py-2 rounded-lg border font-mono text-xs focus:outline-none ${
+                    isDark
+                      ? 'bg-[#0A0D14] border-[#252E4A] text-white focus:border-[#C59B63]'
+                      : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900 focus:border-[#12172A]'
+                  }`}
+                />
               </div>
             </div>
 
@@ -1157,6 +1050,102 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
         ? 'bizzdynamics'
         : activeSolution?.id || 'bizzcalc';
 
+    const canon = getCanonicalCourseId(effectiveAppId) || effectiveAppId;
+    const isFree =
+      ['learn-earn-capital', 'how-to-bizzcalc', 'follow-the-money', 'vi-ability'].includes(effectiveAppId) ||
+      ['learn-earn-capital', 'how-to-bizzcalc', 'follow-the-money', 'vi-ability'].includes(canon);
+
+    const isOwned =
+      isFree ||
+      userPurchases.includes(effectiveAppId) ||
+      userPurchases.includes(canon) ||
+      (effectiveAppId === 'budget' && userPurchases.includes('bizzbudget')) ||
+      (effectiveAppId === 'bizzbudget' && userPurchases.includes('budget'));
+
+    if (!isOwned) {
+      const matchingCms = (cmsProducts || []).find((p) => p.id === effectiveAppId || p.id === canon);
+      const appPrice = matchingCms?.sellingPriceZAR || 229;
+      const appName = matchingCms?.name || effectiveAppId;
+      const appSubtitle =
+        matchingCms?.subtitle ||
+        (effectiveAppId === 'bizzcalc'
+          ? 'Cost Recovery, Break-Even & Contribution Margin Simulator'
+          : 'Financial Modeling & Simulation App');
+      const earnedTokens = matchingCms?.tokensAllocated || Math.round(appPrice * 0.2);
+
+      return (
+        <div
+          className={`flex-grow p-6 sm:p-12 flex flex-col items-center justify-center text-center transition-colors ${
+            isDark ? 'bg-[#0A0D14] text-white' : 'bg-[#F8FAFC] text-slate-800'
+          }`}
+        >
+          <div className="max-w-md w-full p-6 sm:p-8 rounded-2xl border border-rose-500/30 bg-white dark:bg-[#141A2E] shadow-xl space-y-4">
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-500">
+              <Lock className="h-7 w-7" />
+            </div>
+
+            <div>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-rose-500 bg-rose-500/10 px-2.5 py-0.5 rounded-full border border-rose-500/20">
+                Purchase Required
+              </span>
+              <h3 className="text-xl font-bold font-sans text-slate-900 dark:text-white mt-2 lowercase">
+                {appName} locked
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed">
+                {appSubtitle}
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                You must purchase this application before launching it in the work area.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#0E1220] border border-slate-200 dark:border-[#252E4A] text-left text-xs font-mono space-y-1">
+              <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                <span>Application Price:</span>
+                <span className="font-bold text-slate-900 dark:text-white">R{appPrice.toFixed(2)} once-off</span>
+              </div>
+              <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                <span>BizzToken Reward:</span>
+                <span className="text-emerald-500 font-bold">+{earnedTokens} BizzTokens</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const solToBuy: any = matchingCms || {
+                    id: effectiveAppId,
+                    name: appName,
+                    subtitle: appSubtitle,
+                    priceZAR: appPrice,
+                    sellingPriceZAR: appPrice,
+                    exclusivePriceZAR: Math.round((appPrice / 1.15) * 100) / 100,
+                    vatZAR: Math.round((appPrice - appPrice / 1.15) * 100) / 100,
+                    tokensAllocated: earnedTokens,
+                    isPurchased: false,
+                  };
+                  onBuySolution(solToBuy);
+                }}
+                className="w-full py-3 rounded-xl bg-[#E02475] hover:bg-[#C91A63] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99] cursor-pointer"
+              >
+                <ShoppingCart className="h-4 w-4" />
+                <span>Buy Solution Now (R{appPrice.toFixed(2)})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onCloseActiveApp}
+                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#1E2548] dark:hover:bg-[#252F52] text-slate-700 dark:text-slate-300 text-xs font-mono uppercase cursor-pointer"
+              >
+                Back to Workspace
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <PlatformAppPresenter
         theme={theme}
@@ -1477,8 +1466,10 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
         
         {/* PANEL A: TOP STAGE NAVIGATION PANEL (Stage name, Previous & Next solution buttons, clean panel styling) */}
         {!isHeroSplashMode && (
-          <div className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-[#141A2E] border border-[#D8CEBC] dark:border-[#252E4A] shadow-xs">
+          <div className="flex items-center justify-between p-2.5 sm:p-3 rounded-2xl bg-white dark:bg-[#141A2E] border border-[#D8CEBC] dark:border-[#252E4A] shadow-xs">
+            {/* Left: Direction indicator (Icon-only on mobile, text on desktop) */}
             <button
+              type="button"
               onClick={() => {
                 if (isVideoMode) {
                   setActiveVideoIdx((activeVideoIdx - 1 + effectiveVideos.length) % effectiveVideos.length);
@@ -1489,32 +1480,43 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                 }
               }}
               disabled={!isVideoMode && !isArticlesMode && displayTableProducts.length <= 1}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FAF8F5] dark:bg-[#0E1220] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] border border-[#D8CEBC] dark:border-[#252E4A] text-xs font-mono text-slate-800 dark:text-slate-100 transition-colors lowercase font-semibold ${
+              className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 py-2 rounded-xl bg-[#FAF8F5] dark:bg-[#0E1220] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] border border-[#D8CEBC] dark:border-[#252E4A] text-xs font-mono text-slate-800 dark:text-slate-100 transition-colors lowercase font-semibold shrink-0 cursor-pointer ${
                 !isVideoMode && !isArticlesMode && displayTableProducts.length <= 1 ? 'opacity-40 cursor-not-allowed' : ''
               }`}
               title={!isVideoMode && !isArticlesMode && displayTableProducts.length <= 1 ? `Only 1 item in ${currentStageKey}` : `Previous item in ${currentStageKey}`}
+              aria-label="Previous item"
             >
               <ChevronLeft className="h-4 w-4 text-[#5584B4]" />
-              <span>previous</span>
+              <span className="hidden sm:inline">previous</span>
             </button>
 
-            {/* Stage name e.g. vi-ability */}
-            <div className="text-center font-mono">
-              <span className="text-sm sm:text-base font-bold text-slate-900 dark:text-white tracking-wide lowercase">
-                {isVideoMode ? 'video playlist' : isArticlesMode ? 'knowledge base articles' : currentStageKey}
+            {/* Center: Line 1 = Sandbox / Stage header, Line 2 = Solution details (e.g. 2 of 10 solutions) */}
+            <div className="text-center font-mono px-2 min-w-0 flex-1">
+              <span className="text-xs sm:text-base font-bold text-slate-900 dark:text-white tracking-wide lowercase block truncate">
+                {isVideoMode
+                  ? 'video playlist'
+                  : isArticlesMode
+                  ? 'knowledge base articles'
+                  : currentStageKey === 'personal-sandbox'
+                  ? 'personal sandbox'
+                  : currentStageKey}
               </span>
-              {!isVideoMode && !isArticlesMode && (
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono block -mt-0.5 lowercase">
-                  {displayTableProducts.length === 0
-                    ? '0 items · stage in preparation'
-                    : displayTableProducts.length === 1
-                      ? `1 item · ${currentStageKey === 'personal-sandbox' ? 'all solutions' : `${currentStageKey} only`}`
-                      : `item ${safeProductIdx + 1} of ${displayTableProducts.length} · ${currentStageKey === 'personal-sandbox' ? 'all available solutions' : `${currentStageKey} only`}`}
-                </span>
-              )}
+              <span className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono block mt-0.5 lowercase truncate">
+                {isVideoMode
+                  ? (effectiveVideos.length === 0 ? '0 videos' : `${activeVideoIdx + 1} of ${effectiveVideos.length} videos`)
+                  : isArticlesMode
+                  ? (effectiveArticles.length === 0 ? '0 articles' : `${activeArticleIdx + 1} of ${effectiveArticles.length} articles`)
+                  : displayTableProducts.length === 0
+                  ? '0 solutions'
+                  : displayTableProducts.length === 1
+                  ? '1 of 1 solution'
+                  : `${safeProductIdx + 1} of ${displayTableProducts.length} solutions`}
+              </span>
             </div>
 
+            {/* Right: Direction indicator (Icon-only on mobile, text on desktop) */}
             <button
+              type="button"
               onClick={() => {
                 if (isVideoMode) {
                   setActiveVideoIdx((activeVideoIdx + 1) % effectiveVideos.length);
@@ -1525,12 +1527,13 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                 }
               }}
               disabled={!isVideoMode && !isArticlesMode && displayTableProducts.length <= 1}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FAF8F5] dark:bg-[#0E1220] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] border border-[#D8CEBC] dark:border-[#252E4A] text-xs font-mono text-slate-800 dark:text-slate-100 transition-colors lowercase font-semibold ${
+              className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 py-2 rounded-xl bg-[#FAF8F5] dark:bg-[#0E1220] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] border border-[#D8CEBC] dark:border-[#252E4A] text-xs font-mono text-slate-800 dark:text-slate-100 transition-colors lowercase font-semibold shrink-0 cursor-pointer ${
                 !isVideoMode && !isArticlesMode && displayTableProducts.length <= 1 ? 'opacity-40 cursor-not-allowed' : ''
               }`}
               title={!isVideoMode && !isArticlesMode && displayTableProducts.length <= 1 ? `Only 1 item in ${currentStageKey}` : `Next item in ${currentStageKey}`}
+              aria-label="Next item"
             >
-              <span>next</span>
+              <span className="hidden sm:inline">next</span>
               <ChevronRight className="h-4 w-4 text-[#5584B4]" />
             </button>
           </div>
@@ -1574,24 +1577,26 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                     <button
                       type="button"
                       onClick={() => onCyclePromotion('prev')}
-                      className="px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0E1220] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] border border-[#D8CEBC] dark:border-[#252E4A] text-xs font-mono text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      className="px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0E1220] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] border border-[#D8CEBC] dark:border-[#252E4A] text-xs font-mono text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
                       title="Browse previous stage story"
+                      aria-label="Previous story"
                     >
                       <ChevronLeft className="h-4 w-4 text-[#5584B4]" />
-                      <span>previous story</span>
+                      <span>prev<span className="hidden sm:inline">&nbsp;story</span></span>
                     </button>
 
-                    <span className="px-3 py-2 text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-[#0E1220] border border-[#E8E2D8] dark:border-[#252E4A] rounded-xl whitespace-nowrap">
+                    <span className="px-2.5 sm:px-3 py-2 text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-[#0E1220] border border-[#E8E2D8] dark:border-[#252E4A] rounded-xl whitespace-nowrap">
                       {activePromoNum} of {totalPromosCount}
                     </span>
 
                     <button
                       type="button"
                       onClick={() => onCyclePromotion('next')}
-                      className="px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0E1220] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] border border-[#D8CEBC] dark:border-[#252E4A] text-xs font-mono text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      className="px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0E1220] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] border border-[#D8CEBC] dark:border-[#252E4A] text-xs font-mono text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
                       title="Browse next stage story"
+                      aria-label="Next story"
                     >
-                      <span>next story</span>
+                      <span>next<span className="hidden sm:inline">&nbsp;story</span></span>
                       <ChevronRight className="h-4 w-4 text-[#5584B4]" />
                     </button>
                   </>

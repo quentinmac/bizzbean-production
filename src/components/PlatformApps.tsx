@@ -40,6 +40,7 @@ import { BizzSolution, UserBusinessProfile } from '../types';
 export interface PlatformAppsProps {
   theme?: 'light' | 'dark';
   cmsProducts?: CmsProduct[];
+  userPurchases?: string[];
   userProfile?: UserBusinessProfile;
   tokenBalance?: number;
   initialAppId?: string;
@@ -91,7 +92,7 @@ export const PLATFORM_APPS_CATALOG: PlatformAppDefinition[] = [
     vatZAR: 29.87,
     tokensAllocated: 45.8,
     ticketPriceZAR: 274.8,
-    isPurchased: true,
+    isPurchased: false,
     assignedStep: 'Stage 1 · Step 2',
     journeyMilestone: 'Unit Margin Verification',
     modules: [
@@ -118,7 +119,7 @@ export const PLATFORM_APPS_CATALOG: PlatformAppDefinition[] = [
     vatZAR: 73.04,
     tokensAllocated: 112.0,
     ticketPriceZAR: 672.0,
-    isPurchased: true,
+    isPurchased: false,
     assignedStep: 'Stage 2 · Step 1',
     journeyMilestone: 'Institutional Model Ready',
     modules: [
@@ -226,7 +227,7 @@ export const PLATFORM_APPS_CATALOG: PlatformAppDefinition[] = [
     vatZAR: 12.0,
     tokensAllocated: 18.4,
     ticketPriceZAR: 110.4,
-    isPurchased: true,
+    isPurchased: false,
     assignedStep: 'Operations · Daily',
     journeyMilestone: 'Standard Accounting Discipline',
     modules: [
@@ -334,7 +335,7 @@ export const PLATFORM_APPS_CATALOG: PlatformAppDefinition[] = [
     vatZAR: 24.13,
     tokensAllocated: 37.0,
     ticketPriceZAR: 222.0,
-    isPurchased: true,
+    isPurchased: false,
     assignedStep: 'Cockpit · Workbench',
     journeyMilestone: 'Continuous Simulation Hub',
     modules: [
@@ -350,6 +351,7 @@ export const PLATFORM_APPS_CATALOG: PlatformAppDefinition[] = [
 export const PlatformApps: React.FC<PlatformAppsProps> = ({
   theme = 'light',
   cmsProducts = [],
+  userPurchases = [],
   userProfile,
   tokenBalance = 250,
   initialAppId,
@@ -371,6 +373,14 @@ export const PlatformApps: React.FC<PlatformAppsProps> = ({
           (baseApp.id === 'budget' && p.id === 'bizzbudget') ||
           (baseApp.id === 'bizzbudget' && p.id === 'budget')
       );
+
+      const isOwned = Boolean(
+        userPurchases &&
+          (userPurchases.includes(baseApp.id) ||
+            (baseApp.id === 'budget' && userPurchases.includes('bizzbudget')) ||
+            (baseApp.id === 'bizzbudget' && userPurchases.includes('budget')))
+      );
+
       if (cmsMatch) {
         return {
           ...baseApp,
@@ -383,13 +393,16 @@ export const PlatformApps: React.FC<PlatformAppsProps> = ({
           vatZAR: cmsMatch.vatZAR ?? baseApp.vatZAR,
           tokensAllocated: cmsMatch.tokensAllocated ?? baseApp.tokensAllocated,
           ticketPriceZAR: cmsMatch.ticketPriceZAR ?? baseApp.ticketPriceZAR,
-          isPurchased: cmsMatch.isPurchased ?? baseApp.isPurchased,
+          isPurchased: isOwned,
           modules: cmsMatch.modules && cmsMatch.modules.length > 0 ? cmsMatch.modules : baseApp.modules,
         };
       }
-      return baseApp;
+      return {
+        ...baseApp,
+        isPurchased: isOwned,
+      };
     });
-  }, [cmsProducts]);
+  }, [cmsProducts, userPurchases]);
 
   // Selected App for interactive testing/runner mode
   const [selectedAppId, setSelectedAppId] = useState<string | null>(initialAppId || null);
@@ -562,6 +575,11 @@ export const PlatformApps: React.FC<PlatformAppsProps> = ({
 
   // Launch app into full presenter (or inline runner if no handler)
   const handleLaunchAppRunner = (appId: string, forceInline = false) => {
+    const targetApp = apps.find((a) => a.id === appId);
+    if (targetApp && !targetApp.isPurchased && onBuySolution) {
+      handlePurchaseApp(targetApp);
+      return;
+    }
     if (onLaunchApp && !forceInline) {
       onLaunchApp(appId);
     } else {

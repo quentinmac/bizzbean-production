@@ -13,6 +13,8 @@ import {
   getCachedAboutContent,
   fetchAboutContentFromCloud,
   AboutBizzbeanContent,
+  DEFAULT_MISSION_EQUATION,
+  DEFAULT_MISSION_SUBTEXT,
 } from '../services/siteContentService';
 
 interface AboutModalProps {
@@ -124,11 +126,11 @@ We help founders build assets of sustainable value through rigorous quantitative
             isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC]'
           }`}
         >
-          <div className="font-mono text-xs sm:text-sm font-bold text-slate-900 dark:text-white tracking-tight leading-relaxed">
-            {userProfile?.socialMissionEquation || '[ Validated Businesses + Grown Entrepreneurs ] x Scaled AI Sandbox = The Solution to Youth Unemployment'}
+          <div className="font-mono text-xs sm:text-sm font-bold text-slate-900 dark:text-white tracking-tight leading-relaxed uppercase">
+            {aboutContent.socialMissionEquation || userProfile?.socialMissionEquation || DEFAULT_MISSION_EQUATION}
           </div>
           <div className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-2xl mx-auto leading-relaxed">
-            {userProfile?.socialMissionSubtext || 'Youth unemployment is one of the greatest challenges of our time. We believe scaled, fundamental entrepreneurship is the definitive answer.'}
+            {aboutContent.socialMissionSubtext || userProfile?.socialMissionSubtext || DEFAULT_MISSION_SUBTEXT}
           </div>
         </div>
 

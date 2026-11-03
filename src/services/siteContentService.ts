@@ -20,6 +20,11 @@ export interface AboutBizzbeanContent {
 
 export type AboutContent = AboutBizzbeanContent;
 
+export const DEFAULT_MISSION_EQUATION =
+  'SCALING ENTREPRENEURSHIP THROUGH REAL INTELLIGENCE';
+export const DEFAULT_MISSION_SUBTEXT =
+  'bizzbean is a high-scale virtual and financial calibration platform that bridges the gap between ambitions founders and traditional capital providers. We replace spreadsheet guessing with scientific, advanced financial modelling and tailored education roadmaps.';
+
 const STORAGE_KEY = 'bizzbean_about_content_v2';
 const FIRESTORE_DOC_PATH = 'site_content';
 const FIRESTORE_DOC_ID = 'about_bizzbean';
@@ -36,8 +41,8 @@ export function getCachedAboutContent(): AboutBizzbeanContent {
             whatWeDoPanel: parsed.whatWeDoPanel || DEFAULT_WHAT_WE_DO,
             whereAreWeGoing: parsed.whereAreWeGoing || DEFAULT_WHERE_ARE_WE_GOING,
             howSolutionsEnableGrowth: parsed.howSolutionsEnableGrowth || DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH,
-            socialMissionEquation: parsed.socialMissionEquation,
-            socialMissionSubtext: parsed.socialMissionSubtext,
+            socialMissionEquation: parsed.socialMissionEquation || DEFAULT_MISSION_EQUATION,
+            socialMissionSubtext: parsed.socialMissionSubtext || DEFAULT_MISSION_SUBTEXT,
             updatedAt: parsed.updatedAt,
           };
         }
@@ -52,6 +57,8 @@ export function getCachedAboutContent(): AboutBizzbeanContent {
     whatWeDoPanel: DEFAULT_WHAT_WE_DO,
     whereAreWeGoing: DEFAULT_WHERE_ARE_WE_GOING,
     howSolutionsEnableGrowth: DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH,
+    socialMissionEquation: DEFAULT_MISSION_EQUATION,
+    socialMissionSubtext: DEFAULT_MISSION_SUBTEXT,
   };
 }
 

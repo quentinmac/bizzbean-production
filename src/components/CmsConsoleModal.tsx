@@ -39,8 +39,24 @@ import {
   Copy,
   Check,
   GitBranch,
+  Info,
 } from 'lucide-react';
 import { CoaManagementView } from './coa/CoaManagementView';
+import { FormattedAboutContent } from './FormattedAboutContent';
+import {
+  DEFAULT_WHO_ARE_WE,
+  DEFAULT_WHAT_WE_DO,
+  DEFAULT_WHERE_ARE_WE_GOING,
+  DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH,
+} from '../data/aboutDefaults';
+import {
+  getCachedAboutContent,
+  fetchAboutContentFromCloud,
+  saveAboutContentToCloud,
+  AboutBizzbeanContent,
+  DEFAULT_MISSION_EQUATION,
+  DEFAULT_MISSION_SUBTEXT,
+} from '../services/siteContentService';
 import { generateTaxInvoicePdf } from '../utils/taxInvoicePdf';
 import {
   generateCmsConsoleDataTs,
@@ -122,7 +138,7 @@ import { testSmtpConnection } from '../services/emailService';
 interface CmsConsoleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialTab?: 'products' | 'videos' | 'articles' | 'promotions' | 'book' | 'admin' | 'coa';
+  initialTab?: 'products' | 'videos' | 'articles' | 'promotions' | 'book' | 'admin' | 'coa' | 'about';
   cmsProducts?: CmsProduct[];
   cmsVideos?: CmsVideo[];
   cmsArticles?: CmsArticle[];
@@ -150,7 +166,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
 }) => {
   // Navigation tabs
   const [activeTab, setActiveTab] = useState<
-    'products' | 'videos' | 'articles' | 'promotions' | 'book' | 'admin' | 'coa'
+    'products' | 'videos' | 'articles' | 'promotions' | 'book' | 'admin' | 'coa' | 'about'
   >(initialTab || 'products');
 
   const tabsNavRef = useRef<HTMLDivElement>(null);
@@ -161,6 +177,27 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       setActiveTab(initialTab);
     }
   }, [initialTab]);
+
+  // About Bizzbean Content & Profile Heading Management State
+  const [aboutData, setAboutData] = useState<AboutBizzbeanContent>(getCachedAboutContent);
+  const [isEditingAbout, setIsEditingAbout] = useState(false);
+  const [isSavingAbout, setIsSavingAbout] = useState(false);
+  const [editSocialMissionEquation, setEditSocialMissionEquation] = useState(
+    aboutData.socialMissionEquation || DEFAULT_MISSION_EQUATION
+  );
+  const [editSocialMissionSubtext, setEditSocialMissionSubtext] = useState(
+    aboutData.socialMissionSubtext || DEFAULT_MISSION_SUBTEXT
+  );
+  const [editWhoAreWe, setEditWhoAreWe] = useState(aboutData.whoAreWe || DEFAULT_WHO_ARE_WE);
+  const [editWhatWeDo, setEditWhatWeDo] = useState(
+    aboutData.whatWeDoPanel || aboutData.whatWeDo || DEFAULT_WHAT_WE_DO
+  );
+  const [editWhereAreWeGoing, setEditWhereAreWeGoing] = useState(
+    aboutData.whereAreWeGoing || DEFAULT_WHERE_ARE_WE_GOING
+  );
+  const [editHowSolutionsEnableGrowth, setEditHowSolutionsEnableGrowth] = useState(
+    aboutData.howSolutionsEnableGrowth || DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH
+  );
 
   // Stage-Centric Master Matrix state
   const [products, setProducts] = useState<CmsProduct[]>(() => {
@@ -242,6 +279,18 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
           dispatchSync(onSyncArticlesToWebsite, merged);
           return merged;
         });
+      }
+    });
+
+    fetchAboutContentFromCloud().then((cloud) => {
+      if (cloud) {
+        setAboutData(cloud);
+        setEditSocialMissionEquation(cloud.socialMissionEquation || DEFAULT_MISSION_EQUATION);
+        setEditSocialMissionSubtext(cloud.socialMissionSubtext || DEFAULT_MISSION_SUBTEXT);
+        setEditWhoAreWe(cloud.whoAreWe || DEFAULT_WHO_ARE_WE);
+        setEditWhatWeDo(cloud.whatWeDoPanel || cloud.whatWeDo || DEFAULT_WHAT_WE_DO);
+        setEditWhereAreWeGoing(cloud.whereAreWeGoing || DEFAULT_WHERE_ARE_WE_GOING);
+        setEditHowSolutionsEnableGrowth(cloud.howSolutionsEnableGrowth || DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH);
       }
     });
   }, [isOpen]);
@@ -632,6 +681,70 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       triggerSaveNotification('Export error: ' + (err?.message || 'Failed to generate file.'));
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleOpenEditAbout = () => {
+    setEditSocialMissionEquation(aboutData.socialMissionEquation || DEFAULT_MISSION_EQUATION);
+    setEditSocialMissionSubtext(aboutData.socialMissionSubtext || DEFAULT_MISSION_SUBTEXT);
+    setEditWhoAreWe(aboutData.whoAreWe || DEFAULT_WHO_ARE_WE);
+    setEditWhatWeDo(aboutData.whatWeDoPanel || aboutData.whatWeDo || DEFAULT_WHAT_WE_DO);
+    setEditWhereAreWeGoing(aboutData.whereAreWeGoing || DEFAULT_WHERE_ARE_WE_GOING);
+    setEditHowSolutionsEnableGrowth(aboutData.howSolutionsEnableGrowth || DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH);
+    setIsEditingAbout(true);
+  };
+
+  const handleSaveAboutToCloud = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingAbout(true);
+    try {
+      const payload: AboutBizzbeanContent = {
+        socialMissionEquation: editSocialMissionEquation.trim() || DEFAULT_MISSION_EQUATION,
+        socialMissionSubtext: editSocialMissionSubtext.trim() || DEFAULT_MISSION_SUBTEXT,
+        whoAreWe: editWhoAreWe.trim() || DEFAULT_WHO_ARE_WE,
+        whatWeDoPanel: editWhatWeDo.trim() || DEFAULT_WHAT_WE_DO,
+        whatWeDo: editWhatWeDo.trim() || DEFAULT_WHAT_WE_DO,
+        whereAreWeGoing: editWhereAreWeGoing.trim() || DEFAULT_WHERE_ARE_WE_GOING,
+        howSolutionsEnableGrowth: editHowSolutionsEnableGrowth.trim() || DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH,
+      };
+      await saveAboutContentToCloud(payload);
+      setAboutData(payload);
+      setIsEditingAbout(false);
+      triggerSaveNotification('About Bizzbean profile heading and manifesto published live to Cloud Firestore!');
+    } catch (err: any) {
+      console.warn('Save about content error:', err);
+      triggerSaveNotification('Saved to local storage. (Cloud Firestore sync note: ' + (err?.message || 'offline') + ')');
+    } finally {
+      setIsSavingAbout(false);
+    }
+  };
+
+  const handleResetAboutDefaults = async () => {
+    if (!window.confirm('Reset About Bizzbean profile heading and content to default manifesto template?')) return;
+    setIsSavingAbout(true);
+    try {
+      const payload: AboutBizzbeanContent = {
+        socialMissionEquation: DEFAULT_MISSION_EQUATION,
+        socialMissionSubtext: DEFAULT_MISSION_SUBTEXT,
+        whoAreWe: DEFAULT_WHO_ARE_WE,
+        whatWeDoPanel: DEFAULT_WHAT_WE_DO,
+        whatWeDo: DEFAULT_WHAT_WE_DO,
+        whereAreWeGoing: DEFAULT_WHERE_ARE_WE_GOING,
+        howSolutionsEnableGrowth: DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH,
+      };
+      await saveAboutContentToCloud(payload);
+      setAboutData(payload);
+      setEditSocialMissionEquation(DEFAULT_MISSION_EQUATION);
+      setEditSocialMissionSubtext(DEFAULT_MISSION_SUBTEXT);
+      setEditWhoAreWe(DEFAULT_WHO_ARE_WE);
+      setEditWhatWeDo(DEFAULT_WHAT_WE_DO);
+      setEditWhereAreWeGoing(DEFAULT_WHERE_ARE_WE_GOING);
+      setEditHowSolutionsEnableGrowth(DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH);
+      triggerSaveNotification('About Bizzbean reset to default template and synced to Cloud.');
+    } catch (err) {
+      triggerSaveNotification('Reset to defaults locally.');
+    } finally {
+      setIsSavingAbout(false);
     }
   };
 
@@ -1776,6 +1889,22 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
             >
               <ShieldCheck className="h-3.5 w-3.5 text-[#5584B4]" />
               <span>Administration</span>
+            </button>
+
+            {/* TAB 8: ABOUT BIZZBEAN */}
+            <button
+              onClick={() => setActiveTab('about')}
+              className={`px-4 py-2.5 text-xs font-mono font-bold tracking-wide uppercase transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'about'
+                  ? 'border-[#5584B4] text-[#DDEBF7] bg-[#1A213B]/60 rounded-t-lg'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Info className="h-3.5 w-3.5 text-[#5584B4]" />
+              <span>About Bizzbean Content</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#8CB843]/20 text-[#A3E635] border border-[#8CB843]/30">
+                Official
+              </span>
             </button>
           </div>
 
@@ -5232,6 +5361,98 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
             </div>
           )}
 
+          {/* ========================================================================= */}
+          {/* TAB 8: ABOUT BIZZBEAN CONTENT & LIVE PROFILE HEADING                      */}
+          {/* ========================================================================= */}
+          {activeTab === 'about' && (
+            <div className="space-y-6 max-w-6xl mx-auto font-mono text-slate-100">
+              {/* Top Banner with Actions */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-[#141A2E] border border-[#222F4C]">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-sm uppercase tracking-wider text-white">
+                      ABOUT BIZZBEAN (OFFICIAL MANIFESTO)
+                    </h3>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
+                      Live Firestore Synced
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Controls website & sliding door header, equation, subtext, and the 4 foundational questions.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleResetAboutDefaults}
+                    disabled={isSavingAbout}
+                    className="px-3 py-1.5 rounded-xl border border-slate-700 hover:border-slate-500 text-slate-400 hover:text-white text-xs font-bold transition-colors cursor-pointer"
+                    title="Reset to default bizzbean manifesto content"
+                  >
+                    Reset Defaults
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleOpenEditAbout}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold flex items-center gap-2 shadow-md transition-all cursor-pointer"
+                  >
+                    <Edit2 className="h-3.5 w-3.5" />
+                    <span>Edit & Publish to Cloud</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Live Profile Heading & Mission Equation (Reference: profile heading.PNG) */}
+              <div className="p-6 rounded-2xl border text-center shadow-md bg-[#141A2E] border-[#222F4C] space-y-2">
+                <div className="text-[10px] uppercase font-mono font-bold text-amber-500 tracking-wider">
+                  LIVE PUBLISHED PROFILE HEADING (WEBSITE & SLIDING DOORS)
+                </div>
+                <div className="font-mono text-sm sm:text-base font-bold text-white tracking-tight leading-relaxed uppercase max-w-3xl mx-auto">
+                  {aboutData.socialMissionEquation || DEFAULT_MISSION_EQUATION}
+                </div>
+                <div className="text-xs text-slate-300 mt-2 max-w-2xl mx-auto leading-relaxed">
+                  {aboutData.socialMissionSubtext || DEFAULT_MISSION_SUBTEXT}
+                </div>
+              </div>
+
+              {/* The 4 Foundational Questions with Headings, Paragraphs, and Bullet Points */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-5 rounded-2xl border space-y-2 bg-[#12172A] border-[#222F4C]">
+                  <div className="font-bold text-xs text-amber-400 uppercase flex items-center justify-between mb-1">
+                    <span>1. WHO ARE WE</span>
+                    <span className="text-[10px] text-[#C59B63] font-normal">identity & purpose</span>
+                  </div>
+                  <FormattedAboutContent content={aboutData.whoAreWe || DEFAULT_WHO_ARE_WE} isDark={true} />
+                </div>
+
+                <div className="p-5 rounded-2xl border space-y-2 bg-[#12172A] border-[#222F4C]">
+                  <div className="font-bold text-xs text-amber-400 uppercase flex items-center justify-between mb-1">
+                    <span>2. WHAT WE DO</span>
+                    <span className="text-[10px] text-[#C59B63] font-normal">mechanics & tools</span>
+                  </div>
+                  <FormattedAboutContent content={aboutData.whatWeDoPanel || aboutData.whatWeDo || DEFAULT_WHAT_WE_DO} isDark={true} />
+                </div>
+
+                <div className="p-5 rounded-2xl border space-y-2 bg-[#12172A] border-[#222F4C]">
+                  <div className="font-bold text-xs text-amber-400 uppercase flex items-center justify-between mb-1">
+                    <span>3. WHERE ARE WE GOING</span>
+                    <span className="text-[10px] text-[#C59B63] font-normal">vision & trajectory</span>
+                  </div>
+                  <FormattedAboutContent content={aboutData.whereAreWeGoing || DEFAULT_WHERE_ARE_WE_GOING} isDark={true} />
+                </div>
+
+                <div className="p-5 rounded-2xl border space-y-2 bg-[#12172A] border-[#222F4C]">
+                  <div className="font-bold text-xs text-amber-400 uppercase flex items-center justify-between mb-1">
+                    <span>4. HOW SOLUTIONS ENABLE GROWTH</span>
+                    <span className="text-[10px] text-[#C59B63] font-normal">spectrum & outcomes</span>
+                  </div>
+                  <FormattedAboutContent content={aboutData.howSolutionsEnableGrowth || DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH} isDark={true} />
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
 
         {/* Bottom Status Bar */}
@@ -5589,6 +5810,155 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                 </div>
               </div>
 
+            </div>
+          </div>
+        )}
+
+        {/* EDIT ABOUT BIZZBEAN CLOUD CONTENT MODAL */}
+        {isEditingAbout && (
+          <div className="fixed inset-0 z-[60] bg-black/85 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+            <div className="w-full max-w-3xl rounded-2xl bg-[#0E1322] border border-[#2B3452] p-6 space-y-4 text-slate-100 font-mono shadow-2xl my-8">
+              <div className="flex items-center justify-between border-b border-[#222F4C] pb-3">
+                <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
+                  <Sparkles className="h-4 w-4" />
+                  <span>Edit & Publish About Bizzbean to Cloud</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingAbout(false)}
+                  className="text-slate-400 hover:text-white text-base px-2 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-400">
+                Updates made here are saved directly to Cloud Firestore (<code className="text-emerald-400">site_content/about_bizzbean</code>) and instantly synchronize across <code className="text-amber-300">bizzbean.com</code>, the sliding door panels, and workstation displays.
+              </p>
+
+              <form onSubmit={handleSaveAboutToCloud} className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+                {/* Profile Heading & Subtext (Reference: profile heading.PNG) */}
+                <div className="p-4 rounded-xl bg-[#141A2E] border border-amber-500/40 space-y-3">
+                  <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wide">
+                    <Sparkles className="h-4 w-4" />
+                    <span>Profile Heading & Mission Equation (Top Header Banner)</span>
+                  </div>
+                  <div>
+                    <label className="block text-amber-300 font-bold text-xs uppercase mb-1">
+                      Profile Heading / Equation Title:
+                    </label>
+                    <input
+                      type="text"
+                      value={editSocialMissionEquation}
+                      onChange={(e) => setEditSocialMissionEquation(e.target.value)}
+                      placeholder="e.g. SCALING ENTREPRENEURSHIP THROUGH REAL INTELLIGENCE"
+                      className="w-full p-2.5 rounded-xl bg-[#0B0F19] border border-[#2B3452] text-xs font-mono text-white focus:outline-hidden focus:border-[#8CB843]"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      This appears prominently at the top of the About Bizzbean dialog and website manifesto.
+                    </span>
+                  </div>
+                  <div>
+                    <label className="block text-amber-300 font-bold text-xs uppercase mb-1">
+                      Profile Subtext / Mission Context:
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={editSocialMissionSubtext}
+                      onChange={(e) => setEditSocialMissionSubtext(e.target.value)}
+                      placeholder="e.g. bizzbean is a high-scale virtual and financial calibration platform..."
+                      className="w-full p-2.5 rounded-xl bg-[#0B0F19] border border-[#2B3452] text-xs font-mono text-white focus:outline-hidden focus:border-[#8CB843]"
+                    />
+                  </div>
+                </div>
+
+                {/* 1. Who Are We */}
+                <div>
+                  <label className="block text-slate-300 font-bold text-xs uppercase mb-1">
+                    1. Who Are We:
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={editWhoAreWe}
+                    onChange={(e) => setEditWhoAreWe(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-[#0B0F19] border border-[#2B3452] text-xs font-mono text-white focus:outline-hidden focus:border-[#5584B4]"
+                  />
+                </div>
+
+                {/* 2. What We Do */}
+                <div>
+                  <label className="block text-slate-300 font-bold text-xs uppercase mb-1">
+                    2. What We Do:
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={editWhatWeDo}
+                    onChange={(e) => setEditWhatWeDo(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-[#0B0F19] border border-[#2B3452] text-xs font-mono text-white focus:outline-hidden focus:border-[#5584B4]"
+                  />
+                </div>
+
+                {/* 3. Where Are We Going */}
+                <div>
+                  <label className="block text-slate-300 font-bold text-xs uppercase mb-1">
+                    3. Where Are We Going:
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={editWhereAreWeGoing}
+                    onChange={(e) => setEditWhereAreWeGoing(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-[#0B0F19] border border-[#2B3452] text-xs font-mono text-white focus:outline-hidden focus:border-[#5584B4]"
+                  />
+                </div>
+
+                {/* 4. How Solutions Enable Growth */}
+                <div>
+                  <label className="block text-slate-300 font-bold text-xs uppercase mb-1">
+                    4. How Solutions Enable Growth:
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={editHowSolutionsEnableGrowth}
+                    onChange={(e) => setEditHowSolutionsEnableGrowth(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-[#0B0F19] border border-[#2B3452] text-xs font-mono text-white focus:outline-hidden focus:border-[#5584B4]"
+                  />
+                </div>
+
+                <div className="pt-3 border-t border-[#222F4C] flex flex-wrap items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditSocialMissionEquation(DEFAULT_MISSION_EQUATION);
+                      setEditSocialMissionSubtext(DEFAULT_MISSION_SUBTEXT);
+                      setEditWhoAreWe(DEFAULT_WHO_ARE_WE);
+                      setEditWhatWeDo(DEFAULT_WHAT_WE_DO);
+                      setEditWhereAreWeGoing(DEFAULT_WHERE_ARE_WE_GOING);
+                      setEditHowSolutionsEnableGrowth(DEFAULT_HOW_SOLUTIONS_ENABLE_GROWTH);
+                    }}
+                    className="px-3.5 py-1.5 rounded-lg border border-slate-700 hover:border-slate-500 text-xs text-slate-300 hover:text-white cursor-pointer"
+                  >
+                    Load Default Template
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingAbout(false)}
+                      className="px-3.5 py-1.5 rounded-lg bg-[#1B233D] text-slate-300 hover:text-white text-xs font-mono cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSavingAbout}
+                      className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold font-mono shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      <span>{isSavingAbout ? 'Publishing to Cloud...' : 'Publish Live to Cloud Firestore'}</span>
+                    </button>
+                  </div>
+                </div>
+              </form>
             </div>
           </div>
         )}
