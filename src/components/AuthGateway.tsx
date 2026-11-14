@@ -32,6 +32,7 @@ import { COUNTRY_OPTIONS } from '../data/countryData';
 import { validateCouponCode, redeemCouponCode } from '../services/promotionService';
 import { PromotionCoupon } from '../types';
 import { sendWelcomeEmail } from '../services/emailService';
+import { upsertClientProfile } from '../services/transactionJournalService';
 
 interface AuthGatewayProps {
   onAuthenticated: (destination: 'splash' | 'dashboard' | 'bizzbot', userProfile?: any) => void;
@@ -291,24 +292,29 @@ Welcome to the bizzbean Sandbox environment!
       try {
         localStorage.setItem('bizzbean_sandbox_registered', 'true');
         localStorage.setItem('bizzbean_sandbox_name', fullName);
-        localStorage.setItem('bizzbean_sandbox_email', email);
+        localStorage.setItem('bizzbean_sandbox_email', email.trim());
+        localStorage.setItem(`bizzbean_registered_name_${email.trim().toLowerCase()}`, fullName);
 
-        const savedProfiles = JSON.parse(localStorage.getItem('bizzbean_client_profiles') || '[]');
-        const existingProfileIndex = savedProfiles.findIndex((p: any) => p.email && p.email.toLowerCase() === email.trim().toLowerCase());
-        if (existingProfileIndex >= 0) {
-          savedProfiles[existingProfileIndex] = {
-            ...savedProfiles[existingProfileIndex],
-            ...newProfile,
-            id: savedProfiles[existingProfileIndex].id || newProfile.id
-          };
-          localStorage.setItem('bizzbean_client_profiles', JSON.stringify(savedProfiles));
-        } else {
-          localStorage.setItem('bizzbean_client_profiles', JSON.stringify([newProfile, ...savedProfiles]));
-        }
+        await upsertClientProfile({
+          id: newProfile.id,
+          name: newProfile.name,
+          email: newProfile.email,
+          companyName: newProfile.companyName,
+          vatNumber: newProfile.vatNumber || undefined,
+          phone: newProfile.phone,
+          city: newProfile.city,
+          country: newProfile.country,
+          associate: newProfile.associate,
+          registeredAt: newProfile.registeredAt,
+          notes: newProfile.notes,
+          role: newProfile.role,
+          purchasedApps: newProfile.purchasedApps,
+          purchasedCourses: newProfile.purchasedCourses,
+        });
       } catch (err) {
         console.error('Error logging registered sandbox profile:', err);
       }
-      
+
       try {
         await registerUser(email.trim(), password, fullName, newProfile);
       } catch (fbRegErr) {
@@ -417,6 +423,17 @@ Welcome to the bizzbean Sandbox environment!
       const defaultName = resolveDisplayName(loginEmail);
       const { user: fbUser, profile } = await registerUser(loginEmail.trim(), loginPassword, defaultName);
       localStorage.setItem('bizzbean_last_login_email', loginEmail.trim());
+      await upsertClientProfile({
+        uid: fbUser.uid,
+        name: profile.name,
+        email: profile.email,
+        companyName: profile.companyName || 'Bizzbean Member Enterprise',
+        country: profile.country || 'South Africa',
+        city: profile.city || 'Johannesburg',
+        role: profile.role === 'admin' ? 'admin' : 'member',
+        registeredAt: new Date().toISOString(),
+        notes: 'Registered via Quick Firebase Registration.',
+      }).catch(() => {});
 
       addLog(`Firebase User created successfully with UID: ${fbUser.uid}`);
       setAuthSuccess(`Firebase account created successfully! Signed in as ${fbUser.email}`);

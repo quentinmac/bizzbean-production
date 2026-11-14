@@ -31,6 +31,14 @@ import { INITIAL_V1_TRANSACTIONS } from '../data/cmsConsoleData';
 import { safeSaveStorage } from '../utils/imageStorage';
 import { generateTaxInvoicePdf, BIZZBEAN_COMPANY_DETAILS } from '../utils/taxInvoicePdf';
 import { COUNTRIES } from '../data/countryData';
+import {
+  TRANSACTIONS_UPDATED_EVENT,
+  getCachedClientProfiles,
+  getCachedTransactions,
+  loadMergedClientProfilesFromCloud,
+  loadTransactionsFromCloud,
+  upsertClientProfile,
+} from '../services/transactionJournalService';
 
 interface ClientProfileJournalModalProps {
   isOpen: boolean;
@@ -54,26 +62,22 @@ export const ClientProfileJournalModal: React.FC<ClientProfileJournalModalProps>
   const isDark = theme === 'dark';
   const [activeTab, setActiveTab] = useState<'transactions' | 'profile'>('transactions');
 
-  // Load all transactions from localStorage or initial master list
-  const [transactions, setTransactions] = useState<TransactionRecord[]>(() => {
-    try {
-      if (localStorage.getItem('bizzdesk_v1_transactions_reset_zero') === 'true') {
-        return [];
-      }
-      const stored = localStorage.getItem('bizzdesk_v1_transactions');
-      if (stored !== null) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          return parsed.filter(
-            (t): t is TransactionRecord => Boolean(t && typeof t === 'object' && t.invoiceNumber)
-          );
-        }
-      }
-    } catch (e) {
-      console.warn('Error reading transactions from storage:', e);
-    }
-    return [];
-  });
+  // Load all transactions from Cloud Firestore + localStorage
+  const [transactions, setTransactions] = useState<TransactionRecord[]>(() =>
+    getCachedTransactions()
+  );
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setTransactions(getCachedTransactions());
+    loadTransactionsFromCloud()
+      .then((cloudTxs) => setTransactions(cloudTxs))
+      .catch(() => {});
+
+    const handleTxSync = () => setTransactions(getCachedTransactions());
+    window.addEventListener(TRANSACTIONS_UPDATED_EVENT, handleTxSync);
+    return () => window.removeEventListener(TRANSACTIONS_UPDATED_EVENT, handleTxSync);
+  }, [isOpen]);
 
   // Filter & Search state
   const [txSearch, setTxSearch] = useState('');
@@ -97,48 +101,51 @@ export const ClientProfileJournalModal: React.FC<ClientProfileJournalModalProps>
 
   // Re-synchronize form fields whenever modal opens or user profile / email changes
   useEffect(() => {
-    if (isOpen) {
-      const emailToMatch = (userProfile.email || userEmail || '').toLowerCase().trim();
-      let matchedClient: ClientProfile | undefined;
-      try {
-        const stored = localStorage.getItem('bizzdesk_v1_client_profiles');
-        if (stored) {
-          const profiles: ClientProfile[] = JSON.parse(stored);
-          matchedClient = profiles.find((c) => c.email && c.email.toLowerCase().trim() === emailToMatch);
-        }
-      } catch {}
+    if (!isOpen) return;
+    const emailToMatch = (userProfile.email || userEmail || '').toLowerCase().trim();
 
+    const applyMatchedClient = (profiles: ClientProfile[]) => {
+      const matchedClient = profiles.find(
+        (c) => c.email && c.email.toLowerCase().trim() === emailToMatch
+      );
       const effectiveCompany =
-        (matchedClient?.companyName && matchedClient.companyName !== 'Apex Cloud Dynamics')
+        matchedClient?.companyName && matchedClient.companyName !== 'Apex Cloud Dynamics'
           ? matchedClient.companyName
-          : (userProfile.companyName && userProfile.companyName !== 'Apex Cloud Dynamics')
+          : userProfile.companyName && userProfile.companyName !== 'Apex Cloud Dynamics'
           ? userProfile.companyName
           : 'BizzBean Holdings (Pty) Ltd';
 
-      setFormName(matchedClient?.name || userProfile.founderName || 'Quentin McCullough');
-      setFormEmail(userProfile.email || userEmail || matchedClient?.email || 'quentin@bizzbean.com');
+      setFormName(matchedClient?.name || userProfile.founderName || 'Entrepreneur');
+      setFormEmail(userProfile.email || userEmail || matchedClient?.email || '');
       setFormCompany(effectiveCompany);
-      setFormVatNumber(matchedClient?.vatNumber || userProfile.vatNumber || '4920281920');
-      setFormPhone(matchedClient?.phone || userProfile.phone || '+27 82 555 0192');
+      setFormVatNumber(matchedClient?.vatNumber || userProfile.vatNumber || '');
+      setFormPhone(matchedClient?.phone || userProfile.phone || '');
       setFormCountry(matchedClient?.country || userProfile.country || 'South Africa');
       setFormCity(matchedClient?.city || userProfile.city || 'Johannesburg');
-      setFormNotes(matchedClient?.notes || userProfile.notes || 'Key founder account. Primary administrator and enterprise test account.');
-    }
+      setFormNotes(
+        matchedClient?.notes ||
+          userProfile.notes ||
+          'Active bizzbean platform member and growing entrepreneur.'
+      );
+    };
+
+    applyMatchedClient(getCachedClientProfiles());
+    loadMergedClientProfilesFromCloud()
+      .then((merged) => applyMatchedClient(merged))
+      .catch(() => {});
   }, [isOpen, userProfile, userEmail]);
 
   // Resolve matching transactions for this client
-  const clientEmailNorm = (userProfile.email || userEmail || 'quentin@bizzbean.com').toLowerCase().trim();
-  const clientNameNorm = (userProfile.founderName || 'Quentin McCullough').toLowerCase().trim();
+  const clientEmailNorm = (userProfile.email || userEmail || '').toLowerCase().trim();
+  const clientNameNorm = (userProfile.founderName || '').toLowerCase().trim();
 
   const myTransactions = useMemo(() => {
     return transactions.filter((t) => {
       const tEmail = (t.customerEmail || '').toLowerCase().trim();
       const tName = (t.customer || '').toLowerCase().trim();
       return (
-        tEmail === clientEmailNorm ||
-        tName === clientNameNorm ||
-        tEmail.includes('quentin') ||
-        tName.includes('quentin')
+        (clientEmailNorm && tEmail === clientEmailNorm) ||
+        (clientNameNorm && tName === clientNameNorm)
       );
     });
   }, [transactions, clientEmailNorm, clientNameNorm]);
@@ -186,34 +193,19 @@ export const ClientProfileJournalModal: React.FC<ClientProfileJournalModalProps>
       safeSaveStorage(`bizzdesk_user_profile_${cleanEmail.toLowerCase()}`, updated);
     }
 
-    // Also sync client profile in v1 client profiles list if exists
-    try {
-      const stored = localStorage.getItem('bizzdesk_v1_client_profiles');
-      let profiles: ClientProfile[] = stored ? JSON.parse(stored) : [];
-      const existingIdx = profiles.findIndex(
-        (c) => (c.email && c.email.toLowerCase() === cleanEmail.toLowerCase()) || c.name.toLowerCase() === cleanName.toLowerCase()
-      );
-      const updatedClientRecord: ClientProfile = {
-        id: existingIdx >= 0 ? profiles[existingIdx].id : `cp-${Date.now()}`,
-        name: cleanName,
-        email: cleanEmail,
-        companyName: cleanCompany,
-        vatNumber: updated.vatNumber,
-        phone: updated.phone,
-        city: updated.city,
-        country: updated.country,
-        notes: updated.notes || 'Updated from client billing profile workstation dialog.',
-      };
-
-      if (existingIdx >= 0) {
-        profiles[existingIdx] = updatedClientRecord;
-      } else {
-        profiles.unshift(updatedClientRecord);
-      }
-      safeSaveStorage('bizzdesk_v1_client_profiles', profiles);
-    } catch (err) {
+    // Sync unified client profiles directory & Firestore
+    upsertClientProfile({
+      name: cleanName,
+      email: cleanEmail,
+      companyName: cleanCompany,
+      vatNumber: updated.vatNumber,
+      phone: updated.phone,
+      city: updated.city,
+      country: updated.country,
+      notes: updated.notes || 'Updated from client billing profile workstation dialog.',
+    }).catch((err) => {
       console.warn('Sync client profiles err:', err);
-    }
+    });
 
     // Save directly to Firebase Firestore users and client_profiles
     try {

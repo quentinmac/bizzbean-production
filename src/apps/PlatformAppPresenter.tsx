@@ -80,6 +80,7 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
       const cmsSub = (matchingCms.subtitle || '').toLowerCase();
       if (cmsName.includes('dynamics') || cmsSub.includes('dynamics')) return 'bizzdynamics';
       if (cmsName.includes('calculators') || cmsSub.includes('calculators')) return 'bizzcalculators';
+      if (cmsName.includes('rolling') || cmsSub.includes('rolling')) return 'rolling-forecast';
       if (cmsName.includes('forecast') || cmsName.includes('hi-level')) return 'hi-level-forecast';
       if (cmsName.includes('model')) return 'bizzmodel';
       if (cmsName.includes('plan')) return 'bizzplan';
@@ -89,6 +90,7 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
     if (lower.includes('calculators')) return 'bizzcalculators';
     if (lower.includes('dynamics')) return 'bizzdynamics';
     if (lower.includes('calc')) return 'bizzcalc';
+    if (lower.includes('rolling')) return 'rolling-forecast';
     if (lower.includes('hi-level') || lower === 'forecast') return 'hi-level-forecast';
     if (lower.includes('model') || lower.includes('forecast') || lower === 'fund-ability') return 'bizzmodel';
     if (lower.includes('plan')) return 'bizzplan';
@@ -155,8 +157,19 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
       stage: 'vi-ability',
       stageCode: 'Stage 01',
       subtitle: 'Dynamic Business Physics & Revenue Multiplier Simulator',
-      badge: 'shared simulation core',
+      badge: 'stand alone simulator',
       icon: Sliders,
+      desktopOnly: true,
+    },
+    {
+      id: 'rolling-forecast',
+      name: 'rolling forecast',
+      sku: 'BA-ROLL',
+      stage: 'operations',
+      stageCode: 'Stage 05',
+      subtitle: 'Hi-Level Rolling Forecast & Prior Year Balance Sheet Engine',
+      badge: 'stand alone',
+      icon: TrendingUp,
       desktopOnly: true,
     },
     {
@@ -178,7 +191,7 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
       stage: 'fund-ability',
       stageCode: 'Stage 02',
       subtitle: 'Hi-Level 36-Month Strategic Horizon Forecast & Valuation Modeler',
-      badge: 'desktop only',
+      badge: 'includes bizzmodel',
       icon: TrendingUp,
       desktopOnly: true,
     },
@@ -291,6 +304,25 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
         <BizzCalc
           theme={theme}
           userProfile={userProfile}
+          onClose={onBackToWorkstation}
+          onContextSwitch={(app) => setActiveApp(normalizeAppId(app))}
+        />
+      </div>
+    );
+  }
+
+  // Standalone BizzModel Suite Direct Experience (rolling forecast, bizzmodel)
+  // Guarantees identical unified single-card styling, zero redundant outer headers, and full-width work area
+  if (
+    activeApp === 'rolling-forecast' ||
+    activeApp === 'bizzmodel'
+  ) {
+    return (
+      <div className="w-full h-full flex-1 flex flex-col overflow-hidden">
+        <BizzModel
+          theme={theme}
+          mode={activeApp as any}
+          initialAppTab={activeApp as any}
           onClose={onBackToWorkstation}
           onContextSwitch={(app) => setActiveApp(normalizeAppId(app))}
         />
@@ -578,12 +610,12 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
               )
             )}
 
-            {/* 4B. HI-LEVEL FORECAST (Direct Launcher for 36-Month Horizon Modeler) */}
-            {activeApp === 'hi-level-forecast' && (
+            {/* 4C. ROLLING FORECAST (Stand Alone Hi-Level Forecast with Prior Year Balance Sheet Engine) */}
+            {activeApp === 'rolling-forecast' && (
               <BizzModel
                 theme={theme}
-                mode="bizzmodel"
-                initialAppTab="hi-level-forecast"
+                mode="rolling-forecast"
+                initialAppTab="rolling-forecast"
                 onClose={onBackToWorkstation}
                 onContextSwitch={(app) => setActiveApp(normalizeAppId(app))}
               />

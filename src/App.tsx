@@ -56,6 +56,7 @@ import { ProductCheckoutModal } from './components/ProductCheckoutModal';
 import { ClientProfileJournalModal } from './components/ClientProfileJournalModal';
 import { downloadGettingToValueBook } from './utils/bookDownload';
 import { sendWelcomeEmail } from './services/emailService';
+import { recordTransactionToJournal, upsertClientProfile } from './services/transactionJournalService';
 import {
   Menu,
   Layers,
@@ -121,6 +122,18 @@ export default function App() {
       localStorage.setItem('bizzdesk_token_balance_v1', tokenBalance.toString());
     } catch (e) {}
   }, [tokenBalance]);
+
+  useEffect(() => {
+    const handleTokenDeduction = (e: Event) => {
+      const customEvent = e as CustomEvent<{ amount?: number; description?: string }>;
+      const amount = Number(customEvent.detail?.amount || 0);
+      if (amount > 0) {
+        setTokenBalance((prev) => Math.max(0, prev - amount));
+      }
+    };
+    window.addEventListener('bizz-token-deduction', handleTokenDeduction);
+    return () => window.removeEventListener('bizz-token-deduction', handleTokenDeduction);
+  }, []);
 
   // Theme state: Default to 'light' (black & grey on white) with instant dark theme toggle
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -209,11 +222,32 @@ export default function App() {
       const pfPaymentId = urlParams.get('payment_id');
 
       if (pfStatus === 'success') {
+        const storedEmail =
+          localStorage.getItem('bizzbean_last_login_email') ||
+          localStorage.getItem('bizzbean_sandbox_email') ||
+          localStorage.getItem('bizz_user_email') ||
+          'member@bizzbean.co.za';
+        const storedName =
+          localStorage.getItem('bizzbean_sandbox_name') ||
+          resolveDisplayName(storedEmail) ||
+          'Entrepreneur';
+
         if (pfPaymentId && pfPaymentId.startsWith('TOKEN_')) {
           const parts = pfPaymentId.split('_');
           const tokensToAdd = parseInt(parts[1], 10);
           if (!isNaN(tokensToAdd) && tokensToAdd > 0) {
             setTokenBalance((prev) => prev + tokensToAdd);
+            recordTransactionToJournal({
+              sku: 'bizztokens',
+              productName: `BizzTokens Pack (${tokensToAdd} Tokens)`,
+              productType: 'app',
+              customer: storedName,
+              customerEmail: storedEmail,
+              country: 'South Africa',
+              associate: 'PayFast Direct',
+              grossSellingPriceZAR: tokensToAdd * 5,
+              paymentRef: pfPaymentId,
+            }).catch(() => {});
           }
           setPayfastNotice({
             status: 'success',
@@ -225,8 +259,27 @@ export default function App() {
           if (targetProdId) {
             markProductPurchasedForUser(targetProdId);
 
-            // Credit 20% tokens
-            const earnedTokens = 45.8;
+            // Resolve live product details & pricing from CMS cache / defaults
+            let matchedProd: any = null;
+            try {
+              const rawCached = localStorage.getItem(CMS_STORAGE_KEYS.PRODUCTS);
+              const list = rawCached ? JSON.parse(rawCached) : INITIAL_CMS_PRODUCTS;
+              if (Array.isArray(list)) {
+                matchedProd = list.find(
+                  (p: any) =>
+                    p.id === targetProdId ||
+                    (targetProdId === 'budget' && p.id === 'bizzbudget') ||
+                    (targetProdId === 'bizzbudget' && p.id === 'budget')
+                );
+              }
+            } catch {}
+
+            const sellingPriceZAR = Number(matchedProd?.sellingPriceZAR ?? 229);
+            const earnedTokens =
+              matchedProd?.tokensAllocated !== undefined
+                ? Number(matchedProd.tokensAllocated)
+                : Math.round(sellingPriceZAR * 0.2 * 10) / 10;
+
             setTokenBalance((prev) => {
               const newBal = prev + earnedTokens;
               safeSaveStorage('bizzdesk_token_balance', newBal);
@@ -234,10 +287,23 @@ export default function App() {
             });
 
             const isCourse =
+              matchedProd?.type === 'course' ||
               targetProdId.includes('course') ||
               targetProdId.includes('capital') ||
               targetProdId.includes('calculator') ||
               ['cost-recovery-calculator', 'learn-earn-capital', 'how-to-bizzcalc', 'profit-optimizer', 'financial-reports', 'your-first-hire'].includes(targetProdId);
+
+            recordTransactionToJournal({
+              sku: matchedProd?.sku || targetProdId,
+              productName: matchedProd?.name || targetProdId.replace(/-/g, ' '),
+              productType: isCourse ? 'course' : 'app',
+              customer: storedName,
+              customerEmail: storedEmail,
+              country: 'South Africa',
+              associate: 'PayFast Checkout',
+              grossSellingPriceZAR: sellingPriceZAR,
+              paymentRef: pfPaymentId,
+            }).catch(() => {});
 
             setActiveSolutionId(targetProdId === 'budget' ? 'bizzbudget' : targetProdId);
             if (isCourse) {
@@ -248,7 +314,7 @@ export default function App() {
 
             setPayfastNotice({
               status: 'success',
-              message: `PayFast Payment Confirmed! You have successfully purchased "${targetProdId.replace(/-/g, ' ')}". 45.8 BizzTokens have been credited. Access is now unlocked.`,
+              message: `PayFast Payment Confirmed! You have successfully purchased "${matchedProd?.name || targetProdId.replace(/-/g, ' ')}". ${earnedTokens} BizzTokens have been credited & invoice posted to journal.`,
             });
           }
         } else {
@@ -458,7 +524,7 @@ export default function App() {
       idbGet<CmsVideo[]>(CMS_STORAGE_KEYS.VIDEOS).catch(() => null),
     ]).then(([idbProducts, idbArticles, idbPromos, idbVideos]) => {
       if (idbProducts && Array.isArray(idbProducts) && idbProducts.length > 0) {
-        setCmsProducts((prev) => mergeLoadedProducts(prev, cleanLegacyProducts(idbProducts)));
+        setCmsProducts((prev) => mergeLoadedProducts(cleanLegacyProducts(idbProducts), prev));
       }
       if (idbArticles && Array.isArray(idbArticles) && idbArticles.length > 0) {
         const cleaned = cleanFallbackImagesFromArticles(idbArticles);
@@ -466,7 +532,7 @@ export default function App() {
       }
       if (idbPromos && Array.isArray(idbPromos) && idbPromos.length > 0) {
         const cleanedPromos = cleanLegacyViabilityPromotions(idbPromos);
-        setCmsPromotions((prev) => mergeLoadedPromotions(prev, cleanedPromos));
+        setCmsPromotions((prev) => mergeLoadedPromotions(cleanedPromos, prev));
       }
       if (idbVideos && Array.isArray(idbVideos) && idbVideos.length > 0) {
         setCmsVideos((prev) => mergeLoadedVideos(idbVideos, prev));
@@ -474,12 +540,12 @@ export default function App() {
       isHydrated.current = true;
     });
 
-    // 2. Authoritative Firestore Cloud Hydration (safely merged so local edits and disk file take precedence)
+    // 2. Authoritative Firestore Cloud Hydration (persisted cloud/CMS edits override static defaults)
     fetchCmsProductsFromFirestore().then((fsProducts) => {
       if (fsProducts && Array.isArray(fsProducts) && fsProducts.length > 0) {
         const cleaned = cleanLegacyProducts(fsProducts);
         setCmsProducts((prev) => {
-          const merged = mergeLoadedProducts(prev, cleaned);
+          const merged = mergeLoadedProducts(cleaned, prev);
           safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, merged);
           return merged;
         });
@@ -511,7 +577,7 @@ export default function App() {
       if (fsPromos && Array.isArray(fsPromos) && fsPromos.length > 0) {
         const cleanedPromos = cleanLegacyViabilityPromotions(fsPromos);
         setCmsPromotions((prev) => {
-          const merged = mergeLoadedPromotions(prev, cleanedPromos);
+          const merged = mergeLoadedPromotions(cleanedPromos, prev);
           safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, merged);
           return merged;
         });
@@ -591,7 +657,7 @@ export default function App() {
     safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, cmsPromotions);
   }, [cmsPromotions]);
 
-  // Helper: Random sequence for door opening promotion (presents only real user-loaded images, never stock fallbacks)
+  // Helper: Random sequence for door opening promotion (presents only active user-loaded images)
   const getRandomActivePromotion = useCallback((list: CmsPromotionSection[]): CmsPromotionSection | null => {
     if (!list || !Array.isArray(list) || list.length === 0) return null;
     const withImages = list.filter(
@@ -605,10 +671,6 @@ export default function App() {
     if (withImages.length > 0) {
       const randomIndex = Math.floor(Math.random() * withImages.length);
       return withImages[randomIndex];
-    }
-    const anyActive = list.filter((p) => p && p.isActive !== false);
-    if (anyActive.length > 0) {
-      return anyActive[Math.floor(Math.random() * anyActive.length)];
     }
     return null;
   }, []);
@@ -638,6 +700,8 @@ export default function App() {
     return null;
   });
 
+  const [showPromotion, setShowPromotion] = useState<boolean>(false);
+
   // Keep activePromotion synchronized when cmsPromotions are loaded or updated in CMS
   useEffect(() => {
     if (cmsPromotions && cmsPromotions.length > 0) {
@@ -649,22 +713,22 @@ export default function App() {
           p.imageUrl.trim() !== '' &&
           !p.imageUrl.includes('1553877522-43269d4ea984')
       );
-      if (withImages.length > 0 && (!activePromotion || !activePromotion.imageUrl || activePromotion.isActive === false)) {
+      if (withImages.length === 0) {
+        if (activePromotion !== null) setActivePromotion(null);
+        if (showPromotion) setShowPromotion(false);
+        return;
+      }
+      if (!activePromotion || !activePromotion.imageUrl || activePromotion.isActive === false) {
         const randomIndex = Math.floor(Math.random() * withImages.length);
         setActivePromotion(withImages[randomIndex]);
-      } else if (activePromotion) {
+      } else {
         // Keep activePromotion copy and image synchronized with cmsPromotions updates
         const matching = cmsPromotions.find((p) => p.id === activePromotion.id);
-        if (matching && matching.isActive === false) {
-          // If the current promotion was turned off / marked for no display, immediately switch or dismiss
-          if (withImages.length > 0) {
-            const randomIndex = Math.floor(Math.random() * withImages.length);
-            setActivePromotion(withImages[randomIndex]);
-          } else {
-            setActivePromotion(null);
-            setShowPromotion(false);
-          }
-        } else if (matching) {
+        if (!matching || matching.isActive === false || !matching.imageUrl || matching.imageUrl.trim() === '') {
+          // If the current promotion was turned off, deleted, or cleared, immediately switch
+          const randomIndex = Math.floor(Math.random() * withImages.length);
+          setActivePromotion(withImages[randomIndex]);
+        } else {
           const isStoryChanged =
             matching?.stageStory?.narrative !== activePromotion.stageStory?.narrative ||
             matching?.stageStory?.stageChallenge !== activePromotion.stageStory?.stageChallenge ||
@@ -684,9 +748,7 @@ export default function App() {
         }
       }
     }
-  }, [cmsPromotions, activePromotion]);
-
-  const [showPromotion, setShowPromotion] = useState<boolean>(false);
+  }, [cmsPromotions, activePromotion, showPromotion]);
   const [activeKbTab, setActiveKbTab] = useState<'search' | 'dialogue' | 'library'>('dialogue');
 
   const [videoModalSolution, setVideoModalSolution] = useState<BizzSolution | null>(null);
@@ -877,9 +939,7 @@ export default function App() {
     }
 
     const nextPromo = getRandomActivePromotion(currentPromos);
-    if (nextPromo) {
-      setActivePromotion(nextPromo);
-    }
+    setActivePromotion(nextPromo);
     return nextPromo;
   }, [cmsPromotions, getRandomActivePromotion]);
 
@@ -980,9 +1040,15 @@ export default function App() {
       console.warn(e);
     }
 
-    const validPreSelected = preSelectedPromo && preSelectedPromo.isActive !== false ? preSelectedPromo : null;
-    const validActive = activePromotion && activePromotion.isActive !== false ? activePromotion : null;
-    const randomPromo = validPreSelected || getRandomActivePromotion(currentPromos) || validActive;
+    const validPreSelected =
+      preSelectedPromo &&
+      preSelectedPromo.isActive !== false &&
+      preSelectedPromo.imageUrl &&
+      preSelectedPromo.imageUrl.trim() !== '' &&
+      !preSelectedPromo.imageUrl.includes('1553877522-43269d4ea984')
+        ? preSelectedPromo
+        : null;
+    const randomPromo = validPreSelected || getRandomActivePromotion(currentPromos);
     if (randomPromo && randomPromo.isActive !== false && randomPromo.imageUrl && randomPromo.imageUrl.trim() !== '') {
       setActivePromotion(randomPromo);
       setShowPromotion(true);
@@ -1262,6 +1328,17 @@ export default function App() {
   const isAppOrSolutionOwned = useCallback(
     (targetId: string): boolean => {
       if (!targetId) return false;
+
+      // Administrator has full administrative access to all apps and stages
+      if (isAdmin) {
+        return true;
+      }
+
+      // Staging operations sandbox is freely accessible for testing & development
+      if (activeStageId === 'operations-sandbox') {
+        return true;
+      }
+
       const cleanId = targetId.toLowerCase().trim();
       const canonId = (getCanonicalCourseId(cleanId) || cleanId).toLowerCase().trim();
 
@@ -1291,7 +1368,7 @@ export default function App() {
         (cleanId === 'bizzbudget' && userPurchases.includes('budget'))
       );
     },
-    [cmsProducts, userPurchases]
+    [isAdmin, activeStageId, cmsProducts, userPurchases]
   );
 
   // Launch solution into Active Work Area (or BizzClass Suite for courses)
@@ -1308,9 +1385,9 @@ export default function App() {
       ['learn-earn-capital', 'how-to-bizzcalc', 'cost-recovery-calculator', 'follow-the-money', 'financial-reports', 'your-first-hire', 'profit-optimizer', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(effectiveId) ||
       effectiveId.includes('cost-recovery') || effectiveId.includes('course') || nameLower.includes('calculator') || nameLower.includes('masterclass'));
 
-    // Strictly verify ownership before granting access to paid apps or courses
-    if (!isAppOrSolutionOwned(effectiveId)) {
-      const prodPrice = matchingProd?.sellingPriceZAR || 229;
+    // Strictly verify ownership before granting access to paid apps or courses (admin & operations-sandbox exempt)
+    if (!isAdmin && activeStageId !== 'operations-sandbox' && !isAppOrSolutionOwned(effectiveId)) {
+      const prodPrice = matchingProd?.sellingPriceZAR ?? 229;
       const prodName = matchingProd?.name || effectiveId;
       const solToBuy: any = matchingProd || {
         id: effectiveId,
@@ -1332,9 +1409,9 @@ export default function App() {
 
   // Launch app directly from mobile navigator or header
   const handleLaunchAppDirectly = (appId: string) => {
-    if (!isAppOrSolutionOwned(appId)) {
+    if (!isAdmin && activeStageId !== 'operations-sandbox' && !isAppOrSolutionOwned(appId)) {
       const matchingProd = (cmsProducts || []).find((p) => p.id === appId);
-      const prodPrice = matchingProd?.sellingPriceZAR || 229;
+      const prodPrice = matchingProd?.sellingPriceZAR ?? 229;
       const prodName = appId === 'bizzcalc' ? 'bizzcalc' : appId === 'bizzcalculators' ? 'bizzcalculators' : appId;
       const solToBuy: any = matchingProd || {
         id: appId,
@@ -1398,7 +1475,11 @@ export default function App() {
   // Instant Grant Handler (called when bypassing or granting offline in simulator)
   const handleInstantGrant = (sol: any) => {
     markProductPurchasedForUser(sol.id);
-    const earnedTokens = sol.tokensAllocated || Math.round(((sol.sellingPriceZAR || sol.priceZAR || 0) * 0.2));
+    const grossPrice = Number(sol.sellingPriceZAR ?? sol.priceZAR ?? 0);
+    const earnedTokens =
+      sol.tokensAllocated !== undefined
+        ? Number(sol.tokensAllocated)
+        : Math.round(grossPrice * 0.2 * 10) / 10;
 
     setTokenBalance((prev) => {
       const newBal = prev + earnedTokens;
@@ -1414,10 +1495,29 @@ export default function App() {
       sol.id.includes('calculator') ||
       ['cost-recovery-calculator', 'learn-earn-capital', 'how-to-bizzcalc', 'profit-optimizer', 'financial-reports', 'your-first-hire', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(sol.id);
 
+    const buyerEmail =
+      userProfile?.email ||
+      userEmail ||
+      (typeof window !== 'undefined' ? localStorage.getItem('bizzbean_sandbox_email') || '' : '') ||
+      'member@bizzbean.co.za';
+    const buyerName = userProfile?.founderName || resolveDisplayName(buyerEmail) || 'Entrepreneur';
+
+    recordTransactionToJournal({
+      sku: sol.sku || sol.stageCode || sol.id,
+      productName: sol.name,
+      productType: isCourse ? 'course' : 'app',
+      customer: buyerName,
+      customerEmail: buyerEmail,
+      country: userProfile?.country || 'South Africa',
+      associate: 'Direct Online (Sandbox Grant)',
+      grossSellingPriceZAR: grossPrice,
+      paymentRef: `GRANT_${sol.id}_${Date.now()}`,
+    }).catch(() => {});
+
     setPurchasedNotice({
       solutionName: sol.name,
       tokensCredited: earnedTokens,
-      priceZAR: sol.sellingPriceZAR || sol.priceZAR || 0,
+      priceZAR: grossPrice,
       solutionId: sol.id,
       isCourse,
     });
@@ -1654,7 +1754,19 @@ export default function App() {
       setUserEmail(cleanEmail);
       try {
         localStorage.setItem('bizzbean_sandbox_email', cleanEmail);
+        localStorage.setItem('bizzbean_sandbox_name', cleanName);
+        localStorage.setItem(`bizzbean_registered_name_${cleanEmail.toLowerCase()}`, cleanName);
       } catch (e) {}
+
+      upsertClientProfile({
+        name: cleanName,
+        email: cleanEmail,
+        companyName: cleanCompany || 'Bizzbean Member Enterprise',
+        country: 'South Africa',
+        role: determineUserRole(cleanEmail),
+        registeredAt: new Date().toISOString(),
+        notes: 'Registered via Sandbox Sign-Up modal.',
+      }).catch(() => {});
     }
     setIsMember(true);
     try {
@@ -1751,6 +1863,7 @@ export default function App() {
               onOpenTalkToUs={handleOpenTalkToUs}
               cmsProducts={cmsProducts}
               userPurchases={userPurchases}
+              isAdmin={isAdmin}
               onBuySolution={handleBuySolution}
               onLaunchApp={handleLaunchAppDirectly}
               onLaunchSolution={handleLaunchSolution}
@@ -2051,7 +2164,7 @@ export default function App() {
                     <div className="space-y-2">
                       {(() => {
                         const bizzcalcCms = (cmsProducts || []).find((p) => p.id === 'bizzcalc');
-                        const bizzcalcPrice = bizzcalcCms?.sellingPriceZAR || 229;
+                        const bizzcalcPrice = bizzcalcCms?.sellingPriceZAR ?? 229;
                         const isBizzcalcOwned = isAppOrSolutionOwned('bizzcalc');
 
                         return (
@@ -2103,7 +2216,7 @@ export default function App() {
 
                       {(() => {
                         const bizzcalculatorsCms = (cmsProducts || []).find((p) => p.id === 'bizzcalculators');
-                        const bizzcalculatorsPrice = bizzcalculatorsCms?.sellingPriceZAR || 229;
+                        const bizzcalculatorsPrice = bizzcalculatorsCms?.sellingPriceZAR ?? 229;
                         const isBizzcalculatorsOwned = isAppOrSolutionOwned('bizzcalculators');
 
                         return (
@@ -2160,7 +2273,7 @@ export default function App() {
                     <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 mb-2 flex items-start gap-2">
                       <Laptop className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
                       <p className="text-[11px] text-amber-600 dark:text-amber-400 leading-relaxed">
-                        <strong>Laptop / Desktop Devices:</strong> bizzdynamics, bizzmodel, Hi-Level Forecast, and bizzplan feature 36-month spreadsheet projections and 3-statement models designed for PC/laptop screens.
+                        <strong>Laptop / Desktop Devices:</strong> bizzdynamics, bizzmodel, and bizzplan feature 36-month spreadsheet projections and 3-statement models designed for PC/laptop screens.
                       </p>
                     </div>
 
@@ -2168,7 +2281,6 @@ export default function App() {
                       {[
                         { id: 'bizzdynamics', name: 'bizzdynamics', desc: 'Operational Simulation Core' },
                         { id: 'bizzmodel', name: 'bizzmodel', desc: '3-Statement Financial Simulator' },
-                        { id: 'hi-level-forecast', name: 'Hi-Level Forecast', desc: '36-Month Strategic Horizon' },
                         { id: 'bizzplan', name: 'bizzplan', desc: 'Executive Strategic Business Plan' },
                       ].map((app) => (
                         <div

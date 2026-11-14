@@ -1,0 +1,702 @@
+import { BizzPlanData } from '../../types';
+
+export const INITIAL_PLAN_DATA: BizzPlanData = {
+  businessName: '',
+  vision: '',
+  mission: '',
+  coverPage: {
+    companyLogo: '',
+    companyName: '',
+    businessType: '',
+    businessLocation: '',
+    preparationPrincipal: '',
+    preparationDate: '',
+    principalEmail: '',
+    principalMobile: '',
+  },
+  pitch: {
+    elevatorPitch: '',
+    valueOffer: ['', '', ''],
+    revenueModel: ['', '', ''],
+    financialOutlook: ['', '', ''],
+    competitorLandscape: ['', '', ''],
+    getToMarket: ['', '', ''],
+    growthLeverFunding: ['', '', ''],
+    fundingDeal: ['', '', ''],
+  },
+  governance: {
+    corporate: {
+      legalForm: '',
+      startDate: '',
+      financialMonthEnd: '',
+      boardSize: '',
+      boardQuorum: '',
+      boardMeetingFrequency: '',
+      financialReportingFrequency: '',
+      shareholdersAgreement: '',
+    },
+    boardMembers: [{ name: '', shareholding: '' }],
+    keyPersonnel: [{ name: '', position: '' }],
+    professionalSupport: [{ name: '', serviceType: '' }],
+  },
+  sections: [
+    {
+      id: 'formation',
+      title: 'cover page',
+      content: '',
+      isCompleted: false,
+      checkpoints: ['legal structure', 'ownership', 'registration details']
+    },
+    {
+      id: 'pitch',
+      title: 'investor pitch',
+      content: '',
+      isCompleted: false,
+      checkpoints: ['the hook', 'problem & solution', 'funding request']
+    },
+    {
+      id: 'governance',
+      title: 'governance',
+      content: '',
+      isCompleted: false,
+      checkpoints: ['board structure', 'executive team', 'internal controls', 'compliance']
+    },
+    {
+      id: 'assumptions',
+      title: 'assumptions',
+      content: '',
+      isCompleted: false,
+      checkpoints: ['inflation rates', 'market growth', 'operational costs']
+    },
+    {
+      id: 'environment',
+      title: 'business environment',
+      content: '',
+      isCompleted: false,
+      checkpoints: ['market research', 'economic factors', 'legal requirements'],
+      type: 'touchpoint',
+      categories: [
+        {
+          id: 'research',
+          title: 'research',
+          comment: '',
+          items: [
+            { id: 'env_v2_1', item: 'information was obtained from industry profiles', answer: 'n/a', score: 0 },
+            { id: 'env_v2_2', item: 'information was obtained from census data', answer: 'n/a', score: 0 },
+            { id: 'env_v2_3', item: 'information was obtained from demographic profiles', answer: 'n/a', score: 0 },
+            { id: 'env_v2_4', item: 'information was obtained from focus-group interviews', answer: 'n/a', score: 0 },
+            { id: 'env_v2_5', item: 'information was obtained from formal surveys', answer: 'n/a', score: 0 },
+            { id: 'env_v2_6', item: 'information was obtained from industry related magazines', answer: 'n/a', score: 0 },
+            { id: 'env_v2_7', item: 'information was obtained from industry related trade journals', answer: 'n/a', score: 0 },
+            { id: 'env_v2_8', item: 'information was obtained from various newspapers', answer: 'n/a', score: 0 },
+            { id: 'env_v2_9', item: 'information was obtained from professional market research', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'economics',
+          title: 'economics',
+          comment: '',
+          items: [
+            { id: 'env_v2_10', item: 'the industry benefits from currency strength', answer: 'n/a', score: 0 },
+            { id: 'env_v2_11', item: 'the industry benefits from currency weakness', answer: 'n/a', score: 0 },
+            { id: 'env_v2_12', item: 'the industry benefits from government incentives - long-term', answer: 'n/a', score: 0 },
+            { id: 'env_v2_13', item: 'the industry benefits from government incentives - startup', answer: 'n/a', score: 0 },
+            { id: 'env_v2_14', item: 'the industry benefits from tariff protection', answer: 'n/a', score: 0 },
+            { id: 'env_v2_15', item: 'the industry benefits from tax breaks', answer: 'n/a', score: 0 },
+            { id: 'env_v2_16', item: 'the industry is constrained by lack of specialised skills', answer: 'n/a', score: 0 },
+            { id: 'env_v2_17', item: 'the industry segment is growing', answer: 'n/a', score: 0 },
+            { id: 'env_v2_18', item: 'labour is available - skilled', answer: 'n/a', score: 0 },
+            { id: 'env_v2_19', item: 'labour is available - unskilled', answer: 'n/a', score: 0 },
+            { id: 'env_v2_20', item: 'these factors are accounted for in bizzmodel', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'environment_sub',
+          title: 'environmental',
+          comment: '',
+          items: [
+            { id: 'env_v2_21', item: 'production is affected by adverse climatic conditions', answer: 'n/a', score: 0 },
+            { id: 'env_v2_22', item: 'production conditions require special facilities - building code', answer: 'n/a', score: 0 },
+            { id: 'env_v2_23', item: 'production conditions require special facilities - legal', answer: 'n/a', score: 0 },
+            { id: 'env_v2_24', item: 'production conditions require special facilities - license and bonding', answer: 'n/a', score: 0 },
+            { id: 'env_v2_25', item: 'production conditions require special facilities - power infrastructure', answer: 'n/a', score: 0 },
+            { id: 'env_v2_26', item: 'production conditions require special facilities - regarding health and safety', answer: 'n/a', score: 0 },
+            { id: 'env_v2_27', item: 'production conditions require special facilities - regarding infrastructure', answer: 'n/a', score: 0 },
+            { id: 'env_v2_28', item: 'production conditions require special facilities - water infrastructure', answer: 'n/a', score: 0 },
+            { id: 'env_v2_29', item: 'production conditions require special facilities - zoning', answer: 'n/a', score: 0 },
+            { id: 'env_v2_30', item: 'production conditions require special facilities - skills', answer: 'n/a', score: 0 },
+            { id: 'env_v2_31', item: 'these factors are accounted for in bizzmodel', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'politics',
+          title: 'political',
+          comment: '',
+          items: [
+            { id: 'env_v2_32', item: 'the industry is governed by legislated tariffs and quotas', answer: 'n/a', score: 0 },
+            { id: 'env_v2_33', item: 'the industry is governed by legislated taxes', answer: 'n/a', score: 0 },
+            { id: 'env_v2_34', item: 'the industry is highly regulated', answer: 'n/a', score: 0 },
+            { id: 'env_v2_35', item: 'the industry is highly unionized', answer: 'n/a', score: 0 },
+            { id: 'env_v2_36', item: 'the industry will benefit from pending legislation', answer: 'n/a', score: 0 },
+            { id: 'env_v2_37', item: 'the industry growth is encouraged', answer: 'n/a', score: 0 },
+            { id: 'env_v2_38', item: 'the industry benefits from special inter-country trade relationships', answer: 'n/a', score: 0 },
+            { id: 'env_v2_39', item: 'these factors are accounted for in bizzmodel', answer: 'n/a', score: 0 },
+          ]
+        }
+      ]
+    },
+    {
+      id: 'products',
+      title: 'product category',
+      content: '',
+      isCompleted: false,
+      checkpoints: ['product protection', 'product potential', 'brand management', 'features & benefits', 'pricing strategy', 'supply chain', 'inventory'],
+      type: 'touchpoint',
+      categories: [
+        {
+          id: 'product_protection',
+          title: 'product protection',
+          comment: '',
+          items: [
+            { id: 'prod_v1_1', item: 'environmental impact studies have been conducted', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_2', item: 'products have copyright protection', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_3', item: 'products have copyright protection pending', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_4', item: 'products have patent protection', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_5', item: 'products have patent protection pending', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_6', item: 'products have trademark protection', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_7', item: 'products have trademark protection pending', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_8', item: 'these factors are accounted for in bizzmodel', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'product_potential',
+          title: 'product potential',
+          comment: '',
+          items: [
+            { id: 'prod_v1_9', item: 'products replace imports', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_10', item: 'products replace local production', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_11', item: 'products take advantage of an emerging market', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_12', item: 'products take advantage of changed regulations', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_13', item: 'products take advantage of changing customer habits', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_14', item: 'products take advantage of changing technology', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_15', item: 'products take advantage of competitor\'s weak performance', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_16', item: 'products take advantage of extended product life cycle', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_17', item: 'these factors are accounted for in bizzmodel', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'brand_management',
+          title: 'brand management',
+          comment: '',
+          items: [
+            { id: 'prod_v1_18', item: 'brand has market dominance', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_19', item: 'brand is new in the market', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_20', item: 'brand targets high-value market', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_21', item: 'brand targets high-volume market', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_22', item: 'brand will not offend any cultural groups', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_23', item: 'product has high awareness', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_24', item: 'product has a high loyalty following', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_25', item: 'these factors are accounted for in bizzmodel', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'features_benefits',
+          title: 'features and benefits',
+          comment: '',
+          items: [
+            { id: 'prod_v1_26', item: 'products consume less energy', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_27', item: 'products benefit from advertising support', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_28', item: 'products have greater availability', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_29', item: 'products have more colour attributes', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_30', item: 'products have more size attributes', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_31', item: 'products have superior aftersales service', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_32', item: 'products have superior design features', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_33', item: 'products have superior financial backing', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_34', item: 'products are cheaper', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_35', item: 'products are easier to use', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_36', item: 'products are locally manufactured', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_37', item: 'products are more efficient', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_38', item: 'products induce improved productivity', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_39', item: 'products are smaller', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_40', item: 'products are superior in quality', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_41', item: 'products are supported by international licensing agreements', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_42', item: 'products operate quicker', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_43', item: 'products operate quieter', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_44', item: 'product operating costs are lower', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_45', item: 'products weigh less', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_46', item: 'products operate longer', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'pricing_strategy',
+          title: 'pricing strategy',
+          comment: '',
+          items: [
+            { id: 'prod_v1_47', item: 'price levels are affected by currency exchange rates', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_48', item: 'price levels are determined by customer contracts', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_49', item: 'price levels are determined by market forces', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_50', item: 'price levels are set to accommodate volume discounts', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_51', item: 'price levels are set to determine recommended retail levels', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_52', item: 'price levels are set to discourage competitive activity', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_53', item: 'price levels are set to provide pre-determined wholesale margin', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_54', item: 'price levels are set to undercut market leader', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_55', item: 'price levels are structured in the financial forecast', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_56', item: 'price levels at start are set to gain market share', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_57', item: 'price levels include a distribution component', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_58', item: 'price levels include a franchise component', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_59', item: 'price levels include a royalty component', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_60', item: 'price levels vary in geographic regions', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_61', item: 'price levels vary to accommodate specific customer trading conditions', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_62', item: 'price levels will be discounted to accommodate seasonal opportunities', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_63', item: 'these factors are accounted for in bizzmodel', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'supply_chain',
+          title: 'supply chain',
+          comment: '',
+          items: [
+            { id: 'prod_v1_64', item: 'a formal costing system is in place', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_65', item: 'items produced are controlled by formal production bills', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_66', item: 'production is outsourced to a sub-contractor', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_67', item: 'production of sub-assemblies is outsourced', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_68', item: 'production process - component assembly', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_69', item: 'production process includes an in-line quality management', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_70', item: 'production will be a batch process', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_71', item: 'production will be a continuous process', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_72', item: 'production will be a job process', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_73', item: 'production costs are adjusted to accommodate unit sales volumes', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_74', item: 'production management is controlled within a deployed financial management', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_75', item: 'raw material and components are imported', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_76', item: 'raw material and components are stored in a bonded warehouse', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_77', item: 'raw material and components are stored in a contractor warehouse', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_78', item: 'raw material and components orders require lead time exceeding 3 months', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_79', item: 'finished goods are imported', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_80', item: 'finished goods are purchased from a franchisor', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_81', item: 'finished goods are manufactured under a technology license', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_82', item: 'finished goods are stored in a contractor warehouse', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_83', item: 'distribution is managed by a contractor', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_84', item: 'these factors are accounted for in bizzmodel', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'inventory_management',
+          title: 'inventory management',
+          comment: '',
+          items: [
+            { id: 'prod_v1_85', item: 'inventory consists of finished goods', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_86', item: 'inventory consists of flammable goods', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_87', item: 'inventory consists of perishable goods', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_88', item: 'inventory consists of raw materials', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_89', item: 'inventory levels are determined by franchisor requirements', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_90', item: 'inventory levels are pre-determined by supply chain triggers', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_91', item: 'inventory levels will vary to accommodate seasonal demands', answer: 'n/a', score: 0 },
+            { id: 'prod_v1_92', item: 'these factors are accounted for in bizzmodel', answer: 'n/a', score: 0 },
+          ]
+        }
+      ]
+    },
+    {
+      id: 'customers',
+      title: 'customers',
+      content: '',
+      isCompleted: false,
+      checkpoints: ['business development strategy', 'after sales support', 'accounts receivable management'],
+      type: 'touchpoint',
+      categories: [
+        {
+          id: 'biz_dev_strategy',
+          title: 'business development strategy',
+          comment: '',
+          items: [
+            { id: 'cust_v1_1', item: 'a structured customer relationship management system is in place', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_2', item: 'a website is developed', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_3', item: 'business development is supported by developed sales collateral', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_4', item: 'business is generated through a website', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_5', item: 'business is generated through advertising', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_6', item: 'business is generated through an internal sales system', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_7', item: 'business is generated through direct marketing programmes', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_8', item: 'business is generated through direct selling activities', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_9', item: 'business is generated through direct telemarketing selling', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_10', item: 'business is generated through independent agents', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_11', item: 'business is generated through independent representatives', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_12', item: 'business is generated through owned retail outlets', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_13', item: 'business is generated through social media programmes', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_14', item: 'business is generated through tenders', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_15', item: 'these factors are accounted for in bizzmodel', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'aftersales_support',
+          title: 'aftersales support',
+          comment: '',
+          items: [
+            { id: 'cust_v1_16', item: 'a structured aftersales support system in place', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_17', item: 'an aftersales support policy is in place', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_18', item: 'the aftersales support policy is made available to customers', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_19', item: 'the aftersales support policy is made available to employees', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_20', item: 'these factors are accounted for in bizzmodel', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'ar_management',
+          title: 'accounts receivable management',
+          comment: '',
+          items: [
+            { id: 'cust_v1_21', item: 'a credit granting policy is in place', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_22', item: 'all credit granting policies are structured in the financial forecast', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_23', item: 'the business grants credit to obtain business', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_24', item: 'the business is insured against bad debt', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_25', item: 'the business subscribes to a credit assessment service', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_26', item: 'the policy formalizes conditions, rules and terms applicable to sales orders', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_27', item: 'the policy formalizes customer selection criteria', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_28', item: 'the policy formalizes employee sales authority', answer: 'n/a', score: 0 },
+            { id: 'cust_v1_29', item: 'accounts receivable is controlled within a deployed financial management system', answer: 'n/a', score: 0 },
+          ]
+        }
+      ]
+    },
+    {
+      id: 'suppliers',
+      title: 'suppliers',
+      content: '',
+      isCompleted: false,
+      checkpoints: ['procurement policy', 'procurement strategy', 'accounts payable management'],
+      type: 'touchpoint',
+      categories: [
+        {
+          id: 'procurement_policy',
+          title: 'procurement policy',
+          comment: '',
+          items: [
+            { id: 'supp_v1_1', item: 'a formal procurement policy is in place', answer: 'n/a', score: 0 },
+            { id: 'supp_v1_2', item: 'the policy formalizes conditions under which allows alternate suppliers', answer: 'n/a', score: 0 },
+            { id: 'supp_v1_3', item: 'the policy formalizes conditions, rules and terms applicable to purchase orders', answer: 'n/a', score: 0 },
+            { id: 'supp_v1_4', item: 'the policy formalizes employee purchase authority', answer: 'n/a', score: 0 },
+            { id: 'supp_v1_5', item: 'the policy formalizes product selection criteria', answer: 'n/a', score: 0 },
+            { id: 'supp_v1_6', item: 'the policy formalizes supplier selection criteria', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'procurement_strategy',
+          title: 'procurement strategy',
+          comment: '',
+          items: [
+            { id: 'supp_v1_7', item: 'goods and services procured for cost of sales will be sourced via tender contract', answer: 'n/a', score: 0 },
+            { id: 'supp_v1_8', item: 'goods and services procured for overhead costs will be sourced via reverse auction', answer: 'n/a', score: 0 },
+            { id: 'supp_v1_9', item: 'goods and services procured for overhead costs will be sourced via tender contract', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'ap_management',
+          title: 'accounts payable management',
+          comment: '',
+          items: [
+            { id: 'supp_v1_10', item: 'accounts payable is controlled within a deployed financial management system', answer: 'n/a', score: 0 },
+            { id: 'supp_v1_11', item: 'invoices for goods and services will only be paid in terms of policy', answer: 'n/a', score: 0 },
+            { id: 'supp_v1_12', item: 'invoices for goods and services will be paid before term when cash is available', answer: 'n/a', score: 0 },
+            { id: 'supp_v1_13', item: 'these factors are accounted for in bizzmodel', answer: 'n/a', score: 0 },
+          ]
+        }
+      ]
+    },
+    {
+      id: 'employees',
+      title: 'employees',
+      content: '',
+      isCompleted: false,
+      checkpoints: ['employment policy', 'employment strategy', 'industrial relations strategy', 'employee communications', 'remuneration policy'],
+      type: 'touchpoint',
+      categories: [
+        {
+          id: 'employment_policy',
+          title: 'employment policy',
+          comment: '',
+          items: [
+            { id: 'emp_v1_1', item: 'a formal human capital policy is in place', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_2', item: 'the policy includes formal job descriptions', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_3', item: 'the policy includes a formal remuneration structure', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_4', item: 'the policy includes a formal training and development strategy', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_5', item: 'the policy includes a statement on discrimination in the work place', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_6', item: 'the policy encourages freedom of association', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_7', item: 'the policy includes a formal statement on procedures related hiring and firing', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_8', item: 'the policy is available to all employees', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'employment_strategy',
+          title: 'employment strategy',
+          comment: '',
+          items: [
+            { id: 'emp_v1_9', item: 'is to recruit all employees on a permanent basis', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_10', item: 'is to recruit key employees on a permanent basis', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_11', item: 'is to recruit productive employees on a contract basis', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_12', item: 'is to incentive improved productivity', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_13', item: 'is to lower the fixed element of employment costs', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_14', item: 'is to measure employee performance on a regular basis', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'industrial_relations',
+          title: 'industrial relations strategy',
+          comment: '',
+          items: [
+            { id: 'emp_v1_15', item: 'is to outsource this function to professionals', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_16', item: 'is to build a constructive working relationship with all labour unions', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_17', item: 'includes publishing the business\'s organization structure on a regular basis', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_18', item: 'includes sharing performance related information in a structured process', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'employee_communications',
+          title: 'employee communications',
+          comment: '',
+          items: [
+            { id: 'emp_v1_19', item: 'includes publishing the business\'s organization structure on a regular basis', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_20', item: 'includes sharing performance related information in a structured process', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'remuneration_policy',
+          title: 'remuneration policy',
+          comment: '',
+          items: [
+            { id: 'emp_v1_21', item: 'includes a performance incentive component for administration employees', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_22', item: 'includes a performance incentive component for management', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_23', item: 'includes a performance incentive component for production employees', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_24', item: 'includes a performance incentive component for sales employees', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_25', item: 'includes a structured profit share for management', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_26', item: 'includes a structured profit share for other employees', answer: 'n/a', score: 0 },
+            { id: 'emp_v1_27', item: 'these factors are accounted for in bizzmodel', answer: 'n/a', score: 0 },
+          ]
+        }
+      ]
+    },
+    {
+      id: 'infrastructure',
+      title: 'infrastructure',
+      content: '',
+      isCompleted: false,
+      checkpoints: ['premises', 'location', 'environmental issues', 'funding evaluation'],
+      type: 'touchpoint',
+      categories: [
+        {
+          id: 'premises',
+          title: 'premises',
+          comment: '',
+          items: [
+            { id: 'inf_v1_1', item: 'has adequate administration facilities', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_2', item: 'has adequate employee ablution facilities', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_3', item: 'has adequate goods receiving facilities', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_4', item: 'has adequate parking for customers', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_5', item: 'has adequate parking for distribution fleet', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_6', item: 'has adequate parking for employees', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_7', item: 'has adequate internet infrastructure', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_8', item: 'has adequate parking for suppliers', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_9', item: 'has adequate parking for visitors', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_10', item: 'has adequate production facilities', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_11', item: 'has adequate trading facilities', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_12', item: 'has adequate warehousing facilities', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_13', item: 'has adequate workshop facilities', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_14', item: 'has franchisor\'s approval', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_15', item: 'has telephone infrastructure', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_16', item: 'is a temporary start up facility', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_17', item: 'is adequate to accommodate growth - 5 years', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_18', item: 'is adequately fire protected', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_19', item: 'is adequately secured', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_20', item: 'is owned by the business or the business partners', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_21', item: 'not required due to virtualization', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'location',
+          title: 'location',
+          comment: '',
+          items: [
+            { id: 'inf_v1_22', item: 'accommodates competitive inertia', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_23', item: 'accommodates required business trading hours', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_24', item: 'has convenient customer access - transport route', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_25', item: 'has convenient distribution access - air', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_26', item: 'has convenient distribution access - rail', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_27', item: 'has convenient distribution access - road', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_28', item: 'has hi-traffic customer access', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_29', item: 'is convenient for labour pool', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'env_issues',
+          title: 'environmental issues',
+          comment: '',
+          items: [
+            { id: 'inf_v1_30', item: 'environmental impact assessment is complete', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_31', item: 'environmental management plan is in place', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_32', item: 'compliance with environmental legislation is confirmed', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_33', item: 'these factors are accounted for in bizzmodel', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'funding_eval',
+          title: 'funding evaluation',
+          comment: '',
+          items: [
+            { id: 'inf_v1_34', item: 'financial factors are considered in the financial forecast', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_35', item: 'all infrastructure insurance contracts are in place', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_36', item: 'all infrastructure lease agreements in place', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_37', item: 'these factors are accounted for in bizzmodel', answer: 'n/a', score: 0 },
+            { id: 'inf_v1_38', item: 'as per schedule number x', answer: 'n/a', score: 0 },
+          ]
+        }
+      ]
+    },
+    {
+      id: 'systems',
+      title: 'systems',
+      content: '',
+      isCompleted: false,
+      checkpoints: [
+        'systems analysis',
+        'operations management',
+        'financial management',
+        'employee management',
+        'customer relations management',
+        'quality management',
+        'computer hardware',
+        'cloud-based solutions',
+        'financial evaluation'
+      ],
+      type: 'touchpoint',
+      categories: [
+        {
+          id: 'sys_analysis',
+          title: 'systems analysis',
+          comment: '',
+          items: [
+            { id: 'sys_v1_1', item: 'has been done', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_2', item: 'has considered inter system integration', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_3', item: 'has considered suitability for future business growth', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_4', item: 'has considered ease of use', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_5', item: 'has considered ease of use speed of implementation', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_6', item: 'has considered on-going operating costs', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_7', item: 'has considered on-going support', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'ops_mgmt',
+          title: 'operations management',
+          comment: '',
+          items: [
+            { id: 'sys_v1_8', item: 'systems management will be insourced', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_9', item: 'systems management will be outsourced', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_10', item: 'these factors are accounted for in bizzmodel', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'fin_mgmt',
+          title: 'financial management',
+          comment: '',
+          items: [
+            { id: 'sys_v1_11', item: 'dynamically consolidates information from multiple branch and cost centre sources', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_12', item: 'dynamically presents trading information based on market segments', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_13', item: 'dynamically presents trading information based on product segments', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_14', item: 'dynamically includes budgets', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_15', item: 'is capable of scaling to accommodate future growth', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_16', item: 'includes a fixed assets management module', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_17', item: 'payroll functions will be insourced', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_18', item: 'payroll functions will be outsourced', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_19', item: 'human resource management will be insourced', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_20', item: 'human resource management will be outsourced', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_21', item: 'employment management costs are included in the financial forecast', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_22', item: 'these factors are accounted for in bizzmodel', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'emp_mgmt',
+          title: 'employee management',
+          comment: '',
+          items: [
+            { id: 'sys_v1_23', item: 'payroll functions will be insourced', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_24', item: 'payroll functions will be outsourced', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_25', item: 'human resource management will be insourced', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_26', item: 'human resource management will be outsourced', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_27', item: 'employment management costs are included in the financial forecast', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_28', item: 'these factors are accounted for in bizzmodel', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'crm',
+          title: 'customer relations management',
+          comment: '',
+          items: [
+            { id: 'sys_v1_29', item: 'aggregates competitor activities', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_30', item: 'aggregates customer complaints', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_31', item: 'it allows for remote customer interactions', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_32', item: 'aggregates customer interactions', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_33', item: 'integrates into the financial accounting system', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_34', item: 'integrates into the social media management systems', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_35', item: 'the chosen system is capable of scaling to accommodate future growth', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'quality_mgmt',
+          title: 'quality management',
+          comment: '',
+          items: [
+            { id: 'sys_v1_36', item: 'is considered essential or beneficial to business performance', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_37', item: 'the chosen system is capable of scaling to accommodate future growth', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'comp_hw',
+          title: 'computer hardware',
+          comment: '',
+          items: [
+            { id: 'sys_v1_38', item: 'all computer hardware and their operating costs are included in the financial forecast', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_39', item: 'special training is required to operate certain computer hardware', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_40', item: 'the chosen computer hardware is sourced and supported by capable vendors', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_41', item: 'of-site redundancy is catered for and the costs are included in the financial forecast', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'cloud_solutions',
+          title: 'cloud-based solutions',
+          comment: '',
+          items: [
+            { id: 'sys_v1_42', item: 'it provides a dynamic dashboard reporting system', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_43', item: 'it provides information on inventory management via the internet', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_44', item: 'it allows for remote financial transactions', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_45', item: 'all systems are included in the forecast', answer: 'n/a', score: 0 },
+          ]
+        },
+        {
+          id: 'fin_eval',
+          title: 'financial evaluation',
+          comment: '',
+          items: [
+            { id: 'sys_v1_46', item: 'all systems license costs are included in the forecast', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_47', item: 'all systems support costs are included in the forecast', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_48', item: 'all systems initial and ongoing training costs are included in the forecast', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_49', item: 'all systems implementation costs are included in the forecast', answer: 'n/a', score: 0 },
+            { id: 'sys_v1_50', item: 'these factors are accounted for in bizzmodel', answer: 'n/a', score: 0 },
+          ]
+        }
+      ]
+    },
+    {
+      id: 'viability_scorecard',
+      title: 'viability scorecard',
+      content: '',
+      isCompleted: false,
+      checkpoints: [
+        'scorecard evaluation',
+        'environment',
+        'product category',
+        'customers',
+        'suppliers',
+        'employees',
+        'infrastructure',
+        'systems'
+      ],
+      type: 'scorecard'
+    }
+  ]
+};

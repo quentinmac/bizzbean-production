@@ -131,7 +131,7 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
 
   // Growth solutions derived dynamically from live CMS products, respecting deletions
   const growthSolutions = React.useMemo(() => {
-    if (cmsProducts && Array.isArray(cmsProducts)) {
+    if (cmsProducts && Array.isArray(cmsProducts) && cmsProducts.length > 0) {
       const fromCms = cmsProducts.filter(
         (p) =>
           p.stage === 'growth' &&
@@ -140,17 +140,15 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
           !deletedIds.has(getCanonicalCourseId(p.id) || '') &&
           !deletedIds.has(p.name?.toLowerCase().trim() || '')
       );
-      if (fromCms.length > 0) {
-        const map = new Map<string, { id: string; name: string }>();
-        fromCms.forEach((p) => {
-          const canonId = p.id === 'strategy' ? 'growth-strategy' : p.id;
-          const nameKey = p.name.toLowerCase().trim();
-          if (!map.has(canonId) && !map.has(nameKey)) {
-            map.set(canonId, { id: canonId, name: p.name });
-          }
-        });
-        return Array.from(map.values());
-      }
+      const map = new Map<string, { id: string; name: string }>();
+      fromCms.forEach((p) => {
+        const canonId = p.id === 'strategy' ? 'growth-strategy' : p.id;
+        const nameKey = p.name.toLowerCase().trim();
+        if (!map.has(canonId) && !map.has(nameKey)) {
+          map.set(canonId, { id: canonId, name: p.name });
+        }
+      });
+      return Array.from(map.values());
     }
 
     const map = new Map<string, { id: string; name: string }>();

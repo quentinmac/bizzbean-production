@@ -72,3 +72,46 @@ export const BizzReportSection: React.FC<BizzReportSectionProps> = ({
     </div>
   );
 };
+
+export const BizzInputClass =
+  'w-full px-3.5 py-2.5 rounded-xl border border-[#5085b6]/25 text-xs font-mono text-[#5085b6] placeholder:text-[#5085b6]/40 focus:outline-none focus:ring-2 focus:ring-[#5085b6]/20 focus:border-[#5085b6] transition-all';
+
+export const BizzButtonClass =
+  'px-4 py-2 rounded-xl bg-[#5085b6] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#3f6f9c] transition-all cursor-pointer shadow-xs';
+
+interface BizzFieldProps {
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}
+
+export const BizzField: React.FC<BizzFieldProps> = ({ label, className = '', children }) => (
+  <div className={`space-y-1.5 ${className}`}>
+    <label className="block text-[10px] font-bold uppercase tracking-widest text-[#5085b6]/80">
+      {label}
+    </label>
+    {children}
+  </div>
+);
+
+interface BizzSectionProps {
+  title: string;
+  subtitle?: string;
+  className?: string;
+  children: React.ReactNode;
+}
+
+export const BizzSection: React.FC<BizzSectionProps> = ({
+  title,
+  subtitle,
+  className = '',
+  children,
+}) => (
+  <div className={`bg-white border border-[#5085b6]/20 rounded-2xl p-6 shadow-xs space-y-4 ${className}`}>
+    <div className="border-b border-[#5085b6]/10 pb-3">
+      <h3 className="text-xs font-black uppercase tracking-widest text-[#5085b6]">{title}</h3>
+      {subtitle && <p className="text-[11px] text-[#5085b6]/60 mt-0.5">{subtitle}</p>}
+    </div>
+    {children}
+  </div>
+);

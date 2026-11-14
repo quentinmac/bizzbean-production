@@ -24,8 +24,19 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
   onTriggerDoorOpening,
   onConfirmSignUp,
 }) => {
+  const isValidActivePromo = (p?: CmsPromotionSection | null): p is CmsPromotionSection =>
+    Boolean(
+      p &&
+      p.isActive !== false &&
+      p.imageUrl &&
+      p.imageUrl.trim() !== '' &&
+      !p.imageUrl.includes('1553877522-43269d4ea984')
+    );
+
   const [doorsOpen, setDoorsOpen] = useState(false);
-  const [doorPromotion, setDoorPromotion] = useState<CmsPromotionSection | null>(activePromotion || null);
+  const [doorPromotion, setDoorPromotion] = useState<CmsPromotionSection | null>(
+    isValidActivePromo(activePromotion) ? activePromotion : null
+  );
   const [authMode, setAuthMode] = useState<'none' | 'signin' | 'signup'>('none');
   const [emailInput, setEmailInput] = useState('founder@bizzbean.com');
   const [fullNameInput, setFullNameInput] = useState('Elena Vance');
@@ -33,18 +44,18 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
   const [currentTime, setCurrentTime] = useState('10:10');
 
   useEffect(() => {
-    if (activePromotion && activePromotion.isActive !== false && activePromotion.imageUrl && activePromotion.imageUrl.trim() !== '') {
+    if (isValidActivePromo(activePromotion)) {
       setDoorPromotion(activePromotion);
     } else {
       setDoorPromotion(null);
     }
   }, [activePromotion]);
 
-  // Helper to pick a random promotion with a valid user-loaded image
+  // Helper to pick a random promotion with a valid active user-loaded image
   const pickRandomPromo = (): CmsPromotionSection | null => {
     if (onTriggerDoorOpening) {
       const fromParent = onTriggerDoorOpening();
-      if (fromParent && fromParent.isActive !== false && fromParent.imageUrl) return fromParent;
+      return isValidActivePromo(fromParent) ? fromParent : null;
     }
 
     let promoList = cmsPromotions && cmsPromotions.length > 0 ? cmsPromotions : [];
@@ -60,36 +71,20 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
       }
     }
 
-    const withImages = promoList.filter(
-      (p) =>
-        p &&
-        p.isActive !== false &&
-        p.imageUrl &&
-        p.imageUrl.trim() !== '' &&
-        !p.imageUrl.includes('1553877522-43269d4ea984')
-    );
+    const withImages = promoList.filter((p) => isValidActivePromo(p));
 
     if (withImages.length > 0) {
       const idx = Math.floor(Math.random() * withImages.length);
       return withImages[idx];
     }
 
-    const anyActive = promoList.filter((p) => p && p.isActive !== false);
-    if (anyActive.length > 0) {
-      return anyActive[Math.floor(Math.random() * anyActive.length)];
-    }
-
-    return (activePromotion && activePromotion.isActive !== false) ? activePromotion : null;
+    return null;
   };
 
   const handleTriggerEnter = (asMember: boolean, customEmail?: string, customName?: string) => {
     // 1. Immediately present a random HERO PROMOTION image when doors open (only if active)
     const chosen = pickRandomPromo();
-    if (chosen && chosen.isActive !== false) {
-      setDoorPromotion(chosen);
-    } else {
-      setDoorPromotion(null);
-    }
+    setDoorPromotion(isValidActivePromo(chosen) ? chosen : null);
     setDoorsOpen(true);
     setAuthMode('none');
 
@@ -172,44 +167,42 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
 
             {/* Inner Computer Display with Sleek illuminated sandbox workstation display */}
             <div className="relative flex-grow rounded-lg bg-gradient-to-br from-[#101424] via-[#161C30] to-[#0E1220] border border-[#2B3452] flex flex-col items-center justify-center text-center overflow-hidden shadow-inner p-4">
-              {doorsOpen && (doorPromotion?.imageUrl || activePromotion?.imageUrl) ? (
+              {doorsOpen && isValidActivePromo(doorPromotion) ? (
                 <div className="absolute inset-0 overflow-hidden animate-fade-in flex flex-col justify-between p-3.5 bg-black/60 select-none">
                   <img
-                    src={(doorPromotion?.imageUrl || activePromotion?.imageUrl)!}
-                    alt={(doorPromotion || activePromotion)?.displayName || 'Promotion'}
+                    src={doorPromotion.imageUrl!}
+                    alt={doorPromotion.displayName || 'Promotion'}
                     className="absolute inset-0 w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0E1220]/95 via-transparent to-black/40" />
                   <div className="relative z-10 flex justify-between items-center text-[10px] font-mono text-[#DDEBF7]">
                     <span className="tracking-wider font-bold bg-[#141A2E]/80 px-2 py-0.5 rounded border border-[#2B3452]">
-                      {(doorPromotion || activePromotion)?.displayName}
+                      {doorPromotion.displayName}
                     </span>
                     <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                   </div>
                   <div className="relative z-10 text-left space-y-0.5">
                     <div className="text-white text-xs sm:text-sm font-bold font-sans drop-shadow-md">
-                      {(doorPromotion || activePromotion)?.displayName}
+                      {doorPromotion.displayName}
                     </div>
                     <div className="text-[10px] sm:text-[11px] text-slate-200 font-sans truncate drop-shadow-sm">
-                      {(doorPromotion || activePromotion)?.tagline}
+                      {doorPromotion.tagline}
                     </div>
                   </div>
                 </div>
               ) : doorsOpen ? (
-                /* When doors are open, display the stage promotion billboard cleanly without any fallback graphic */
+                /* When doors open and all hero promotion images are disabled, show clean workspace transition screen */
                 <div className="absolute inset-0 overflow-hidden animate-fade-in flex flex-col justify-between p-4 bg-gradient-to-br from-[#141A2E] to-[#0E1220] select-none text-left">
                   <div className="flex justify-between items-center text-[10px] font-mono text-[#DDEBF7]">
-                    <span className="tracking-wider font-bold bg-[#1E2548] px-2 py-0.5 rounded border border-[#2B3452]">
-                      {(doorPromotion || activePromotion)?.displayName || 'HERO PROMOTION'}
+                    <span className="tracking-wider font-bold bg-[#1E2548] px-2 py-0.5 rounded border border-[#2B3452] lowercase">
+                      bizz-desk v2.0
                     </span>
                     <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                   </div>
-                  <div className="space-y-1">
-                    <div className="text-white text-sm sm:text-base font-bold font-sans">
-                      {(doorPromotion || activePromotion)?.displayName || 'Stage Promotion'}
-                    </div>
-                    <div className="text-[11px] text-slate-300 font-sans leading-relaxed">
-                      {(doorPromotion || activePromotion)?.stageStory?.narrative || (doorPromotion || activePromotion)?.tagline || 'Presenting verified venture milestones.'}
+                  <div className="flex flex-col items-center justify-center space-y-2 text-center">
+                    <BizzbeanLogoIcon className="h-9 w-9 opacity-95 drop-shadow-sm" />
+                    <div className="text-white text-sm sm:text-base font-light font-['Raleway'] tracking-wider lowercase">
+                      the illuminated sandbox
                     </div>
                   </div>
                   <div className="text-[10px] font-mono text-[#5584B4] uppercase tracking-wider">

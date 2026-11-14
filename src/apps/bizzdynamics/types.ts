@@ -22,7 +22,7 @@ export interface VoiceCommandResult {
   feedbackMessage: string;
 }
 
-export type BizzDynamicsTab = 'assumptions' | 'data entry' | 'results';
+export type BizzDynamicsTab = 'assumptions' | 'results' | 'charts' | 'data entry' | 'data-entry';
 
 export interface BizzDynamicsStepDef {
   id: number;

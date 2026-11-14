@@ -55,20 +55,27 @@ export const ExecutiveEfficiencyChart: React.FC<ExecutiveEfficiencyChartProps> =
 
   // Coordinate Helpers
   const getX = (index: number) => {
-    if (data.length === 1) return margin.left + plotWidth / 2;
-    return margin.left + (index / (data.length - 1)) * plotWidth;
+    if (data.length <= 1) return margin.left + plotWidth / 2;
+    const res = margin.left + (index / (data.length - 1)) * plotWidth;
+    return isNaN(res) ? margin.left : res;
   };
 
   const getPctY = (val: number) => {
-    const clamped = Math.max(pctMin, Math.min(pctMax, val));
-    const ratio = (clamped - pctMin) / pctRange;
-    return margin.top + plotHeight - ratio * plotHeight;
+    const num = isNaN(val) || val === null || val === undefined ? 0 : Number(val);
+    const clamped = Math.max(pctMin, Math.min(pctMax, num));
+    const range = Math.max(1, pctRange);
+    const ratio = (clamped - pctMin) / range;
+    const res = margin.top + plotHeight - ratio * plotHeight;
+    return isNaN(res) ? margin.top + plotHeight : res;
   };
 
   const getTurnY = (val: number) => {
-    const clamped = Math.max(turnMin, Math.min(turnMax, val));
-    const ratio = (clamped - turnMin) / turnRange;
-    return margin.top + plotHeight - ratio * plotHeight;
+    const num = isNaN(val) || val === null || val === undefined ? 0 : Number(val);
+    const clamped = Math.max(turnMin, Math.min(turnMax, num));
+    const range = Math.max(1, turnRange);
+    const ratio = (clamped - turnMin) / range;
+    const res = margin.top + plotHeight - ratio * plotHeight;
+    return isNaN(res) ? margin.top + plotHeight : res;
   };
 
   // Axis Ticks
@@ -98,10 +105,6 @@ export const ExecutiveEfficiencyChart: React.FC<ExecutiveEfficiencyChartProps> =
     .map((d, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getPctY(d.roa)}`)
     .join(' ');
 
-  const turnPath = data
-    .map((d, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getTurnY(d.assetTurn)}`)
-    .join(' ');
-
   // Colors
   const rosColor = '#38BDF8';      // Sky Blue (ROS)
   const roaColor = '#10B981';      // Emerald (ROA)
@@ -120,7 +123,7 @@ export const ExecutiveEfficiencyChart: React.FC<ExecutiveEfficiencyChartProps> =
             {title}
           </span>
           <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
-            Dual-Axis Trajectory: ROS &amp; ROA (Left Axis %) vs. Asset Turn (Right Axis x)
+            Dual-Axis Trajectory: ROS &amp; ROA (Left Axis %) vs. Asset Turn (Right Axis x, Bar)
           </span>
         </div>
 
@@ -135,8 +138,8 @@ export const ExecutiveEfficiencyChart: React.FC<ExecutiveEfficiencyChartProps> =
             <span className="text-slate-700 dark:text-slate-300 font-medium">Return on Assets (ROA %)</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-1.5 rounded-full" style={{ backgroundColor: turnColor }} />
-            <span className="text-slate-700 dark:text-slate-300 font-medium">Asset Turn (turns x)</span>
+            <span className="w-3.5 h-3 rounded-xs border border-amber-500/50" style={{ backgroundColor: turnColor }} />
+            <span className="text-slate-700 dark:text-slate-300 font-medium">Asset Turn (x, Bar)</span>
           </div>
         </div>
       </div>
@@ -196,16 +199,31 @@ export const ExecutiveEfficiencyChart: React.FC<ExecutiveEfficiencyChartProps> =
             />
           )}
 
-          {/* Asset Turn Line (Dashed Orange Line) */}
-          <path
-            d={turnPath}
-            fill="none"
-            stroke={turnColor}
-            strokeWidth={3}
-            strokeDasharray="6 3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          {/* Asset Turn Element Rendered as BAR (Per User Request: Easy to distinguish from % lines) */}
+          {data.map((d, i) => {
+            const x = getX(i);
+            const turnY = getTurnY(d.assetTurn);
+            const baselineY = margin.top + plotHeight;
+            const barHeight = Math.max(2, baselineY - turnY);
+            const barWidth = Math.max(10, Math.min(28, (plotWidth / data.length) * 0.45));
+            const isHovered = hoveredIndex === i;
+
+            return (
+              <rect
+                key={`turn-bar-${i}`}
+                x={x - barWidth / 2}
+                y={turnY}
+                width={barWidth}
+                height={barHeight}
+                rx={3}
+                fill={turnColor}
+                fillOpacity={isHovered ? 0.95 : 0.65}
+                stroke={turnColor}
+                strokeWidth={isHovered ? 2 : 1}
+                className="transition-all"
+              />
+            );
+          })}
 
           {/* Return on Assets (ROA) Line (Emerald) */}
           <path
@@ -232,7 +250,6 @@ export const ExecutiveEfficiencyChart: React.FC<ExecutiveEfficiencyChartProps> =
             const x = getX(i);
             const rosY = getPctY(d.ros);
             const roaY = getPctY(d.roa);
-            const turnY = getTurnY(d.assetTurn);
             const isHovered = hoveredIndex === i;
 
             return (
@@ -254,18 +271,6 @@ export const ExecutiveEfficiencyChart: React.FC<ExecutiveEfficiencyChartProps> =
                     strokeDasharray="3 3"
                   />
                 )}
-
-                {/* Asset Turn Diamond Dot */}
-                <rect
-                  x={x - 4}
-                  y={turnY - 4}
-                  width={8}
-                  height={8}
-                  transform={`rotate(45 ${x} ${turnY})`}
-                  fill={turnColor}
-                  stroke={isDark ? '#101626' : '#FFFFFF'}
-                  strokeWidth={2}
-                />
 
                 {/* ROA Square Dot */}
                 <rect

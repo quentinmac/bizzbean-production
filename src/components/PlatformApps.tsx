@@ -39,6 +39,7 @@ import { BizzSolution, UserBusinessProfile } from '../types';
 
 export interface PlatformAppsProps {
   theme?: 'light' | 'dark';
+  isAdmin?: boolean;
   cmsProducts?: CmsProduct[];
   userPurchases?: string[];
   userProfile?: UserBusinessProfile;
@@ -127,6 +128,33 @@ export const PLATFORM_APPS_CATALOG: PlatformAppDefinition[] = [
       'ARR Multiple & DCF Valuation Bridge',
       'Dynamic Runway Driver Dials',
       'Google Sheets Macro-Free Live Connector',
+    ],
+    icon: TrendingUp,
+  },
+  {
+    id: 'rolling-forecast',
+    sku: 'BA-ROL',
+    name: 'rolling forecast',
+    subtitle: 'Hi-Level Rolling Forecast & Prior Year Balance Sheet Engine',
+    stage: 'operations',
+    stageCode: 'STAGE 05',
+    stageDisplayName: 'operations',
+    description: 'Stand-alone rolling forecast engine with 1-product unit sales model-set, cost-as-a-percentage-of-revenue calculations, and prior year-end balance sheet baselines.',
+    purpose: 'Perform rapid rolling financial forecasts and operational balance sheet adjustments.',
+    billingModel: 'once-off',
+    sellingPriceZAR: 480.0,
+    exclusivePriceZAR: 417.39,
+    vatZAR: 62.61,
+    tokensAllocated: 96.0,
+    ticketPriceZAR: 576.0,
+    isPurchased: false,
+    assignedStep: 'Stage 5 · Step 1',
+    journeyMilestone: 'Rolling Operations Control',
+    modules: [
+      'Modified UNIT SALES Model-Set (1 Product)',
+      'Cost-as-%-of-Revenue Dynamic Sliders',
+      'Prior Year-End Balance Sheet Inputs',
+      'Dynamic Base Rate Adjustment Controls',
     ],
     icon: TrendingUp,
   },
@@ -350,6 +378,7 @@ export const PLATFORM_APPS_CATALOG: PlatformAppDefinition[] = [
 
 export const PlatformApps: React.FC<PlatformAppsProps> = ({
   theme = 'light',
+  isAdmin = false,
   cmsProducts = [],
   userPurchases = [],
   userProfile,
@@ -375,10 +404,11 @@ export const PlatformApps: React.FC<PlatformAppsProps> = ({
       );
 
       const isOwned = Boolean(
-        userPurchases &&
-          (userPurchases.includes(baseApp.id) ||
-            (baseApp.id === 'budget' && userPurchases.includes('bizzbudget')) ||
-            (baseApp.id === 'bizzbudget' && userPurchases.includes('budget')))
+        isAdmin ||
+          (userPurchases &&
+            (userPurchases.includes(baseApp.id) ||
+              (baseApp.id === 'budget' && userPurchases.includes('bizzbudget')) ||
+              (baseApp.id === 'bizzbudget' && userPurchases.includes('budget'))))
       );
 
       if (cmsMatch) {
@@ -402,7 +432,7 @@ export const PlatformApps: React.FC<PlatformAppsProps> = ({
         isPurchased: isOwned,
       };
     });
-  }, [cmsProducts, userPurchases]);
+  }, [cmsProducts, userPurchases, isAdmin]);
 
   // Selected App for interactive testing/runner mode
   const [selectedAppId, setSelectedAppId] = useState<string | null>(initialAppId || null);
@@ -576,7 +606,7 @@ export const PlatformApps: React.FC<PlatformAppsProps> = ({
   // Launch app into full presenter (or inline runner if no handler)
   const handleLaunchAppRunner = (appId: string, forceInline = false) => {
     const targetApp = apps.find((a) => a.id === appId);
-    if (targetApp && !targetApp.isPurchased && onBuySolution) {
+    if (!isAdmin && targetApp && !targetApp.isPurchased && onBuySolution) {
       handlePurchaseApp(targetApp);
       return;
     }

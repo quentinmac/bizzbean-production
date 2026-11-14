@@ -51,6 +51,7 @@ interface BizzDeskHeaderProps {
   onOpenTalkToUs?: () => void;
   cmsProducts?: CmsProduct[];
   userPurchases?: string[];
+  isAdmin?: boolean;
   onBuySolution?: (sol: any) => void;
   onLaunchApp?: (appId: string) => void;
   onLaunchSolution?: (id: string) => void;
@@ -79,6 +80,7 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
   onOpenTalkToUs,
   cmsProducts = [],
   userPurchases = [],
+  isAdmin = false,
   onBuySolution,
   onLaunchApp,
   onLaunchSolution,
@@ -94,6 +96,7 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
   const pinboardRef = useRef<HTMLDivElement>(null);
 
   const isAppOwned = (appId: string) => {
+    if (isAdmin) return true;
     const cleanId = appId.toLowerCase().trim();
     const canon = (getCanonicalCourseId(cleanId) || cleanId).toLowerCase().trim();
     return userPurchases.includes(cleanId) || userPurchases.includes(canon);
@@ -879,7 +882,7 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
                   {(() => {
                     const isOwned = isAppOwned('bizzcalc');
                     const matching = (cmsProducts || []).find((p) => p.id === 'bizzcalc');
-                    const price = matching?.sellingPriceZAR || 229;
+                    const price = matching?.sellingPriceZAR ?? 229;
 
                     return (
                       <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
@@ -949,7 +952,7 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
                   {(() => {
                     const isOwned = isAppOwned('bizzcalculators');
                     const matching = (cmsProducts || []).find((p) => p.id === 'bizzcalculators');
-                    const price = matching?.sellingPriceZAR || 229;
+                    const price = matching?.sellingPriceZAR ?? 229;
 
                     return (
                       <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
@@ -1030,7 +1033,6 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
                   {[
                     { id: 'bizzdynamics', name: 'bizzdynamics', desc: 'Dynamic Business Physics & Revenue Multipliers' },
                     { id: 'bizzmodel', name: 'bizzmodel', desc: '3-Statement Financial Simulator' },
-                    { id: 'hi-level-forecast', name: 'Hi-Level Forecast', desc: '36-Month Strategic Horizon Forecast' },
                     { id: 'bizzplan', name: 'bizzplan', desc: 'Executive Business Plan & Cap Table Suite' },
                   ].map((app) => (
                     <div

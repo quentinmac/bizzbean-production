@@ -16,6 +16,7 @@ import {
 import { BizzSolution } from '../types';
 import { CmsProduct } from '../data/cmsConsoleData';
 import { initiatePayfastCheckout, getPayfastConfig, setPayfastMode } from '../services/payfastService';
+import { CMS_STORAGE_KEYS } from '../utils/imageStorage';
 
 interface ProductCheckoutModalProps {
   isOpen: boolean;
@@ -83,7 +84,7 @@ export const ProductCheckoutModal: React.FC<ProductCheckoutModalProps> = ({
   let matchedCmsTokens: number | undefined;
 
   try {
-    const rawStored = typeof window !== 'undefined' ? localStorage.getItem('bizzdesk_cms_products_v1') : null;
+    const rawStored = typeof window !== 'undefined' ? localStorage.getItem(CMS_STORAGE_KEYS.PRODUCTS) : null;
     if (rawStored) {
       const parsed = JSON.parse(rawStored);
       if (Array.isArray(parsed)) {

@@ -9,6 +9,7 @@ import {
 } from 'firebase/auth';
 import { auth, db, isFirestoreQuotaExceeded, setFirestoreQuotaExceeded } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { upsertClientProfile } from './transactionJournalService';
 
 export interface AuthProfileData {
   uid: string;
@@ -25,6 +26,9 @@ export interface AuthProfileData {
   companyName?: string;
   vatNumber?: string;
   city?: string;
+  country?: string;
+  associate?: string;
+  registeredAt?: string;
   notes?: string;
 }
 
@@ -125,12 +129,18 @@ export function determineUserRole(email: string | null | undefined): 'admin' | '
     return 'admin';
   }
 
-  // 2. Client profiles with admin role in directory
+  // 2. Client profiles with admin role in directory (check all local profile keys)
   try {
     if (typeof window !== 'undefined') {
-      const clientProfiles = localStorage.getItem('bizzdesk_client_profiles');
-      if (clientProfiles) {
-        const parsed = JSON.parse(clientProfiles);
+      const profileKeys = [
+        'bizzdesk_v1_client_profiles',
+        'bizzbean_client_profiles',
+        'bizzdesk_client_profiles',
+      ];
+      for (const key of profileKeys) {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
           const match = parsed.find((c: any) => c?.email && String(c.email).toLowerCase().trim() === clean);
           if (match && match.role === 'admin') {
@@ -178,14 +188,20 @@ export function resolveDisplayName(
     return trimmedName;
   }
 
-  // Check saved profile in localStorage
+  // Check saved profile in localStorage (all keys)
   if (typeof window !== 'undefined') {
     try {
-      const storedProfiles = localStorage.getItem('bizzbean_client_profiles');
-      if (storedProfiles) {
+      const profileKeys = [
+        'bizzdesk_v1_client_profiles',
+        'bizzbean_client_profiles',
+        'bizzdesk_client_profiles',
+      ];
+      for (const key of profileKeys) {
+        const storedProfiles = localStorage.getItem(key);
+        if (!storedProfiles) continue;
         const parsed = JSON.parse(storedProfiles);
         if (Array.isArray(parsed)) {
-          const match = parsed.find((p: any) => p.email && p.email.toLowerCase() === cleanEmail);
+          const match = parsed.find((p: any) => p.email && p.email.toLowerCase().trim() === cleanEmail);
           if (match && match.name && !genericPlaceholders.includes(match.name.toLowerCase())) {
             return match.name;
           }
@@ -304,7 +320,12 @@ export async function signInUser(email: string, password: string): Promise<{ use
           isPro: profile.isPro,
           purchasedApps: profile.purchasedApps,
           purchasedCourses: profile.purchasedCourses,
-          updatedAt: new Date().toISOString()
+          companyName: profile.companyName || null,
+          phone: profile.phone || null,
+          city: profile.city || null,
+          country: profile.country || 'South Africa',
+          registeredAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         });
       }
     }
@@ -313,6 +334,26 @@ export async function signInUser(email: string, password: string): Promise<{ use
       setFirestoreQuotaExceeded();
     }
     console.info('User Firestore profile sync notice (offline/local fallback):', dbErr);
+  }
+
+  // Ensure signed-in user is synced in the Client Profiles directory
+  if (profile.email) {
+    upsertClientProfile({
+      uid: profile.uid,
+      name: profile.name,
+      email: profile.email,
+      companyName: profile.companyName || undefined,
+      phone: profile.phone || undefined,
+      city: profile.city || undefined,
+      country: profile.country || 'South Africa',
+      vatNumber: profile.vatNumber || undefined,
+      notes: profile.notes || undefined,
+      role: profile.role === 'admin' ? 'admin' : 'member',
+      associate: profile.associate || undefined,
+      registeredAt: profile.registeredAt || undefined,
+      purchasedApps: profile.purchasedApps,
+      purchasedCourses: profile.purchasedCourses,
+    }).catch(() => {});
   }
 
   return { user: fbUser, profile };
@@ -351,6 +392,8 @@ export async function registerUser(
     ...extraProfileData
   };
 
+  const nowIso = new Date().toISOString();
+
   try {
     if (!isFirestoreQuotaExceeded()) {
       const userDocRef = doc(db, 'users', fbUser.uid);
@@ -362,14 +405,42 @@ export async function registerUser(
         isPro: profile.isPro,
         purchasedApps: profile.purchasedApps,
         purchasedCourses: profile.purchasedCourses,
-        updatedAt: new Date().toISOString()
-      });
+        companyName: profile.companyName || null,
+        phone: profile.phone || null,
+        city: profile.city || null,
+        country: profile.country || 'South Africa',
+        vatNumber: profile.vatNumber || null,
+        associate: profile.associate || null,
+        notes: profile.notes || null,
+        registeredAt: profile.registeredAt || nowIso,
+        updatedAt: nowIso,
+      }, { merge: true });
     }
   } catch (dbErr: any) {
     if (dbErr?.code === 'resource-exhausted' || String(dbErr?.message || '').includes('quota')) {
       setFirestoreQuotaExceeded();
     }
     console.info('User Firestore creation notice (offline/local fallback):', dbErr);
+  }
+
+  // Always record newly registered client in Client Profiles + Cloud Firestore
+  if (profile.email) {
+    await upsertClientProfile({
+      uid: profile.uid,
+      name: profile.name,
+      email: profile.email,
+      companyName: profile.companyName || 'Bizzbean Member Enterprise',
+      phone: profile.phone || undefined,
+      city: profile.city || undefined,
+      country: profile.country || 'South Africa',
+      vatNumber: profile.vatNumber || undefined,
+      associate: profile.associate || undefined,
+      notes: profile.notes || 'Active bizzbean platform member and growing entrepreneur.',
+      role: profile.role === 'admin' ? 'admin' : 'member',
+      registeredAt: profile.registeredAt || nowIso,
+      purchasedApps: profile.purchasedApps,
+      purchasedCourses: profile.purchasedCourses,
+    }).catch(() => {});
   }
 
   return { user: fbUser, profile };

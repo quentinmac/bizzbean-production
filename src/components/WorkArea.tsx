@@ -311,6 +311,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
         theme={theme}
         cmsProducts={cmsProducts}
         userPurchases={userPurchases}
+        isAdmin={isAdmin}
         userProfile={userProfile}
         tokenBalance={tokenBalance}
         initialAppId={activeSolution?.id}
@@ -1044,10 +1045,15 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
 
   // Render 3: ACTIVE WORKING APPLICATION (Platform App Delivery Suite matching BizzClass)
   if (activeView === 'active-app') {
+    const solName = (activeSolution?.name || '').toLowerCase();
+    const solId = (activeSolution?.id || '').toLowerCase();
     const effectiveAppId =
-      (activeSolution?.name || '').toLowerCase().includes('dynamics') ||
-      (activeSolution?.id || '').toLowerCase().includes('dynamics')
+      solName.includes('dynamics') || solId.includes('dynamics')
         ? 'bizzdynamics'
+        : solName.includes('rolling') || solId.includes('rolling')
+        ? 'rolling-forecast'
+        : solName.includes('model') || solId.includes('model') || solName.includes('hi-level') || solId.includes('hi-level')
+        ? 'bizzmodel'
         : activeSolution?.id || 'bizzcalc';
 
     const canon = getCanonicalCourseId(effectiveAppId) || effectiveAppId;
@@ -1056,6 +1062,9 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
       ['learn-earn-capital', 'how-to-bizzcalc', 'follow-the-money', 'vi-ability'].includes(canon);
 
     const isOwned =
+      isAdmin ||
+      activeStageId === 'operations-sandbox' ||
+      currentStageKey === 'operations-sandbox' ||
       isFree ||
       userPurchases.includes(effectiveAppId) ||
       userPurchases.includes(canon) ||
@@ -1064,14 +1073,14 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
 
     if (!isOwned) {
       const matchingCms = (cmsProducts || []).find((p) => p.id === effectiveAppId || p.id === canon);
-      const appPrice = matchingCms?.sellingPriceZAR || 229;
+      const appPrice = matchingCms?.sellingPriceZAR ?? 229;
       const appName = matchingCms?.name || effectiveAppId;
       const appSubtitle =
         matchingCms?.subtitle ||
         (effectiveAppId === 'bizzcalc'
           ? 'Cost Recovery, Break-Even & Contribution Margin Simulator'
           : 'Financial Modeling & Simulation App');
-      const earnedTokens = matchingCms?.tokensAllocated || Math.round(appPrice * 0.2);
+      const earnedTokens = matchingCms?.tokensAllocated ?? Math.round(appPrice * 0.2);
 
       return (
         <div
@@ -1367,8 +1376,10 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
     };
   });
 
-  const displayTableProducts: any[] =
-    stageProductItems.length > 0 ? stageProductItems : fallbackStageSolutions;
+  const hasCmsCatalog = Array.isArray(cmsProducts) && cmsProducts.length > 0;
+  const displayTableProducts: any[] = hasCmsCatalog
+    ? stageProductItems
+    : fallbackStageSolutions;
 
   const totalExclusive = displayTableProducts.reduce((sum: number, p: any) => sum + (p.exclusivePriceZAR || 0), 0);
   const totalVat = displayTableProducts.reduce((sum: number, p: any) => sum + (p.vatZAR || 0), 0);
@@ -1441,7 +1452,11 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
 
   // Available promotions & current index for Hero Splash Page stage stories
   const availablePromos = (cmsPromotions || []).filter(
-    (p) => p.isActive !== false && p.imageUrl && p.imageUrl.trim() !== ''
+    (p) =>
+      p.isActive !== false &&
+      p.imageUrl &&
+      p.imageUrl.trim() !== '' &&
+      !p.imageUrl.includes('1553877522-43269d4ea984')
   );
   const currentPromoIndex = activePromotion
     ? availablePromos.findIndex((p) => p.id === activePromotion.id)
@@ -1552,7 +1567,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
         )}
 
         {/* CENTER DISPLAY AREA */}
-        {showPromotion && activePromotion && activePromotion.isActive !== false ? (
+        {isHeroSplashMode && activePromotion ? (
           /* HERO SPLASH PAGE (Pristine hero image, stage story message space, and buttons placed below the image) */
           <div className="w-full space-y-6 animate-fade-in select-none">
             {/* 1. Pristine Hero Image Container - 100% Clean: No wording, no buttons, no references on image */}
@@ -2237,8 +2252,18 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                           </button>
 
                           {/* 4. LAUNCH IN WORK AREA / BIZZCLASS */}
-                          {isCourse ? (
-                            (isPurchased || currentProd?.id === 'learn-earn-capital') ? (
+                          {!hasStageProducts ? (
+                            <button
+                              type="button"
+                              disabled
+                              className="w-full px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 cursor-not-allowed tracking-wide border border-dashed border-slate-300 dark:border-slate-700"
+                              title="No active solutions currently allocated to this stage"
+                            >
+                              <Lock className="h-4 w-4" />
+                              <span className="truncate">IN PREPARATION</span>
+                            </button>
+                          ) : isCourse ? (
+                            (isPurchased || currentProd?.id === 'learn-earn-capital' || isAdmin || currentStageKey === 'operations-sandbox') ? (
                               <button
                                 type="button"
                                 onClick={() => {
@@ -2284,15 +2309,19 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                                 <span className="truncate">BUY COURSE (R{effectiveSellingZAR.toFixed(2)})</span>
                               </button>
                             )
-                          ) : (isPurchased || currentStageKey === 'operations-sandbox') ? (
+                          ) : (isPurchased || currentStageKey === 'operations-sandbox' || isAdmin) ? (
                             <button
                               type="button"
                               onClick={() => {
-                                const isDynamics =
-                                  (currentProd?.name || '').toLowerCase().includes('dynamics') ||
-                                  (currentProd?.id || '').toLowerCase().includes('dynamics') ||
-                                  (matchingCms?.name || '').toLowerCase().includes('dynamics');
-                                const targetId = isDynamics ? 'bizzdynamics' : currentProd?.id || activeSolution?.id || 'bizzcalc';
+                                const nameCheck = `${currentProd?.name || ''} ${currentProd?.id || ''} ${matchingCms?.name || ''} ${activeSolution?.id || ''}`.toLowerCase();
+                                const targetId =
+                                  nameCheck.includes('dynamics')
+                                    ? 'bizzdynamics'
+                                    : nameCheck.includes('rolling')
+                                    ? 'rolling-forecast'
+                                    : nameCheck.includes('model') || nameCheck.includes('hi-level')
+                                    ? 'bizzmodel'
+                                    : currentProd?.id || activeSolution?.id || 'bizzcalc';
                                 if (onSelectSolutionById) onSelectSolutionById(targetId);
                                 onLaunchSolution(targetId);
                               }}

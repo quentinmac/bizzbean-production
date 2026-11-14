@@ -195,6 +195,7 @@ export interface TransactionRecord {
   vatRate: number;               // 0.15 (15% SARS standard)
   vatAmount: number;             // lineValue * vatRate
   invoiceValue: number;          // lineValue + vatAmount (Gross Incl VAT)
+  paymentRef?: string;           // Idempotent gateway / grant reference
 }
 
 export interface ClientProfile {
@@ -208,6 +209,11 @@ export interface ClientProfile {
   country?: string;
   notes?: string;
   role?: 'admin' | 'member';
+  associate?: string;
+  registeredAt?: string;
+  uid?: string;
+  purchasedApps?: string[];
+  purchasedCourses?: string[];
 }
 
 export interface ClientNotification {
@@ -234,4 +240,168 @@ export interface Enquiry {
   response?: string;
   respondedAt?: string;
   sourceRegion?: string;
+}
+
+export type TouchPointAnswer = 'n/a' | 'yes' | 'no' | 'plan';
+
+export interface BizzPlanTouchPoint {
+  id: string;
+  item: string;
+  answer: TouchPointAnswer;
+  score: number;
+}
+
+export interface BizzPlanTouchPointCategory {
+  id: string;
+  title: string;
+  items: BizzPlanTouchPoint[];
+  comment?: string;
+}
+
+export interface BizzPlanSection {
+  id: string;
+  title: string;
+  content: string;
+  isCompleted: boolean;
+  checkpoints: string[];
+  type?: 'narrative' | 'touchpoint' | 'scorecard';
+  categories?: BizzPlanTouchPointCategory[];
+}
+
+export interface BizzPlanCoverPage {
+  companyLogo?: string;
+  companyName?: string;
+  businessType?: string;
+  businessLocation?: string;
+  preparationPrincipal?: string;
+  preparationDate?: string;
+  principalEmail?: string;
+  principalMobile?: string;
+}
+
+export interface BizzPlanPitch {
+  elevatorPitch?: string;
+  valueOffer?: string[];
+  revenueModel?: string[];
+  financialOutlook?: string[];
+  competitorLandscape?: string[];
+  getToMarket?: string[];
+  growthLeverFunding?: string[];
+  fundingDeal?: string[];
+}
+
+export interface BizzPlanGovernance {
+  corporate?: {
+    legalForm?: string;
+    startDate?: string;
+    financialMonthEnd?: string;
+    boardSize?: string;
+    boardQuorum?: string;
+    boardMeetingFrequency?: string;
+    financialReportingFrequency?: string;
+    shareholdersAgreement?: string;
+  };
+  boardMembers?: { name: string; shareholding: string }[];
+  keyPersonnel?: { name: string; position: string }[];
+  professionalSupport?: { name: string; serviceType: string }[];
+}
+
+export interface BizzPlanData {
+  businessName: string;
+  vision: string;
+  mission: string;
+  scorecardActions?: Record<string, string | string[]>;
+  coverPage?: BizzPlanCoverPage;
+  pitch?: BizzPlanPitch;
+  governance?: BizzPlanGovernance;
+  sections: BizzPlanSection[];
+}
+
+export interface BizzModelStep {
+  id: string;
+  label: string;
+  title?: string;
+  subtitle?: string;
+  isCompleted?: boolean;
+  isValid?: boolean;
+  isCommon?: boolean;
+}
+
+export interface BizzModelData {
+  company?: {
+    name?: string;
+    startDate?: string;
+    workingDays?: string[];
+    holidays?: Array<{ name?: string; from: string; to: string; days?: number; recurring?: boolean }>;
+    assumptions?: {
+      bankInterestRate: number;
+      overdraftInterestRate: number;
+      vatRate: number;
+      taxRate: number;
+    };
+    assetCategories?: Record<string, number>;
+  };
+  workingCapital?: {
+    inventoryDays?: number[];
+    debtorsDays?: number[];
+    creditorsDays?: number[];
+  };
+  setup: {
+    businessName: string;
+    businessType: string;
+    startMonth: string;
+    daysWorked: {
+      days: string[];
+      holidays: Array<{ name?: string; from: string; to: string; recurring?: boolean }>;
+    };
+    interestRates: {
+      positiveBase: number;
+      positiveAdjustments: number[];
+      negativeBase: number;
+      negativeAdjustments: number[];
+    };
+    vatRate: {
+      base: number;
+      adjustments: number[];
+    };
+    taxRate: {
+      base: number;
+      adjustments: number[];
+    };
+  };
+  revenue: {
+    productCategories: Array<{
+      name: string;
+      baseValueSales: number;
+      pricePerUnit?: number;
+      unitSales?: number;
+      dailyVolume?: number;
+    }>;
+  };
+  employment: {
+    staff: Array<{
+      name?: string;
+      title?: string;
+      count: number[];
+      monthlyCost?: number;
+    }>;
+  };
+  fixedAssets: {
+    categories: Array<{
+      name: string;
+      depreciationRate: number;
+    }>;
+    assets: Array<{
+      name?: string;
+      purchaseValue: number;
+    }>;
+  };
+  funding: {
+    workingCapital: {
+      inventoryDays: { base: number; annualAdjustments: number[] };
+      receivableDays: { base: number; annualAdjustments: number[] };
+      payableDays: { base: number; annualAdjustments: number[] };
+    };
+  };
+  _v2State?: any;
 }

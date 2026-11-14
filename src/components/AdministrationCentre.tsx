@@ -113,6 +113,19 @@ import {
   removeAdminEmail,
   determineUserRole,
 } from '../services/firebaseAuthService';
+import {
+  CLIENT_PROFILES_UPDATED_EVENT,
+  TRANSACTIONS_UPDATED_EVENT,
+  getCachedClientProfiles,
+  getCachedTransactions,
+  getNextInvoiceNumber,
+  loadMergedClientProfilesFromCloud,
+  loadTransactionsFromCloud,
+  resetTransactionJournalInCloud,
+  saveAllClientProfilesToCloud,
+  saveManualTransactionToJournal,
+  upsertClientProfile,
+} from '../services/transactionJournalService';
 
 interface AdministrationCentreProps {
   theme: 'light' | 'dark';
@@ -182,67 +195,45 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
   // ---------------------------------------------------------------------------
   const [journalSubTab, setJournalSubTab] = useState<'transactions' | 'clients' | 'nudges'>('transactions');
 
-  const [transactions, setTransactions] = useState<TransactionRecord[]>(() => {
-    try {
-      if (localStorage.getItem('bizzdesk_v1_transactions_reset_zero') === 'true') {
-        const stored = localStorage.getItem('bizzdesk_v1_transactions');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) return parsed;
-        }
-        return [];
-      }
-      const stored = localStorage.getItem('bizzdesk_v1_transactions');
-      if (stored !== null) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          return parsed.filter((t): t is TransactionRecord => Boolean(t && typeof t === 'object' && t.invoiceNumber));
-        }
-      }
-    } catch (e) {}
-    return INITIAL_V1_TRANSACTIONS;
-  });
+  const [transactions, setTransactions] = useState<TransactionRecord[]>(() =>
+    getCachedTransactions()
+  );
 
+  const [clientProfiles, setClientProfiles] = useState<ClientProfile[]>(() =>
+    getCachedClientProfiles()
+  );
+
+  // Hydrate Transactions & Client Profiles from Cloud Firestore + all local registration caches,
+  // and listen for live updates dispatched across the app.
   useEffect(() => {
-    const handleTxUpdate = () => {
-      try {
-        if (localStorage.getItem('bizzdesk_v1_transactions_reset_zero') === 'true') {
-          const stored = localStorage.getItem('bizzdesk_v1_transactions');
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed)) {
-              setTransactions(parsed);
-              return;
-            }
-          }
-          setTransactions([]);
-          return;
-        }
-        const stored = localStorage.getItem('bizzdesk_v1_transactions');
-        if (stored !== null) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            setTransactions(parsed);
-          }
-        }
-      } catch (e) {}
-    };
-    window.addEventListener('bizzdesk_transactions_updated', handleTxUpdate);
-    return () => window.removeEventListener('bizzdesk_transactions_updated', handleTxUpdate);
-  }, []);
+    let isMounted = true;
 
-  const [clientProfiles, setClientProfiles] = useState<ClientProfile[]>(() => {
-    try {
-      const stored = localStorage.getItem('bizzdesk_v1_client_profiles');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.filter((c): c is ClientProfile => Boolean(c && typeof c === 'object' && c.name));
-        }
-      }
-    } catch (e) {}
-    return INITIAL_CLIENT_PROFILES;
-  });
+    const refreshFromLocalCaches = () => {
+      if (!isMounted) return;
+      setTransactions(getCachedTransactions());
+      setClientProfiles(getCachedClientProfiles());
+    };
+
+    loadTransactionsFromCloud()
+      .then((cloudTxs) => {
+        if (isMounted) setTransactions(cloudTxs);
+      })
+      .catch(() => {});
+
+    loadMergedClientProfilesFromCloud()
+      .then((mergedProfiles) => {
+        if (isMounted) setClientProfiles(mergedProfiles);
+      })
+      .catch(() => {});
+
+    window.addEventListener(TRANSACTIONS_UPDATED_EVENT, refreshFromLocalCaches);
+    window.addEventListener(CLIENT_PROFILES_UPDATED_EVENT, refreshFromLocalCaches);
+    return () => {
+      isMounted = false;
+      window.removeEventListener(TRANSACTIONS_UPDATED_EVENT, refreshFromLocalCaches);
+      window.removeEventListener(CLIENT_PROFILES_UPDATED_EVENT, refreshFromLocalCaches);
+    };
+  }, []);
 
   // Query Controls & Filtering States (Ref: filter.PNG)
   const [txSearch, setTxSearch] = useState('');
@@ -363,8 +354,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
   };
 
   const openNewTxModalWithNextInvoice = () => {
-    const nextSeq = String((transactions || []).length + 1).padStart(4, '0');
-    setNewTxInvoiceNo(`INV-2026-${nextSeq}`);
+    setNewTxInvoiceNo(getNextInvoiceNumber(transactions || []));
     setNewTxDate(new Date().toISOString().slice(0, 10));
     setIsNewTxModalOpen(true);
   };
@@ -436,9 +426,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
 
   const handleConfirmResetJournalZero = () => {
     setTransactions([]);
-    localStorage.setItem('bizzdesk_v1_transactions', JSON.stringify([]));
-    localStorage.setItem('bizzdesk_v1_transactions_reset_zero', 'true');
-    window.dispatchEvent(new CustomEvent('bizzdesk_transactions_updated'));
+    resetTransactionJournalInCloud().catch(() => {});
     setShowResetJournalModal(false);
     showToast('Transaction journal successfully reset to zero. The next invoice sequence starts at Invoice #1 (INV-2026-0001).');
   };
@@ -530,12 +518,11 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
     }
     const updated = addAdminEmail(clean);
     setAdminEmailsList(updated);
-    // Also if there is a matching client profile, update their role to admin
     const updatedProfiles = clientProfiles.map((c) =>
       c.email.toLowerCase().trim() === clean ? { ...c, role: 'admin' as const } : c
     );
     setClientProfiles(updatedProfiles);
-    safeSaveStorage('bizzdesk_v1_client_profiles', updatedProfiles);
+    saveAllClientProfilesToCloud(updatedProfiles).catch(() => {});
     setNewAdminInput('');
     showToast(`Administrator privileges granted to ${clean}.`);
   };
@@ -548,7 +535,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
       c.email.toLowerCase().trim() === clean ? { ...c, role: 'member' as const } : c
     );
     setClientProfiles(updatedProfiles);
-    safeSaveStorage('bizzdesk_v1_client_profiles', updatedProfiles);
+    saveAllClientProfilesToCloud(updatedProfiles).catch(() => {});
     showToast(`Administrator privileges revoked for ${clean}.`);
   };
 
@@ -566,7 +553,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
       c.id === client.id ? { ...c, role: nextRole } : c
     );
     setClientProfiles(updatedProfiles);
-    safeSaveStorage('bizzdesk_v1_client_profiles', updatedProfiles);
+    saveAllClientProfilesToCloud(updatedProfiles).catch(() => {});
     showToast(`${client.name || client.email} is now ${nextRole === 'admin' ? 'an Administrator' : 'a Client Member'}.`);
   };
 
@@ -586,27 +573,26 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
     }
 
     if (editingClient) {
+      const updatedProfile: ClientProfile = {
+        ...editingClient,
+        name: newClientName.trim(),
+        email: newClientEmail.trim(),
+        companyName: newClientCompany.trim() || 'Independent Founder',
+        vatNumber: newClientVat.trim() || undefined,
+        phone: newClientPhone.trim() || undefined,
+        city: newClientCity.trim() || undefined,
+        country: newClientCountry.trim() || 'South Africa',
+        notes: newClientNotes.trim() || undefined,
+        role: newClientRole,
+      };
       const updated = clientProfiles.map((c) =>
-        c.id === editingClient.id
-          ? {
-              ...c,
-              name: newClientName.trim(),
-              email: newClientEmail.trim(),
-              companyName: newClientCompany.trim() || 'Independent Founder',
-              vatNumber: newClientVat.trim() || undefined,
-              phone: newClientPhone.trim() || undefined,
-              city: newClientCity.trim() || undefined,
-              country: newClientCountry.trim() || 'South Africa',
-              notes: newClientNotes.trim() || undefined,
-              role: newClientRole,
-            }
-          : c
+        c.id === editingClient.id ? updatedProfile : c
       );
       setClientProfiles(updated);
-      safeSaveStorage('bizzdesk_v1_client_profiles', updated);
+      saveAllClientProfilesToCloud(updated).catch(() => {});
       setIsNewClientModalOpen(false);
       setEditingClient(null);
-      showToast(`Client profile for ${newClientName} updated successfully (${newClientRole === 'admin' ? 'Administrator' : 'Member'}).`);
+      showToast(`Client profile for ${newClientName} updated & synced to cloud (${newClientRole === 'admin' ? 'Administrator' : 'Member'}).`);
     } else {
       const newClient: ClientProfile = {
         id: `cli-${Date.now().toString().slice(-4)}`,
@@ -619,12 +605,14 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
         country: newClientCountry.trim() || 'South Africa',
         notes: newClientNotes.trim() || undefined,
         role: newClientRole,
+        registeredAt: new Date().toISOString(),
       };
-      const updated = [newClient, ...clientProfiles];
-      setClientProfiles(updated);
-      safeSaveStorage('bizzdesk_v1_client_profiles', updated);
+      upsertClientProfile(newClient)
+        .then((merged) => setClientProfiles(merged))
+        .catch(() => {});
+      setClientProfiles([newClient, ...clientProfiles]);
       setIsNewClientModalOpen(false);
-      showToast(`Client profile for ${newClient.name} established (${newClientRole === 'admin' ? 'Administrator' : 'Member'}).`);
+      showToast(`Client profile for ${newClient.name} established & synced to cloud (${newClientRole === 'admin' ? 'Administrator' : 'Member'}).`);
     }
   };
 
@@ -641,7 +629,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
     const vatAmt = Number((lineVal * vatRate).toFixed(2));
     const invVal = Number((lineVal + vatAmt).toFixed(2));
 
-    const invoiceNum = newTxInvoiceNo.trim() || `INV-2026-${String(transactions.length + 1).padStart(4, '0')}`;
+    const invoiceNum = newTxInvoiceNo.trim() || getNextInvoiceNumber(transactions);
 
     const newRecord: TransactionRecord = {
       invoiceNumber: invoiceNum,
@@ -663,11 +651,11 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
 
     const updatedTransactions = [newRecord, ...transactions];
     setTransactions(updatedTransactions);
-    safeSaveStorage('bizzdesk_v1_transactions', updatedTransactions);
+    saveManualTransactionToJournal(newRecord).catch(() => {});
 
-    // If customer doesn't exist in client directory, automatically create client profile
+    // If customer doesn't exist in client directory, automatically create & sync client profile
     const existingClient = (clientProfiles || []).find(
-      (c) => Boolean(c && (c.email || '').toLowerCase() === (newRecord.customerEmail || '').toLowerCase())
+      (c) => Boolean(c && (c.email || '').toLowerCase().trim() === (newRecord.customerEmail || '').toLowerCase().trim())
     );
     if (!existingClient) {
       const newClient: ClientProfile = {
@@ -676,15 +664,15 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
         email: newRecord.customerEmail,
         companyName: `${newRecord.customer}'s Company`,
         country: newRecord.country || 'South Africa',
+        registeredAt: new Date().toISOString(),
         notes: `Auto-created from transaction ${invoiceNum}`,
       };
-      const updatedClients = [newClient, ...clientProfiles];
-      setClientProfiles(updatedClients);
-      safeSaveStorage('bizzdesk_v1_client_profiles', updatedClients);
+      setClientProfiles([newClient, ...clientProfiles]);
+      upsertClientProfile(newClient).catch(() => {});
     }
 
     setIsNewTxModalOpen(false);
-    showToast(`Tax invoice ${newRecord.invoiceNumber} posted to General Ledger!`);
+    showToast(`Tax invoice ${newRecord.invoiceNumber} posted to General Ledger & Cloud!`);
   };
 
   const handleOpenInvoiceFromClient = (client: ClientProfile) => {
@@ -692,8 +680,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
     setNewTxCustomer(client.name);
     setNewTxEmail(client.email);
     if (client.country) setNewTxCountry(client.country);
-    const nextSeq = String(transactions.length + 1).padStart(4, '0');
-    setNewTxInvoiceNo(`INV-2026-${nextSeq}`);
+    setNewTxInvoiceNo(getNextInvoiceNumber(transactions || []));
     setNewTxDate(new Date().toISOString().slice(0, 10));
     setJournalSubTab('transactions');
     setIsNewTxModalOpen(true);
@@ -2096,14 +2083,23 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                         }`}
                       >
                         <div className="space-y-3">
-                          {/* Card Top: Company Name and Badges */}
+                          {/* Card Top: Client Name, Company Name & Badges */}
                           <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2 font-bold text-sm text-[#5584B4]">
-                              <Building className="h-4 w-4 shrink-0 text-[#5584B4]" />
-                              <span className="text-white text-base">{client.companyName || client.name}</span>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 font-bold text-sm text-[#5584B4]">
+                                <Building className="h-4 w-4 shrink-0 text-[#5584B4]" />
+                                <span className={`text-base truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                  {client.name || client.companyName}
+                                </span>
+                              </div>
+                              {client.companyName && client.companyName !== client.name && (
+                                <div className="text-[11px] text-slate-400 pl-6 truncate">
+                                  {client.companyName}
+                                </div>
+                              )}
                             </div>
 
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 shrink-0">
                               {isClientAdmin && (
                                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
                                   <ShieldCheck className="h-3 w-3 text-amber-400" />
@@ -2127,7 +2123,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                           <div className="text-xs space-y-1.5 text-slate-300 pt-2 border-t border-[#1D2644]">
                             <div className="flex items-center gap-2">
                               <Mail className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-                              <span className="text-slate-300">{client.email}</span>
+                              <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>{client.email}</span>
                             </div>
                             {client.phone && (
                               <div className="flex items-center gap-2">
@@ -2135,8 +2131,14 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                                 <span className="text-slate-400">{client.phone}</span>
                               </div>
                             )}
-                            <div className="text-[11px] text-slate-400">
-                              Location: {[client.city, client.country].filter(Boolean).join(', ') || 'South Africa'}
+                            <div className="text-[11px] text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                              <span>Location: {[client.city, client.country].filter(Boolean).join(', ') || 'South Africa'}</span>
+                              {client.associate && (
+                                <span className="text-emerald-400">Associate: {client.associate}</span>
+                              )}
+                              {client.registeredAt && (
+                                <span className="text-slate-500">Registered: {String(client.registeredAt).slice(0, 10)}</span>
+                              )}
                             </div>
                           </div>
 

@@ -20,6 +20,8 @@
 
   --color-bizz-blue: #2E5E88;
   --color-bizz-total: #2E5E88;
+  --color-bizz-green: #10B981;
+  --font-roboto: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 /* Millimeter Architectural Grid Paper Pattern */
@@ -54,4 +56,10 @@ html {
 ::selection {
   background-color: rgba(197, 155, 99, 0.3);
   color: #12172A;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
 }

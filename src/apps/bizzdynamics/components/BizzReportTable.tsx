@@ -14,6 +14,7 @@ interface BizzReportTableProps {
   title: string;
   firstColumnLabel?: string;
   years?: number[];
+  columns?: string[];
   rows: BizzReportTableRow[];
   isDark?: boolean;
   className?: string;
@@ -38,11 +39,14 @@ export const BizzReportTable: React.FC<BizzReportTableProps> = ({
   title,
   firstColumnLabel = 'account line',
   years = [1, 2, 3, 4, 5],
+  columns,
   rows,
   isDark = false,
   className = '',
   extraHeaderContent,
 }) => {
+  const effectiveColumns = columns && columns.length > 0 ? columns : years.map((y) => `year ${y}`);
+
   return (
     <div className={`space-y-0 font-mono ${className}`}>
       {/* 1. V1 Dark Navy Banner Header */}
@@ -59,14 +63,14 @@ export const BizzReportTable: React.FC<BizzReportTableProps> = ({
               <th className="p-2.5 pl-4 border-r border-[#2E5E88]/30 dark:border-[#223354] text-[#2E5E88] dark:text-[#60A5FA] font-bold lowercase w-1/3 min-w-[220px]">
                 {firstColumnLabel}
               </th>
-              {years.map((y, idx) => (
+              {effectiveColumns.map((colLabel, idx) => (
                 <th
-                  key={y}
-                  className={`p-2.5 px-4 text-right border-r border-[#2E5E88]/30 dark:border-[#223354] text-[#2E5E88] dark:text-[#60A5FA] font-bold lowercase min-w-[85px] ${
-                    idx === years.length - 1 ? 'border-r-0' : ''
+                  key={idx}
+                  className={`p-2.5 px-3 text-right border-r border-[#2E5E88]/30 dark:border-[#223354] text-[#2E5E88] dark:text-[#60A5FA] font-bold lowercase whitespace-nowrap min-w-[75px] ${
+                    idx === effectiveColumns.length - 1 ? 'border-r-0' : ''
                   }`}
                 >
-                  year {y}
+                  {colLabel}
                 </th>
               ))}
             </tr>
@@ -81,7 +85,7 @@ export const BizzReportTable: React.FC<BizzReportTableProps> = ({
                     className="bg-slate-50/70 dark:bg-[#121A2E]/70 border-b border-[#2E5E88]/30 dark:border-[#223354]"
                   >
                     <td
-                      colSpan={years.length + 1}
+                      colSpan={effectiveColumns.length + 1}
                       className="p-2.5 pl-4 text-[#2E5E88] dark:text-[#60A5FA] font-bold lowercase text-xs"
                     >
                       {row.label}
@@ -115,18 +119,18 @@ export const BizzReportTable: React.FC<BizzReportTableProps> = ({
                     {row.label}
                   </td>
 
-                  {/* 5 Year Values */}
-                  {years.map((y, yIdx) => {
-                    const rawVal = row.values ? row.values[yIdx] : undefined;
+                  {/* Period Values */}
+                  {effectiveColumns.map((_, colIdx) => {
+                    const rawVal = row.values ? row.values[colIdx] : undefined;
                     const displayVal = row.formatValue
-                      ? row.formatValue(rawVal, yIdx)
+                      ? row.formatValue(rawVal, colIdx)
                       : formatReportNumber(rawVal);
 
                     return (
                       <td
-                        key={y}
-                        className={`p-2 px-4 text-right border-r border-[#2E5E88]/25 dark:border-[#223354] tabular-nums ${
-                          yIdx === years.length - 1 ? 'border-r-0' : ''
+                        key={colIdx}
+                        className={`p-2 px-3 text-right border-r border-[#2E5E88]/25 dark:border-[#223354] tabular-nums whitespace-nowrap ${
+                          colIdx === effectiveColumns.length - 1 ? 'border-r-0' : ''
                         } ${
                           isHighlight
                             ? 'text-[#2E5E88] dark:text-[#60A5FA] font-bold'

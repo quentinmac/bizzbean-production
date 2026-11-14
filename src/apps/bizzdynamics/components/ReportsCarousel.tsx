@@ -9,13 +9,12 @@ export interface ReportTabItem {
 }
 
 export const REPORT_SEQUENCE: ReportTabItem[] = [
-  { id: 'liquidity-funding', number: 1, label: '1. LIQUIDITY VS DEBT', shortLabel: 'liquidity vs debt' },
-  { id: 'summary', number: 2, label: '2. EXECUTIVE SUMMARY', shortLabel: 'executive summary' },
-  { id: 'trading-account', number: 3, label: '3. TRADING ACCOUNT', shortLabel: 'trading account' },
-  { id: 'trading-distribution', number: 4, label: '4. TRADING ACCOUNT DISTRIBUTION', shortLabel: 'trading account distribution' },
-  { id: 'income-statement', number: 5, label: '5. INCOME STATEMENT', shortLabel: 'income statement' },
-  { id: 'balance-sheet', number: 6, label: '6. BALANCE SHEET', shortLabel: 'balance sheet' },
-  { id: 'cash-flow', number: 7, label: '7. CASH FLOW', shortLabel: 'cash flow' },
+  { id: 'summary', number: 1, label: '1. EXECUTIVE SUMMARY', shortLabel: 'executive summary' },
+  { id: 'trading-account', number: 2, label: '2. TRADING ACCOUNT', shortLabel: 'trading account' },
+  { id: 'trading-distribution', number: 3, label: '3. TRADING ACCOUNT DISTRIBUTION', shortLabel: 'trading account distribution' },
+  { id: 'income-statement', number: 4, label: '4. INCOME STATEMENT', shortLabel: 'income statement' },
+  { id: 'balance-sheet', number: 5, label: '5. BALANCE SHEET', shortLabel: 'balance sheet' },
+  { id: 'cash-flow', number: 6, label: '6. CASH FLOW', shortLabel: 'cash flow' },
 ];
 
 interface ReportsCarouselProps {

@@ -18,7 +18,7 @@ interface ExecutiveReturnsChartProps {
 export const ExecutiveReturnsChart: React.FC<ExecutiveReturnsChartProps> = ({
   data,
   isDark = false,
-  currencyPrefix = 'R ',
+  currencyPrefix = '',
   title = 'CAPITAL STRUCTURE & SHAREHOLDER RETURNS',
 }) => {
   // View mode selector: All elements vs individually
@@ -65,26 +65,36 @@ export const ExecutiveReturnsChart: React.FC<ExecutiveReturnsChartProps> = ({
 
   // Coordinate Helpers
   const getX = (index: number) => {
-    if (data.length === 1) return margin.left + plotWidth / 2;
-    return margin.left + (index / (data.length - 1)) * plotWidth;
+    if (data.length <= 1) return margin.left + plotWidth / 2;
+    const res = margin.left + (index / (data.length - 1)) * plotWidth;
+    return isNaN(res) ? margin.left : res;
   };
 
   const getRoeY = (val: number) => {
-    const clamped = Math.max(roeMin, Math.min(roeMax, val));
-    const ratio = (clamped - roeMin) / roeRange;
-    return margin.top + plotHeight - ratio * plotHeight;
+    const num = isNaN(val) || val === null || val === undefined ? 0 : Number(val);
+    const clamped = Math.max(roeMin, Math.min(roeMax, num));
+    const range = Math.max(1, roeRange);
+    const ratio = (clamped - roeMin) / range;
+    const res = margin.top + plotHeight - ratio * plotHeight;
+    return isNaN(res) ? margin.top + plotHeight : res;
   };
 
   const getDeY = (val: number) => {
-    const clamped = Math.max(deMin, Math.min(deMax, val));
-    const ratio = (clamped - deMin) / deRange;
-    return margin.top + plotHeight - ratio * plotHeight;
+    const num = isNaN(val) || val === null || val === undefined ? 0 : Number(val);
+    const clamped = Math.max(deMin, Math.min(deMax, num));
+    const range = Math.max(1, deRange);
+    const ratio = (clamped - deMin) / range;
+    const res = margin.top + plotHeight - ratio * plotHeight;
+    return isNaN(res) ? margin.top + plotHeight : res;
   };
 
   const getEpsY = (val: number) => {
-    const clamped = Math.max(epsMin, Math.min(epsMax, val));
-    const ratio = (clamped - epsMin) / epsRange;
-    return margin.top + plotHeight - ratio * plotHeight;
+    const num = isNaN(val) || val === null || val === undefined ? 0 : Number(val);
+    const clamped = Math.max(epsMin, Math.min(epsMax, num));
+    const range = Math.max(1, epsRange);
+    const ratio = (clamped - epsMin) / range;
+    const res = margin.top + plotHeight - ratio * plotHeight;
+    return isNaN(res) ? margin.top + plotHeight : res;
   };
 
   // Ticks
@@ -113,15 +123,7 @@ export const ExecutiveReturnsChart: React.FC<ExecutiveReturnsChartProps> = ({
     };
   });
 
-  // Paths
-  const roePath = data
-    .map((d, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getRoeY(d.roe)}`)
-    .join(' ');
-
-  const dePath = data
-    .map((d, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getDeY(d.debtEquity)}`)
-    .join(' ');
-
+  // Path for EPS Line
   const epsPath = data
     .map((d, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getEpsY(d.eps)}`)
     .join(' ');
@@ -143,7 +145,7 @@ export const ExecutiveReturnsChart: React.FC<ExecutiveReturnsChartProps> = ({
             {title}
           </span>
           <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
-            Key Financial Elements: Return on Equity, Debt / Equity Ratio &amp; EPS
+            Key Financial Elements: Return on Equity (Bar), Debt / Equity (Bar) &amp; EPS (Line)
           </span>
         </div>
 
@@ -151,8 +153,8 @@ export const ExecutiveReturnsChart: React.FC<ExecutiveReturnsChartProps> = ({
         <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-[#161F38] border border-slate-200 dark:border-slate-800 text-[11px]">
           {[
             { id: 'all', label: 'All 3 Elements' },
-            { id: 'roe', label: 'Return on Equity' },
-            { id: 'debtEquity', label: 'Debt / Equity' },
+            { id: 'roe', label: 'Return on Equity (Bar)' },
+            { id: 'debtEquity', label: 'Debt / Equity (Bar)' },
             { id: 'eps', label: 'Earnings Per Share' },
           ].map((tab) => {
             const isSelected = activeElement === tab.id;
@@ -232,37 +234,132 @@ export const ExecutiveReturnsChart: React.FC<ExecutiveReturnsChartProps> = ({
               </text>
             ))}
 
-          {/* Lines based on active mode */}
-          {(activeElement === 'all' || activeElement === 'debtEquity') && (
-            <path
-              d={dePath}
-              fill="none"
-              stroke={deColor}
-              strokeWidth={3}
-              strokeDasharray={activeElement === 'all' ? '6 3' : 'none'}
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          {/* Zero baseline for ROE if applicable */}
+          {roeMin < 0 && (activeElement === 'all' || activeElement === 'roe') && (
+            <line
+              x1={margin.left}
+              y1={getRoeY(0)}
+              x2={margin.left + plotWidth}
+              y2={getRoeY(0)}
+              stroke={isDark ? '#475569' : '#94A3B8'}
+              strokeWidth={1.5}
             />
           )}
 
-          {(activeElement === 'all' || activeElement === 'roe') && (
-            <path
-              d={roePath}
-              fill="none"
-              stroke={roeColor}
-              strokeWidth={3}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          )}
+          {/* =================================================================== */}
+          {/* BARS: Return on Equity (Purple) & Debt/Equity (Rose)                 */}
+          {/* =================================================================== */}
+          {data.map((d, i) => {
+            const x = getX(i);
+            const isHovered = hoveredIndex === i;
 
+            if (activeElement === 'all') {
+              // Dual side-by-side bars
+              const barW = Math.max(7, Math.min(20, (plotWidth / data.length) * 0.28));
+              const gap = 2;
+
+              // ROE Bar
+              const roeZeroY = getRoeY(0);
+              const roeValY = getRoeY(d.roe);
+              const roeBarY = d.roe >= 0 ? roeValY : roeZeroY;
+              const roeBarH = Math.max(2, Math.abs(roeZeroY - roeValY));
+
+              // Debt / Equity Bar
+              const baselineY = margin.top + plotHeight;
+              const deValY = getDeY(d.debtEquity);
+              const deBarH = Math.max(2, baselineY - deValY);
+
+              return (
+                <g key={`bars-${i}`}>
+                  {/* ROE Bar */}
+                  <rect
+                    x={x - barW - gap / 2}
+                    y={roeBarY}
+                    width={barW}
+                    height={roeBarH}
+                    rx={2}
+                    fill={roeColor}
+                    fillOpacity={isHovered ? 0.95 : 0.75}
+                    stroke={roeColor}
+                    strokeWidth={isHovered ? 2 : 1}
+                    className="transition-all"
+                  />
+                  {/* Debt / Equity Bar */}
+                  <rect
+                    x={x + gap / 2}
+                    y={deValY}
+                    width={barW}
+                    height={deBarH}
+                    rx={2}
+                    fill={deColor}
+                    fillOpacity={isHovered ? 0.95 : 0.75}
+                    stroke={deColor}
+                    strokeWidth={isHovered ? 2 : 1}
+                    className="transition-all"
+                  />
+                </g>
+              );
+            }
+
+            if (activeElement === 'roe') {
+              // Centered ROE bar
+              const barW = Math.max(12, Math.min(36, (plotWidth / data.length) * 0.45));
+              const roeZeroY = getRoeY(0);
+              const roeValY = getRoeY(d.roe);
+              const roeBarY = d.roe >= 0 ? roeValY : roeZeroY;
+              const roeBarH = Math.max(2, Math.abs(roeZeroY - roeValY));
+
+              return (
+                <rect
+                  key={`roe-bar-${i}`}
+                  x={x - barW / 2}
+                  y={roeBarY}
+                  width={barW}
+                  height={roeBarH}
+                  rx={3}
+                  fill={roeColor}
+                  fillOpacity={isHovered ? 0.95 : 0.75}
+                  stroke={roeColor}
+                  strokeWidth={isHovered ? 2 : 1}
+                  className="transition-all"
+                />
+              );
+            }
+
+            if (activeElement === 'debtEquity') {
+              // Centered Debt/Equity bar
+              const barW = Math.max(12, Math.min(36, (plotWidth / data.length) * 0.45));
+              const baselineY = margin.top + plotHeight;
+              const deValY = getDeY(d.debtEquity);
+              const deBarH = Math.max(2, baselineY - deValY);
+
+              return (
+                <rect
+                  key={`de-bar-${i}`}
+                  x={x - barW / 2}
+                  y={deValY}
+                  width={barW}
+                  height={deBarH}
+                  rx={3}
+                  fill={deColor}
+                  fillOpacity={isHovered ? 0.95 : 0.75}
+                  stroke={deColor}
+                  strokeWidth={isHovered ? 2 : 1}
+                  className="transition-all"
+                />
+              );
+            }
+
+            return null;
+          })}
+
+          {/* EPS Line (Emerald) on top of bars */}
           {(activeElement === 'all' || activeElement === 'eps') && (
             <path
               d={epsPath}
               fill="none"
               stroke={epsColor}
               strokeWidth={3}
-              strokeDasharray={activeElement === 'all' ? '3 3' : 'none'}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
@@ -271,8 +368,6 @@ export const ExecutiveReturnsChart: React.FC<ExecutiveReturnsChartProps> = ({
           {/* Data Points and Interactivity */}
           {data.map((d, i) => {
             const x = getX(i);
-            const roeY = getRoeY(d.roe);
-            const deY = getDeY(d.debtEquity);
             const epsY = getEpsY(d.eps);
             const isHovered = hoveredIndex === i;
 
@@ -295,40 +390,12 @@ export const ExecutiveReturnsChart: React.FC<ExecutiveReturnsChartProps> = ({
                   />
                 )}
 
-                {/* Debt / Equity Dot */}
-                {(activeElement === 'all' || activeElement === 'debtEquity') && (
-                  <rect
-                    x={x - 4}
-                    y={deY - 4}
-                    width={8}
-                    height={8}
-                    transform={`rotate(45 ${x} ${deY})`}
-                    fill={deColor}
-                    stroke={isDark ? '#101626' : '#FFFFFF'}
-                    strokeWidth={2}
-                  />
-                )}
-
-                {/* ROE Dot */}
-                {(activeElement === 'all' || activeElement === 'roe') && (
-                  <circle
-                    cx={x}
-                    cy={roeY}
-                    r={5}
-                    fill={roeColor}
-                    stroke={isDark ? '#101626' : '#FFFFFF'}
-                    strokeWidth={2}
-                  />
-                )}
-
                 {/* EPS Dot */}
                 {(activeElement === 'all' || activeElement === 'eps') && (
-                  <rect
-                    x={x - 4}
-                    y={epsY - 4}
-                    width={8}
-                    height={8}
-                    rx={2}
+                  <circle
+                    cx={x}
+                    cy={epsY}
+                    r={5}
                     fill={epsColor}
                     stroke={isDark ? '#101626' : '#FFFFFF'}
                     strokeWidth={2}

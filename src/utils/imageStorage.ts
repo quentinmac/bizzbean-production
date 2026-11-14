@@ -276,8 +276,6 @@ export function ensureFreshCmsCache(): void {
           }
         } catch (_) {}
       }
-
-      localStorage.setItem('bizzdesk_cms_cache_version', 'v7');
     }
   } catch (e) {
     console.warn('Cache migration notice:', e);
@@ -906,6 +904,7 @@ export function cleanLegacyProducts(products: CmsProduct[]): CmsProduct[] {
     const WIP_PROJECT_IDS = new Set([
       'bizzdynamics',
       'bizzmodel',
+      'rolling-forecast',
       'hi-level-forecast',
       'bizzforecasta',
       'bizzbudget',
@@ -922,7 +921,7 @@ export function cleanLegacyProducts(products: CmsProduct[]): CmsProduct[] {
         ? ('fund-ability' as const)
         : (['profit-optimizer', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(p.id))
         ? ('sustain-ability' as const)
-        : (p.stage === 'personal-sandbox' || (WIP_PROJECT_IDS.has(p.id) && (p.stage === 'operations' || !p.stage || (p.stage as string) === 'personal-sandbox')))
+        : ((p.stage as string) === 'personal-sandbox' || (!p.stage && WIP_PROJECT_IDS.has(p.id)))
         ? ('operations-sandbox' as const)
         : (p.stage || initialProd?.stage || 'operations-sandbox');
 
@@ -1323,7 +1322,7 @@ export function mergeLoadedProducts(
         ? ('fund-ability' as const)
         : (['profit-optimizer', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(sec.id) || ['profit-optimizer', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(canonPrimId))
         ? ('sustain-ability' as const)
-        : (prim.stage === 'personal-sandbox' || sec.stage === 'personal-sandbox' || (WIP_PROJECT_IDS.has(canonPrimId) && (prim.stage === 'operations' || sec.stage === 'operations' || (!prim.stage && !sec.stage))))
+        : (prim.stage === 'personal-sandbox' || (!prim.stage && !sec.stage && WIP_PROJECT_IDS.has(canonPrimId)))
         ? ('operations-sandbox' as const)
         : (prim.stage || sec.stage || initialProd?.stage || 'operations-sandbox');
 

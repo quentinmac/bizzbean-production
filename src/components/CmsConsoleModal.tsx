@@ -134,6 +134,11 @@ import {
 } from '../services/cmsFirestoreService';
 import { getPayfastConfig, setPayfastMode } from '../services/payfastService';
 import { testSmtpConnection } from '../services/emailService';
+import {
+  TRANSACTIONS_UPDATED_EVENT,
+  getCachedTransactions,
+  loadTransactionsFromCloud,
+} from '../services/transactionJournalService';
 
 interface CmsConsoleModalProps {
   isOpen: boolean;
@@ -171,6 +176,12 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
 
   const tabsNavRef = useRef<HTMLDivElement>(null);
   const promoFirestoreTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const productFirestoreTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const priceCommitTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
+  const tokenCommitTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
+  const lastLocalProductEditRef = useRef<number>(0);
+  const priceDraftsRef = useRef<Record<string, string>>({});
+  const tokenDraftsRef = useRef<Record<string, string>>({});
 
   useEffect(() => {
     if (initialTab) {
@@ -219,6 +230,10 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   const [productsViewMode, setProductsViewMode] = useState<'matrix' | 'sequence'>('matrix');
   const [matrixSearch, setMatrixSearch] = useState<string>('');
   const [editingProduct, setEditingProduct] = useState<CmsProduct | null>(null);
+  const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
+  const [tokenDrafts, setTokenDrafts] = useState<Record<string, string>>({});
+  const [editingPriceDraft, setEditingPriceDraft] = useState<string>('');
+  const [editingTokensDraft, setEditingTokensDraft] = useState<string>('');
 
   // Other repositories state
   const [videos, setVideos] = useState<CmsVideo[]>(() => {
@@ -239,6 +254,15 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
 
   useEffect(() => {
     if (cmsProducts && cmsProducts.length > 0) {
+      // Do not overwrite local table state while user has active drafts or just committed a price edit
+      const hasPendingDrafts =
+        Object.keys(priceDraftsRef.current).length > 0 ||
+        Object.keys(tokenDraftsRef.current).length > 0 ||
+        Object.keys(priceCommitTimersRef.current).length > 0 ||
+        Object.keys(tokenCommitTimersRef.current).length > 0 ||
+        productFirestoreTimerRef.current !== null ||
+        Date.now() - lastLocalProductEditRef.current < 3000;
+      if (hasPendingDrafts) return;
       setProducts(cleanLegacyProducts(cmsProducts));
     }
   }, [cmsProducts]);
@@ -467,52 +491,23 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   const [associateBatches] = useState<CmsAssociateImport[]>(INITIAL_CMS_ASSOCIATE_BATCHES);
   const [sponsors] = useState<CmsSponsorAccount[]>(INITIAL_CMS_SPONSORS);
   const [transactions] = useState<CmsTransactionRecord[]>(INITIAL_CMS_TRANSACTIONS);
-  const [v1Transactions, setV1Transactions] = useState<TransactionRecord[]>(() => {
-    try {
-      if (localStorage.getItem('bizzdesk_v1_transactions_reset_zero') === 'true') {
-        const stored = localStorage.getItem('bizzdesk_v1_transactions');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) return parsed;
-        }
-        return [];
-      }
-      const stored = localStorage.getItem('bizzdesk_v1_transactions');
-      if (stored !== null) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {}
-    return INITIAL_V1_TRANSACTIONS;
-  });
+  const [v1Transactions, setV1Transactions] = useState<TransactionRecord[]>(() =>
+    getCachedTransactions()
+  );
 
   useEffect(() => {
     const handleSyncTx = () => {
-      try {
-        if (localStorage.getItem('bizzdesk_v1_transactions_reset_zero') === 'true') {
-          const stored = localStorage.getItem('bizzdesk_v1_transactions');
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed)) {
-              setV1Transactions(parsed);
-              return;
-            }
-          }
-          setV1Transactions([]);
-          return;
-        }
-        const stored = localStorage.getItem('bizzdesk_v1_transactions');
-        if (stored !== null) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            setV1Transactions(parsed);
-          }
-        }
-      } catch (e) {}
+      setV1Transactions(getCachedTransactions());
     };
-    window.addEventListener('bizzdesk_transactions_updated', handleSyncTx);
-    return () => window.removeEventListener('bizzdesk_transactions_updated', handleSyncTx);
-  }, []);
+    if (isOpen) {
+      handleSyncTx();
+      loadTransactionsFromCloud()
+        .then((cloudTxs) => setV1Transactions(cloudTxs))
+        .catch(() => {});
+    }
+    window.addEventListener(TRANSACTIONS_UPDATED_EVENT, handleSyncTx);
+    return () => window.removeEventListener(TRANSACTIONS_UPDATED_EVENT, handleSyncTx);
+  }, [isOpen]);
   const [policies] = useState<CmsPolicyRegistryItem[]>(INITIAL_CMS_POLICIES);
   const [tooltips] = useState<CmsBizzyTooltip[]>(INITIAL_CMS_TOOLTIPS);
 
@@ -566,6 +561,8 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   // Save notification & delete confirmation
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
   const [productToDelete, setProductToDelete] = useState<CmsProduct | null>(null);
+  const [productToAllocate, setProductToAllocate] = useState<CmsProduct | null>(null);
+  const [allocationTargetStage, setAllocationTargetStage] = useState<CmsProduct['stage']>('fund-ability');
   const [promotionsSearch, setPromotionsSearch] = useState<string>('');
 
   // GitHub Export & Commit Reminder Modal State
@@ -595,20 +592,22 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     setIsPublishing(true);
     setPublishSuccessBanner(null);
     try {
+      const latestProducts = flushPendingProductDrafts();
+
       // 1. Dual-storage local persistence (immediate - zero latency)
-      safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, products);
+      safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, latestProducts);
       safeSaveStorage(CMS_STORAGE_KEYS.VIDEOS, videos);
       safeSaveStorage(CMS_STORAGE_KEYS.ARTICLES, articles);
       safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, promotions);
 
       // 2. Update parent React state (immediate - zero latency)
-      dispatchSync(onSyncProductsToWebsite, products);
+      dispatchSync(onSyncProductsToWebsite, latestProducts);
       if (onSyncVideosToWebsite) dispatchSync(onSyncVideosToWebsite, videos);
       if (onSyncArticlesToWebsite) dispatchSync(onSyncArticlesToWebsite, articles);
       if (onSyncPromotionsToWebsite) dispatchSync(onSyncPromotionsToWebsite, promotions);
 
       const tsContent = generateCmsConsoleDataTs({
-        products,
+        products: latestProducts,
         promotions,
         videos,
         articles,
@@ -623,7 +622,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       });
 
       // 3. Concurrently sync to Cloud Firestore and Server Disk with 7s max timeouts
-      const p1 = withTimeout(saveCmsProductsToFirestore(products), 7000, false);
+      const p1 = withTimeout(saveCmsProductsToFirestore(latestProducts), 7000, false);
       const p2 = withTimeout(saveCmsVideosToFirestore(videos), 7000, false);
       const p3 = withTimeout(saveCmsArticlesToFirestore(articles), 7000, false);
       const p4 = withTimeout(saveCmsPromotionsToFirestore(promotions), 7000, false);
@@ -870,8 +869,9 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   const handleQuickSaveToDisk = async () => {
     setIsDiskSaving(true);
     try {
+      const latestProducts = flushPendingProductDrafts();
       const payload = {
-        products,
+        products: latestProducts,
         promotions,
         videos,
         articles,
@@ -886,11 +886,11 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       };
       const tsContent = generateCmsConsoleDataTs(payload);
       const ok = await syncCmsDataToServer(tsContent, payload);
-      safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, products);
+      safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, latestProducts);
       safeSaveStorage(CMS_STORAGE_KEYS.VIDEOS, videos);
       safeSaveStorage(CMS_STORAGE_KEYS.ARTICLES, articles);
       safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, promotions);
-      saveCmsProductsToFirestore(products).catch(() => {});
+      saveCmsProductsToFirestore(latestProducts).catch(() => {});
       saveCmsVideosToFirestore(videos).catch(() => {});
       saveCmsArticlesToFirestore(articles).catch(() => {});
       saveCmsPromotionsToFirestore(promotions).catch(() => {});
@@ -944,15 +944,84 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     }
   };
 
+  const parseDecimalInput = (raw: string): number => {
+    const normalized = String(raw || '').replace(/,/g, '.').trim();
+    if (!normalized || normalized === '.') return 0;
+    const parsed = parseFloat(normalized);
+    if (isNaN(parsed)) return 0;
+    return Math.max(0, Math.round(parsed * 100) / 100);
+  };
+
   // High-reliability Dual Storage + Firestore + Server Disk Sync Helpers
-  const persistProducts = (updatedList: CmsProduct[]) => {
+  const persistProducts = (
+    updatedList: CmsProduct[],
+    options?: { immediate?: boolean }
+  ) => {
+    lastLocalProductEditRef.current = Date.now();
     setProducts(updatedList);
-    dispatchSync(onSyncProductsToWebsite, updatedList);
     safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, updatedList);
-    triggerAutoSaveToDisk(updatedList, undefined, undefined, undefined, true);
-    saveCmsProductsToFirestore(updatedList).catch((err) =>
-      console.warn('Firestore CMS product sync note:', err)
-    );
+
+    if (productFirestoreTimerRef.current) {
+      clearTimeout(productFirestoreTimerRef.current);
+      productFirestoreTimerRef.current = null;
+    }
+
+    const syncTargets = () => {
+      productFirestoreTimerRef.current = null;
+      lastLocalProductEditRef.current = Date.now();
+      if (onSyncProductsToWebsite) {
+        // App.tsx handleSyncProductsFromCms updates live state, localStorage/IDB, and Firestore
+        dispatchSync(onSyncProductsToWebsite, updatedList);
+      } else {
+        saveCmsProductsToFirestore(updatedList).catch((err) =>
+          console.warn('Firestore CMS product sync note:', err)
+        );
+      }
+      triggerAutoSaveToDisk(updatedList, undefined, undefined, undefined, Boolean(options?.immediate));
+    };
+
+    if (options?.immediate !== false) {
+      syncTargets();
+    } else {
+      productFirestoreTimerRef.current = setTimeout(syncTargets, 450);
+    }
+  };
+
+  const flushPendingProductDrafts = (): CmsProduct[] => {
+    const pDrafts = { ...priceDraftsRef.current };
+    const tDrafts = { ...tokenDraftsRef.current };
+    Object.values(priceCommitTimersRef.current).forEach((t) => clearTimeout(t));
+    Object.values(tokenCommitTimersRef.current).forEach((t) => clearTimeout(t));
+    priceCommitTimersRef.current = {};
+    tokenCommitTimersRef.current = {};
+
+    const hasDrafts = Object.keys(pDrafts).length > 0 || Object.keys(tDrafts).length > 0;
+    if (!hasDrafts) return products;
+
+    const updatedList = products.map((p) => {
+      let nextProd = p;
+      if (pDrafts[p.id] !== undefined) {
+        const newSelling = parseDecimalInput(pDrafts[p.id]);
+        const pricing = calculatePricingFromSelling(newSelling, p.tokensAllocated);
+        nextProd = { ...nextProd, ...pricing };
+      }
+      if (tDrafts[p.id] !== undefined && nextProd.sellingPriceZAR === 0) {
+        nextProd = { ...nextProd, tokensAllocated: parseDecimalInput(tDrafts[p.id]) };
+      }
+      return nextProd;
+    });
+
+    priceDraftsRef.current = {};
+    tokenDraftsRef.current = {};
+    setPriceDrafts({});
+    setTokenDrafts({});
+    persistProducts(updatedList, { immediate: true });
+    return updatedList;
+  };
+
+  const handleCloseConsole = () => {
+    flushPendingProductDrafts();
+    onClose();
   };
 
   const persistVideos = (updatedList: CmsVideo[]) => {
@@ -1076,30 +1145,166 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     };
   };
 
-  const handleUpdateProductSellingPrice = (prodId: string, newSelling: number) => {
-    const targetProd = products.find((p) => p.id === prodId);
-    if (!targetProd) return;
+  const handleUpdateProductSellingPrice = (
+    prodId: string,
+    newSelling: number,
+    options?: { immediate?: boolean; notify?: boolean }
+  ) => {
+    setProducts((prev) => {
+      const targetProd = prev.find((p) => p.id === prodId);
+      if (!targetProd) return prev;
 
-    const pricing = calculatePricingFromSelling(
-      newSelling,
-      targetProd.tokensAllocated
-    );
+      const pricing = calculatePricingFromSelling(
+        newSelling,
+        targetProd.tokensAllocated
+      );
 
-    const updatedList = products.map((p) =>
-      p.id === prodId ? { ...p, ...pricing } : p
-    );
-    persistProducts(updatedList);
+      const updatedList = prev.map((p) =>
+        p.id === prodId ? { ...p, ...pricing } : p
+      );
+
+      lastLocalProductEditRef.current = Date.now();
+      safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, updatedList);
+
+      if (productFirestoreTimerRef.current) {
+        clearTimeout(productFirestoreTimerRef.current);
+        productFirestoreTimerRef.current = null;
+      }
+
+      const syncTargets = () => {
+        productFirestoreTimerRef.current = null;
+        lastLocalProductEditRef.current = Date.now();
+        if (onSyncProductsToWebsite) {
+          dispatchSync(onSyncProductsToWebsite, updatedList);
+        } else {
+          saveCmsProductsToFirestore(updatedList).catch((err) =>
+            console.warn('Firestore CMS product sync note:', err)
+          );
+        }
+        triggerAutoSaveToDisk(updatedList, undefined, undefined, undefined, Boolean(options?.immediate));
+      };
+
+      if (options?.immediate) {
+        syncTargets();
+      } else {
+        productFirestoreTimerRef.current = setTimeout(syncTargets, 450);
+      }
+
+      if (options?.notify) {
+        triggerSaveNotification(`Saved "${targetProd.name}" selling price: R ${pricing.sellingPriceZAR.toFixed(2)}`);
+      }
+      return updatedList;
+    });
   };
 
-  const handleUpdateProductTokens = (prodId: string, customTokens: number) => {
-    const targetProd = products.find((p) => p.id === prodId);
-    if (!targetProd) return;
+  const handlePriceDraftChange = (prodId: string, rawValue: string) => {
+    // Allow digits plus a single dot or comma decimal separator
+    const sanitized = rawValue.replace(/[^0-9.,]/g, '');
+    const nextDrafts = { ...priceDraftsRef.current, [prodId]: sanitized };
+    priceDraftsRef.current = nextDrafts;
+    setPriceDrafts(nextDrafts);
+    lastLocalProductEditRef.current = Date.now();
 
-    const val = Math.max(0, Number(customTokens) || 0);
-    const updatedList = products.map((p) =>
-      p.id === prodId ? { ...p, tokensAllocated: val } : p
-    );
-    persistProducts(updatedList);
+    if (priceCommitTimersRef.current[prodId]) {
+      clearTimeout(priceCommitTimersRef.current[prodId]);
+    }
+    priceCommitTimersRef.current[prodId] = setTimeout(() => {
+      delete priceCommitTimersRef.current[prodId];
+      const latestRaw = priceDraftsRef.current[prodId];
+      if (latestRaw !== undefined) {
+        handleUpdateProductSellingPrice(prodId, parseDecimalInput(latestRaw), {
+          immediate: true,
+        });
+      }
+    }, 600);
+  };
+
+  const handlePriceDraftCommit = (prodId: string) => {
+    if (priceCommitTimersRef.current[prodId]) {
+      clearTimeout(priceCommitTimersRef.current[prodId]);
+      delete priceCommitTimersRef.current[prodId];
+    }
+    const raw = priceDraftsRef.current[prodId];
+    if (raw === undefined) return;
+
+    const nextDrafts = { ...priceDraftsRef.current };
+    delete nextDrafts[prodId];
+    priceDraftsRef.current = nextDrafts;
+    setPriceDrafts(nextDrafts);
+
+    handleUpdateProductSellingPrice(prodId, parseDecimalInput(raw), {
+      immediate: true,
+      notify: true,
+    });
+  };
+
+  const handleUpdateProductTokens = (
+    prodId: string,
+    customTokens: number,
+    options?: { immediate?: boolean; notify?: boolean }
+  ) => {
+    const val = Math.max(0, Math.round((Number(customTokens) || 0) * 10) / 10);
+    setProducts((prev) => {
+      const targetProd = prev.find((p) => p.id === prodId);
+      if (!targetProd) return prev;
+      const updatedList = prev.map((p) =>
+        p.id === prodId ? { ...p, tokensAllocated: val } : p
+      );
+      lastLocalProductEditRef.current = Date.now();
+      safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, updatedList);
+      if (onSyncProductsToWebsite) {
+        dispatchSync(onSyncProductsToWebsite, updatedList);
+      } else {
+        saveCmsProductsToFirestore(updatedList).catch((err) =>
+          console.warn('Firestore CMS product sync note:', err)
+        );
+      }
+      triggerAutoSaveToDisk(updatedList, undefined, undefined, undefined, Boolean(options?.immediate));
+      if (options?.notify) {
+        triggerSaveNotification(`Saved "${targetProd.name}" tokens: ${val.toFixed(1)}`);
+      }
+      return updatedList;
+    });
+  };
+
+  const handleTokenDraftChange = (prodId: string, rawValue: string) => {
+    const sanitized = rawValue.replace(/[^0-9.,]/g, '');
+    const nextDrafts = { ...tokenDraftsRef.current, [prodId]: sanitized };
+    tokenDraftsRef.current = nextDrafts;
+    setTokenDrafts(nextDrafts);
+    lastLocalProductEditRef.current = Date.now();
+
+    if (tokenCommitTimersRef.current[prodId]) {
+      clearTimeout(tokenCommitTimersRef.current[prodId]);
+    }
+    tokenCommitTimersRef.current[prodId] = setTimeout(() => {
+      delete tokenCommitTimersRef.current[prodId];
+      const latestRaw = tokenDraftsRef.current[prodId];
+      if (latestRaw !== undefined) {
+        handleUpdateProductTokens(prodId, parseDecimalInput(latestRaw), {
+          immediate: true,
+        });
+      }
+    }, 600);
+  };
+
+  const handleTokenDraftCommit = (prodId: string) => {
+    if (tokenCommitTimersRef.current[prodId]) {
+      clearTimeout(tokenCommitTimersRef.current[prodId]);
+      delete tokenCommitTimersRef.current[prodId];
+    }
+    const raw = tokenDraftsRef.current[prodId];
+    if (raw === undefined) return;
+
+    const nextDrafts = { ...tokenDraftsRef.current };
+    delete nextDrafts[prodId];
+    tokenDraftsRef.current = nextDrafts;
+    setTokenDrafts(nextDrafts);
+
+    handleUpdateProductTokens(prodId, parseDecimalInput(raw), {
+      immediate: true,
+      notify: true,
+    });
   };
 
   const handleUpdateProductBillingModel = (
@@ -1144,8 +1349,16 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
         ? ('fund-ability' as const)
         : prod.stage || 'vi-ability';
 
+    const draftPrice = priceDraftsRef.current[prod.id];
+    const effectivePricing = draftPrice !== undefined
+      ? calculatePricingFromSelling(parseDecimalInput(draftPrice), prod.tokensAllocated)
+      : null;
+    const effectiveProd: CmsProduct = effectivePricing ? { ...prod, ...effectivePricing } : prod;
+
+    setEditingPriceDraft(effectiveProd.sellingPriceZAR === 0 ? '' : String(effectiveProd.sellingPriceZAR));
+    setEditingTokensDraft(effectiveProd.tokensAllocated === 0 ? '' : String(effectiveProd.tokensAllocated));
     setEditingProduct({
-      ...prod,
+      ...effectiveProd,
       stage: targetStage,
       billingModel: prod.billingModel || (prod.id === 'bizzmoney' ? 'monthly subscription' : 'once-off'),
       courseLessons: lessons ? lessons.map((l) => ({ ...l })) : [],
@@ -1201,6 +1414,8 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       companionMaterialFilename: '',
     };
 
+    setEditingPriceDraft(String(newProd.sellingPriceZAR));
+    setEditingTokensDraft(String(newProd.tokensAllocated));
     setEditingProduct(newProd);
   };
 
@@ -1329,6 +1544,39 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       setEditingProduct(null);
     }
     triggerSaveNotification(`Deleted "${target.name || prodId}" from CMS and live site.`);
+  };
+
+  const handleConfirmAllocateProduct = (targetStage: CmsProduct['stage']) => {
+    if (!productToAllocate) return;
+    const stageItems = products.filter((p) => p.stage === targetStage);
+    const nextSeq = stageItems.length > 0 ? Math.max(...stageItems.map((p) => p.seq || 0)) + 1 : 1;
+    const updatedList = products.map((p) => {
+      if (p.id === productToAllocate.id) {
+        return {
+          ...p,
+          stage: targetStage,
+          seq: nextSeq,
+        };
+      }
+      return p;
+    });
+
+    const cleaned = cleanLegacyProducts(updatedList);
+    persistProducts(cleaned);
+
+    const stageLabels: Record<string, string> = {
+      'vi-ability': 'Stage 01: Vi-Ability',
+      'fund-ability': 'Stage 02: Fund-Ability',
+      'sustain-ability': 'Stage 03: Sustain-Ability',
+      'invest-ability': 'Stage 04: Invest-Ability',
+      'operations': 'Stage 05: Operations',
+      'growth': 'Stage 06: Growth',
+      'education': 'Stage 07: Education',
+      'operations-sandbox': 'Operations Sandbox (Staged)',
+    };
+
+    triggerSaveNotification(`"${productToAllocate.name}" successfully allocated to ${stageLabels[targetStage] || targetStage} (Seq #${nextSeq})!`);
+    setProductToAllocate(null);
   };
 
   const handleReloadMasterCurriculum = () => {
@@ -1498,7 +1746,26 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       });
     }
 
-    persistProducts(updatedList);
+    // Clear any stale inline table drafts for this product before persisting
+    if (priceCommitTimersRef.current[updatedObj.id]) {
+      clearTimeout(priceCommitTimersRef.current[updatedObj.id]);
+      delete priceCommitTimersRef.current[updatedObj.id];
+    }
+    if (tokenCommitTimersRef.current[updatedObj.id]) {
+      clearTimeout(tokenCommitTimersRef.current[updatedObj.id]);
+      delete tokenCommitTimersRef.current[updatedObj.id];
+    }
+    const nextPriceDrafts = { ...priceDraftsRef.current };
+    delete nextPriceDrafts[updatedObj.id];
+    priceDraftsRef.current = nextPriceDrafts;
+    setPriceDrafts(nextPriceDrafts);
+
+    const nextTokenDrafts = { ...tokenDraftsRef.current };
+    delete nextTokenDrafts[updatedObj.id];
+    tokenDraftsRef.current = nextTokenDrafts;
+    setTokenDrafts(nextTokenDrafts);
+
+    persistProducts(updatedList, { immediate: true });
     setEditingProduct(null);
     triggerSaveNotification(
       isNew
@@ -1528,7 +1795,8 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   // Promotional Hero Billboards & Stage Story Message Boards handlers (Immediate auto-save & sync)
   const handleUpdatePromoField = (promoId: string, updates: Partial<CmsPromotionSection>) => {
     const updated = promotions.map((p) => (p.id === promoId ? { ...p, ...updates } : p));
-    persistPromotions(updated);
+    const shouldSyncImmediately = updates.isActive !== undefined || updates.imageUrl !== undefined;
+    persistPromotions(updated, shouldSyncImmediately ? { syncImmediateFirestore: true } : undefined);
   };
 
   const handleUpdatePromoStageStory = (
@@ -1728,7 +1996,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
             </button>
 
             <button
-              onClick={onClose}
+              onClick={handleCloseConsole}
               className="p-2 rounded-xl bg-[#1B233D] hover:bg-[#252F52] text-slate-300 hover:text-white transition-colors border border-[#2B3452]"
               title="Close CMS Console"
             >
@@ -1862,7 +2130,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
               }`}
             >
               <Sparkles className="h-3.5 w-3.5 text-[#5584B4]" />
-              <span>Hero Promotions ({promotions.filter((p) => p.imageUrl && p.imageUrl.trim() !== '' && p.isActive).length}/{promotions.length})</span>
+              <span>Hero Promotions ({promotions.filter((p) => p.imageUrl && p.imageUrl.trim() !== '' && p.isActive !== false).length}/{promotions.length})</span>
             </button>
 
             {/* TAB 6: BOOK */}
@@ -2190,6 +2458,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                     </span>
                     {[
                       { id: 'bizzdynamics', label: 'bizzdynamics', sku: 'BA-DYN' },
+                      { id: 'rolling-forecast', label: 'rolling forecast', sku: 'BA-ROL' },
                       { id: 'bizzmodel', label: 'bizzmodel', sku: 'BA-002' },
                       { id: 'hi-level-forecast', label: 'Hi Level Forecast', sku: 'BA-HLF' },
                       { id: 'bizzforecasta', label: 'bizzforecasta', sku: 'BA-BFA' },
@@ -2262,8 +2531,23 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                       </thead>
                       <tbody className="divide-y divide-[#1D2644]">
                         {filteredProducts.map((prod) => {
+                          const hasPriceDraft = priceDrafts[prod.id] !== undefined;
+                          const hasTokenDraft = tokenDrafts[prod.id] !== undefined;
+                          const previewPricing = hasPriceDraft
+                            ? calculatePricingFromSelling(
+                                parseDecimalInput(priceDrafts[prod.id]),
+                                prod.tokensAllocated
+                              )
+                            : null;
+                          const displayExclusive = previewPricing ? previewPricing.exclusivePriceZAR : Number(prod.exclusivePriceZAR || 0);
+                          const displayVat = previewPricing ? previewPricing.vatZAR : Number(prod.vatZAR || 0);
+                          const displaySelling = previewPricing ? previewPricing.sellingPriceZAR : Number(prod.sellingPriceZAR || 0);
+                          const displayTokens = previewPricing
+                            ? previewPricing.tokensAllocated
+                            : (hasTokenDraft ? parseDecimalInput(tokenDrafts[prod.id]) : Number(prod.tokensAllocated || 0));
+                          const displayTicket = previewPricing ? previewPricing.ticketPriceZAR : Number(prod.ticketPriceZAR || 0);
                           const isMonthly = prod.billingModel === 'monthly subscription';
-                          const isSellingZero = prod.sellingPriceZAR === 0;
+                          const isSellingZero = displaySelling === 0;
 
                           // Position within its stage
                           const stageSiblings = products
@@ -2389,12 +2673,12 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
 
                               {/* Exclusive Price (ZAR): Selling / 1.15 */}
                               <td className="py-3 px-3 text-right text-slate-300">
-                                R {Number(prod.exclusivePriceZAR || 0).toFixed(2)}
+                                R {displayExclusive.toFixed(2)}
                               </td>
 
                               {/* VAT (15%): Selling - Exclusive */}
                               <td className="py-3 px-3 text-right text-slate-400">
-                                R {Number(prod.vatZAR || 0).toFixed(2)}
+                                R {displayVat.toFixed(2)}
                               </td>
 
                               {/* Selling Price (ZAR) - Editable Base Calculator Input */}
@@ -2402,17 +2686,19 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                                 <div className="inline-flex items-center justify-end gap-1 bg-[#0E1220] border border-[#2B3452] hover:border-[#5584B4] focus-within:border-[#5584B4] focus-within:ring-1 focus-within:ring-[#5584B4]/40 rounded-lg px-2 py-1 transition-all shadow-inner">
                                   <span className="text-slate-400 text-xs font-mono font-medium">R</span>
                                   <input
-                                    type="number"
-                                    min="0"
-                                    step="any"
-                                    value={prod.sellingPriceZAR === 0 ? '' : prod.sellingPriceZAR}
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={hasPriceDraft ? priceDrafts[prod.id] : (prod.sellingPriceZAR === 0 ? '' : String(prod.sellingPriceZAR))}
                                     placeholder="0.00"
-                                    onChange={(e) => {
-                                      const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                                      handleUpdateProductSellingPrice(prod.id, isNaN(val) ? 0 : Math.max(0, val));
+                                    onChange={(e) => handlePriceDraftChange(prod.id, e.target.value)}
+                                    onBlur={() => handlePriceDraftCommit(prod.id)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.currentTarget.blur();
+                                      }
                                     }}
                                     className="w-20 bg-transparent text-right font-bold text-white text-xs font-mono focus:outline-none"
-                                    title="Edit Selling Price (Formula Base). Automatically recalculates Exclusive (Selling / 1.15), VAT 15%, Ticket Price (Selling * 1.20), and Tokens (20%)."
+                                    title="Edit Selling Price (Formula Base). Supports decimals (e.g. 249.17). Saves automatically on blur or Enter."
                                   />
                                 </div>
                               </td>
@@ -2426,14 +2712,16 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                                   >
                                     <Coins className="h-3 w-3 text-amber-400 shrink-0" />
                                     <input
-                                      type="number"
-                                      min="0"
-                                      step="0.1"
-                                      value={prod.tokensAllocated === 0 ? '' : prod.tokensAllocated}
+                                      type="text"
+                                      inputMode="decimal"
+                                      value={hasTokenDraft ? tokenDrafts[prod.id] : (prod.tokensAllocated === 0 ? '' : String(prod.tokensAllocated))}
                                       placeholder="0.0"
-                                      onChange={(e) => {
-                                        const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                                        handleUpdateProductTokens(prod.id, isNaN(val) ? 0 : Math.max(0, val));
+                                      onChange={(e) => handleTokenDraftChange(prod.id, e.target.value)}
+                                      onBlur={() => handleTokenDraftCommit(prod.id)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          e.currentTarget.blur();
+                                        }
                                       }}
                                       className="w-16 bg-transparent text-right font-bold text-amber-300 text-xs font-mono focus:outline-none"
                                     />
@@ -2444,14 +2732,14 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                                     title="Tokens = 20% of Selling Price (auto-calculated per V1 formula). Overwrite enabled when Selling Price is R0.00."
                                   >
                                     <Coins className="h-3 w-3 text-[#5584B4] shrink-0" />
-                                    <span>{Number(prod.tokensAllocated || 0).toFixed(1)}</span>
+                                    <span>{displayTokens.toFixed(1)}</span>
                                   </div>
                                 )}
                               </td>
 
                               {/* Ticket Price: Selling * 1.20 */}
                               <td className="py-3 px-3 text-right font-bold text-emerald-400">
-                                R {Number(prod.ticketPriceZAR || 0).toFixed(2)}
+                                R {displayTicket.toFixed(2)}
                                 {isMonthly && (
                                   <span className="text-[10px] text-purple-300 font-normal ml-1">/mo</span>
                                 )}
@@ -2470,9 +2758,17 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                                     onClick={() => {
                                       if (onLaunchSolution) {
                                         onClose();
+                                        const pName = (prod.name || '').toLowerCase();
+                                        const pId = (prod.id || '').toLowerCase();
                                         const targetId =
-                                          (prod.name || '').toLowerCase().includes('dynamics') || (prod.id || '').toLowerCase().includes('dynamics')
+                                          pName.includes('dynamics') || pId.includes('dynamics')
                                             ? 'bizzdynamics'
+                                            : pName.includes('rolling') || pId.includes('rolling')
+                                            ? 'rolling-forecast'
+                                            : pName.includes('hi-level') || pId.includes('hi-level')
+                                            ? 'hi-level-forecast'
+                                            : pName.includes('model') || pId.includes('model')
+                                            ? 'bizzmodel'
                                             : prod.id;
                                         onLaunchSolution(targetId);
                                       }
@@ -2486,9 +2782,15 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                                   {prod.stage === 'operations-sandbox' && (
                                     <button
                                       type="button"
-                                      onClick={() => handleOpenEditProduct(prod)}
-                                      className="px-2 py-1 rounded-lg bg-amber-950/70 hover:bg-amber-900 border border-amber-500/60 text-amber-200 hover:text-white transition-colors text-xs font-mono inline-flex items-center gap-1 shadow-xs whitespace-nowrap"
-                                      title="Allocate this staging project to a live venture stage"
+                                      onClick={() => {
+                                        const defaultStage =
+                                          (prod.name || '').toLowerCase().includes('rolling') || (prod.sku || '').toLowerCase().includes('rol') ? 'operations' :
+                                          (prod.name || '').toLowerCase().includes('model') || (prod.sku || '').toLowerCase().includes('002') ? 'fund-ability' : 'vi-ability';
+                                        setAllocationTargetStage(defaultStage as any);
+                                        setProductToAllocate(prod);
+                                      }}
+                                      className="px-2.5 py-1 rounded-lg bg-amber-950/70 hover:bg-amber-900 border border-amber-500/60 text-amber-200 hover:text-white transition-colors text-xs font-mono inline-flex items-center gap-1 shadow-xs whitespace-nowrap cursor-pointer hover:scale-[1.02] active:scale-95"
+                                      title={`Allocate "${prod.name}" to a live venture stage app listing`}
                                     >
                                       <span>🚀 Allocate</span>
                                     </button>
@@ -3084,14 +3386,14 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                             Selling Price (R)
                           </label>
                           <input
-                            type="number"
-                            min="0"
-                            step="any"
-                            value={editingProduct.sellingPriceZAR === 0 ? '' : editingProduct.sellingPriceZAR}
+                            type="text"
+                            inputMode="decimal"
+                            value={editingPriceDraft}
                             placeholder="0.00"
                             onChange={(e) => {
-                              const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                              const newSelling = isNaN(val) ? 0 : Math.max(0, val);
+                              const sanitized = e.target.value.replace(/[^0-9.,]/g, '');
+                              setEditingPriceDraft(sanitized);
+                              const newSelling = parseDecimalInput(sanitized);
                               const pricing = calculatePricingFromSelling(
                                 newSelling,
                                 editingProduct.tokensAllocated
@@ -3100,6 +3402,9 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                                 ...editingProduct,
                                 ...pricing,
                               });
+                              if (newSelling > 0) {
+                                setEditingTokensDraft(String(pricing.tokensAllocated));
+                              }
                             }}
                             className="w-full px-3 py-1.5 bg-[#141A2E] border border-amber-500/50 focus:border-amber-400 rounded-lg text-white font-bold text-xs"
                           />
@@ -3135,16 +3440,17 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                           </label>
                           {editingProduct.sellingPriceZAR === 0 ? (
                             <input
-                              type="number"
-                              min="0"
-                              step="any"
-                              value={editingProduct.tokensAllocated === 0 ? '' : editingProduct.tokensAllocated}
+                              type="text"
+                              inputMode="decimal"
+                              value={editingTokensDraft}
                               placeholder="0.0"
                               onChange={(e) => {
-                                const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                                const sanitized = e.target.value.replace(/[^0-9.,]/g, '');
+                                setEditingTokensDraft(sanitized);
+                                const val = Math.round(parseDecimalInput(sanitized) * 10) / 10;
                                 setEditingProduct({
                                   ...editingProduct,
-                                  tokensAllocated: isNaN(val) ? 0 : Math.max(0, val),
+                                  tokensAllocated: val,
                                 });
                               }}
                               className="w-full px-3 py-1.5 bg-[#141A2E] border border-amber-500/70 focus:border-amber-400 rounded-lg text-amber-300 font-bold text-xs"
@@ -4307,7 +4613,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                     <Sparkles className="h-4 w-4 text-amber-400" />
                     <span>HERO PROMOTIONS & STAGE STORY MESSAGE BOARDS ({promotions.length} BOARDS)</span>
                     <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                      {promotions.filter((p) => p.imageUrl && p.imageUrl.trim() !== '' && p.isActive).length} / {promotions.length} Active in Rotation
+                      {promotions.filter((p) => p.imageUrl && p.imageUrl.trim() !== '' && p.isActive !== false).length} / {promotions.length} Active in Rotation
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 mt-0.5">
@@ -4441,7 +4747,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                       <div
                         key={promo.id}
                         className={`p-5 rounded-2xl bg-[#141A2E] border transition-all space-y-4 ${
-                          hasImage && promo.isActive
+                          hasImage && promo.isActive !== false
                             ? 'border-[#222F4C] hover:border-[#5584B4]/50'
                             : 'border-amber-500/30 bg-[#161C2C]'
                         }`}
@@ -4493,12 +4799,18 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                           <div className="flex items-center gap-2">
                             <span
                               className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
-                                hasImage && promo.isActive
+                                hasImage && promo.isActive !== false
                                   ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                  : hasImage && promo.isActive === false
+                                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                                   : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                               }`}
                             >
-                              {hasImage && promo.isActive ? 'Active in Rotation' : 'Skipped (No Image)'}
+                              {hasImage && promo.isActive !== false
+                                ? 'Active in Rotation'
+                                : hasImage && promo.isActive === false
+                                ? 'Disabled (Hidden)'
+                                : 'Skipped (No Image)'}
                             </span>
 
                             <button
@@ -4636,9 +4948,17 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                                   <label className="flex items-center gap-2 cursor-pointer text-xs font-mono text-slate-300">
                                     <input
                                       type="checkbox"
-                                      checked={promo.isActive}
-                                      onChange={(e) => handleUpdatePromoField(promo.id, { isActive: e.target.checked })}
-                                      className="rounded border-[#2B3452] bg-[#0E1220] text-[#5584B4] h-4 w-4"
+                                      checked={promo.isActive !== false}
+                                      onChange={(e) => {
+                                        const checked = e.target.checked;
+                                        handleUpdatePromoField(promo.id, { isActive: checked });
+                                        triggerSaveNotification(
+                                          checked
+                                            ? `Enabled "${promo.displayName || promo.name}" stage image in door opening rotation.`
+                                            : `Disabled "${promo.displayName || promo.name}" stage image from door opening rotation.`
+                                        );
+                                      }}
+                                      className="rounded border-[#2B3452] bg-[#0E1220] text-[#5584B4] h-4 w-4 cursor-pointer"
                                     />
                                     <span>Enable in door opening rotation</span>
                                   </label>
@@ -5522,6 +5842,133 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                   <Trash2 className="h-3.5 w-3.5" />
                   <span>Confirm Delete</span>
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* ALLOCATE APP TO VENTURE STAGE MODAL DIALOG                                */}
+        {/* ========================================================================= */}
+        {productToAllocate && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-fade-in font-sans">
+            <div className="w-full max-w-lg rounded-2xl border border-amber-500/40 bg-[#12172B] shadow-2xl p-5 sm:p-6 space-y-4 text-slate-100">
+              <div className="flex items-center justify-between pb-3 border-b border-[#222E4E]">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center justify-center shadow-inner text-lg">
+                    🚀
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      <span>Allocate to App Listing</span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        {productToAllocate.sku}
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Move from Operations Sandbox into a live venture stage app listing
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setProductToAllocate(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#1E2744] transition-colors cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-[#0E1220] border border-[#252E4A] space-y-1.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Application:</span>
+                  <span className="font-bold text-white truncate max-w-[260px]">{productToAllocate.name}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Current Location:</span>
+                  <span className="text-amber-400 font-mono font-bold">🛠️ Operations Sandbox (Staged)</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Application Type:</span>
+                  <span className="text-cyan-300 font-mono font-bold">{productToAllocate.type.toUpperCase()}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-mono font-semibold text-slate-300">
+                  Select Target Venture Stage:
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                  {[
+                    { id: 'vi-ability', label: 'Stage 01: Vi-Ability', desc: 'Break-even & cost recovery' },
+                    { id: 'fund-ability', label: 'Stage 02: Fund-Ability', desc: 'bizzmodel & investor forecasts', recommendedFor: 'bizzmodel' },
+                    { id: 'sustain-ability', label: 'Stage 03: Sustain-Ability', desc: 'Cash flow & margin resilience' },
+                    { id: 'invest-ability', label: 'Stage 04: Invest-Ability', desc: 'Due diligence & virtual data room' },
+                    { id: 'operations', label: 'Stage 05: Operations', desc: 'rolling forecast & execution', recommendedFor: 'rolling' },
+                    { id: 'growth', label: 'Stage 06: Growth', desc: 'Venture scaling engines' },
+                    { id: 'education', label: 'Stage 07: Education', desc: 'BizzClass academy masterclasses' },
+                    { id: 'operations-sandbox', label: 'Operations Sandbox', desc: 'Keep staged in incubation lab' },
+                  ].map((stg) => {
+                    const isSelected = allocationTargetStage === stg.id;
+                    const isRec =
+                      (stg.recommendedFor === 'bizzmodel' && (productToAllocate.name.toLowerCase().includes('model') || productToAllocate.sku === 'BA-002')) ||
+                      (stg.recommendedFor === 'rolling' && (productToAllocate.name.toLowerCase().includes('rolling') || productToAllocate.sku === 'BA-ROL'));
+
+                    return (
+                      <button
+                        key={stg.id}
+                        type="button"
+                        onClick={() => setAllocationTargetStage(stg.id as any)}
+                        className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
+                          isSelected
+                            ? 'bg-amber-500/20 border-amber-400 text-white shadow-md ring-1 ring-amber-400/50'
+                            : 'bg-[#141B30] border-[#232F4E] text-slate-300 hover:border-slate-500 hover:bg-[#18213C]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span className="font-bold text-xs truncate">{stg.label}</span>
+                          {isRec && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                              Recommended
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-slate-400 mt-1 line-clamp-1">{stg.desc}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-[#222E4E]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const prod = productToAllocate;
+                    setProductToAllocate(null);
+                    handleOpenEditProduct(prod);
+                  }}
+                  className="text-xs text-cyan-400 hover:text-cyan-300 underline font-mono cursor-pointer"
+                >
+                  Custom edit all fields first →
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setProductToAllocate(null)}
+                    className="px-3.5 py-2 rounded-xl bg-[#1B233D] hover:bg-[#252F52] text-slate-300 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleConfirmAllocateProduct(allocationTargetStage)}
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-all flex items-center gap-1.5 shadow-md shadow-amber-950/50 hover:scale-[1.02] active:scale-95 cursor-pointer"
+                  >
+                    <span>🚀 Confirm Allocation</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

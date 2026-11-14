@@ -1,3 +1,5 @@
+import { AssumptionRateItem } from '../bizzdynamics/types';
+
 export const BUSINESS_TYPES = [
   'trading', 'manufacturing', 'services', 'mobility',
   'hospitality', 'education', 'broking', 'property',
@@ -63,6 +65,105 @@ export const REVENUE_MODEL_CONFIGS: Record<string, RevenueModelConfig> = {
   }
 };
 
+export interface ModelSetItem {
+  id: string;
+  name: string;
+  isAvailable: boolean;
+  statusLabel?: string;
+}
+
+export interface ModelSetCategory {
+  type: string;
+  modelSets: ModelSetItem[];
+}
+
+/**
+ * Authentic 10-Type Model Sets Taxonomy matching model-sets.PNG
+ * UNIT SALES is the only active model-set for this phase; others marked as coming soon.
+ */
+export const ALL_MODEL_SETS: ModelSetCategory[] = [
+  {
+    type: 'trading',
+    modelSets: [
+      { id: 'unit-sales', name: 'unit sales', isAvailable: true, statusLabel: 'Available' },
+      { id: 'value-sales', name: 'value sales', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'commission', name: 'commission', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'revenue-share', name: 'revenue share', isAvailable: false, statusLabel: 'coming soon' },
+    ],
+  },
+  {
+    type: 'manufacturing',
+    modelSets: [
+      { id: 'batch-lots', name: 'batch lots', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'continuous-production', name: 'continuous production', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'fabrication', name: 'fabrication', isAvailable: false, statusLabel: 'coming soon' },
+    ],
+  },
+  {
+    type: 'services',
+    modelSets: [
+      { id: 'time-units', name: 'time units', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'installation-services', name: 'installation services', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'measured-units', name: 'measured units', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'printing', name: 'printing', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'laundry', name: 'laundry', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'drycleaning', name: 'drycleaning', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'time-slots', name: 'time slots', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'time-slot-rentals', name: 'time slot rentals', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'guarding', name: 'guarding', isAvailable: false, statusLabel: 'coming soon' },
+    ],
+  },
+  {
+    type: 'mobility',
+    modelSets: [
+      { id: 'taxi-operator', name: 'taxi operator', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'tractor-operator', name: 'tractor operator', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'driving-school', name: 'driving school', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'truck-operator', name: 'truck operator', isAvailable: false, statusLabel: 'coming soon' },
+    ],
+  },
+  {
+    type: 'hospitality',
+    modelSets: [
+      { id: 'family-restaurant', name: 'family restaurant', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'guest-house', name: 'guest house', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'events-organizer', name: 'events organizer', isAvailable: false, statusLabel: 'coming soon' },
+    ],
+  },
+  {
+    type: 'education',
+    modelSets: [
+      { id: 'education', name: 'education', isAvailable: false, statusLabel: 'coming soon' },
+    ],
+  },
+  {
+    type: 'labour broking',
+    modelSets: [
+      { id: 'labour-broking', name: 'labour broking', isAvailable: false, statusLabel: 'coming soon' },
+    ],
+  },
+  {
+    type: 'property development',
+    modelSets: [
+      { id: 'property-development', name: 'property development', isAvailable: false, statusLabel: 'coming soon' },
+    ],
+  },
+  {
+    type: 'asset rentals',
+    modelSets: [
+      { id: 'equipment-rental', name: 'equipment rental', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'vehicle-rental', name: 'vehicle rental', isAvailable: false, statusLabel: 'coming soon' },
+    ],
+  },
+  {
+    type: 'agriculture',
+    modelSets: [
+      { id: 'crop', name: 'crop', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'animal-breeding', name: 'animal breeding', isAvailable: false, statusLabel: 'coming soon' },
+    ],
+  },
+];
+
 export const STANDARD_OPEX_NAMES = [
   "accounting fees",
   "advertising",
@@ -95,16 +196,30 @@ export const STANDARD_OPEX_NAMES = [
 
 export type StandardOpexName = typeof STANDARD_OPEX_NAMES[number];
 
+export type TaxPaymentCycle = 'monthly' | 'quarterly' | 'bi-annually' | 'annual';
+
 export interface BusinessDetails {
   businessName: string;
+  isNameLocked?: boolean;
   businessType?: string;
   businessModel?: string;
   startDateMonth: string;
   startDateYear: number;
+  startDateFormatted?: string;
   scenario: string;
   daysWorkedPerWeek: number;
+  workingDays?: Record<string, boolean>;
+  deductHolidays?: boolean;
   holidaysDeducted: Array<{ name: string; from: string; to: string; days: number }>;
+  annualShutdown?: {
+    enabled: boolean;
+    fromDate: string;
+    toDate: string;
+    daysCount: number;
+  };
   departments: Array<{ id: string; name: string; distributionPct: number }>;
+  setupAssumptions?: AssumptionRateItem[];
+  taxPaymentCycle?: TaxPaymentCycle;
 }
 
 export interface RevenueItem {
@@ -115,27 +230,260 @@ export interface RevenueItem {
   modelParams?: Record<string, number>;
   unitPrice: number;
   costOfSalesPct: number;
-  monthlyUnits: number[]; // 12-36 months
+  monthlyUnits: number[]; // 12-60 months
+  startMonth?: number;   // 1-indexed operating launch month (e.g. Month 1)
+  unitCost?: number;     // Direct cost per unit (R)
+  dailyCapacity?: number;
+  dailyUnitSalesMonthly?: number[];
+  productionUnitCostMonthly?: number[];
+  manufacturingMarginPctMonthly?: number[];
+  grossProfitMarginPctMonthly?: number[];
+  salesCommissionPctMonthly?: number[];
+  inventoryAdjustmentPctMonthly?: number[];
+  otherIncomeMonthly?: number[];
 }
+
+export interface EmploymentCategory {
+  id: string;
+  name: string;
+  onCostPct: number; // % benefit on-costs added to base rate (e.g. 20%, 15%)
+  annualReviewPct?: number; // Optional annual review rate / increment
+  description?: string;
+  monthlyAdjustmentPct?: number[]; // 60 months adjustment from ADJUSTMENT SLIDER
+}
+
+export type EmploymentAllocation = 'cost_of_sales' | 'operating_expenses';
+export type EmploymentType = 'permanent' | 'seasonal';
 
 export interface EmploymentItem {
   id: string;
   title: string;
+  categoryId: string;
   department: string;
-  baseRateMonthly: number;
-  startMonth: number;
-  numEmployees: number;
-  onCostPct: number; // taxes, benefits
+  allocation: EmploymentAllocation; // cost_of_sales (Fixed COS) | operating_expenses (Fixed OPEX)
+  baseRateMonthly: number; // Monthly base cost per FTE in Year 1 (R)
+  startMonth: number; // Launch month (1-indexed)
+  numEmployees: number; // Headcount (FTEs)
+  employmentType: EmploymentType; // 'permanent' | 'seasonal'
+  seasonalStartMonth?: number; // 1 to 12 (e.g. 6 for June)
+  seasonalEndMonth?: number; // 1 to 12 (e.g. 9 for September)
+  onCostPct?: number; // taxes, benefits fallback
 }
+
+export const DEFAULT_EMPLOYMENT_CATEGORIES: EmploymentCategory[] = [
+  {
+    id: 'cat-1',
+    name: 'Executive / Leadership',
+    onCostPct: 20,
+    description: 'Executive directors, founders & corporate leadership',
+    monthlyAdjustmentPct: new Array(60).fill(0),
+  },
+  {
+    id: 'cat-2',
+    name: 'Senior Management',
+    onCostPct: 18,
+    description: 'Department heads, commercial leads & senior managers',
+    monthlyAdjustmentPct: new Array(60).fill(0),
+  },
+  {
+    id: 'cat-3',
+    name: 'Middle Management / Professional',
+    onCostPct: 15,
+    description: 'Specialists, engineers, team leads & senior supervisors',
+    monthlyAdjustmentPct: new Array(60).fill(0),
+  },
+  {
+    id: 'cat-4',
+    name: 'Operations / Direct Plant',
+    onCostPct: 12,
+    description: 'Production operators, technicians, machine specialists & plant crew',
+    monthlyAdjustmentPct: new Array(60).fill(0),
+  },
+  {
+    id: 'cat-5',
+    name: 'Administrative / Support',
+    onCostPct: 10,
+    description: 'Office administration, logistics, customer service & support team',
+    monthlyAdjustmentPct: new Array(60).fill(0),
+  },
+];
+
+export const DEFAULT_EMPLOYMENT_ITEMS: EmploymentItem[] = [
+  {
+    id: 'emp-1',
+    title: 'Managing Director / CEO',
+    categoryId: 'cat-1',
+    department: 'administration',
+    allocation: 'operating_expenses',
+    baseRateMonthly: 65000,
+    startMonth: 1,
+    numEmployees: 1,
+    employmentType: 'permanent',
+    onCostPct: 20,
+  },
+  {
+    id: 'emp-2',
+    title: 'Plant & Production Manager',
+    categoryId: 'cat-2',
+    department: 'operations',
+    allocation: 'cost_of_sales',
+    baseRateMonthly: 45000,
+    startMonth: 1,
+    numEmployees: 1,
+    employmentType: 'permanent',
+    onCostPct: 18,
+  },
+  {
+    id: 'emp-3',
+    title: 'Senior Commercial Sales Lead',
+    categoryId: 'cat-3',
+    department: 'commercial & sales',
+    allocation: 'operating_expenses',
+    baseRateMonthly: 38000,
+    startMonth: 1,
+    numEmployees: 1,
+    employmentType: 'permanent',
+    onCostPct: 15,
+  },
+  {
+    id: 'emp-4',
+    title: 'Machine & Assembly Operators',
+    categoryId: 'cat-4',
+    department: 'operations',
+    allocation: 'cost_of_sales',
+    baseRateMonthly: 18000,
+    startMonth: 1,
+    numEmployees: 2,
+    employmentType: 'permanent',
+    onCostPct: 12,
+  },
+  {
+    id: 'emp-5',
+    title: 'Seasonal Assembly & Packing Crew',
+    categoryId: 'cat-4',
+    department: 'operations',
+    allocation: 'cost_of_sales',
+    baseRateMonthly: 12000,
+    startMonth: 1,
+    numEmployees: 3,
+    employmentType: 'seasonal',
+    seasonalStartMonth: 6, // June
+    seasonalEndMonth: 9,   // September
+    onCostPct: 12,
+  },
+];
+
+export type ExpenseType = 'fixed' | 'variable';
 
 export interface ExpenseItem {
   id: string;
-  category: string;
   name: string;
-  monthlyAmount: number;
+  category: string;
+  department?: string;
+  type?: ExpenseType;
   startMonth: number;
-  growthRatePct: number;
+  isAnnuity?: boolean;
+  annuityMonth?: number; // 1 to 12 (e.g. 5 for May)
+  pctOfRevenue?: number; // e.g. 1.00%
+  baseRateMonthly: number; // e.g. 100 000 ZAR
+  monthlyAmount: number; // backward-compatibility alias
+  growthRatePct?: number;
+  monthlyAdjustmentPct?: number[]; // 60-month slider adjustment
 }
+
+export interface OperatingExpensesSettings {
+  allocationToCostOfSalesPct: number; // e.g. 1.00%
+  hiLevelPreset?: {
+    cosFixedPct?: number; // default 1.00%
+    opexFixedPct?: number; // default 1.00%
+    opexVarPct?: number; // default 1.00%
+  };
+  categoryAdjustments?: {
+    cosShareOfFixed?: number[]; // 60 months
+    opexVariable?: number[]; // 60 months
+    opexFixed?: number[]; // 60 months
+  };
+}
+
+export const DEFAULT_OPEX_SETTINGS: OperatingExpensesSettings = {
+  allocationToCostOfSalesPct: 1.00,
+  hiLevelPreset: {
+    cosFixedPct: 1.00,
+    opexFixedPct: 1.00,
+    opexVarPct: 1.00,
+  },
+  categoryAdjustments: {
+    cosShareOfFixed: new Array(60).fill(0),
+    opexVariable: new Array(60).fill(0),
+    opexFixed: new Array(60).fill(0),
+  },
+};
+
+export const DEFAULT_EXPENSE_ITEMS: ExpenseItem[] = [
+  {
+    id: 'exp-1',
+    name: 'advertising',
+    category: 'selling',
+    department: 'commercial & sales',
+    type: 'variable',
+    startMonth: 1,
+    pctOfRevenue: 1.00,
+    baseRateMonthly: 100000,
+    monthlyAmount: 100000,
+    growthRatePct: 0,
+    monthlyAdjustmentPct: new Array(60).fill(0),
+  },
+  {
+    id: 'exp-2',
+    name: 'rent',
+    category: 'occupancy',
+    department: 'administration',
+    type: 'fixed',
+    startMonth: 1,
+    baseRateMonthly: 100000,
+    monthlyAmount: 100000,
+    growthRatePct: 0,
+    monthlyAdjustmentPct: new Array(60).fill(0),
+  },
+  {
+    id: 'exp-3',
+    name: 'electricity',
+    category: 'occupancy',
+    department: 'operations',
+    type: 'fixed',
+    startMonth: 1,
+    baseRateMonthly: 100000,
+    monthlyAmount: 100000,
+    growthRatePct: 0,
+    monthlyAdjustmentPct: new Array(60).fill(0),
+  },
+  {
+    id: 'exp-4',
+    name: 'telephone - fixed lines',
+    category: 'other fixed',
+    department: 'administration',
+    type: 'fixed',
+    startMonth: 1,
+    baseRateMonthly: 100000,
+    monthlyAmount: 100000,
+    growthRatePct: 0,
+    monthlyAdjustmentPct: new Array(60).fill(0),
+  },
+  {
+    id: 'exp-5',
+    name: 'insurance',
+    category: 'other fixed',
+    department: 'administration',
+    type: 'fixed',
+    startMonth: 1,
+    isAnnuity: true,
+    annuityMonth: 5, // Annuity Month 5
+    baseRateMonthly: 100000,
+    monthlyAmount: 100000,
+    growthRatePct: 0,
+    monthlyAdjustmentPct: new Array(60).fill(0),
+  },
+];
 
 export const STANDARD_ASSET_CATEGORIES = [
   { name: "Commercial vehicles", depreciationRate: 20.00 },
@@ -157,13 +505,92 @@ export interface StandardAssetCategoryDef {
 
 export interface FixedAssetItem {
   id: string;
+  name: string; // asset description
+  category?: string; // from 10 standard categories
+  allocation?: 'cost_of_sales' | 'overheads'; // choice of cost of sales / overheads
+  department?: string; // selection from list setup in setup step
+  purchaseMonth: number; // 1 - 60
+  quantity: number; // number of items purchased (e.g. 1)
+  unitCost: number; // cost of asset
+  purchaseCost: number; // backward compatibility & total purchase value = unitCost * quantity
+  purchaseValue?: number; // alias unitCost * quantity
+  depreciationRate?: number; // % per annum e.g. 20.00%
+  usefulLifeMonths: number; // derived from 1200 / depreciationRate
+  scrapValue: number; // scrap residual value, defaults to 0
+  financeOption?: 'buy' | 'lease'; // option: buy / lease
+  purchaseTiming?: 'forecast' | 'prior'; // 'prior' = purchases prior to forecast period (Year 0), 'forecast' = purchases for forecast period (M1-60)
+  monthsInSystem?: number; // months asset has been in system prior to forecast (e.g. 10)
+  // If lease:
+  leaseRatePct?: number; // e.g. 10.00%
+  leaseTermYears?: number; // e.g. 5 or 10 years
+  // Year 0 opening values (for rolling-forecast; shown greyed out in other apps):
+  openingCost?: number; // original cost in year 0
+  openingAccumulatedDepreciation?: number; // accumulated depreciation in year 0
+  openingNetValue?: number; // openingCost - openingAccumulatedDepreciation
+  openingLeasedAsset?: number; // leased asset value in year 0
+  openingInterestRatePct?: number; // lease interest rate
+  openingPeriodElapsed?: number; // period elapsed in months (e.g. 12)
+  openingTermYears?: number; // lease term in years
+}
+
+export const DEFAULT_FIXED_ASSETS: FixedAssetItem[] = [
+  {
+    id: 'fa-1',
+    name: 'Plant and equipment unit',
+    category: 'Plat and equipment',
+    allocation: 'cost_of_sales',
+    department: 'operations',
+    purchaseMonth: 2,
+    quantity: 1,
+    unitCost: 200000,
+    purchaseCost: 200000,
+    purchaseValue: 200000,
+    depreciationRate: 20.00,
+    usefulLifeMonths: 60,
+    scrapValue: 0,
+    financeOption: 'buy',
+    openingCost: 100000,
+    openingAccumulatedDepreciation: 20000,
+    openingNetValue: 80000,
+  },
+  {
+    id: 'fa-2',
+    name: 'Commercial fleet vehicle',
+    category: 'Commercial vehicles',
+    allocation: 'cost_of_sales',
+    department: 'operations',
+    purchaseMonth: 2,
+    quantity: 1,
+    unitCost: 200000,
+    purchaseCost: 200000,
+    purchaseValue: 200000,
+    depreciationRate: 20.00,
+    usefulLifeMonths: 60,
+    scrapValue: 0,
+    financeOption: 'lease',
+    leaseRatePct: 10.00,
+    leaseTermYears: 10,
+    openingLeasedAsset: 100000,
+    openingInterestRatePct: 10.00,
+    openingPeriodElapsed: 12,
+    openingTermYears: 10,
+  },
+];
+
+export interface TermLoanEntry {
+  id: string;
   name: string;
-  category?: string;
-  depreciationRate?: number;
-  purchaseCost: number;
-  purchaseMonth: number;
-  usefulLifeMonths: number;
-  scrapValue: number;
+  advanceMonth: number; // 1 - 60
+  advanceValue: number;
+  advanceRatePct: number;
+  termYears: number;
+}
+
+export interface ShareIssueEvent {
+  id: string;
+  month: number;
+  sharesIssued: number;
+  issuePrice: number;
 }
 
 export interface FundingSettings {
@@ -177,6 +604,39 @@ export interface FundingSettings {
   creditorDays: number; // DPO
   debtorDays: number; // DSO
   inventoryDays: number; // DIO
+  equityLoan?: number;
+
+  // Monthly Working Capital Days (60 months)
+  inventoryDaysMonthly?: number[];
+  debtorDaysMonthly?: number[];
+  creditorDaysMonthly?: number[];
+
+  // Other Assets (deposits, floats, petty cash)
+  depositsBase?: number;
+  floatsBase?: number;
+  pettyCashBase?: number;
+  depositsMonthly?: number[];
+  floatsMonthly?: number[];
+  pettyCashMonthly?: number[];
+
+  // Term loans array
+  termLoans?: TermLoanEntry[];
+
+  // Share capital
+  initialSharesCount?: number;
+  initialSharePrice?: number;
+  additionalSharesMonthly?: number[];
+  additionalSharePriceMonthly?: number[];
+  shareIssues?: ShareIssueEvent[];
+
+  // Equity loan
+  equityLoanOpening?: number;
+  equityLoanAdditionalMonthly?: number[];
+  equityLoanRepaymentsMonthly?: number[];
+
+  // Dividends
+  dividendsPerShareBase?: number;
+  dividendsPerShareMonthly?: number[];
 }
 
 export interface HighLevelForecastData {
@@ -193,10 +653,14 @@ export interface HighLevelForecastData {
 }
 
 export interface BizzModelState {
+  appMode?: PlatformForecastAppId;
   businessDetails: BusinessDetails;
   revenueItems: RevenueItem[];
+  employmentCategories?: EmploymentCategory[];
   employmentItems: EmploymentItem[];
   expenses: ExpenseItem[];
+  opexSettings?: OperatingExpensesSettings;
+  assetCategories?: StandardAssetCategoryDef[];
   fixedAssets: FixedAssetItem[];
   funding: FundingSettings;
   highLevelForecast: HighLevelForecastData;
@@ -205,10 +669,28 @@ export interface BizzModelState {
 export const DEFAULT_BUSINESS_STATE: BizzModelState = {
   businessDetails: {
     businessName: 'Bizzbean Admin Headquarters',
-    startDateMonth: 'September',
+    isNameLocked: false,
+    startDateMonth: 'November',
     startDateYear: 2026,
+    startDateFormatted: '2026-11',
     scenario: 'Target Institutional Baseline',
     daysWorkedPerWeek: 5,
+    workingDays: {
+      monday: true,
+      tuesday: true,
+      wednesday: true,
+      thursday: true,
+      friday: true,
+      saturday: false,
+      sunday: false,
+    },
+    deductHolidays: true,
+    annualShutdown: {
+      enabled: false,
+      fromDate: '12-20',
+      toDate: '01-05',
+      daysCount: 11,
+    },
     holidaysDeducted: [
       { name: "New Year's Day", from: '2026-01-01', to: '2026-01-01', days: 1 },
       { name: 'Human Rights Day', from: '2026-03-21', to: '2026-03-21', days: 1 },
@@ -223,91 +705,110 @@ export const DEFAULT_BUSINESS_STATE: BizzModelState = {
       { name: 'Day of Goodwill', from: '2026-12-26', to: '2026-12-26', days: 1 },
     ],
     departments: [
-      { id: 'dep-1', name: 'administration', distributionPct: 100 },
-      { id: 'dep-2', name: 'commercial & sales', distributionPct: 0 },
-      { id: 'dep-3', name: 'product & engineering', distributionPct: 0 },
+      { id: 'dep-1', name: 'administration', distributionPct: 40 },
+      { id: 'dep-2', name: 'commercial & sales', distributionPct: 30 },
+      { id: 'dep-3', name: 'product & engineering', distributionPct: 20 },
+      { id: 'dep-4', name: 'operations', distributionPct: 10 },
     ],
+    taxPaymentCycle: 'monthly',
   },
-  revenueItems: [
-    {
-      id: 'rev-1',
-      category: 'RETAIL PRODUCTS',
-      name: 'Digital Platform License Tier 1',
-      unitPrice: 229,
-      costOfSalesPct: 28,
-      monthlyUnits: [150, 165, 185, 210, 240, 280, 320, 370, 420, 480, 550, 630],
-    },
-    {
-      id: 'rev-2',
-      category: 'RETAIL PRODUCTS',
-      name: 'Enterprise Sandbox Advisory Package',
-      unitPrice: 1250,
-      costOfSalesPct: 35,
-      monthlyUnits: [15, 18, 22, 25, 30, 35, 42, 48, 55, 62, 70, 80],
-    },
-  ],
-  employmentItems: [
-    {
-      id: 'emp-1',
-      title: 'Operations Director',
-      department: 'administration',
-      baseRateMonthly: 45000,
-      startMonth: 1,
-      numEmployees: 1,
-      onCostPct: 18,
-    },
-    {
-      id: 'emp-2',
-      title: 'Senior Software Engineer',
-      department: 'product & engineering',
-      baseRateMonthly: 38000,
-      startMonth: 1,
-      numEmployees: 2,
-      onCostPct: 15,
-    },
-    {
-      id: 'emp-3',
-      title: 'Customer Success Specialist',
-      department: 'commercial & sales',
-      baseRateMonthly: 18000,
-      startMonth: 3,
-      numEmployees: 1,
-      onCostPct: 12,
-    },
-  ],
-  expenses: [
-    { id: 'exp-1', category: 'Software & Cloud', name: 'Cloud Server Infrastructure (AWS/GCP)', monthlyAmount: 6500, startMonth: 1, growthRatePct: 2 },
-    { id: 'exp-2', category: 'Rent & Facilities', name: 'Main Innovation Hub Co-Working', monthlyAmount: 14000, startMonth: 1, growthRatePct: 0 },
-    { id: 'exp-3', category: 'Marketing', name: 'Search Engine & LinkedIn Acquisition', monthlyAmount: 12000, startMonth: 1, growthRatePct: 4 },
-    { id: 'exp-4', category: 'Professional Fees', name: 'Accounting, Audit & Legal Retainer', monthlyAmount: 4500, startMonth: 1, growthRatePct: 0 },
-    { id: 'exp-5', category: 'Telecoms', name: 'Fibre Internet & Team VOIP', monthlyAmount: 2200, startMonth: 1, growthRatePct: 0 },
-  ],
-  fixedAssets: [
-    { id: 'fa-1', name: 'Engineering Workstations & Hardware', purchaseCost: 85000, purchaseMonth: 1, usefulLifeMonths: 36, scrapValue: 5000 },
-    { id: 'fa-2', name: 'Studio Video Production Rig', purchaseCost: 35000, purchaseMonth: 2, usefulLifeMonths: 24, scrapValue: 2000 },
-  ],
+  // Baseline initial state for reports & subsequent data-entry steps
+  revenueItems: [],
+  employmentCategories: DEFAULT_EMPLOYMENT_CATEGORIES,
+  employmentItems: DEFAULT_EMPLOYMENT_ITEMS,
+  expenses: DEFAULT_EXPENSE_ITEMS,
+  opexSettings: DEFAULT_OPEX_SETTINGS,
+  assetCategories: [...STANDARD_ASSET_CATEGORIES],
+  fixedAssets: DEFAULT_FIXED_ASSETS,
   funding: {
-    founderEquity: 150000,
-    investorEquity: 350000,
-    bankLoanAmount: 120000,
-    interestRatePct: 11.5,
-    loanTermMonths: 36,
+    founderEquity: 0,
+    investorEquity: 0,
+    equityLoan: 0,
+    bankLoanAmount: 0,
+    interestRatePct: 10.0,
+    loanTermMonths: 60,
     loanStartMonth: 1,
-    overdraftLimit: 50000,
-    creditorDays: 30,
-    debtorDays: 45,
-    inventoryDays: 15,
+    overdraftLimit: 0,
+    creditorDays: 0,
+    debtorDays: 0,
+    inventoryDays: 0,
+    depositsBase: 0,
+    floatsBase: 0,
+    pettyCashBase: 0,
+    termLoans: [
+      {
+        id: 'term-loan-1',
+        name: 'Standard Commercial Term Loan',
+        advanceMonth: 1,
+        advanceValue: 400000,
+        advanceRatePct: 10.0,
+        termYears: 5,
+      },
+    ],
+    initialSharesCount: 1000,
+    initialSharePrice: 1.0,
+    equityLoanOpening: -20000,
+    dividendsPerShareBase: 0,
   },
   highLevelForecast: {
-    dailyRevenue: 4500,
-    dailyGrowthPct: 0.25,
+    dailyRevenue: 0,
+    dailyGrowthPct: 0,
     workingDaysPerMonth: 22,
-    costOfSalesPct: 28,
-    directLaborPct: 22,
-    fixedOpexMonthly: 48000,
-    cashReserves: 250000,
-    debtFunding: 120000,
+    costOfSalesPct: 0,
+    directLaborPct: 0,
+    fixedOpexMonthly: 0,
+    cashReserves: 0,
+    debtFunding: 0,
     interestRatePct: 11.5,
     targetHorizonMonths: 36,
   },
 };
+
+export type PlatformForecastAppId = 'bizzdynamics' | 'rolling-forecast' | 'hi-level-forecast' | 'bizzmodel';
+
+export const DEFAULT_SETUP_ASSUMPTIONS: AssumptionRateItem[] = [
+  {
+    id: 'interest-pos',
+    stepId: 1,
+    stepName: 'business details',
+    name: 'bank interest rate',
+    description: 'Interest earned on surplus cash & money market reserves',
+    baseRate: 4.5,
+    unit: '%',
+    changeType: 'percentage',
+    monthlyValues: new Array(60).fill(4.5),
+  },
+  {
+    id: 'interest-neg',
+    stepId: 1,
+    stepName: 'business details',
+    name: 'overdraft interest rate',
+    description: 'Overdraft facility interest charges on deficit balances',
+    baseRate: 11.75,
+    unit: '%',
+    changeType: 'percentage',
+    monthlyValues: new Array(60).fill(11.75),
+  },
+  {
+    id: 'vat-rate',
+    stepId: 1,
+    stepName: 'business details',
+    name: 'vat rate %',
+    description: 'Standard value-added tax rate applicable to sales & allowable inputs',
+    baseRate: 0,
+    unit: '%',
+    changeType: 'percentage',
+    monthlyValues: new Array(60).fill(0),
+  },
+  {
+    id: 'tax-rate',
+    stepId: 1,
+    stepName: 'business details',
+    name: 'tax rate %',
+    description: 'Corporate income tax rate (CIT) on net taxable corporate profits',
+    baseRate: 0,
+    unit: '%',
+    changeType: 'percentage',
+    monthlyValues: new Array(60).fill(0),
+  },
+];

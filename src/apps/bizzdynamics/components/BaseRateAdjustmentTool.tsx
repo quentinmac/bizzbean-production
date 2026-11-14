@@ -13,6 +13,8 @@ import {
   TrendingUp,
   TrendingDown,
   Sparkles,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { AssumptionRateItem } from '../types';
 import { interpretVoiceCommand, playChime } from '../utils/voiceInterpreter';
@@ -20,24 +22,39 @@ import { interpretVoiceCommand, playChime } from '../utils/voiceInterpreter';
 interface BaseRateAdjustmentToolProps {
   theme?: 'light' | 'dark';
   item: AssumptionRateItem;
+  selectedYear?: number;
+  onSelectYear?: (year: number) => void;
   onUpdateMonthlyValues: (itemId: string, updatedValues: number[]) => void;
   onUpdateBaseRate?: (itemId: string, newBaseRate: number) => void;
   onChangeTypeToggle?: (itemId: string, newType: 'percentage' | 'value') => void;
   onClose?: () => void;
+  onPrevItem?: () => void;
+  onNextItem?: () => void;
 }
 
 export const BaseRateAdjustmentTool: React.FC<BaseRateAdjustmentToolProps> = ({
   theme = 'light',
   item,
+  selectedYear,
+  onSelectYear,
   onUpdateMonthlyValues,
   onUpdateBaseRate,
   onChangeTypeToggle,
   onClose,
+  onPrevItem,
+  onNextItem,
 }) => {
   const isDark = theme === 'dark';
 
-  // 1. Year Slider State (1 to 5)
-  const [activeYear, setActiveYear] = useState<number>(1);
+  // 1. Year Slider State (1 to 5, defaulting to selectedYear from main panel)
+  const [activeYear, setActiveYear] = useState<number>(selectedYear || 1);
+
+  // Sync activeYear whenever selectedYear prop changes
+  useEffect(() => {
+    if (selectedYear !== undefined && selectedYear >= 1 && selectedYear <= 5) {
+      setActiveYear(selectedYear);
+    }
+  }, [selectedYear]);
 
   // 2. Change Type: 'percentage' | 'value'
   const [changeType, setChangeType] = useState<'percentage' | 'value'>(item.changeType || 'percentage');
@@ -53,6 +70,12 @@ export const BaseRateAdjustmentTool: React.FC<BaseRateAdjustmentToolProps> = ({
   const [showVoiceHelp, setShowVoiceHelp] = useState<boolean>(false);
   const [showFormulaExplanation, setShowFormulaExplanation] = useState<boolean>(true);
   const recognitionRef = useRef<any>(null);
+
+  // Local state for base rate input to allow unrestricted typing of any number without snapping
+  const [localBaseRate, setLocalBaseRate] = useState<string>(String(item.baseRate));
+  useEffect(() => {
+    setLocalBaseRate(String(item.baseRate));
+  }, [item.baseRate, item.id]);
 
   // Ensure 60 months of values exist: effectiveRate = baseRate + changeRate
   const monthlyValues = React.useMemo(() => {
@@ -259,74 +282,75 @@ export const BaseRateAdjustmentTool: React.FC<BaseRateAdjustmentToolProps> = ({
           isDark ? 'bg-[#121A2F] border-[#222F4C]' : 'bg-[#F4EFE6] border-[#D8CEBC]'
         }`}
       >
-        {/* Left: Item being changed badge */}
+        {/* Left: Previous / Item being changed / Next + Base Rate */}
         <div className="flex items-center gap-2.5 flex-wrap">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            ITEM BEING CHANGED:
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-xl text-xs font-bold bg-[#2E5E88] text-white shadow-xs lowercase flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5">
+            {onPrevItem && (
+              <button
+                type="button"
+                onClick={onPrevItem}
+                className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                title="Previous item"
+                aria-label="Previous item"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            )}
+
+            <span className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#2E5E88] text-white shadow-xs lowercase flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span>{item.name}</span>
             </span>
 
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+            {onNextItem && (
+              <button
+                type="button"
+                onClick={onNextItem}
+                className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                title="Next item"
+                aria-label="Next item"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            )}
+
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium ml-2">
               <span>base rate:</span>
               {onUpdateBaseRate ? (
                 <div className="flex items-center gap-1">
                   <input
                     type="number"
-                    step="0.01"
-                    value={item.baseRate}
+                    step={item.unit === '%' ? '0.01' : '1'}
+                    value={localBaseRate}
                     onChange={(e) => {
-                      const v = parseFloat(e.target.value);
+                      const raw = e.target.value;
+                      setLocalBaseRate(raw);
+                      const v = parseFloat(raw);
                       if (!isNaN(v)) {
                         onUpdateBaseRate(item.id, v);
                       }
                     }}
-                    className="w-18 px-1.5 py-0.5 rounded-lg border text-xs font-bold text-[#2E5E88] dark:text-[#5584B4] bg-white dark:bg-[#0E1424] border-slate-300 dark:border-slate-700 text-center"
+                    onBlur={() => {
+                      if (localBaseRate === '' || isNaN(parseFloat(localBaseRate))) {
+                        setLocalBaseRate(String(item.baseRate));
+                      }
+                    }}
+                    className="min-w-[90px] w-28 sm:w-32 px-2 py-0.5 rounded-lg border text-xs font-bold text-[#2E5E88] dark:text-[#5584B4] bg-white dark:bg-[#0E1424] border-slate-300 dark:border-slate-700 text-center"
                     title="Change base rate"
                   />
                   <span className="font-bold text-slate-400">{item.unit === '%' ? '%' : ''}</span>
                 </div>
               ) : (
                 <strong className="text-[#2E5E88] dark:text-[#5584B4]">
-                  {item.baseRate.toFixed(2)}{item.unit === '%' ? '%' : ''}
+                  {item.unit === '%' ? `${item.baseRate.toFixed(2)}%` : item.baseRate.toLocaleString()}
                 </strong>
               )}
             </div>
-
-            {modifiedCount > 0 ? (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 border border-amber-500/30 font-bold">
-                {modifiedCount} dynamic {modifiedCount === 1 ? 'override' : 'overrides'}
-              </span>
-            ) : (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 font-bold">
-                flat baseline
-              </span>
-            )}
           </div>
         </div>
 
-        {/* Right: Cascade Toggle + Mic + Reset */}
+        {/* Right: Voice Prompt + Reset */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Subsequent Months Cascade Toggle */}
-          <button
-            type="button"
-            onClick={() => setCascadeToSubsequentMonths(!cascadeToSubsequentMonths)}
-            className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border ${
-              cascadeToSubsequentMonths
-                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-bold'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-300 dark:border-slate-700'
-            }`}
-            title="When active: setting Month X carries forward to following months (Mx → M60)"
-          >
-            <ArrowRight className="h-3 w-3" />
-            <span className="text-[11px] lowercase">
-              {cascadeToSubsequentMonths ? 'cascade forward active' : 'single month mode'}
-            </span>
-          </button>
-
           {/* Voice Prompt Microphone Button */}
           <button
             type="button"
@@ -366,7 +390,9 @@ export const BaseRateAdjustmentTool: React.FC<BaseRateAdjustmentToolProps> = ({
                 <span>formula: rate = (base + change rate)</span>
               </span>
               <span className="text-slate-500 dark:text-slate-400 text-[11px] font-sans">
-                e.g. base {item.baseRate.toFixed(2)}% + change 1.00% = {(item.baseRate + 1).toFixed(2)}% · negative changes allowed: base {item.baseRate.toFixed(2)}% + change (-1.00%) = {(item.baseRate - 1).toFixed(2)}%
+                {item.unit === '%'
+                  ? `e.g. base ${item.baseRate.toFixed(2)}% + change 1.00% = ${(item.baseRate + 1).toFixed(2)}% · negative changes allowed: base ${item.baseRate.toFixed(2)}% + change (-1.00%) = ${(item.baseRate - 1).toFixed(2)}%`
+                  : `e.g. base ${item.baseRate.toLocaleString()} + change 1.00% = ${(item.baseRate + 1).toFixed(2)} · negative changes allowed: base ${item.baseRate.toLocaleString()} + change (-1.00%) = ${(item.baseRate - 1).toFixed(2)}`}
               </span>
             </div>
             <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">
@@ -418,66 +444,33 @@ export const BaseRateAdjustmentTool: React.FC<BaseRateAdjustmentToolProps> = ({
       )}
 
       {/* ===================================================================== */}
-      {/* 2. YEAR 1 – 5 SLIDER (PROMINENTLY FEATURED ABOVE MONTH MATRIX)          */}
-      {/* ===================================================================== */}
-      <div className="p-4 sm:p-5 border-b space-y-3">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2">
-            <Sliders className="h-4 w-4 text-[#2E5E88] dark:text-[#5584B4]" />
-            <span className="text-xs font-bold uppercase text-slate-800 dark:text-slate-200">
-              5-YEAR HORIZON · YEAR {activeYear} (MONTHS {startMonthIndex + 1}–{startMonthIndex + 12})
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1">
-            {[1, 2, 3, 4, 5].map((yr) => (
-              <button
-                key={yr}
-                type="button"
-                onClick={() => setActiveYear(yr)}
-                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
-                  activeYear === yr
-                    ? 'bg-[#2E5E88] text-white shadow-xs'
-                    : 'bg-slate-100 dark:bg-[#161F38] text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                year {yr}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Interactive Year Range Slider */}
-        <div className="relative pt-1 pb-1">
-          <input
-            type="range"
-            min={1}
-            max={5}
-            step={1}
-            value={activeYear}
-            onChange={(e) => setActiveYear(parseInt(e.target.value, 10))}
-            className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-[#2E5E88]"
-          />
-          <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-bold">
-            <span>Year 1 (M1–M12)</span>
-            <span>Year 2 (M13–M24)</span>
-            <span>Year 3 (M25–M36)</span>
-            <span>Year 4 (M37–M48)</span>
-            <span>Year 5 (M49–M60)</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ===================================================================== */}
-      {/* 3. 12-MONTH RATE & DELTA GRID (Rate = Base + Change Rate)              */}
+      {/* 2. 12-MONTH RATE & DELTA GRID (Rate = Base + Change Rate)              */}
       {/* ===================================================================== */}
       <div className="p-4 sm:p-5 overflow-x-auto">
         <table className="w-full border-collapse text-center">
           <thead>
-            {/* ROW 1: YEAR NUMBER (MONTH 1 - 12) */}
+            {/* ROW 1: YEAR NUMBER (MONTH 1 - 12) + COMPACT YEAR SELECTOR */}
             <tr className="border-b border-slate-200 dark:border-slate-800">
-              <th className="py-2.5 px-3 text-left text-xs font-bold uppercase text-slate-400 w-44 whitespace-nowrap">
-                year number
+              <th className="py-2.5 px-3 text-left text-xs font-bold uppercase text-slate-400 w-52 whitespace-nowrap">
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-500 font-bold">YEAR NUMBER</span>
+                  <select
+                    value={activeYear}
+                    onChange={(e) => {
+                      const yr = Number(e.target.value);
+                      setActiveYear(yr);
+                      if (onSelectYear) onSelectYear(yr);
+                    }}
+                    className="px-2 py-1 rounded-lg text-xs font-bold bg-white dark:bg-[#161F38] border border-slate-300 dark:border-slate-700 text-[#2E5E88] dark:text-[#5584B4] cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#2E5E88]"
+                    title="Select Year"
+                  >
+                    {[1, 2, 3, 4, 5].map((yr) => (
+                      <option key={yr} value={yr}>
+                        Year {yr}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </th>
               {currentYearMonths.map((m) => (
                 <th key={m.index} className="py-2.5 px-1 sm:px-1.5 min-w-[62px]">
@@ -498,7 +491,9 @@ export const BaseRateAdjustmentTool: React.FC<BaseRateAdjustmentToolProps> = ({
             <tr className="border-b border-slate-100 dark:border-slate-800/60">
               <td className="py-3 px-3 text-left text-xs font-bold uppercase text-slate-500 whitespace-nowrap">
                 <div>
-                  <span className="text-[#2E5E88] dark:text-[#5584B4] block">change rate (Δ)</span>
+                  <span className="text-[#2E5E88] dark:text-[#5584B4] block">
+                    {item.unit === '%' ? 'change rate (Δ)' : 'change (Δ)'}
+                  </span>
                   <span className="text-[9px] font-normal text-slate-400 lowercase block font-sans">
                     + / - {item.unit === '%' ? '%' : 'value'} vs base
                   </span>
@@ -509,9 +504,9 @@ export const BaseRateAdjustmentTool: React.FC<BaseRateAdjustmentToolProps> = ({
                   <div className="relative">
                     <input
                       type="number"
-                      step="0.01"
+                      step={item.unit === '%' ? "0.01" : "1"}
                       value={m.changeRate === 0 ? '' : m.changeRate}
-                      placeholder="0.00"
+                      placeholder={item.unit === '%' ? "0.00" : "0"}
                       onChange={(e) => handleDeltaChange(m.index, e.target.value)}
                       className={`w-full py-1.5 px-1 rounded-lg text-xs font-bold text-center border transition-all ${
                         m.isModified
@@ -522,25 +517,27 @@ export const BaseRateAdjustmentTool: React.FC<BaseRateAdjustmentToolProps> = ({
                           ? 'bg-[#121A2F] border-[#222F4C] text-slate-400 focus:border-[#2E5E88]'
                           : 'bg-white border-[#D8CEBC] text-slate-400 focus:border-[#2E5E88]'
                       }`}
-                      title={`Change rate for Month ${m.absoluteMonth}: Enter positive or negative (e.g. +1.00 or -1.00)`}
+                      title={`Change ${item.unit === '%' ? 'rate' : 'amount'} for Month ${m.absoluteMonth}: Enter positive or negative`}
                     />
-                    <span className="absolute right-1 top-2 text-[9px] text-slate-400 pointer-events-none hidden sm:inline">
-                      %
-                    </span>
+                    {item.unit === '%' && (
+                      <span className="absolute right-1 top-2 text-[9px] text-slate-400 pointer-events-none hidden sm:inline">
+                        %
+                      </span>
+                    )}
                   </div>
                 </td>
               ))}
             </tr>
 
-            {/* ROW 3: RESULTING RATE = (BASE + CHANGE RATE) */}
+            {/* ROW 3: RESULTING RATE / VALUE = (BASE + CHANGE) */}
             <tr>
               <td className="py-3 px-3 text-left text-xs font-bold uppercase text-slate-700 dark:text-slate-200 whitespace-nowrap">
                 <div>
                   <span className="text-slate-900 dark:text-white font-bold block">
-                    rate = (base + change)
+                    {item.unit === '%' ? 'rate = (base + change)' : 'value = (base + change)'}
                   </span>
                   <span className="text-[9px] font-normal text-slate-400 lowercase block font-sans">
-                    effective monthly rate
+                    {item.unit === '%' ? 'effective monthly rate' : 'effective monthly value'}
                   </span>
                 </div>
               </td>
@@ -549,7 +546,7 @@ export const BaseRateAdjustmentTool: React.FC<BaseRateAdjustmentToolProps> = ({
                   <div className="relative">
                     <input
                       type="number"
-                      step="0.01"
+                      step={item.unit === '%' ? "0.01" : "1"}
                       value={m.effectiveValue}
                       onChange={(e) => handleEffectiveRateChange(m.index, e.target.value)}
                       className={`w-full py-1.5 px-1 rounded-lg text-xs font-bold text-center border transition-all ${
@@ -559,70 +556,19 @@ export const BaseRateAdjustmentTool: React.FC<BaseRateAdjustmentToolProps> = ({
                           ? 'bg-[#121A2F] border-[#222F4C] text-slate-200'
                           : 'bg-white border-[#D8CEBC] text-slate-800'
                       }`}
-                      title={`Resulting rate for Month ${m.absoluteMonth} = Base (${item.baseRate}%) + Change (${m.changeRate}%)`}
+                      title={`Resulting ${item.unit === '%' ? 'rate' : 'value'} for Month ${m.absoluteMonth} = Base (${item.baseRate}${item.unit === '%' ? '%' : ''}) + Change (${m.changeRate}${item.unit === '%' ? '%' : ''})`}
                     />
-                    <span className="absolute right-1 top-2 text-[9px] text-slate-400 pointer-events-none hidden sm:inline">
-                      %
-                    </span>
+                    {item.unit === '%' && (
+                      <span className="absolute right-1 top-2 text-[9px] text-slate-400 pointer-events-none hidden sm:inline">
+                        %
+                      </span>
+                    )}
                   </div>
                 </td>
               ))}
             </tr>
           </tbody>
         </table>
-
-        {/* Bottom Helper Bar for Quick Delta Adjustments */}
-        <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-slate-400 text-[11px] uppercase font-bold mr-1">
-              Quick change rate:
-            </span>
-            <button
-              type="button"
-              onClick={() => handleApplyQuickDelta(1.0)}
-              className="px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] border border-emerald-500/20 transition-colors flex items-center gap-0.5"
-            >
-              <TrendingUp className="h-3 w-3" />
-              <span>+1.00%</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleApplyQuickDelta(0.5)}
-              className="px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] border border-emerald-500/20 transition-colors flex items-center gap-0.5"
-            >
-              <TrendingUp className="h-3 w-3" />
-              <span>+0.50%</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleApplyQuickDelta(-1.0)}
-              className="px-2 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-bold text-[11px] border border-indigo-500/20 transition-colors flex items-center gap-0.5"
-            >
-              <TrendingDown className="h-3 w-3" />
-              <span>-1.00%</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleApplyQuickDelta(-0.5)}
-              className="px-2 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-bold text-[11px] border border-indigo-500/20 transition-colors flex items-center gap-0.5"
-            >
-              <TrendingDown className="h-3 w-3" />
-              <span>-0.50%</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleResetItem}
-              className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 font-bold text-[11px] transition-colors"
-            >
-              Reset to Base (0.00%)
-            </button>
-          </div>
-
-          <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-            <span>Cascade forward: {cascadeToSubsequentMonths ? 'Enabled (subsequent months follow)' : 'Disabled'}</span>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -1,0 +1,627 @@
+import React, { useState } from 'react';
+import { BizzPlanData, BizzModelData } from '../../../types';
+import { Download, Info, MessageSquare, CheckCircle2, Printer, TrendingUp, Activity, PieChart, Calculator, FileText, Target } from 'lucide-react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import ScorecardReport, { ScorecardTable, ScorecardActions } from './ScorecardReport';
+import AssumptionsReport from './AssumptionsReport';
+import { runMonthlySimulation } from '../../bizzmodel/steps/ReportsStep';
+
+interface PrintReviewProps {
+  planData: BizzPlanData;
+  modelData: BizzModelData | null;
+  activeSectionId?: string;
+}
+
+const formatValue = (num: number, isPercent: boolean = false) => {
+  if (isPercent) return `${num.toFixed(2)}%`;
+  return new Intl.NumberFormat('en-ZA', { 
+    maximumFractionDigits: 0 
+  }).format(num);
+};
+
+const FinancialTableRow = ({ label, values, isTotal, isPercent }: { label: string, values: number[], isTotal?: boolean, isPercent?: boolean }) => (
+  <tr className="bg-white">
+    <td className="py-1 px-2.5 border-r border-[#5085b6]/10 lowercase font-normal min-w-[140px] text-[8.5px] leading-[14px] text-[#5085b6]">{label}</td>
+    {values.map((v, i) => (
+      <td key={i} className="py-1 px-2.5 text-right tabular-nums text-[8.5px] leading-[14px] font-normal text-[#5085b6]">
+        {formatValue(v, isPercent)}
+      </td>
+    ))}
+  </tr>
+);
+
+const A4Page = ({ children, id, title, businessName }: { children: React.ReactNode; id?: string; title: string; businessName?: string }) => (
+  <div id={id} className="a4-page-container bg-white shadow-xl border-[0.5px] border-gray-200 mx-auto mb-12 text-[#5085b6] font-roboto relative print:shadow-none print:border-none print:mb-0 print:break-before-page group print:w-[210mm] print:min-h-[297mm] w-full max-w-[210mm] min-h-[297mm] p-[8mm] md:p-[12mm] print:p-[12mm] overflow-hidden print:overflow-visible">
+    <div className="h-full flex flex-col justify-between relative z-10">
+      <div className="flex-1">
+        {children}
+      </div>
+      {title !== 'formation' && (
+        <div className="mt-4 pt-2 border-t border-[#5085b6]/20 flex items-center justify-between text-[8px] leading-[14px] text-[#5085b6] uppercase tracking-widest font-bold">
+          <span>confidential • business plan for {businessName || 'registered entity'}</span>
+          <span>{title} • {new Date().getFullYear()}</span>
+        </div>
+      )}
+    </div>
+  </div>
+);
+
+const SectionHeader = ({ title }: { title: string }) => (
+  <h1 className="text-2xl font-black uppercase tracking-tight border-l-4 border-[#5085b6] pl-3 text-[#5085b6] mb-4 break-after-avoid">{title}</h1>
+);
+
+const replaceOklchInString = (str: string): string => {
+  if (!str) return '';
+  return str
+    .replace(/oklch\(\s*([\d.%]+)\s+([\d.%]+)\s+([\d.%]+)(?:\s*\/\s*([\d.%]+))?\s*\)/gi, (match, lStr, cStr, hStr, aStr) => {
+      let l = parseFloat(lStr);
+      if (lStr.includes('%')) l = l / 100;
+
+      let c = parseFloat(cStr);
+      if (cStr.includes('%')) c = c / 100;
+
+      let a = 1;
+      if (aStr !== undefined) {
+        a = parseFloat(aStr);
+        if (aStr.includes('%')) a = a / 100;
+      }
+
+      if (c < 0.03) {
+        if (l >= 0.92) return `rgba(255, 255, 255, ${a})`;
+        if (l >= 0.80) return `rgba(245, 247, 250, ${a})`;
+        if (l >= 0.60) return `rgba(200, 210, 220, ${a})`;
+        if (l <= 0.35) return `rgba(30, 41, 59, ${a})`;
+        return `rgba(100, 116, 139, ${a})`;
+      }
+
+      if (l > 0.85) return `rgba(224, 236, 248, ${a})`;
+      return `rgba(80, 133, 182, ${a})`;
+    })
+    .replace(/oklab\([^)]+\)/gi, 'rgba(80, 133, 182, 1)')
+    .replace(/color-mix\([^)]+\)/gi, 'rgba(80, 133, 182, 0.1)')
+    .replace(/light-dark\([^)]+\)/gi, 'rgba(80, 133, 182, 1)');
+};
+
+export default function PrintReview({ planData, modelData, activeSectionId }: PrintReviewProps) {
+  const getSection = (id: string) => planData.sections.find(s => s.id === id);
+
+  const years = [1, 2, 3, 4, 5];
+
+  const getYearlyValues = (mode: string) => {
+    if (!modelData) {
+      const baseValues: Record<string, number[]> = {
+        rev: [1200000, 1800000, 2600000, 3800000, 5200000],
+        cos: [660000, 990000, 1430000, 2090000, 2860000],
+        gp: [540000, 810000, 1170000, 1710000, 2340000],
+        opex: [320000, 380000, 450000, 520000, 600000],
+        nop: [220000, 430000, 720000, 1190000, 1740000],
+        tax: [70000, 110000, 140000, 270000, 290000],
+        np: [150000, 320000, 580000, 920000, 1450000],
+        bank: [80000, 320000, 800000, 1650000, 3250000],
+        assets: [1500000, 1800000, 2200000, 2800000, 3500000],
+        liabilities: [600000, 500000, 400000, 300000, 200000],
+        equity: [900000, 1300000, 1800000, 2500000, 3300000],
+        'cash-ops': [280000, 520000, 840000, 1420000, 2100000],
+        'cash-inv': [-150000, -100000, -120000, -150000, -200000],
+        'cash-fin': [-50000, -180000, -240000, -420000, -300000],
+        'cash-flow': [80000, 240000, 480000, 850000, 1600000]
+      };
+      return years.map(y => baseValues[mode] ? baseValues[mode][y-1] : 0);
+    }
+
+    const simMonths = runMonthlySimulation(modelData);
+    return years.map(y => {
+      const startMo = (y - 1) * 12;
+      const endMo = startMo + 11;
+      const yearMonths = simMonths.slice(startMo, endMo + 1);
+      const lastMo = yearMonths[yearMonths.length - 1];
+
+      const revenue = yearMonths.reduce((acc, m) => acc + m.revenue, 0);
+      const total_cos = yearMonths.reduce((acc, m) => acc + m.total_cos, 0);
+      const gross_profit = revenue - total_cos;
+      
+      const ex_variable = 0.01 * revenue;
+      const ex_fixed_opex = yearMonths.reduce((acc, m) => acc + m.ex_overheads, 0);
+      const ex_employment = yearMonths.reduce((acc, m) => acc + m.ex_employment, 0);
+      const ex_depreciation = yearMonths.reduce((acc, m) => acc + m.ex_depreciation, 0);
+      const ex_lease = yearMonths.reduce((acc, m) => acc + m.ex_lease, 0);
+      const ex_fixed = ex_fixed_opex + ex_employment + ex_depreciation + ex_lease;
+      const ex_total = ex_variable + ex_fixed;
+
+      const net_operating_profit = revenue - total_cos - ex_total;
+      const taxation = yearMonths.reduce((acc, m) => acc + m.taxation, 0);
+      const interest_rcl = yearMonths.reduce((acc, m) => acc + m.interest_rcl, 0);
+      const interest_tl = yearMonths.reduce((acc, m) => acc + m.interest_tl, 0) + yearMonths.reduce((acc, m) => acc + m.interest_abl, 0);
+      const interest_total = interest_rcl + interest_tl;
+      const net_profit_before_tax = net_operating_profit - interest_total;
+      const taxed_profits = net_profit_before_tax - taxation;
+
+      const total_assets = lastMo.fixed_assets_net + lastMo.inventory + lastMo.accounts_receivable + lastMo.other_assets + lastMo.vat_receivable + lastMo.bank_balance;
+      const total_liabilities = lastMo.vat_payable + lastMo.accounts_payable + lastMo.taxation_payable + lastMo.term_loan_balance + lastMo.asset_based_loan_balance + lastMo.revolving_credit_balance;
+      const total_equity = lastMo.shareholders_capital + lastMo.equity_loan + lastMo.retained_earnings_prior + lastMo.retained_earnings;
+
+      const cash_from_operations = yearMonths.reduce((acc, m) => acc + m.cash_from_operations, 0);
+      const change_in_working_capital = yearMonths.reduce((acc, m) => acc + m.change_in_working_capital, 0);
+      const application_to_capital_assets = yearMonths.reduce((acc, m) => acc + m.application_to_capital_assets, 0);
+      const change_in_funding = yearMonths.reduce((acc, m) => acc + m.change_in_funding, 0);
+      const cashflow = yearMonths.reduce((acc, m) => acc + m.cashflow, 0);
+
+      if (mode === 'rev') return revenue;
+      if (mode === 'cos') return total_cos;
+      if (mode === 'gp') return gross_profit;
+      if (mode === 'opex') return ex_total;
+      if (mode === 'nop') return net_operating_profit;
+      if (mode === 'tax') return taxation;
+      if (mode === 'np') return taxed_profits;
+      
+      if (mode === 'assets') return total_assets;
+      if (mode === 'liabilities') return total_liabilities;
+      if (mode === 'equity') return total_equity;
+      if (mode === 'bank') return lastMo.bank_balance;
+
+      if (mode === 'cash-ops') return cash_from_operations + change_in_working_capital;
+      if (mode === 'cash-inv') return application_to_capital_assets;
+      if (mode === 'cash-fin') return change_in_funding;
+      if (mode === 'cash-flow') return cashflow;
+
+      return 0;
+    });
+  };
+
+  const formatNumeric = (num: number) => {
+    return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  };
+
+  const formatPercent = (num: number) => {
+    return num.toFixed(2) + '%';
+  };
+
+  React.useEffect(() => {
+    if (activeSectionId) {
+      const element = document.getElementById(`print-section-${activeSectionId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  }, [activeSectionId]);
+
+  const [isExporting, setIsExporting] = useState(false);
+
+  const businessDisplayName = planData.coverPage?.companyName || planData.businessName || '';
+
+  const handleDownloadFullPDF = async () => {
+    setIsExporting(true);
+    try {
+      const pages = document.querySelectorAll('.a4-page-container');
+      if (!pages || pages.length === 0) return;
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      for (let i = 0; i < pages.length; i++) {
+        const pageEl = pages[i] as HTMLElement;
+        
+        const canvas = await html2canvas(pageEl, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          windowWidth: 1280,
+          onclone: (clonedDoc) => {
+            try {
+              const styleEls = clonedDoc.querySelectorAll('style');
+              styleEls.forEach((style) => {
+                if (style.textContent) {
+                  style.textContent = replaceOklchInString(style.textContent);
+                }
+              });
+
+              const allElements = clonedDoc.querySelectorAll('*');
+              allElements.forEach((el) => {
+                const htmlEl = el as HTMLElement;
+                if (htmlEl.getAttribute) {
+                  const styleAttr = htmlEl.getAttribute('style');
+                  if (styleAttr) {
+                    htmlEl.setAttribute('style', replaceOklchInString(styleAttr));
+                  }
+                }
+              });
+            } catch (e) {
+              console.warn('Sanitization warning:', e);
+            }
+          }
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        
+        if (i > 0) {
+          pdf.addPage('a4', 'p');
+        }
+
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      }
+
+      const cleanName = (businessDisplayName || 'bizzplan_business_plan').toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+      const fileName = `${cleanName}_full_document.pdf`;
+
+      pdf.save(fileName);
+
+      const blob = pdf.output('blob');
+      const blobUrl = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setTimeout(() => {
+        window.open(blobUrl, '_blank');
+      }, 500);
+
+    } catch (err) {
+      console.error('Error generating full document PDF:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  return (
+    <div className="bg-[#5085b6]/5 min-h-screen py-16 px-4 print:p-0 print:bg-white flex flex-col items-center relative overflow-y-auto">
+      {/* Floating Action Bar for Print & Download */}
+      <div className="fixed bottom-8 right-8 no-print z-50 flex items-center gap-3 bg-[#5085b6] text-white p-2 pl-4 pr-3 rounded-full shadow-2xl border border-white/20">
+        <button 
+          onClick={handleDownloadFullPDF}
+          disabled={isExporting}
+          className="flex items-center gap-2 text-white px-4 py-2.5 rounded-full hover:bg-white/10 transition-all text-xs font-black uppercase tracking-widest cursor-pointer disabled:opacity-50"
+          title="Download entire document as PDF"
+        >
+          {isExporting ? <Activity size={18} className="animate-spin" /> : <Download size={18} />}
+          {isExporting ? 'generating pdf...' : 'download pdf'}
+        </button>
+        <div className="w-[1px] h-6 bg-white/20"></div>
+        <button 
+          onClick={() => window.print()}
+          className="flex items-center gap-2 bg-white text-[#5085b6] px-5 py-2.5 rounded-full hover:bg-slate-100 transition-all text-xs font-black uppercase tracking-widest cursor-pointer shadow-md"
+          title="Print entire document"
+        >
+          <Printer size={18} /> print full document
+        </button>
+      </div>
+
+      {/* 1. Cover Page */}
+      <A4Page id="print-section-formation" title="formation" businessName={businessDisplayName}>
+        <div className="h-full flex flex-col justify-center items-center text-center space-y-6">
+          {planData.coverPage?.companyLogo && (
+            <div className="mb-4">
+              <img src={planData.coverPage.companyLogo} alt="Logo" className="max-h-24 object-contain mx-auto" />
+            </div>
+          )}
+          
+          <div className="space-y-3">
+            <h1 className="text-2xl font-black uppercase tracking-tight text-[#5085b6] leading-none">
+              {businessDisplayName || 'untitled business'}
+            </h1>
+            <div className="w-24 h-1 bg-[#5085b6] mx-auto rounded-full"></div>
+            <p className="text-xl font-medium italic tracking-widest text-[#5085b6] uppercase">Business Plan</p>
+          </div>
+          
+          <div className="pt-6 grid grid-cols-2 gap-x-12 gap-y-4 text-left max-w-lg mx-auto w-full border-t border-[#5085b6]/10 mt-6">
+            {[
+              { label: 'business type', value: planData.coverPage?.businessType },
+              { label: 'location', value: planData.coverPage?.businessLocation },
+              { label: 'prepared by', value: planData.coverPage?.preparationPrincipal },
+              { label: 'date', value: planData.coverPage?.preparationDate || new Date().toLocaleDateString('en-GB') },
+              { label: 'email', value: planData.coverPage?.principalEmail },
+              { label: 'mobile', value: planData.coverPage?.principalMobile },
+            ].filter(d => d.value).map(d => (
+              <div key={d.label} className="space-y-0.5 pb-2 border-b border-[#5085b6]/10">
+                <p className="text-[8px] font-normal uppercase tracking-[0.25em] text-[#5085b6]">{d.label}</p>
+                <p className="text-[9px] leading-[16px] font-normal text-[#5085b6] lowercase">{d.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-6 prose prose-sm max-w-md mx-auto text-[#5085b6] leading-[16px] italic text-[9px] font-normal text-center">
+            {getSection('formation')?.content || "Initial overview and professional narrative for the business venture."}
+          </div>
+        </div>
+      </A4Page>
+
+      {/* 2. Investor Pitch */}
+      <A4Page id="print-section-pitch" title="pitch" businessName={businessDisplayName}>
+        <div className="space-y-4">
+          <SectionHeader title="investor pitch" />
+          
+          <div className="bg-white p-3 rounded-xl border border-[#5085b6]/20 flex flex-col gap-1 italic mb-2">
+            <h4 className="text-[9px] font-bold uppercase tracking-widest text-[#5085b6] italic">Elevator Pitch Narrative</h4>
+            <p className="text-[9px] text-[#5085b6] leading-[16px] font-normal whitespace-pre-wrap">
+              {planData.pitch?.elevatorPitch || getSection('pitch')?.content || "No narrative content recorded for this section."}
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+            {[
+              { title: 'value offer', points: planData.pitch?.valueOffer },
+              { title: 'revenue model', points: planData.pitch?.revenueModel },
+              { title: 'financial outlook', points: planData.pitch?.financialOutlook },
+              { title: 'competitor landscape', points: planData.pitch?.competitorLandscape },
+              { title: 'get to market', points: planData.pitch?.getToMarket },
+              { title: 'growth lever funding', points: planData.pitch?.growthLeverFunding },
+              { title: 'funding deal', points: planData.pitch?.fundingDeal },
+            ].filter(s => s.points && s.points.some(p => p.trim())).map((section, idx) => (
+              <div key={idx} className="space-y-2">
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#5085b6] border-b border-[#5085b6]/10 pb-1 italic">
+                  {section.title}
+                </h3>
+                <ul className="space-y-1">
+                  {section.points?.filter(p => p.trim()).map((point, pIdx) => (
+                    <li key={pIdx} className="text-[9px] leading-[16px] font-normal flex gap-1.5 text-[#5085b6]">
+                      <span className="text-[#5085b6] font-normal text-xs leading-none mt-0.5">•</span>
+                      <span>{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </A4Page>
+
+      {/* 3. Governance */}
+      <A4Page id="print-section-governance" title="governance" businessName={businessDisplayName}>
+        <div className="space-y-4">
+          <SectionHeader title="governance" />
+
+          {planData.governance && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-4 gap-3 bg-white p-3 rounded-xl border border-[#5085b6]/20">
+                {[
+                  { label: 'legal form', value: planData.governance.corporate?.legalForm },
+                  { label: 'start date', value: planData.governance.corporate?.startDate },
+                  { label: 'financial month', value: planData.governance.corporate?.financialMonthEnd },
+                  { label: 'board size', value: planData.governance.corporate?.boardSize },
+                  { label: 'board quorum', value: planData.governance.corporate?.boardQuorum },
+                  { label: 'meeting freq', value: planData.governance.corporate?.boardMeetingFrequency },
+                  { label: 'reporting', value: planData.governance.corporate?.financialReportingFrequency },
+                  { label: 'agreement', value: planData.governance.corporate?.shareholdersAgreement },
+                ].filter(d => d.value).map(d => (
+                  <div key={d.label}>
+                    <p className="text-[7.5px] font-normal uppercase tracking-[0.2em] text-[#5085b6] mb-0.5 italic">{d.label}</p>
+                    <p className="text-[9px] leading-[16px] font-normal text-[#5085b6] lowercase">{d.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-4">
+                {planData.governance.boardMembers?.some(m => m.name) && (
+                  <div className="space-y-2">
+                    <h4 className="text-[9.5px] font-bold uppercase tracking-[0.2em] text-[#5085b6] italic border-b border-[#5085b6]/10 pb-1">Board Interest</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      {planData.governance.boardMembers.filter(m => m.name).map((m, i) => (
+                        <div key={i} className="flex justify-between py-1.5 px-2.5 border-b border-[#5085b6]/10">
+                          <span className="text-[9px] leading-[16px] font-normal text-[#5085b6] lowercase">{m.name}</span>
+                          <span className="text-[9px] leading-[16px] font-normal text-[#5085b6]">{m.shareholding}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {planData.governance.keyPersonnel?.some(p => p.name) && (
+                  <div className="space-y-2">
+                    <h4 className="text-[9.5px] font-bold uppercase tracking-[0.2em] text-[#5085b6] italic border-b border-[#5085b6]/10 pb-1">Key Personnel</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      {planData.governance.keyPersonnel.filter(p => p.name).map((p, i) => (
+                        <div key={i} className="flex justify-between py-1.5 px-2.5 border-b border-[#5085b6]/10">
+                          <span className="text-[9px] leading-[16px] font-normal text-[#5085b6] lowercase">{p.name}</span>
+                          <span className="text-[9px] leading-[16px] font-normal text-[#5085b6] uppercase tracking-widest">{p.position}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {planData.governance.professionalSupport?.some(s => s.name) && (
+                  <div className="space-y-2">
+                    <h4 className="text-[9.5px] font-bold uppercase tracking-[0.2em] text-[#5085b6] italic border-b border-[#5085b6]/10 pb-1">Professional Support</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      {planData.governance.professionalSupport.filter(s => s.name).map((s, i) => (
+                        <div key={i} className="flex justify-between py-1.5 px-2.5 border-b border-[#5085b6]/10">
+                          <span className="text-[9px] leading-[16px] font-normal text-[#5085b6] lowercase">{s.name}</span>
+                          <span className="text-[9px] leading-[16px] font-normal text-[#5085b6] uppercase tracking-widest">{s.serviceType}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </A4Page>
+
+      {/* 4. Assumptions */}
+      <A4Page id="print-section-assumptions" title="assumptions" businessName={businessDisplayName}>
+        <div className="space-y-4">
+          <SectionHeader title="assumptions" />
+          <AssumptionsReport planData={planData} modelData={modelData} activeSectionId="assumptions" />
+        </div>
+      </A4Page>
+
+      {/* 5. Financial Reports */}
+      <A4Page id="print-section-financial_reports" title="financial reports" businessName={businessDisplayName}>
+        <div className="space-y-3">
+          <SectionHeader title="financial reports" />
+          {[
+            { title: 'income statement', icon: Calculator, rows: [
+              { label: 'total revenue', mode: 'rev' },
+              { label: 'cost of sales', mode: 'cos' },
+              { label: 'gross profit', mode: 'gp', isTotal: true },
+              { label: 'operating expenses', mode: 'opex' },
+              { label: 'net operating profit', mode: 'nop', isTotal: true },
+              { label: 'taxation', mode: 'tax' },
+              { label: 'net profit', mode: 'np', isTotal: true },
+            ]},
+            { title: 'key ratios', icon: Target, rows: [
+              { label: 'gross profit margin', mode: 'gp', isPercent: true },
+              { label: 'return on assets', mode: 'nop', isPercent: true },
+              { label: 'debt:equity ratio', mode: 'liabilities' },
+            ]},
+            { title: 'balance sheet', icon: FileText, rows: [
+              { label: 'total assets', mode: 'assets', isTotal: true },
+              { label: 'total liabilities', mode: 'liabilities', isTotal: true },
+              { label: 'total equity', mode: 'equity', isTotal: true },
+              { label: 'bank balance', mode: 'bank', isTotal: true },
+            ]},
+            { title: 'cash flow statement', icon: Activity, rows: [
+              { label: 'cash from operations', mode: 'cash-ops', isTotal: true },
+              { label: 'cash from investment', mode: 'cash-inv', isTotal: true },
+              { label: 'cash from financing', mode: 'cash-fin', isTotal: true },
+              { label: 'closing bank balance', mode: 'bank', isTotal: true },
+            ]}
+          ].map((report, idx) => (
+            <div key={idx} className="space-y-1">
+              <div className="flex items-center gap-1.5 border-b border-[#5085b6]/10 pb-0.5">
+                <div className="text-[#5085b6]"><report.icon size={13} /></div>
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#5085b6] italic">{report.title}</h3>
+              </div>
+              <div className="overflow-x-auto border border-[#5085b6]/20 rounded-lg overflow-hidden">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#5085b6]/10 bg-white">
+                      <th className="py-1 px-2.5 text-left font-normal text-[#5085b6] uppercase tracking-widest text-[8px] w-1/3 border-r border-[#5085b6]/10 italic">Consolidated Figures</th>
+                      {years.map(y => <th key={y} className="py-1 px-2.5 text-right font-normal text-[#5085b6] uppercase tracking-widest text-[8px] italic">Year {y}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#5085b6]/10">
+                    {report.rows.map((rowRef: any, rIdx: number) => (
+                      <FinancialTableRow key={rIdx} label={rowRef.label} values={getYearlyValues(rowRef.mode)} isTotal={rowRef.isTotal} isPercent={rowRef.isPercent} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
+      </A4Page>
+
+      {/* 6. Strategic Touchpoints */}
+      {['environment', 'products', 'customers', 'suppliers', 'employees', 'infrastructure', 'systems'].map(sectionId => {
+        const section = getSection(sectionId);
+        if (!section) return null;
+
+        const renderCategory = (cat: any, i: number) => (
+          <div key={i} className="space-y-1.5 break-inside-avoid print:break-inside-avoid mb-[8px]">
+            <div className="flex items-center justify-between border-b border-[#5085b6]/20 pb-0.5 mb-[8px]">
+               <h4 className="text-[9.5px] font-bold uppercase tracking-[0.15em] text-[#5085b6] italic">{cat.title}</h4>
+               <div className="border border-[#5085b6]/30 bg-[#5085b6]/5 text-[#5085b6] px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest">
+                 score: {cat.items.reduce((s: number, item: any) => s + (item.score || 0), 0)}
+               </div>
+            </div>
+            
+            <div className="border-[0.5px] border-[#5085b6]/20 rounded-lg overflow-hidden font-roboto shadow-sm mb-[8px]">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-white border-b border-[#5085b6]/10">
+                    <th className="text-left py-1 px-2.5 text-[8.5px] leading-[16px] font-bold uppercase tracking-widest text-[#5085b6] border-r border-[#5085b6]/10">touch-point element</th>
+                    <th className="w-24 text-center py-1 px-2.5 text-[8.5px] leading-[16px] font-bold uppercase tracking-widest text-[#5085b6] border-r border-[#5085b6]/10">answer</th>
+                    <th className="w-16 text-center py-1 px-2.5 text-[8.5px] leading-[16px] font-bold uppercase tracking-widest text-[#5085b6]">score</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#5085b6]/10">
+                  {cat.items.map((item: any) => (
+                    <tr key={item.id} className="bg-white">
+                      <td className="py-1 px-2.5 text-[9px] leading-[16px] font-normal text-[#5085b6] border-r border-[#5085b6]/10">{item.item}</td>
+                      <td className="py-1 px-2.5 text-center text-[9px] leading-[16px] font-normal text-[#5085b6] lowercase border-r border-[#5085b6]/10">{item.answer === 'n/a' ? 'not applicable' : item.answer}</td>
+                      <td className="py-1 px-2.5 text-center text-[9px] leading-[16px] font-normal text-[#5085b6]">{item.score || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+
+        const renderSummary = () => (
+          <div className="mt-3 bg-white border-[0.5px] border-[#5085b6]/10 p-3 rounded-2xl shadow-sm italic break-inside-avoid print:break-inside-avoid">
+            <h4 className="text-[9px] font-bold uppercase tracking-widest text-[#5085b6] mb-[8px] italic flex items-center gap-1.5">
+              <MessageSquare size={12} /> business plan & summary
+            </h4>
+            <div className="text-[9px] leading-[16px] text-[#5085b6] font-normal font-roboto whitespace-pre-wrap">
+              {section.content || `Business plan and operational planning for ${section.title} focus areas.`}
+            </div>
+          </div>
+        );
+
+        const multiPageSplits: Record<string, number> = {
+          products: 4,
+          infrastructure: 2,
+          systems: 4,
+        };
+
+        const splitIdx = multiPageSplits[sectionId];
+        const allCategories = section.categories || [];
+
+        if (splitIdx !== undefined && allCategories.length > splitIdx) {
+          const page1Cats = allCategories.slice(0, splitIdx);
+          const page2Cats = allCategories.slice(splitIdx);
+
+          return (
+            <React.Fragment key={sectionId}>
+              <A4Page id={`print-section-${sectionId}`} title={section.title} businessName={businessDisplayName}>
+                <div className="space-y-3 font-roboto">
+                  <SectionHeader title={section.title} />
+                  <div className="space-y-3">
+                    {page1Cats.map((cat, i) => renderCategory(cat, i))}
+                  </div>
+                </div>
+              </A4Page>
+
+              <A4Page id={`print-section-${sectionId}_2`} title={`${section.title} continued`} businessName={businessDisplayName}>
+                <div className="space-y-3 font-roboto">
+                  <SectionHeader title={`${section.title} continued`} />
+                  <div className="space-y-3">
+                    {page2Cats.map((cat, i) => renderCategory(cat, i))}
+                  </div>
+                  {renderSummary()}
+                </div>
+              </A4Page>
+            </React.Fragment>
+          );
+        }
+        
+        return (
+          <A4Page key={sectionId} id={`print-section-${sectionId}`} title={section.title} businessName={businessDisplayName}>
+            <div className="space-y-3 font-roboto">
+              <SectionHeader title={section.title} />
+              <div className="space-y-3">
+                {allCategories.map((cat, i) => renderCategory(cat, i))}
+              </div>
+              {renderSummary()}
+            </div>
+          </A4Page>
+        );
+      })}
+
+      {/* 7. Viability Scorecard */}
+      <A4Page id="print-section-viability_scorecard" title="scorecard" businessName={businessDisplayName}>
+        <div className="space-y-3 font-roboto">
+          <SectionHeader title="viability scorecard" />
+          <ScorecardTable data={planData} />
+        </div>
+      </A4Page>
+
+      <A4Page id="print-section-viability_scorecard_2" title="scorecard continued" businessName={businessDisplayName}>
+        <div className="space-y-3 font-roboto">
+          <SectionHeader title="viability scorecard continued" />
+          <ScorecardActions data={planData} />
+        </div>
+      </A4Page>
+    </div>
+  );
+}
