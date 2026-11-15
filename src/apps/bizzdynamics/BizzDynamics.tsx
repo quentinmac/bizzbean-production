@@ -1686,6 +1686,28 @@ export const BizzDynamics: React.FC<BizzDynamicsProps> = ({
             onUpdateState={setModelState}
             activeTab={setupTab}
             onSelectTab={setSetupTab}
+            onResetAllToZero={() => {
+              setAssumptions((prev) =>
+                prev.map((a) => ({
+                  ...a,
+                  baseRate: 0,
+                  monthlyValues: new Array(60).fill(0),
+                }))
+              );
+              setCalendarState((prev) => ({
+                ...prev,
+                workingDays: {
+                  monday: true,
+                  tuesday: true,
+                  wednesday: true,
+                  thursday: true,
+                  friday: true,
+                  saturday: false,
+                  sunday: false,
+                },
+                deductHolidays: true,
+              }));
+            }}
           />
         )}
 

@@ -102,12 +102,13 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
   const currentStepDef = STEPS.find((s) => s.id === activeStep) || STEPS[0];
 
   // Resolve lowercase display name of the current app
-  const appDisplayName =
-    mode === 'rolling-forecast' || activeAppTab === 'rolling-forecast'
-      ? 'rolling forecast'
-      : mode === 'bizzdynamics' || activeAppTab === 'bizzdynamics'
-      ? 'bizzdynamics'
-      : 'bizzmodel';
+  const isRollingForecast = mode === 'rolling-forecast' || activeAppTab === 'rolling-forecast';
+  const showBizzPlanTab = Boolean(onSelectBizzPlanTab) && !isRollingForecast;
+  const appDisplayName = isRollingForecast
+    ? 'rolling forecast'
+    : mode === 'bizzdynamics' || activeAppTab === 'bizzdynamics'
+    ? 'bizzdynamics'
+    : 'bizzmodel';
 
   return (
     <div
@@ -163,7 +164,7 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                 >
                   results
                 </button>
-                {onSelectBizzPlanTab && (
+                {showBizzPlanTab && onSelectBizzPlanTab && (
                   <button
                     type="button"
                     onClick={() => onSelectBizzPlanTab(true)}
@@ -200,7 +201,7 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                     {tab.label}
                   </button>
                 ))}
-                {onSelectBizzPlanTab && (
+                {showBizzPlanTab && onSelectBizzPlanTab && (
                   <button
                     type="button"
                     onClick={() => onSelectBizzPlanTab(true)}
@@ -238,7 +239,7 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                     {tab.label}
                   </button>
                 ))}
-                {onSelectBizzPlanTab && (
+                {showBizzPlanTab && onSelectBizzPlanTab && (
                   <button
                     type="button"
                     onClick={() => onSelectBizzPlanTab(true)}

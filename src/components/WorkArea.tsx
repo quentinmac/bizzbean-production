@@ -2138,89 +2138,98 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                     </div>
                   </div>
 
-                  {/* Buttons Section: Row 1 has SMART PRICING and BUY SOLUTION; Row 2 has LAUNCH IN WORK AREA centered */}
-                  <div className="pt-3 border-t border-[#E8E2D8] dark:border-[#252E4A] space-y-3">
-                    {/* Row 1: SMART PRICING POLICY button and BUY SOLUTION button in the SAME ROW */}
-                    <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
-                      {/* Pink SMART PRICING Policy Button */}
-                      <button
-                        type="button"
-                        onClick={() => setIsSmartPricingModalOpen(true)}
-                        className="w-full sm:w-auto flex-1 px-4 py-2.5 rounded-xl bg-[#E02475] hover:bg-[#C91A63] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-all uppercase font-mono tracking-wide"
-                        title="View transparent V1 Smart Pricing Policy"
-                      >
-                        <Info className="h-4 w-4" />
-                        <span>SMART PRICING POLICY</span>
-                      </button>
+                  {/* Action Bar: Row 1 = Discovery & Account Utilities (4 balanced buttons); Row 2 = Single Primary Buy/Launch CTA */}
+                  {(() => {
+                    const candidateId = currentProd?.id || targetProdId || activeSolution?.id || '';
+                    const isStageId = ['vi-ability', 'fund-ability', 'sustain-ability', 'invest-ability', 'personal-sandbox', 'operations', 'growth', 'education'].includes(candidateId);
+                    const targetSolId = isStageId
+                      ? (isCourse
+                          ? (currentStageKey === 'fund-ability' ? 'cost-recovery-calculator' : currentStageKey === 'sustain-ability' ? 'profit-optimizer' : 'learn-earn-capital')
+                          : (currentStageKey === 'fund-ability' ? 'bizzmodel' : 'bizzdynamics'))
+                      : candidateId;
 
-                      {/* Pink BUY SOLUTION Button or Disabled Stage in Preparation Button */}
-                      {hasStageProducts ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const solToBuy: any = {
-                              ...(matchingCms || currentProd || activeSolution!),
-                              id: targetProdId || currentProd?.id || activeSolution?.id,
-                              name: solutionDisplayName,
-                              subtitle: solutionSubtitle,
-                              priceZAR: effectiveSellingZAR,
-                              sellingPriceZAR: effectiveSellingZAR,
-                              exclusivePriceZAR: effectiveExclusiveZAR,
-                              vatZAR: effectiveVatZAR,
-                              tokensAllocated: effectiveTokens,
-                              isPurchased: false,
-                            };
-                            onBuySolution(solToBuy);
-                          }}
-                          className="w-full sm:w-auto flex-1 px-5 py-2.5 rounded-xl bg-[#E02475] hover:bg-[#C91A63] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99] tracking-wide"
-                        >
-                          <ShoppingCart className="h-4 w-4" />
-                          <span>
-                            BUY SOLUTION (R{effectiveSellingZAR.toFixed(2)}{isMonthlySubscription ? '/mo' : ''})
-                          </span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled
-                          className="w-full sm:w-auto flex-1 px-5 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 cursor-not-allowed tracking-wide border border-dashed border-slate-300 dark:border-slate-700"
-                        >
-                          <Lock className="h-4 w-4" />
-                          <span>STAGE IN PREPARATION (0 PRODUCTS)</span>
-                        </button>
-                      )}
-                    </div>
+                    const isSolutionPinned = targetSolId
+                      ? quickLinkIds.includes(targetSolId) ||
+                        (targetSolId === 'budget' && quickLinkIds.includes('bizzbudget')) ||
+                        (targetSolId === 'bizzbudget' && quickLinkIds.includes('budget'))
+                      : false;
 
-                    {/* Row 2: Re-sequenced buttons per buttons.PNG: SIGN UP | ADD TO PINBOARD | LAUNCH IN WORK AREA */}
-                    {(() => {
-                      const candidateId = currentProd?.id || targetProdId || activeSolution?.id || '';
-                      const isStageId = ['vi-ability', 'fund-ability', 'sustain-ability', 'invest-ability', 'personal-sandbox', 'operations', 'growth', 'education'].includes(candidateId);
-                      const targetSolId = isStageId
-                        ? (isCourse
-                            ? (currentStageKey === 'fund-ability' ? 'cost-recovery-calculator' : currentStageKey === 'sustain-ability' ? 'profit-optimizer' : 'learn-earn-capital')
-                            : (currentStageKey === 'fund-ability' ? 'bizzmodel' : 'bizzdynamics'))
-                        : candidateId;
+                    const canLaunch = isPurchased || (isCourse && currentProd?.id === 'learn-earn-capital') || isAdmin || currentStageKey === 'operations-sandbox';
 
-                      const isSolutionPinned = targetSolId
-                        ? quickLinkIds.includes(targetSolId) ||
-                          (targetSolId === 'budget' && quickLinkIds.includes('bizzbudget')) ||
-                          (targetSolId === 'bizzbudget' && quickLinkIds.includes('budget'))
-                        : false;
+                    const handleBuyClick = () => {
+                      const solToBuy: any = {
+                        ...(matchingCms || currentProd || activeSolution!),
+                        id: targetProdId || currentProd?.id || activeSolution?.id,
+                        name: solutionDisplayName,
+                        subtitle: solutionSubtitle,
+                        priceZAR: effectiveSellingZAR,
+                        sellingPriceZAR: effectiveSellingZAR,
+                        exclusivePriceZAR: effectiveExclusiveZAR,
+                        vatZAR: effectiveVatZAR,
+                        tokensAllocated: effectiveTokens,
+                        isPurchased: false,
+                      };
+                      onBuySolution(solToBuy);
+                    };
 
-                      return (
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 pt-1">
-                          {/* 1. VIEW PRODUCT (Transparency preview without compute) */}
+                    const handleLaunchCourse = () => {
+                      const canon = getCanonicalCourseId(currentProd?.id || '') || getCanonicalCourseId(currentProd?.name || '') || getCanonicalCourseId(candidateId);
+                      const courseCandidate =
+                        canon ||
+                        (currentProd?.type === 'course' ? currentProd.id : null) ||
+                        (!isStageId ? candidateId : null) ||
+                        (currentStageKey === 'fund-ability' ? 'cost-recovery-calculator' : currentStageKey === 'sustain-ability' ? 'profit-optimizer' : 'learn-earn-capital');
+                      const matched = findMatchingCourse(courseCandidate, cmsProducts || []);
+                      const targetId = matched ? matched.id : (courseCandidate || 'cost-recovery-calculator');
+                      if (targetId && onSelectSolutionById) onSelectSolutionById(targetId);
+                      onLaunchSolution(targetId);
+                    };
+
+                    const handleLaunchApp = () => {
+                      const nameCheck = `${currentProd?.name || ''} ${currentProd?.id || ''} ${matchingCms?.name || ''} ${activeSolution?.id || ''}`.toLowerCase();
+                      const targetId =
+                        nameCheck.includes('dynamics')
+                          ? 'bizzdynamics'
+                          : nameCheck.includes('rolling')
+                          ? 'rolling-forecast'
+                          : nameCheck.includes('model') || nameCheck.includes('hi-level')
+                          ? 'bizzmodel'
+                          : currentProd?.id || activeSolution?.id || 'bizzcalc';
+                      if (onSelectSolutionById) onSelectSolutionById(targetId);
+                      onLaunchSolution(targetId);
+                    };
+
+                    return (
+                      <div className="pt-3 border-t border-[#E8E2D8] dark:border-[#252E4A] space-y-3">
+                        {/* Row 1: 4 balanced utility & discovery actions */}
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+                          {/* 1. VIEW PRODUCT */}
                           <button
                             type="button"
                             onClick={() => setIsTransparencyModalOpen(true)}
-                            className="w-full px-2.5 sm:px-3 py-2.5 rounded-xl bg-[#1E293B] hover:bg-[#334155] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-1.5 shadow-sm transition-all tracking-wide border border-[#3B4861] active:scale-[0.99] cursor-pointer"
+                            className="w-full px-3 py-2.5 rounded-xl bg-[#1E293B] hover:bg-[#334155] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-1.5 shadow-sm transition-all tracking-wide border border-[#3B4861] active:scale-[0.99] cursor-pointer"
                             title="View product details, syllabus, engine architecture, and deliverables (zero compute)"
                           >
                             <Eye className="h-4 w-4 text-[#38BDF8] shrink-0" />
                             <span className="truncate">VIEW PRODUCT</span>
                           </button>
 
-                          {/* 2. SIGN UP */}
+                          {/* 2. SMART PRICING POLICY (refined tonal style so it does not compete with primary CTA) */}
+                          <button
+                            type="button"
+                            onClick={() => setIsSmartPricingModalOpen(true)}
+                            className={`w-full px-3 py-2.5 rounded-xl font-bold text-xs uppercase font-mono flex items-center justify-center gap-1.5 shadow-xs transition-all tracking-wide border active:scale-[0.99] cursor-pointer ${
+                              isDark
+                                ? 'bg-[#261121] hover:bg-[#36162E] text-[#F472B6] border-[#6E234C]'
+                                : 'bg-[#FDF2F8] hover:bg-[#FCE7F3] text-[#C91A63] border-[#F5BDD9]'
+                            }`}
+                            title="View transparent V1 Smart Pricing Policy"
+                          >
+                            <Info className="h-4 w-4 shrink-0" />
+                            <span className="truncate">SMART PRICING</span>
+                          </button>
+
+                          {/* 3. SIGN UP */}
                           <button
                             type="button"
                             onClick={() => {
@@ -2230,125 +2239,79 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                                 setIsSignUpModalOpen(true);
                               }
                             }}
-                            className="w-full px-4 py-2.5 rounded-xl bg-[#12172A] hover:bg-[#1E2548] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-sm transition-all tracking-wide border border-[#2B3452]"
+                            className="w-full px-3 py-2.5 rounded-xl bg-[#12172A] hover:bg-[#1E2548] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-1.5 shadow-sm transition-all tracking-wide border border-[#2B3452] active:scale-[0.99] cursor-pointer"
                           >
-                            <UserCheck className="h-4 w-4 text-[#5584B4]" />
-                            <span>SIGN UP</span>
+                            <UserCheck className="h-4 w-4 text-[#5584B4] shrink-0" />
+                            <span className="truncate">SIGN UP</span>
                           </button>
 
-                          {/* 3. ADD TO PINBOARD */}
+                          {/* 4. PINBOARD */}
                           <button
                             type="button"
                             onClick={() => onToggleQuickLink(targetSolId)}
-                            className={`w-full px-4 py-2.5 rounded-xl transition-all text-xs uppercase font-mono font-bold flex items-center justify-center gap-2 shadow-sm tracking-wide border ${
+                            className={`w-full px-3 py-2.5 rounded-xl transition-all text-xs uppercase font-mono font-bold flex items-center justify-center gap-1.5 shadow-sm tracking-wide border active:scale-[0.99] cursor-pointer ${
                               isSolutionPinned
                                 ? 'bg-[#1E2548] text-[#DDEBF7] border-[#5584B4] ring-1 ring-[#5584B4]/40'
                                 : 'bg-[#12172A] hover:bg-[#1E2548] text-white border-[#2B3452]'
                             }`}
                             title={isSolutionPinned ? 'Remove from pinboard' : 'Add to pinboard'}
                           >
-                            <Pin className={`h-4 w-4 ${isSolutionPinned ? 'text-[#5584B4] fill-[#5584B4]/30' : 'text-slate-400'} -rotate-45`} />
-                            <span>{isSolutionPinned ? 'PINNED' : 'PINBOARD'}</span>
+                            <Pin className={`h-4 w-4 shrink-0 ${isSolutionPinned ? 'text-[#5584B4] fill-[#5584B4]/30' : 'text-slate-400'} -rotate-45`} />
+                            <span className="truncate">{isSolutionPinned ? 'PINNED' : 'PINBOARD'}</span>
                           </button>
+                        </div>
 
-                          {/* 4. LAUNCH IN WORK AREA / BIZZCLASS */}
+                        {/* Row 2: Single Primary Action (BUY SOLUTION before purchase, LAUNCH APP / LAUNCH BIZZCLASS once unlocked) */}
+                        <div>
                           {!hasStageProducts ? (
                             <button
                               type="button"
                               disabled
-                              className="w-full px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 cursor-not-allowed tracking-wide border border-dashed border-slate-300 dark:border-slate-700"
+                              className="w-full px-5 py-3 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs sm:text-sm uppercase font-mono flex items-center justify-center gap-2 cursor-not-allowed tracking-wide border border-dashed border-slate-300 dark:border-slate-700"
                               title="No active solutions currently allocated to this stage"
                             >
                               <Lock className="h-4 w-4" />
-                              <span className="truncate">IN PREPARATION</span>
+                              <span>STAGE IN PREPARATION (0 PRODUCTS)</span>
                             </button>
-                          ) : isCourse ? (
-                            (isPurchased || currentProd?.id === 'learn-earn-capital' || isAdmin || currentStageKey === 'operations-sandbox') ? (
+                          ) : canLaunch ? (
+                            isCourse ? (
                               <button
                                 type="button"
-                                onClick={() => {
-                                  const canon = getCanonicalCourseId(currentProd?.id || '') || getCanonicalCourseId(currentProd?.name || '') || getCanonicalCourseId(candidateId);
-                                  const courseCandidate =
-                                    canon ||
-                                    (currentProd?.type === 'course' ? currentProd.id : null) ||
-                                    (!isStageId ? candidateId : null) ||
-                                    (currentStageKey === 'fund-ability' ? 'cost-recovery-calculator' : currentStageKey === 'sustain-ability' ? 'profit-optimizer' : 'learn-earn-capital');
-                                  const matched = findMatchingCourse(courseCandidate, cmsProducts || []);
-                                  const targetId = matched ? matched.id : (courseCandidate || 'cost-recovery-calculator');
-                                  if (targetId && onSelectSolutionById) onSelectSolutionById(targetId);
-                                  onLaunchSolution(targetId);
-                                }}
-                                className="w-full px-4 py-2.5 rounded-xl bg-[#2E5E88] hover:bg-[#234E73] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-sm transition-all tracking-wide border border-[#487B9F]"
+                                onClick={handleLaunchCourse}
+                                className="w-full px-5 py-3 rounded-xl bg-[#2E5E88] hover:bg-[#234E73] text-white font-bold text-xs sm:text-sm uppercase font-mono flex items-center justify-center gap-2.5 shadow-md transition-all active:scale-[0.99] tracking-wide border border-[#487B9F] cursor-pointer"
                                 title="Open BizzClass course master suite and lesson delivery stream"
                               >
-                                <Play className="h-4 w-4 fill-white text-white" />
-                                <span className="truncate">LAUNCH BIZZCLASS</span>
+                                <Play className="h-4 w-4 fill-white text-white shrink-0" />
+                                <span>LAUNCH BIZZCLASS</span>
                               </button>
                             ) : (
                               <button
                                 type="button"
-                                onClick={() => {
-                                  const solToBuy: any = {
-                                    ...(matchingCms || currentProd || activeSolution!),
-                                    id: targetProdId || currentProd?.id || activeSolution?.id,
-                                    name: solutionDisplayName,
-                                    subtitle: solutionSubtitle,
-                                    priceZAR: effectiveSellingZAR,
-                                    sellingPriceZAR: effectiveSellingZAR,
-                                    exclusivePriceZAR: effectiveExclusiveZAR,
-                                    vatZAR: effectiveVatZAR,
-                                    tokensAllocated: effectiveTokens,
-                                    isPurchased: false,
-                                  };
-                                  onBuySolution(solToBuy);
-                                }}
-                                className="w-full px-4 py-2.5 rounded-xl bg-[#E02475] hover:bg-[#C91A63] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-sm transition-all tracking-wide border border-[#E02475]"
-                                title="Purchase course via PayFast to access BizzClass"
+                                onClick={handleLaunchApp}
+                                className="w-full px-5 py-3 rounded-xl bg-[#12172A] dark:bg-[#1E2548] hover:bg-[#1E2548] dark:hover:bg-[#2B355E] text-white font-bold text-xs sm:text-sm uppercase font-mono flex items-center justify-center gap-2.5 shadow-md transition-all active:scale-[0.99] tracking-wide border border-[#2B3452] dark:border-[#3E4A74] cursor-pointer"
+                                title="Launch interactive platform application and simulator"
                               >
-                                <ShoppingCart className="h-4 w-4" />
-                                <span className="truncate">BUY COURSE (R{effectiveSellingZAR.toFixed(2)})</span>
+                                <Layers className="h-4 w-4 text-[#84CC16] shrink-0" />
+                                <span>LAUNCH APP</span>
                               </button>
                             )
-                          ) : (isPurchased || currentStageKey === 'operations-sandbox' || isAdmin) ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const nameCheck = `${currentProd?.name || ''} ${currentProd?.id || ''} ${matchingCms?.name || ''} ${activeSolution?.id || ''}`.toLowerCase();
-                                const targetId =
-                                  nameCheck.includes('dynamics')
-                                    ? 'bizzdynamics'
-                                    : nameCheck.includes('rolling')
-                                    ? 'rolling-forecast'
-                                    : nameCheck.includes('model') || nameCheck.includes('hi-level')
-                                    ? 'bizzmodel'
-                                    : currentProd?.id || activeSolution?.id || 'bizzcalc';
-                                if (onSelectSolutionById) onSelectSolutionById(targetId);
-                                onLaunchSolution(targetId);
-                              }}
-                              className="w-full px-4 py-2.5 rounded-xl bg-[#12172A] dark:bg-[#1E2548] hover:bg-[#1E2548] dark:hover:bg-[#2B355E] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-sm transition-all tracking-wide border border-[#2B3452] dark:border-[#3E4A74]"
-                              title="Launch interactive platform application and simulator"
-                            >
-                              <Layers className="h-4 w-4 text-[#84CC16]" />
-                              <span className="truncate">LAUNCH APP</span>
-                            </button>
                           ) : (
                             <button
                               type="button"
-                              onClick={() => {
-                                const solToBuy = { ...(currentProd || activeSolution!), isPurchased: false };
-                                onBuySolution(solToBuy);
-                              }}
-                              className="w-full px-4 py-2.5 rounded-xl bg-[#E02475] hover:bg-[#C91A63] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-sm transition-all tracking-wide border border-[#E02475]"
-                              title="Purchase solution via PayFast to access work area"
+                              onClick={handleBuyClick}
+                              className="w-full px-5 py-3 rounded-xl bg-[#E02475] hover:bg-[#C91A63] text-white font-bold text-xs sm:text-sm uppercase font-mono flex items-center justify-center gap-2.5 shadow-md transition-all active:scale-[0.99] tracking-wide cursor-pointer"
+                              title={isCourse ? 'Purchase course via PayFast to access BizzClass' : 'Purchase solution via PayFast to access work area'}
                             >
-                              <ShoppingCart className="h-4 w-4" />
-                              <span className="truncate">BUY APP (R{effectiveSellingZAR.toFixed(2)})</span>
+                              <ShoppingCart className="h-4 w-4 shrink-0" />
+                              <span>
+                                BUY {isCourse ? 'COURSE' : 'SOLUTION'} (R{effectiveSellingZAR.toFixed(2)}{isMonthlySubscription ? '/mo' : ''})
+                              </span>
                             </button>
                           )}
                         </div>
-                      );
-                    })()}
-                  </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Smart Pricing Policy Popup Modal */}

@@ -18,13 +18,19 @@ import {
   AlertCircle,
   Building2,
   Users,
+  X,
+  Check,
 } from 'lucide-react';
 import {
   BizzModelState,
   BusinessDetails,
   PlatformForecastAppId,
+  RevenueItem,
   DEFAULT_BUSINESS_STATE,
   DEFAULT_SETUP_ASSUMPTIONS,
+  DEFAULT_EMPLOYMENT_CATEGORIES,
+  DEFAULT_EMPLOYMENT_ITEMS,
+  DEFAULT_EXPENSE_ITEMS,
 } from '../constants';
 import { calculate60MonthWorkingCalendar } from '../utils/calendarCalc';
 import { AssumptionRateItem } from '../../bizzdynamics/types';
@@ -44,6 +50,7 @@ interface SetupStepProps {
   onUpdateState: (updater: (prev: BizzModelState) => BizzModelState) => void;
   activeTab?: 'assumptions' | 'results' | 'charts';
   onSelectTab?: (tab: 'assumptions' | 'results' | 'charts') => void;
+  onResetAllToZero?: () => void;
 }
 
 export const SetupStep: React.FC<SetupStepProps> = ({
@@ -53,6 +60,7 @@ export const SetupStep: React.FC<SetupStepProps> = ({
   onUpdateState,
   activeTab: activeTabProp,
   onSelectTab: onSelectTabProp,
+  onResetAllToZero,
 }) => {
   const isDark = theme === 'dark';
   const isBizzDynamics = mode === 'bizzdynamics';
@@ -74,6 +82,15 @@ export const SetupStep: React.FC<SetupStepProps> = ({
 
   // Name lock state for other apps (locked once entered)
   const [nameLockOverride, setNameLockOverride] = useState<boolean>(false);
+
+  // Reset confirmation modal & toast feedback
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3200);
+  };
 
   // Update business details patch
   const handleUpdateDetails = (patch: Partial<BusinessDetails>) => {
@@ -193,24 +210,187 @@ export const SetupStep: React.FC<SetupStepProps> = ({
     handleUpdateDetails({ setupAssumptions: updatedAssumptions });
   };
 
-  // Reset to default baseline parameters
-  const handleResetToDefault = () => {
-    if (window.confirm('Reset all business setup parameters and baseline rates to defaults?')) {
-      onUpdateState((prev) => ({
+  // Reset ALL page values across the app to zero (matching BizzCalc scenario reset)
+  const handleResetAllToZero = () => {
+    onUpdateState((prev) => {
+      const zeroSetupAssumptions: AssumptionRateItem[] = DEFAULT_SETUP_ASSUMPTIONS.map((a) => ({
+        ...a,
+        baseRate: 0,
+        monthlyValues: new Array(60).fill(0),
+      }));
+
+      const zeroRevenueItem = (item: RevenueItem): RevenueItem => ({
+        ...item,
+        unitPrice: 0,
+        unitCost: 0,
+        costOfSalesPct: 0,
+        dailyCapacity: 0,
+        monthlyUnits: new Array(60).fill(0),
+        dailyUnitSalesMonthly: new Array(60).fill(0),
+        productionUnitCostMonthly: new Array(60).fill(0),
+        manufacturingMarginPctMonthly: new Array(60).fill(0),
+        grossProfitMarginPctMonthly: new Array(60).fill(0),
+        salesCommissionPctMonthly: new Array(60).fill(0),
+        inventoryAdjustmentPctMonthly: new Array(60).fill(0),
+        otherIncomeMonthly: new Array(60).fill(0),
+      });
+
+      const defaultRevNames =
+        mode === 'bizzdynamics'
+          ? ['Unit Product 1', 'Unit Product 2', 'Unit Product 3']
+          : mode === 'rolling-forecast' || mode === 'hi-level-forecast'
+          ? ['Core Product 1', 'Core Product 2']
+          : ['revenue generator SKU-A'];
+
+      const baseRevItems: RevenueItem[] =
+        prev.revenueItems && prev.revenueItems.length > 0
+          ? prev.revenueItems.map(zeroRevenueItem)
+          : defaultRevNames.map((name, idx) =>
+              zeroRevenueItem({
+                id: `rev-${mode}-${idx + 1}`,
+                category: 'RETAIL PRODUCTS',
+                name,
+                modelType: 'unit sales',
+                unitPrice: 0,
+                unitCost: 0,
+                costOfSalesPct: 0,
+                startMonth: 1,
+                dailyCapacity: 0,
+                monthlyUnits: new Array(60).fill(0),
+              })
+            );
+
+      const zeroCategories = (
+        prev.employmentCategories && prev.employmentCategories.length > 0
+          ? prev.employmentCategories
+          : DEFAULT_EMPLOYMENT_CATEGORIES
+      ).map((cat) => ({
+        ...cat,
+        onCostPct: 0,
+        annualReviewPct: 0,
+        monthlyAdjustmentPct: new Array(60).fill(0),
+      }));
+
+      const zeroEmployees = (
+        prev.employmentItems && prev.employmentItems.length > 0
+          ? prev.employmentItems
+          : DEFAULT_EMPLOYMENT_ITEMS
+      ).map((emp) => ({
+        ...emp,
+        baseRateMonthly: 0,
+        numEmployees: 0,
+        onCostPct: 0,
+      }));
+
+      const zeroExpenses = (
+        prev.expenses && prev.expenses.length > 0
+          ? prev.expenses
+          : DEFAULT_EXPENSE_ITEMS
+      ).map((exp) => ({
+        ...exp,
+        baseRateMonthly: 0,
+        monthlyAmount: 0,
+        pctOfRevenue: 0,
+        growthRatePct: 0,
+        monthlyAdjustmentPct: new Array(60).fill(0),
+      }));
+
+      return {
         ...prev,
         businessDetails: {
-          ...DEFAULT_BUSINESS_STATE.businessDetails,
-          businessName: isBizzDynamics
-            ? 'bizzbean learning academy'
-            : prev.businessDetails.businessName || 'my dream venture',
-          isNameLocked: !isBizzDynamics,
-          setupAssumptions: DEFAULT_SETUP_ASSUMPTIONS.map((a) => ({
-            ...a,
-            monthlyValues: new Array(60).fill(a.baseRate),
-          })),
+          ...prev.businessDetails,
+          workingDays: {
+            monday: true,
+            tuesday: true,
+            wednesday: true,
+            thursday: true,
+            friday: true,
+            saturday: false,
+            sunday: false,
+          },
+          daysWorkedPerWeek: 5,
+          deductHolidays: true,
+          annualShutdown: {
+            ...(prev.businessDetails.annualShutdown || { fromDate: '12-20', toDate: '01-05', daysCount: 11 }),
+            enabled: false,
+          },
+          vatRate: 0,
+          taxRate: 0,
+          setupAssumptions: zeroSetupAssumptions,
+        } as BusinessDetails,
+        revenueItems: baseRevItems,
+        employmentCategories: zeroCategories,
+        employmentItems: zeroEmployees,
+        expenses: zeroExpenses,
+        opexSettings: {
+          allocationToCostOfSalesPct: 0,
+          hiLevelPreset: { cosFixedPct: 0, opexFixedPct: 0, opexVarPct: 0 },
+          categoryAdjustments: {
+            cosShareOfFixed: new Array(60).fill(0),
+            opexVariable: new Array(60).fill(0),
+            opexFixed: new Array(60).fill(0),
+          },
         },
-      }));
+        fixedAssets: [],
+        funding: {
+          founderEquity: 0,
+          investorEquity: 0,
+          bankLoanAmount: 0,
+          interestRatePct: 0,
+          loanTermMonths: 0,
+          loanStartMonth: 1,
+          overdraftLimit: 0,
+          creditorDays: 0,
+          debtorDays: 0,
+          inventoryDays: 0,
+          equityLoan: 0,
+          inventoryDaysMonthly: new Array(60).fill(0),
+          debtorDaysMonthly: new Array(60).fill(0),
+          creditorDaysMonthly: new Array(60).fill(0),
+          depositsBase: 0,
+          floatsBase: 0,
+          pettyCashBase: 0,
+          depositsMonthly: new Array(60).fill(0),
+          floatsMonthly: new Array(60).fill(0),
+          pettyCashMonthly: new Array(60).fill(0),
+          termLoans: [],
+          initialSharesCount: 0,
+          initialSharePrice: 0,
+          additionalSharesMonthly: new Array(60).fill(0),
+          additionalSharePriceMonthly: new Array(60).fill(0),
+          shareIssues: [],
+          equityLoanOpening: 0,
+          equityLoanAdditionalMonthly: new Array(60).fill(0),
+          equityLoanRepaymentsMonthly: new Array(60).fill(0),
+          dividendsPerShareBase: 0,
+          dividendsPerShareMonthly: new Array(60).fill(0),
+        },
+        highLevelForecast: {
+          dailyRevenue: 0,
+          dailyGrowthPct: 0,
+          workingDaysPerMonth: 0,
+          costOfSalesPct: 0,
+          directLaborPct: 0,
+          fixedOpexMonthly: 0,
+          cashReserves: 0,
+          debtFunding: 0,
+          interestRatePct: 0,
+          targetHorizonMonths: prev.highLevelForecast?.targetHorizonMonths || 36,
+        },
+      };
+    });
+
+    if (onResetAllToZero) {
+      onResetAllToZero();
     }
+
+    setShowResetConfirmModal(false);
+    showToast(`all ${mode} page values reset to zero.`);
+  };
+
+  // Trigger reset confirmation modal from header or assumptions tab
+  const handleResetToDefault = () => {
+    setShowResetConfirmModal(true);
   };
 
   // ---------------------------------------------------------------------------
@@ -820,6 +1000,26 @@ export const SetupStep: React.FC<SetupStepProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Scenario Reset Action Bar (Matching BizzCalc reset.PNG standard) */}
+          <div
+            className={`p-4 rounded-2xl border space-y-2 ${
+              isDark ? 'bg-[#101626] border-[#222F4C]' : 'bg-white border-[#D8CEBC] shadow-xs'
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => setShowResetConfirmModal(true)}
+              className="w-full py-2.5 px-4 rounded-xl text-xs font-mono font-bold lowercase bg-[#5CA338] hover:bg-[#4E8B30] text-white transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer active:scale-[0.99]"
+              title="re-set this app to default settings (all page values zero, mon-fri working calendar)"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span>re-set to default for scenario</span>
+            </button>
+            <p className="text-[10px] text-slate-400 text-center lowercase font-mono">
+              * resets all page values to zero for &ldquo;{mode}&rdquo; (mon, tue, wed, thu, fri)
+            </p>
+          </div>
         </div>
       )}
 
@@ -1327,11 +1527,12 @@ export const SetupStep: React.FC<SetupStepProps> = ({
             </div>
 
             {/* 5-Year Trajectory Bars */}
-            <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 text-center pt-2">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center pt-2">
               {[1, 2, 3, 4, 5].map((yr) => {
-                const posRate = interestPosAnnual.find((p) => p.year === yr)?.avg || 4.5;
-                const negRate = interestNegAnnual.find((n) => n.year === yr)?.avg || 11.75;
+                const posRate = interestPosAnnual.find((p) => p.year === yr)?.avg ?? 0;
+                const negRate = interestNegAnnual.find((n) => n.year === yr)?.avg ?? 0;
                 const spread = posRate - negRate;
+                const maxAxisRate = Math.max(20, posRate, negRate);
 
                 return (
                   <div
@@ -1349,7 +1550,7 @@ export const SetupStep: React.FC<SetupStepProps> = ({
                         </span>
                         <div
                           className="w-5 sm:w-6 bg-cyan-500 rounded-t-sm transition-all shadow-xs"
-                          style={{ height: `${(posRate / 20) * 85}px` }}
+                          style={{ height: `${Math.max(0, (posRate / maxAxisRate) * 85)}px` }}
                           title={`Positive Balance Yield: ${posRate.toFixed(2)}%`}
                         />
                       </div>
@@ -1359,7 +1560,7 @@ export const SetupStep: React.FC<SetupStepProps> = ({
                         </span>
                         <div
                           className="w-5 sm:w-6 bg-rose-500 rounded-t-sm transition-all shadow-xs"
-                          style={{ height: `${(negRate / 20) * 85}px` }}
+                          style={{ height: `${Math.max(0, (negRate / maxAxisRate) * 85)}px` }}
                           title={`Negative Overdraft Cost: ${negRate.toFixed(2)}%`}
                         />
                       </div>
@@ -1371,38 +1572,6 @@ export const SetupStep: React.FC<SetupStepProps> = ({
                   </div>
                 );
               })}
-
-              {/* 5-Year Average Card */}
-              <div className="p-3.5 rounded-xl bg-[#2E5E88]/10 border border-[#2E5E88]/30 space-y-2 flex flex-col justify-between">
-                <div className="text-xs font-bold text-[#2E5E88] dark:text-white uppercase">
-                  5-YR SUMMARY
-                </div>
-
-                <div className="h-28 flex items-end justify-center gap-3 pt-2 pb-1 border-b border-[#2E5E88]/20">
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-[10px] font-bold text-cyan-600 dark:text-cyan-300">
-                      {interestPos5Yr.toFixed(2)}%
-                    </span>
-                    <div
-                      className="w-5 sm:w-6 bg-cyan-500 rounded-t-sm"
-                      style={{ height: `${(interestPos5Yr / 20) * 85}px` }}
-                    />
-                  </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-[10px] font-bold text-rose-600 dark:text-rose-300">
-                      {interestNeg5Yr.toFixed(2)}%
-                    </span>
-                    <div
-                      className="w-5 sm:w-6 bg-rose-500 rounded-t-sm"
-                      style={{ height: `${(interestNeg5Yr / 20) * 85}px` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="text-[10px] font-mono text-[#2E5E88] dark:text-[#5584B4] font-bold pt-1">
-                  net: {(interestPos5Yr - interestNeg5Yr).toFixed(2)}%
-                </div>
-              </div>
             </div>
           </div>
 
@@ -1426,12 +1595,9 @@ export const SetupStep: React.FC<SetupStepProps> = ({
                     Statutory consumption tax baseline & slider adjustments
                   </span>
                 </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25">
-                  Std: {vat5Yr.toFixed(2)}%
-                </span>
               </div>
 
-              <div className="grid grid-cols-6 gap-2 text-center pt-2">
+              <div className="grid grid-cols-5 gap-2 text-center pt-2">
                 {[1, 2, 3, 4, 5].map((yr) => {
                   const rate = vatAnnual.find((v) => v.year === yr)?.avg ?? 0.0;
                   return (
@@ -1453,20 +1619,6 @@ export const SetupStep: React.FC<SetupStepProps> = ({
                     </div>
                   );
                 })}
-
-                {/* 5-Yr Avg */}
-                <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/30 space-y-1">
-                  <div className="text-[10px] font-bold text-indigo-600 dark:text-indigo-300 uppercase">5-YR</div>
-                  <div className="h-20 flex items-end justify-center pb-1">
-                    <div
-                      className="w-4 sm:w-5 bg-indigo-600 rounded-t-sm"
-                      style={{ height: `${(vat5Yr / 25) * 65}px` }}
-                    />
-                  </div>
-                  <div className="text-[10px] font-bold text-indigo-600 dark:text-indigo-300">
-                    {vat5Yr.toFixed(1)}%
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -1485,12 +1637,9 @@ export const SetupStep: React.FC<SetupStepProps> = ({
                     Headline corporate income tax rate on net profit before tax
                   </span>
                 </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25">
-                  Std: {tax5Yr.toFixed(2)}%
-                </span>
               </div>
 
-              <div className="grid grid-cols-6 gap-2 text-center pt-2">
+              <div className="grid grid-cols-5 gap-2 text-center pt-2">
                 {[1, 2, 3, 4, 5].map((yr) => {
                   const rate = taxAnnual.find((t) => t.year === yr)?.avg ?? 0.0;
                   return (
@@ -1512,20 +1661,6 @@ export const SetupStep: React.FC<SetupStepProps> = ({
                     </div>
                   );
                 })}
-
-                {/* 5-Yr Avg */}
-                <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-1">
-                  <div className="text-[10px] font-bold text-amber-600 dark:text-amber-300 uppercase">5-YR</div>
-                  <div className="h-20 flex items-end justify-center pb-1">
-                    <div
-                      className="w-4 sm:w-5 bg-amber-600 rounded-t-sm"
-                      style={{ height: `${(tax5Yr / 35) * 65}px` }}
-                    />
-                  </div>
-                  <div className="text-[10px] font-bold text-amber-600 dark:text-amber-300">
-                    {tax5Yr.toFixed(1)}%
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -1568,12 +1703,13 @@ export const SetupStep: React.FC<SetupStepProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-6 gap-3 text-center pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 text-center pt-2">
               {[1, 2, 3, 4, 5].map((yr) => {
-                const pos = interestPosAnnual.find((p) => p.year === yr)?.avg || 4.5;
-                const neg = interestNegAnnual.find((n) => n.year === yr)?.avg || 11.75;
+                const pos = interestPosAnnual.find((p) => p.year === yr)?.avg ?? 0;
+                const neg = interestNegAnnual.find((n) => n.year === yr)?.avg ?? 0;
                 const vat = vatAnnual.find((v) => v.year === yr)?.avg ?? 0.0;
                 const tax = taxAnnual.find((t) => t.year === yr)?.avg ?? 0.0;
+                const maxAxisRate = Math.max(35, pos, neg, vat, tax);
 
                 return (
                   <div
@@ -1586,23 +1722,23 @@ export const SetupStep: React.FC<SetupStepProps> = ({
 
                     <div className="h-32 flex items-end justify-center gap-1 pt-2 pb-1 border-b border-slate-200 dark:border-slate-800">
                       <div
-                        className="w-3 sm:w-3.5 bg-cyan-500 rounded-t-xs"
-                        style={{ height: `${(pos / 35) * 95}px` }}
+                        className="w-3 sm:w-3.5 bg-cyan-500 rounded-t-xs transition-all"
+                        style={{ height: `${Math.max(0, (pos / maxAxisRate) * 95)}px` }}
                         title={`Pos Interest: ${pos.toFixed(2)}%`}
                       />
                       <div
-                        className="w-3 sm:w-3.5 bg-rose-500 rounded-t-xs"
-                        style={{ height: `${(neg / 35) * 95}px` }}
+                        className="w-3 sm:w-3.5 bg-rose-500 rounded-t-xs transition-all"
+                        style={{ height: `${Math.max(0, (neg / maxAxisRate) * 95)}px` }}
                         title={`Neg Overdraft: ${neg.toFixed(2)}%`}
                       />
                       <div
-                        className="w-3 sm:w-3.5 bg-indigo-500 rounded-t-xs"
-                        style={{ height: `${(vat / 35) * 95}px` }}
+                        className="w-3 sm:w-3.5 bg-indigo-500 rounded-t-xs transition-all"
+                        style={{ height: `${Math.max(0, (vat / maxAxisRate) * 95)}px` }}
                         title={`VAT: ${vat.toFixed(2)}%`}
                       />
                       <div
-                        className="w-3 sm:w-3.5 bg-amber-500 rounded-t-xs"
-                        style={{ height: `${(tax / 35) * 95}px` }}
+                        className="w-3 sm:w-3.5 bg-amber-500 rounded-t-xs transition-all"
+                        style={{ height: `${Math.max(0, (tax / maxAxisRate) * 95)}px` }}
                         title={`Tax: ${tax.toFixed(2)}%`}
                       />
                     </div>
@@ -1616,45 +1752,81 @@ export const SetupStep: React.FC<SetupStepProps> = ({
                   </div>
                 );
               })}
-
-              {/* 5-Year Horizon Summary Column */}
-              <div className="p-3 rounded-xl bg-[#2E5E88]/10 border border-[#2E5E88]/30 space-y-2">
-                <div className="text-xs font-bold text-[#2E5E88] dark:text-white uppercase">
-                  5-YR HORIZON
-                </div>
-
-                <div className="h-32 flex items-end justify-center gap-1 pt-2 pb-1 border-b border-[#2E5E88]/20">
-                  <div
-                    className="w-3 sm:w-3.5 bg-cyan-500 rounded-t-xs"
-                    style={{ height: `${(interestPos5Yr / 35) * 95}px` }}
-                    title={`5-Yr Pos Interest: ${interestPos5Yr.toFixed(2)}%`}
-                  />
-                  <div
-                    className="w-3 sm:w-3.5 bg-rose-500 rounded-t-xs"
-                    style={{ height: `${(interestNeg5Yr / 35) * 95}px` }}
-                    title={`5-Yr Neg Overdraft: ${interestNeg5Yr.toFixed(2)}%`}
-                  />
-                  <div
-                    className="w-3 sm:w-3.5 bg-indigo-500 rounded-t-xs"
-                    style={{ height: `${(vat5Yr / 35) * 95}px` }}
-                    title={`5-Yr VAT: ${vat5Yr.toFixed(2)}%`}
-                  />
-                  <div
-                    className="w-3 sm:w-3.5 bg-amber-500 rounded-t-xs"
-                    style={{ height: `${(tax5Yr / 35) * 95}px` }}
-                    title={`5-Yr Tax: ${tax5Yr.toFixed(2)}%`}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-x-1 gap-y-0.5 text-[9px] font-mono text-left pt-1">
-                  <span className="text-cyan-600 dark:text-cyan-300 font-bold">{interestPos5Yr.toFixed(1)}%</span>
-                  <span className="text-rose-600 dark:text-rose-300 font-bold text-right">{interestNeg5Yr.toFixed(1)}%</span>
-                  <span className="text-indigo-600 dark:text-indigo-300 font-bold">{vat5Yr.toFixed(1)}%</span>
-                  <span className="text-amber-600 dark:text-amber-300 font-bold text-right">{tax5Yr.toFixed(1)}%</span>
-                </div>
-              </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* RESET ALL VALUES TO ZERO CONFIRMATION MODAL                           */}
+      {/* ===================================================================== */}
+      {showResetConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div
+            className={`w-full max-w-sm rounded-3xl border p-5 space-y-4 shadow-2xl font-mono ${
+              isDark ? 'bg-[#101626] border-[#222F4C] text-[#E2E8F0]' : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-800'
+            }`}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2 text-xs lowercase font-normal text-[#5CA338]">
+                <div className="p-1.5 rounded-lg bg-[#5CA338]/20 text-[#5CA338]">
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </div>
+                <span className="font-bold text-slate-900 dark:text-white">re-set to default for scenario</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowResetConfirmModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs font-normal lowercase leading-relaxed">
+              <p className="text-slate-700 dark:text-slate-300">
+                Are you sure you want to reset all values for <strong className="text-[#2E5E88] dark:text-[#5584B4] font-bold">&ldquo;{mode}&rdquo;</strong> to zero?
+              </p>
+              <div className="p-3 rounded-2xl bg-white dark:bg-[#0E1322] border border-[#D8CEBC] dark:border-[#222F4C] text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
+                <div>✓ working days: <strong className="text-slate-900 dark:text-slate-100">mon, tue, wed, thu, fri</strong></div>
+                <div>✓ deduct public holidays: <strong className="text-slate-900 dark:text-slate-100">enabled</strong></div>
+                <div>✓ interest, vat &amp; tax rates: <strong className="text-slate-900 dark:text-slate-100">all base rates 0%</strong></div>
+                <div>✓ revenue calculator: <strong className="text-slate-900 dark:text-slate-100">all page values 0</strong></div>
+                <div>✓ employment &amp; payroll: <strong className="text-slate-900 dark:text-slate-100">all page values 0</strong></div>
+                <div>✓ operating expenses: <strong className="text-slate-900 dark:text-slate-100">all page values 0</strong></div>
+                <div>✓ fixed assets &amp; funding: <strong className="text-slate-900 dark:text-slate-100">all page values 0</strong></div>
+              </div>
+            </div>
+
+            <div className="pt-2 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={handleResetAllToZero}
+                className="w-full py-2.5 px-3 rounded-xl bg-[#5CA338] hover:bg-[#4E8B30] text-white text-xs lowercase font-bold shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.99]"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span>reset &ldquo;{mode}&rdquo; values to zero</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowResetConfirmModal(false)}
+                className="w-full py-1 text-xs lowercase text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-center cursor-pointer"
+              >
+                cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* FLOATING RESET SUCCESS TOAST                                          */}
+      {/* ===================================================================== */}
+      {toastMessage && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] px-4 py-2 rounded-2xl bg-[#5CA338] text-white text-xs font-mono shadow-xl border border-white/20 flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+          <Check className="h-4 w-4 shrink-0" />
+          <span>{toastMessage}</span>
         </div>
       )}
     </div>

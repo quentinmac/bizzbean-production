@@ -386,6 +386,7 @@ export const BizzModel: React.FC<BizzModelProps> = ({
       setCurrentMode('bizzdynamics');
     } else if (tab === 'rolling-forecast') {
       setCurrentMode('rolling-forecast');
+      setIsStepBizzPlanActive(false);
     } else if (tab === 'bizzmodel') {
       setCurrentMode('bizzmodel');
     }
@@ -442,13 +443,13 @@ export const BizzModel: React.FC<BizzModelProps> = ({
       onSelectStepSubTab={setStepSubTab}
       fundingTab={fundingTab}
       onSelectFundingTab={setFundingTab}
-      isBizzPlanTabActive={isStepBizzPlanActive}
-      onSelectBizzPlanTab={setIsStepBizzPlanActive}
+      isBizzPlanTabActive={currentMode !== 'rolling-forecast' && activeAppTab !== 'rolling-forecast' && isStepBizzPlanActive}
+      onSelectBizzPlanTab={currentMode === 'rolling-forecast' || activeAppTab === 'rolling-forecast' ? undefined : setIsStepBizzPlanActive}
       onClose={onClose}
     >
       {/* 1. PLATFORM FORECAST APP STEPS (bizzmodel, rolling-forecast) */}
       {(activeAppTab === 'bizzmodel' || activeAppTab === 'rolling-forecast') && (
-        isStepBizzPlanActive ? (
+        isStepBizzPlanActive && currentMode !== 'rolling-forecast' && activeAppTab !== 'rolling-forecast' ? (
           <BizzPlan
             theme={theme}
             onClose={onClose}

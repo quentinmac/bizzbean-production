@@ -150,14 +150,9 @@ export default function AuthGateway({ onAuthenticated, onClose }: AuthGatewayPro
   const [authSuccess, setAuthSuccess] = useState<string | null>(null);
   const [canQuickRegister, setCanQuickRegister] = useState(false);
 
-  // Status & Simulation logs
-  const [simulationLogs, setSimulationLogs] = useState<string[]>([]);
+  // Loading & Welcome Modal state
   const [isSimulating, setIsSimulating] = useState(false);
   const [registeredProfileForWelcome, setRegisteredProfileForWelcome] = useState<any | null>(null);
-
-  const addLog = (msg: string) => {
-    setSimulationLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
-  };
 
   const handleDownloadBookBundle = async () => {
     try {
@@ -219,16 +214,8 @@ Welcome to the bizzbean Sandbox environment!
     }
 
     setIsSimulating(true);
-    setSimulationLogs([]);
-    addLog(`Initiating registration payload mapping...`);
-    addLog(`Country of association registered: "${country}"`);
-    if (associate) {
-      addLog(`Associating account with partner / agency code: "${associate}"`);
-    }
     
     setTimeout(async () => {
-      addLog(`Status: 201 Created.`);
-      addLog(`Response token generated successfully.`);
 
       const fullName = firstName ? `${firstName} ${lastName}`.trim() : (email.split('@')[0] || 'Jane Member');
       
@@ -321,19 +308,12 @@ Welcome to the bizzbean Sandbox environment!
         console.info('Firebase auth registration notice:', fbRegErr);
       }
 
-      // Dispatch official "your SANDBOX is ready" welcome email via Xneelo SMTP
-      addLog(`Dispatching welcome letter from thebizzbeanchannel@bizzbean.com to ${email.trim()}...`);
+      // Dispatch official "your SANDBOX is ready" welcome email via SMTP
       sendWelcomeEmail({
         recipientEmail: email.trim(),
         recipientName: fullName,
         firstName: firstName.trim() || undefined,
         companyName: newProfile.companyName,
-      }).then((res) => {
-        if (res.success) {
-          addLog(`✓ Welcome letter delivered to ${email.trim()} via SMTP`);
-        } else {
-          addLog(`Email dispatch note: ${res.error || 'simulated delivery'}`);
-        }
       }).catch((e) => {
         console.warn('Welcome email error:', e);
       });
@@ -356,26 +336,20 @@ Welcome to the bizzbean Sandbox environment!
     setAuthError(null);
     setAuthSuccess(null);
     setIsSimulating(true);
-    setSimulationLogs([]);
     setCanQuickRegister(false);
-    addLog(`Connecting to Firebase Authentication (Project: bizzbean-65900)...`);
-    addLog(`Authenticating email: "${loginEmail.trim()}"...`);
 
     try {
       const { user: fbUser, profile } = await signInUser(loginEmail.trim(), loginPassword);
       localStorage.setItem('bizzbean_last_login_email', loginEmail.trim());
-      addLog(`Firebase Auth Token verified for UID: ${fbUser.uid}`);
-      addLog(`Role assigned: ${profile.role.toUpperCase()}`);
-      setAuthSuccess(`Welcome back! Successfully authenticated as ${fbUser.email}`);
+      setAuthSuccess(`Welcome back! Successfully signed in as ${fbUser.email}`);
 
       setTimeout(() => {
         setIsSimulating(false);
         onAuthenticated(destination, profile);
       }, 700);
     } catch (err: any) {
-      console.info('Firebase authentication note:', err?.message || err);
+      console.info('Authentication note:', err?.message || err);
       const friendly = formatAuthErrorMessage(err);
-      addLog(`Authentication response: ${friendly}`);
       setAuthError(friendly);
       setIsSimulating(false);
       setCanQuickRegister(true);
@@ -410,14 +384,12 @@ Welcome to the bizzbean Sandbox environment!
       return;
     }
     if (loginPassword.length < 6) {
-      setAuthError('Password must be at least 6 characters long to register with Firebase.');
+      setAuthError('Password must be at least 6 characters long.');
       return;
     }
     setAuthError(null);
     setAuthSuccess(null);
     setIsSimulating(true);
-    setSimulationLogs([]);
-    addLog(`Creating new Firebase user account for: ${loginEmail.trim()}...`);
 
     try {
       const defaultName = resolveDisplayName(loginEmail);
@@ -432,20 +404,18 @@ Welcome to the bizzbean Sandbox environment!
         city: profile.city || 'Johannesburg',
         role: profile.role === 'admin' ? 'admin' : 'member',
         registeredAt: new Date().toISOString(),
-        notes: 'Registered via Quick Firebase Registration.',
+        notes: 'Registered via Quick Registration.',
       }).catch(() => {});
 
-      addLog(`Firebase User created successfully with UID: ${fbUser.uid}`);
-      setAuthSuccess(`Firebase account created successfully! Signed in as ${fbUser.email}`);
+      setAuthSuccess(`Account created successfully! Signed in as ${fbUser.email}`);
 
       setTimeout(() => {
         setIsSimulating(false);
         onAuthenticated(destination, profile);
       }, 700);
     } catch (regErr: any) {
-      console.warn('Firebase registration notice:', regErr?.code || regErr);
+      console.warn('Registration notice:', regErr?.code || regErr);
       const friendly = formatAuthErrorMessage(regErr);
-      addLog(`Account creation failed: ${friendly}`);
       setAuthError(friendly);
       setIsSimulating(false);
     }
@@ -459,15 +429,12 @@ Welcome to the bizzbean Sandbox environment!
     setAuthError(null);
     setAuthSuccess(null);
     setIsSimulating(true);
-    addLog(`Sending Firebase password reset email to: ${loginEmail.trim()}...`);
     try {
       await sendPasswordReset(loginEmail.trim());
-      addLog(`Password reset email delivered by Firebase.`);
       setAuthSuccess(`A password reset link has been dispatched to ${loginEmail.trim()}. Please check your email inbox.`);
     } catch (err: any) {
       console.warn('Password reset notice:', err?.code || err);
       const friendly = formatAuthErrorMessage(err);
-      addLog(`Reset failed: ${friendly}`);
       setAuthError(friendly);
     } finally {
       setIsSimulating(false);
@@ -609,7 +576,7 @@ Welcome to the bizzbean Sandbox environment!
                             disabled={isSimulating}
                             className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-[10px] font-bold tracking-wider uppercase transition-all shadow-sm cursor-pointer"
                           >
-                            Register in Firebase
+                            Create Account
                           </button>
                         </div>
                       </div>
@@ -710,7 +677,7 @@ Welcome to the bizzbean Sandbox environment!
                     {isSimulating ? (
                       <>
                         <RefreshCw className="animate-spin text-white" size={16} />
-                        <span>Verifying with Firebase...</span>
+                        <span>Signing In...</span>
                       </>
                     ) : (
                       <>
@@ -1007,10 +974,10 @@ Welcome to the bizzbean Sandbox environment!
                 <button 
                   type="submit"
                   disabled={isSimulating}
-                  className="w-full bg-[#5085b6] text-white py-3.5 px-6 font-bold tracking-widest lowercase rounded-sm shadow-md hover:bg-[#4677a5] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full bg-[#5085b6] text-white py-3.5 px-6 font-bold tracking-widest lowercase rounded-sm shadow-md hover:bg-[#4677a5] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
                 >
                   {isSimulating && <RefreshCw className="animate-spin text-white" size={16} />}
-                  submit
+                  <span>{isSimulating ? 'creating account...' : 'submit'}</span>
                 </button>
 
                 <button 
@@ -1022,21 +989,6 @@ Welcome to the bizzbean Sandbox environment!
                 </button>
               </div>
             </form>
-          )}
-
-          {/* Connection Logs */}
-          {isSimulating && (
-            <div className="mt-6 p-4 bg-gray-900 text-green-400 rounded-xl space-y-2 border border-green-500/20 font-mono text-[10px] text-left">
-              <div className="flex justify-between items-center text-[11px] text-gray-400 border-b border-gray-800 pb-2 mb-2 font-sans font-bold">
-                <span>⚡ bizzbean API Live Sandbox</span>
-                <span className="animate-pulse bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded text-[9px]">CONNECTING</span>
-              </div>
-              <div className="space-y-1 h-28 overflow-y-auto">
-                {simulationLogs.map((log, i) => (
-                  <div key={i}>{log}</div>
-                ))}
-              </div>
-            </div>
           )}
 
         </div>

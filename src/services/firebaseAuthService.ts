@@ -40,7 +40,7 @@ export function formatAuthErrorMessage(error: any): string {
   switch (code) {
     case 'auth/invalid-credential':
     case 'auth/wrong-password':
-      return 'Incorrect email or password, or account is not registered in Firebase Auth yet. Please verify your credentials, click Register Now, or continue in Sandbox mode.';
+      return 'Incorrect email or password, or this account is not registered yet. Please verify your credentials, create an account, or continue in Sandbox mode.';
     case 'auth/user-not-found':
       return 'No account was found with this email address. Please check your spelling or register a new account.';
     case 'auth/invalid-email':
@@ -56,7 +56,7 @@ export function formatAuthErrorMessage(error: any): string {
     case 'auth/user-disabled':
       return 'This account has been disabled by an administrator.';
     case 'auth/operation-not-allowed':
-      return 'Email/Password sign-in is not enabled in this Firebase project. Please enable it in Firebase Console under Authentication > Sign-in method.';
+      return 'Email/Password sign-in is currently unavailable. Please contact support or continue in Sandbox mode.';
     default:
       return message.replace(/^Firebase:\s*/i, '');
   }
