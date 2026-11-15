@@ -111,7 +111,8 @@ export async function saveAboutContentToCloud(content: AboutBizzbeanContent): Pr
   try {
     if (!isFirestoreQuotaExceeded()) {
       const docRef = doc(db, FIRESTORE_DOC_PATH, FIRESTORE_DOC_ID);
-      await setDoc(docRef, payload, { merge: true });
+      const cleanPayload = JSON.parse(JSON.stringify(payload));
+      await setDoc(docRef, cleanPayload, { merge: true });
     }
   } catch (err) {
     console.warn('Could not save about content to Firestore:', err);

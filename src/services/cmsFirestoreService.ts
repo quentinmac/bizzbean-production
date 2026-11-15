@@ -9,7 +9,15 @@ import {
 } from '../data/cmsConsoleData';
 
 export const CMS_CONFIG_COLLECTION = 'cms_config';
-const FIRESTORE_SAFE_CHUNK_BYTES = 650_000;
+const FIRESTORE_SAFE_CHUNK_BYTES = 450_000;
+
+// Serialize CMS Firestore writes so large chunked payloads and rapid edits never overwhelm one WriteStream
+let cmsWriteQueue: Promise<unknown> = Promise.resolve();
+function enqueueCmsWrite<T>(task: () => Promise<T>): Promise<T> {
+  const run = cmsWriteQueue.then(task, task);
+  cmsWriteQueue = run.catch(() => undefined);
+  return run;
+}
 
 /**
  * Handles Firestore errors gracefully, detecting and caching quota limits so network retry storms are silenced.
@@ -48,7 +56,7 @@ function sanitizeForFirestore<T>(data: T): T {
   }
 }
 
-function withFirestoreTimeout<T>(promise: Promise<T>, ms = 6000, fallback: T): Promise<T> {
+function withFirestoreTimeout<T>(promise: Promise<T>, ms = 12000, fallback: T): Promise<T> {
   return Promise.race([
     promise,
     new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
@@ -87,7 +95,7 @@ async function readCmsItemsDoc<T>(
   if (isFirestoreQuotaExceeded()) return null;
   try {
     const docRef = doc(db, CMS_CONFIG_COLLECTION, docName);
-    const snap = await withFirestoreTimeout(getDoc(docRef), 6000, null);
+    const snap = await withFirestoreTimeout(getDoc(docRef), 8000, null);
     if (!snap || !snap.exists()) return null;
     const data = snap.data();
     if (!data) return null;
@@ -115,7 +123,7 @@ async function extractItemsFromDocData<T>(
     const combined: T[] = [];
     for (let i = 0; i < data.chunkCount; i++) {
       const chunkRef = doc(db, CMS_CONFIG_COLLECTION, `${docName}_chunk_${i}`);
-      const chunkSnap = await withFirestoreTimeout(getDoc(chunkRef), 6000, null);
+      const chunkSnap = await withFirestoreTimeout(getDoc(chunkRef), 8000, null);
       if (!chunkSnap || !chunkSnap.exists()) {
         return null;
       }
@@ -134,97 +142,99 @@ async function extractItemsFromDocData<T>(
 
 /**
  * Saves an array CMS collection doc to Firestore, automatically splitting into
- * <650 KB chunks when total serialized size approaches Firestore's 1 MiB limit.
+ * <450 KB chunks when total serialized size approaches Firestore's 1 MiB limit.
  */
 async function writeCmsItemsDoc<T>(
   docName: string,
   items: T[],
   operation: string
 ): Promise<boolean> {
-  if (isFirestoreQuotaExceeded()) return false;
-  try {
-    const sanitized = sanitizeForFirestore(items);
-    const updatedAt = new Date().toISOString();
-    const totalBytes = estimateUtf8Bytes(sanitized);
+  return enqueueCmsWrite(async () => {
+    if (isFirestoreQuotaExceeded()) return false;
+    try {
+      const sanitized = sanitizeForFirestore(items);
+      const updatedAt = new Date().toISOString();
+      const totalBytes = estimateUtf8Bytes(sanitized);
 
-    if (totalBytes <= FIRESTORE_SAFE_CHUNK_BYTES) {
-      const docRef = doc(db, CMS_CONFIG_COLLECTION, docName);
+      if (totalBytes <= FIRESTORE_SAFE_CHUNK_BYTES) {
+        const docRef = doc(db, CMS_CONFIG_COLLECTION, docName);
+        return await withFirestoreTimeout(
+          setDoc(docRef, {
+            items: sanitized,
+            chunked: false,
+            updatedAt,
+            count: sanitized.length,
+          })
+            .then(() => true)
+            .catch((err) => {
+              handleFirestoreError(operation, err);
+              return false;
+            }),
+          15000,
+          false
+        );
+      }
+
+      // Split into safe chunks under 450 KB each (handles large article libraries / base64 covers)
+      const chunks: T[][] = [];
+      let currentChunk: T[] = [];
+      let currentBytes = 32;
+
+      for (const item of sanitized) {
+        const itemBytes = estimateUtf8Bytes(item);
+        if (currentChunk.length > 0 && currentBytes + itemBytes > FIRESTORE_SAFE_CHUNK_BYTES) {
+          chunks.push(currentChunk);
+          currentChunk = [item];
+          currentBytes = 32 + itemBytes;
+        } else {
+          currentChunk.push(item);
+          currentBytes += itemBytes;
+        }
+      }
+      if (currentChunk.length > 0) {
+        chunks.push(currentChunk);
+      }
+
+      for (let i = 0; i < chunks.length; i++) {
+        const chunkRef = doc(db, CMS_CONFIG_COLLECTION, `${docName}_chunk_${i}`);
+        const chunkOk = await withFirestoreTimeout(
+          setDoc(chunkRef, {
+            items: chunks[i],
+            chunkIndex: i,
+            updatedAt,
+          })
+            .then(() => true)
+            .catch((err) => {
+              handleFirestoreError(`${operation} chunk ${i}`, err);
+              return false;
+            }),
+          15000,
+          false
+        );
+        if (!chunkOk) return false;
+      }
+
+      const manifestRef = doc(db, CMS_CONFIG_COLLECTION, docName);
       return await withFirestoreTimeout(
-        setDoc(docRef, {
-          items: sanitized,
-          chunked: false,
+        setDoc(manifestRef, {
+          chunked: true,
+          chunkCount: chunks.length,
           updatedAt,
           count: sanitized.length,
         })
           .then(() => true)
           .catch((err) => {
-            handleFirestoreError(operation, err);
+            handleFirestoreError(`${operation} manifest`, err);
             return false;
           }),
-        6000,
+        15000,
         false
       );
+    } catch (err) {
+      handleFirestoreError(operation, err);
+      return false;
     }
-
-    // Split into safe chunks under 650 KB each (handles large article libraries / base64 covers)
-    const chunks: T[][] = [];
-    let currentChunk: T[] = [];
-    let currentBytes = 32;
-
-    for (const item of sanitized) {
-      const itemBytes = estimateUtf8Bytes(item);
-      if (currentChunk.length > 0 && currentBytes + itemBytes > FIRESTORE_SAFE_CHUNK_BYTES) {
-        chunks.push(currentChunk);
-        currentChunk = [item];
-        currentBytes = 32 + itemBytes;
-      } else {
-        currentChunk.push(item);
-        currentBytes += itemBytes;
-      }
-    }
-    if (currentChunk.length > 0) {
-      chunks.push(currentChunk);
-    }
-
-    for (let i = 0; i < chunks.length; i++) {
-      const chunkRef = doc(db, CMS_CONFIG_COLLECTION, `${docName}_chunk_${i}`);
-      const chunkOk = await withFirestoreTimeout(
-        setDoc(chunkRef, {
-          items: chunks[i],
-          chunkIndex: i,
-          updatedAt,
-        })
-          .then(() => true)
-          .catch((err) => {
-            handleFirestoreError(`${operation} chunk ${i}`, err);
-            return false;
-          }),
-        6000,
-        false
-      );
-      if (!chunkOk) return false;
-    }
-
-    const manifestRef = doc(db, CMS_CONFIG_COLLECTION, docName);
-    return await withFirestoreTimeout(
-      setDoc(manifestRef, {
-        chunked: true,
-        chunkCount: chunks.length,
-        updatedAt,
-        count: sanitized.length,
-      })
-        .then(() => true)
-        .catch((err) => {
-          handleFirestoreError(`${operation} manifest`, err);
-          return false;
-        }),
-      6000,
-      false
-    );
-  } catch (err) {
-    handleFirestoreError(operation, err);
-    return false;
-  }
+  });
 }
 
 /**

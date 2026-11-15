@@ -631,14 +631,13 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       // Allow explicit user Publish to retry Cloud Firestore even if an earlier session hit quota
       await clearFirestoreQuotaExceeded();
 
-      // 3. Concurrently sync to Cloud Firestore and Server Disk with 7s max timeouts
-      const p1 = withTimeout(saveCmsProductsToFirestore(latestProducts), 7000, false);
-      const p2 = withTimeout(saveCmsVideosToFirestore(videos), 7000, false);
-      const p3 = withTimeout(saveCmsArticlesToFirestore(articles), 7000, false);
-      const p4 = withTimeout(saveCmsPromotionsToFirestore(promotions), 7000, false);
-      const p5 = withTimeout(syncCmsDataToServer(tsContent), 7000, false);
-
-      const [fsProdOk, fsVidOk, fsArtOk, fsPromoOk, diskOk] = await Promise.all([p1, p2, p3, p4, p5]);
+      // 3. Sync to Cloud Firestore sequentially (fast collections first) and Server Disk in parallel
+      const diskPromise = withTimeout(syncCmsDataToServer(tsContent), 8000, false);
+      const fsVidOk = await withTimeout(saveCmsVideosToFirestore(videos), 10000, false);
+      const fsProdOk = await withTimeout(saveCmsProductsToFirestore(latestProducts), 15000, false);
+      const fsPromoOk = await withTimeout(saveCmsPromotionsToFirestore(promotions), 20000, false);
+      const fsArtOk = await withTimeout(saveCmsArticlesToFirestore(articles), 30000, false);
+      const diskOk = await diskPromise;
       const allFirestoreOk = fsProdOk && fsVidOk && fsArtOk && fsPromoOk;
 
       const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -698,15 +697,14 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       // 1. Immediately trigger download of cmsConsoleData.ts to the user's computer
       downloadCmsDataFile(tsContent, 'cmsConsoleData.ts');
 
-      // 2. Retry Cloud Firestore & sync server disk file in parallel
+      // 2. Sync server disk file and retry Cloud Firestore sequentially (fast collections first)
       await clearFirestoreQuotaExceeded();
-      const [diskOk, fsProdOk, fsVidOk, fsArtOk, fsPromoOk] = await Promise.all([
-        withTimeout(syncCmsDataToServer(tsContent, payload), 6000, false),
-        withTimeout(saveCmsProductsToFirestore(latestProducts), 6000, false),
-        withTimeout(saveCmsVideosToFirestore(videos), 6000, false),
-        withTimeout(saveCmsArticlesToFirestore(articles), 6000, false),
-        withTimeout(saveCmsPromotionsToFirestore(promotions), 6000, false),
-      ]);
+      const diskPromise = withTimeout(syncCmsDataToServer(tsContent, payload), 8000, false);
+      const fsVidOk = await withTimeout(saveCmsVideosToFirestore(videos), 10000, false);
+      const fsProdOk = await withTimeout(saveCmsProductsToFirestore(latestProducts), 15000, false);
+      const fsPromoOk = await withTimeout(saveCmsPromotionsToFirestore(promotions), 20000, false);
+      const fsArtOk = await withTimeout(saveCmsArticlesToFirestore(articles), 30000, false);
+      const diskOk = await diskPromise;
 
       const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       setLastExportedTimestamp(nowStr);
