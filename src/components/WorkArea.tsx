@@ -2202,7 +2202,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                     return (
                       <div className="pt-3 border-t border-[#E8E2D8] dark:border-[#252E4A] space-y-3">
                         {/* Row 1: 4 balanced utility & discovery actions */}
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+                        <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5">
                           {/* 1. VIEW PRODUCT */}
                           <button
                             type="button"
