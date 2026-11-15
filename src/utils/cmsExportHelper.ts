@@ -129,7 +129,7 @@ export interface CmsProduct {
     inputs: string[];
     outputs: string[];
     logic?: string;
-  }>;
+  }> | null;
 }
 
 export interface CmsVideo {
