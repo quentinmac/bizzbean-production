@@ -121,7 +121,7 @@ import {
   idbGet,
   idbDelete,
 } from '../utils/imageStorage';
-import { isFirestoreQuotaExceeded } from '../lib/firebase';
+import { isFirestoreQuotaExceeded, clearFirestoreQuotaExceeded } from '../lib/firebase';
 import {
   saveCmsProductsToFirestore,
   saveCmsVideosToFirestore,
@@ -621,6 +621,9 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
         tooltips,
       });
 
+      // Allow explicit user Publish to retry Cloud Firestore even if an earlier session hit quota
+      await clearFirestoreQuotaExceeded();
+
       // 3. Concurrently sync to Cloud Firestore and Server Disk with 7s max timeouts
       const p1 = withTimeout(saveCmsProductsToFirestore(latestProducts), 7000, false);
       const p2 = withTimeout(saveCmsVideosToFirestore(videos), 7000, false);
@@ -628,14 +631,27 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       const p4 = withTimeout(saveCmsPromotionsToFirestore(promotions), 7000, false);
       const p5 = withTimeout(syncCmsDataToServer(tsContent), 7000, false);
 
-      await Promise.allSettled([p1, p2, p3, p4, p5]);
+      const [fsProdOk, fsVidOk, fsArtOk, fsPromoOk, diskOk] = await Promise.all([p1, p2, p3, p4, p5]);
+      const allFirestoreOk = fsProdOk && fsVidOk && fsArtOk && fsPromoOk;
 
       const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      setPublishSuccessBanner(`Site Published Successfully at ${nowStr}! All updates have been synced to Cloud Firestore, the live server bundle, and the website.`);
-      triggerSaveNotification(`Site published successfully! All content synced to Cloud Firestore and live website.`);
+      if (allFirestoreOk) {
+        setPublishSuccessBanner(
+          `Site Published Successfully at ${nowStr}! All updates have been synced to Cloud Firestore${diskOk ? ', the server bundle,' : ''} and the live website.`
+        );
+        triggerSaveNotification(`Site published successfully! All content synced to Cloud Firestore and live website.`);
+      } else {
+        const reason = isFirestoreQuotaExceeded()
+          ? 'Cloud Firestore write quota reached'
+          : 'Cloud Firestore write did not complete for all collections';
+        setPublishSuccessBanner(
+          `Saved locally at ${nowStr}, but ${reason}. To update Incognito/external visitors permanently, click "Export for GitHub" and commit src/data/cmsConsoleData.ts to main.`
+        );
+        triggerSaveNotification(`Saved locally (${reason}). Use "Export for GitHub" to commit changes to live site.`);
+      }
     } catch (err: any) {
       console.warn('Publish notice:', err);
-      triggerSaveNotification('Site published! All content saved and synced to website.');
+      triggerSaveNotification('Saved locally, but Cloud Firestore sync encountered an issue. Use Export for GitHub to commit.');
     } finally {
       setIsPublishing(false);
     }
@@ -644,8 +660,20 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   const handleExportForGitHub = async () => {
     setIsExporting(true);
     try {
-      const tsContent = generateCmsConsoleDataTs({
-        products,
+      const latestProducts = flushPendingProductDrafts();
+
+      safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, latestProducts);
+      safeSaveStorage(CMS_STORAGE_KEYS.VIDEOS, videos);
+      safeSaveStorage(CMS_STORAGE_KEYS.ARTICLES, articles);
+      safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, promotions);
+
+      dispatchSync(onSyncProductsToWebsite, latestProducts);
+      if (onSyncVideosToWebsite) dispatchSync(onSyncVideosToWebsite, videos);
+      if (onSyncArticlesToWebsite) dispatchSync(onSyncArticlesToWebsite, articles);
+      if (onSyncPromotionsToWebsite) dispatchSync(onSyncPromotionsToWebsite, promotions);
+
+      const payload = {
+        products: latestProducts,
         promotions,
         videos,
         articles,
@@ -657,24 +685,31 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
         v1Transactions,
         policies,
         tooltips,
-      });
+      };
+      const tsContent = generateCmsConsoleDataTs(payload);
 
       // 1. Immediately trigger download of cmsConsoleData.ts to the user's computer
       downloadCmsDataFile(tsContent, 'cmsConsoleData.ts');
 
-      // 2. Also asynchronously update server disk file at /src/data/cmsConsoleData.ts
-      syncCmsDataToServer(tsContent).catch((err) => console.warn('Sync to local disk note:', err));
-
-      // 3. Keep Cloud Firestore in sync across all collections
-      saveCmsProductsToFirestore(products).catch(() => {});
-      saveCmsVideosToFirestore(videos).catch(() => {});
-      saveCmsArticlesToFirestore(articles).catch(() => {});
-      saveCmsPromotionsToFirestore(promotions).catch(() => {});
+      // 2. Retry Cloud Firestore & sync server disk file in parallel
+      await clearFirestoreQuotaExceeded();
+      const [diskOk, fsProdOk, fsVidOk, fsArtOk, fsPromoOk] = await Promise.all([
+        withTimeout(syncCmsDataToServer(tsContent, payload), 6000, false),
+        withTimeout(saveCmsProductsToFirestore(latestProducts), 6000, false),
+        withTimeout(saveCmsVideosToFirestore(videos), 6000, false),
+        withTimeout(saveCmsArticlesToFirestore(articles), 6000, false),
+        withTimeout(saveCmsPromotionsToFirestore(promotions), 6000, false),
+      ]);
 
       const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       setLastExportedTimestamp(nowStr);
       setShowGitHubModal(true);
-      triggerSaveNotification('Exported & Synced cmsConsoleData.ts! Live database and website updated.');
+      const fsAllOk = fsProdOk && fsVidOk && fsArtOk && fsPromoOk;
+      triggerSaveNotification(
+        fsAllOk
+          ? `Exported cmsConsoleData.ts & synced to Cloud Firestore${diskOk ? ' + server disk' : ''}! Commit to main on GitHub to deploy.`
+          : `Exported cmsConsoleData.ts! Commit to main on GitHub to deploy (Cloud Firestore sync skipped or partial).`
+      );
     } catch (err: any) {
       console.error('Export failed:', err);
       triggerSaveNotification('Export error: ' + (err?.message || 'Failed to generate file.'));
@@ -749,8 +784,9 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
 
   const handleDownloadAgain = () => {
     try {
+      const latestProducts = flushPendingProductDrafts();
       const tsContent = generateCmsConsoleDataTs({
-        products,
+        products: latestProducts,
         promotions,
         videos,
         articles,

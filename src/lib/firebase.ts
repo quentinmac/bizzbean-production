@@ -118,6 +118,26 @@ export function setFirestoreQuotaExceeded(): void {
   }
 }
 
+// Clear cached quota flag and re-enable network for explicit user-triggered publish/retry actions
+export async function clearFirestoreQuotaExceeded(): Promise<void> {
+  quotaExceededTimestamp = 0;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('bb_firestore_quota_exceeded');
+    }
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem('bb_firestore_quota_exceeded');
+    }
+  } catch {
+    // Ignore storage access errors
+  }
+  try {
+    await enableNetwork(db);
+  } catch {
+    // Ignore enable network errors
+  }
+}
+
 export { disableNetwork, enableNetwork };
 export default app;
 

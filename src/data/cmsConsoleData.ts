@@ -11,6 +11,8 @@
 
 import { TransactionRecord, ClientProfile, ClientNotification } from '../types';
 
+export const CMS_BUNDLE_GENERATED_AT = '2026-11-01T08:03:12.520Z';
+
 export interface CmsCourseLesson {
   id: string;
   name: string;
