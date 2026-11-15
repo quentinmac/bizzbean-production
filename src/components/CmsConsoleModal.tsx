@@ -180,6 +180,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   const priceCommitTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
   const tokenCommitTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
   const lastLocalProductEditRef = useRef<number>(0);
+  const lastLocalPromoEditRef = useRef<number>(0);
   const priceDraftsRef = useRef<Record<string, string>>({});
   const tokenDraftsRef = useRef<Record<string, string>>({});
 
@@ -373,7 +374,13 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     return cleanLegacyViabilityPromotions(INITIAL_CMS_PROMOTIONS);
   });
 
+  const promotionsRef = useRef<CmsPromotionSection[]>(promotions);
   useEffect(() => {
+    promotionsRef.current = promotions;
+  }, [promotions]);
+
+  useEffect(() => {
+    if (Date.now() - lastLocalPromoEditRef.current < 4000) return;
     if (cmsPromotions && cmsPromotions.length > 0) {
       setPromotions((prev) => mergeLoadedPromotions(prev, cleanLegacyViabilityPromotions(cmsPromotions)));
     }
@@ -1122,8 +1129,10 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
 
   const persistPromotions = (
     updatedList: CmsPromotionSection[],
-    options?: { syncImmediateFirestore?: boolean; onSuccessMsg?: string }
+    options?: { syncImmediateFirestore?: boolean; onSuccessMsg?: string; onFailureMsg?: string }
   ) => {
+    lastLocalPromoEditRef.current = Date.now();
+    promotionsRef.current = updatedList;
     setPromotions(updatedList);
     dispatchSync(onSyncPromotionsToWebsite, updatedList);
     safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, updatedList);
@@ -1131,22 +1140,34 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
 
     if (promoFirestoreTimerRef.current) {
       clearTimeout(promoFirestoreTimerRef.current);
+      promoFirestoreTimerRef.current = null;
     }
 
     if (options?.syncImmediateFirestore) {
-      saveCmsPromotionsToFirestore(updatedList)
+      clearFirestoreQuotaExceeded()
+        .then(() => saveCmsPromotionsToFirestore(updatedList))
         .then((ok) => {
-          if (ok && options.onSuccessMsg) {
-            triggerSaveNotification(options.onSuccessMsg);
+          if (ok) {
+            if (options.onSuccessMsg) triggerSaveNotification(options.onSuccessMsg);
+          } else {
+            triggerSaveNotification(
+              options.onFailureMsg ||
+                'Saved locally, but Cloud Firestore did not sync. Click "Publish to Live Site" or "Export for GitHub".'
+            );
           }
         })
         .catch((err) => {
           console.warn('Firestore CMS promotion immediate sync note:', err);
+          triggerSaveNotification(
+            options.onFailureMsg ||
+              'Saved locally, but Cloud Firestore sync failed. Use "Export for GitHub" to commit permanently.'
+          );
         });
     } else {
       // Debounce auto-save to cloud so typing isn't interrupted and network isn't flooded
       promoFirestoreTimerRef.current = setTimeout(() => {
-        saveCmsPromotionsToFirestore(updatedList).catch((err) =>
+        promoFirestoreTimerRef.current = null;
+        saveCmsPromotionsToFirestore(promotionsRef.current).catch((err) =>
           console.warn('Firestore CMS promotion debounced sync note:', err)
         );
       }, 1000);
@@ -1829,10 +1850,19 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   };
 
   // Promotional Hero Billboards & Stage Story Message Boards handlers (Immediate auto-save & sync)
-  const handleUpdatePromoField = (promoId: string, updates: Partial<CmsPromotionSection>) => {
-    const updated = promotions.map((p) => (p.id === promoId ? { ...p, ...updates } : p));
+  const handleUpdatePromoField = (
+    promoId: string,
+    updates: Partial<CmsPromotionSection>,
+    options?: { onSuccessMsg?: string }
+  ) => {
+    const updated = promotionsRef.current.map((p) => (p.id === promoId ? { ...p, ...updates } : p));
     const shouldSyncImmediately = updates.isActive !== undefined || updates.imageUrl !== undefined;
-    persistPromotions(updated, shouldSyncImmediately ? { syncImmediateFirestore: true } : undefined);
+    persistPromotions(
+      updated,
+      shouldSyncImmediately
+        ? { syncImmediateFirestore: true, onSuccessMsg: options?.onSuccessMsg }
+        : undefined
+    );
   };
 
   const handleUpdatePromoStageStory = (
@@ -1840,7 +1870,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     field: keyof NonNullable<CmsPromotionSection['stageStory']>,
     value: string
   ) => {
-    const updated = promotions.map((p) => {
+    const updated = promotionsRef.current.map((p) => {
       if (p.id !== promoId) return p;
       const currentStory = p.stageStory || {};
       return {
@@ -1855,7 +1885,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   };
 
   const handleSaveSinglePromo = (promo: CmsPromotionSection) => {
-    const updated = promotions.map((p) => (p.id === promo.id ? promo : p));
+    const updated = promotionsRef.current.map((p) => (p.id === promo.id ? promo : p));
     persistPromotions(updated, {
       syncImmediateFirestore: true,
       onSuccessMsg: `Saved & cloud-synced stage copy and image for "${promo.displayName || promo.name}".`,
@@ -1863,7 +1893,8 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   };
 
   const handleCreatePromotion = () => {
-    const num = promotions.length + 1;
+    const currentPromos = promotionsRef.current;
+    const num = currentPromos.length + 1;
     const newId = `stage-story-${Date.now()}`;
     const newPromo: CmsPromotionSection = {
       id: newId,
@@ -1882,7 +1913,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
         keyDeliverable: 'Specific institutional model, audit report, or deliverable asset created.',
       },
     };
-    const updated = [newPromo, ...promotions];
+    const updated = [newPromo, ...currentPromos];
     setPromotions(updated);
     dispatchSync(onSyncPromotionsToWebsite, updated);
     safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, updated);
@@ -4987,11 +5018,14 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                                       checked={promo.isActive !== false}
                                       onChange={(e) => {
                                         const checked = e.target.checked;
-                                        handleUpdatePromoField(promo.id, { isActive: checked });
-                                        triggerSaveNotification(
-                                          checked
-                                            ? `Enabled "${promo.displayName || promo.name}" stage image in door opening rotation.`
-                                            : `Disabled "${promo.displayName || promo.name}" stage image from door opening rotation.`
+                                        handleUpdatePromoField(
+                                          promo.id,
+                                          { isActive: checked },
+                                          {
+                                            onSuccessMsg: checked
+                                              ? `Enabled "${promo.displayName || promo.name}" in door opening rotation (saved to Cloud).`
+                                              : `Disabled "${promo.displayName || promo.name}" from door opening rotation (saved to Cloud).`,
+                                          }
                                         );
                                       }}
                                       className="rounded border-[#2B3452] bg-[#0E1220] text-[#5584B4] h-4 w-4 cursor-pointer"

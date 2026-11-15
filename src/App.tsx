@@ -513,6 +513,7 @@ export default function App() {
 
   // Hydration state tracking to prevent overwriting IndexedDB with defaults on initial mount
   const isHydrated = useRef<boolean>(false);
+  const lastLocalPromoSyncRef = useRef<number>(0);
 
   // Hydration on mount across all modular sections: IndexedDB + Authoritative Cloud Firestore
   useEffect(() => {
@@ -597,6 +598,7 @@ export default function App() {
     });
 
     const unsubscribePromos = subscribeToCmsPromotions((updated) => {
+      if (Date.now() - lastLocalPromoSyncRef.current < 4000) return;
       if (updated && Array.isArray(updated) && updated.length > 0) {
         const cleaned = cleanLegacyViabilityPromotions(updated);
         setCmsPromotions((prev) => {
@@ -986,14 +988,13 @@ export default function App() {
   }, []);
 
   const handleSyncPromotionsFromCms = useCallback((updated: CmsPromotionSection[]) => {
+    lastLocalPromoSyncRef.current = Date.now();
     setTimeout(() => {
+      lastLocalPromoSyncRef.current = Date.now();
       const cleaned = cleanLegacyViabilityPromotions(updated);
       setCmsPromotions((prev) => {
         const merged = mergeLoadedPromotions(cleaned, prev);
         safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, merged);
-        saveCmsPromotionsToFirestore(merged).catch((err) =>
-          console.warn('Firestore CMS promotion sync note:', err)
-        );
         return merged;
       });
     }, 0);
