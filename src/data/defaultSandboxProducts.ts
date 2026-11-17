@@ -29,14 +29,14 @@ export const DEFAULT_SANDBOX_PRODUCTS: SandboxProductItem[] = [
   {
     id: 'sb-cac-ltv-suite',
     sku: 'SB-002',
-    name: 'BizzCalculators Rapid Metrics Suite',
+    name: 'BizzCalculators 11-Tool Financial Suite',
     category: 'calculator',
-    description: 'Instant micro-calculators for CAC:LTV, cash conversion cycles, runway buffers, and true labor burdens.',
+    description: '11 authentic calculators covering breakeven, buy vs lease, cost benefit, depreciation, funding, margin vs markup, revenue factor, ROA dynamics, ROS x AT = ROA, term loan, and working capital dynamics.',
     priceZAR: 2800,
     tokensRequired: 80,
     unlockedByDefault: true,
     targetAppId: 'bizzcalculators',
-    stageTag: 'Stage 01: Vi-ability',
+    stageTag: 'Operations Sandbox',
   },
   {
     id: 'sb-bizzdynamics-sim',

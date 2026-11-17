@@ -10,6 +10,7 @@ import { FundingStep } from './steps/FundingStep';
 import { ReportsStep } from './steps/ReportsStep';
 import { HighLevelForecast } from './components/HighLevelForecast';
 import { BizzPlan } from '../bizzplan/BizzPlan';
+import PitchDeckStudio from '../bizzplan/components/PitchDeckStudio';
 import { BizzCalc } from '../bizzcalc/BizzCalc';
 import { BizzDynamics } from '../bizzdynamics/BizzDynamics';
 import { BizzModelData } from '../../types';
@@ -293,6 +294,7 @@ export const BizzModel: React.FC<BizzModelProps> = ({
 
   const [activeStep, setActiveStep] = useState<string>(initialStep);
   const [isStepBizzPlanActive, setIsStepBizzPlanActive] = useState<boolean>(false);
+  const [isStepPitchDeckActive, setIsStepPitchDeckActive] = useState<boolean>(false);
 
   // Synchronized subtab (assumptions | results | charts) persistent across all steps and apps
   const [activeSubTab, setActiveSubTabState] = useState<'assumptions' | 'results' | 'charts'>(() => {
@@ -445,11 +447,20 @@ export const BizzModel: React.FC<BizzModelProps> = ({
       onSelectFundingTab={setFundingTab}
       isBizzPlanTabActive={currentMode !== 'rolling-forecast' && activeAppTab !== 'rolling-forecast' && isStepBizzPlanActive}
       onSelectBizzPlanTab={currentMode === 'rolling-forecast' || activeAppTab === 'rolling-forecast' ? undefined : setIsStepBizzPlanActive}
+      isPitchDeckTabActive={currentMode !== 'rolling-forecast' && activeAppTab !== 'rolling-forecast' && isStepPitchDeckActive}
+      onSelectPitchDeckTab={currentMode === 'rolling-forecast' || activeAppTab === 'rolling-forecast' ? undefined : setIsStepPitchDeckActive}
       onClose={onClose}
     >
       {/* 1. PLATFORM FORECAST APP STEPS (bizzmodel, rolling-forecast) */}
       {(activeAppTab === 'bizzmodel' || activeAppTab === 'rolling-forecast') && (
-        isStepBizzPlanActive && currentMode !== 'rolling-forecast' && activeAppTab !== 'rolling-forecast' ? (
+        isStepPitchDeckActive && currentMode !== 'rolling-forecast' && activeAppTab !== 'rolling-forecast' ? (
+          <PitchDeckStudio
+            theme={theme}
+            bizzModelState={state}
+            onBackToStep={() => setIsStepPitchDeckActive(false)}
+            backLabel={`back to ${STEP_DISPLAY_LABELS[activeStep] || activeStep}`}
+          />
+        ) : isStepBizzPlanActive && currentMode !== 'rolling-forecast' && activeAppTab !== 'rolling-forecast' ? (
           <BizzPlan
             theme={theme}
             onClose={onClose}

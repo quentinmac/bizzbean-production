@@ -4,7 +4,7 @@ import { BizzPlanData, BizzModelData, BizzModelStep, TouchPointAnswer } from '..
 import { INITIAL_PLAN_DATA } from './constants';
 import { sanitizeBizzModelData } from '../bizzmodel/BizzModel';
 import { BizzModelState } from '../bizzmodel/constants';
-import { FileText } from 'lucide-react';
+import { FileText, Sparkles, ArrowDown } from 'lucide-react';
 import CoverPageForm from './components/CoverPageForm';
 import PitchForm from './components/PitchForm';
 import GovernanceForm from './components/GovernanceForm';
@@ -15,6 +15,7 @@ import ScorecardReport from './components/ScorecardReport';
 import AssumptionsReport from './components/AssumptionsReport';
 import FinancialReports from './components/FinancialReports';
 import CoachGimAdvice from './components/CoachGimAdvice';
+import PitchDeckStudio from './components/PitchDeckStudio';
 
 interface BizzPlanProps {
   theme?: 'light' | 'dark';
@@ -77,6 +78,7 @@ export function BizzPlan({
 
   const [currentSectionId, setCurrentSectionId] = useState<string>(initialSectionId || 'formation');
   const [savedNotice, setSavedNotice] = useState<boolean>(false);
+  const [standalonePitchDeck, setStandalonePitchDeck] = useState<boolean>(false);
 
   useEffect(() => {
     if (initialSectionId) {
@@ -401,6 +403,8 @@ export function BizzPlan({
         embeddedInModel={embeddedInModel}
         onBackToModel={onBackToModel}
         backToModelLabel={backToModelLabel}
+        isPitchDeckActive={standalonePitchDeck}
+        onTogglePitchDeck={!embeddedInModel ? setStandalonePitchDeck : undefined}
         rightPanel={
           <PrintReview
             planData={data}
@@ -410,6 +414,14 @@ export function BizzPlan({
           />
         }
       >
+        {standalonePitchDeck && !embeddedInModel ? (
+          <PitchDeckStudio
+            theme={theme}
+            bizzModelState={bizzModelState}
+            onBackToStep={() => setStandalonePitchDeck(false)}
+            backLabel="back to bizzplan editor"
+          />
+        ) : (
         <div className="space-y-6 pb-12">
           {/* Compact V2 Section Context Banner */}
           <div
@@ -429,15 +441,36 @@ export function BizzPlan({
               </h2>
             </div>
 
-            <span
-              className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold lowercase ${
-                isDark
-                  ? 'bg-[#161C30] border-[#252E4A] text-slate-300'
-                  : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-600'
-              }`}
-            >
-              {STEPS[currentStepIdx]?.subtitle || 'editorial'}
-            </span>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() =>
+                  document
+                    .getElementById('coach-gim-advisor')
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }
+                title="Jump to Coach GIM guidance for this section"
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] lowercase transition-colors cursor-pointer whitespace-nowrap ${
+                  isDark
+                    ? 'text-[#7FAADC]/85 hover:text-[#7FAADC] hover:bg-[#161C30]'
+                    : 'text-[#2E5E88]/80 hover:text-[#2E5E88] hover:bg-[#FAF8F5]'
+                }`}
+              >
+                <Sparkles size={12} className="shrink-0 opacity-80" />
+                <span>need guidance? gim is available below</span>
+                <ArrowDown size={11} className="shrink-0 opacity-75" />
+              </button>
+
+              <span
+                className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold lowercase whitespace-nowrap ${
+                  isDark
+                    ? 'bg-[#161C30] border-[#252E4A] text-slate-300'
+                    : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-600'
+                }`}
+              >
+                {STEPS[currentStepIdx]?.subtitle || 'editorial'}
+              </span>
+            </div>
           </div>
 
           {/* Business Identity Quick Bar on Formation */}
@@ -484,14 +517,17 @@ export function BizzPlan({
           </div>
 
           {/* Coach GIM Section Advisor */}
-          <CoachGimAdvice
-            pageId={currentSectionId}
-            pageTitle={STEPS[currentStepIdx]?.title || activeSection.title}
-            businessName={resolvedBusinessName || 'Your Venture'}
-            businessType={data.coverPage?.businessType || 'Private Enterprise'}
-            theme={theme}
-          />
+          <div id="coach-gim-advisor">
+            <CoachGimAdvice
+              pageId={currentSectionId}
+              pageTitle={STEPS[currentStepIdx]?.title || activeSection.title}
+              businessName={resolvedBusinessName || 'Your Venture'}
+              businessType={data.coverPage?.businessType || 'Private Enterprise'}
+              theme={theme}
+            />
+          </div>
         </div>
+        )}
       </BizzPlanLayout>
     </div>
   );

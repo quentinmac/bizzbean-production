@@ -24,13 +24,14 @@ interface GeminiSearchDockProps {
   userProfile?: UserBusinessProfile;
   onSendToDialogue?: (prompt: string) => void;
   initialQuery?: string;
+  compact?: boolean;
 }
 
 export const GeminiSearchDock: React.FC<GeminiSearchDockProps> = ({
   theme,
   userProfile,
-  onSendToDialogue,
   initialQuery,
+  compact = false,
 }) => {
   const isDark = theme === 'dark';
   const memberEmail = 'thebizzbeanchannel@gmail.com';
@@ -220,8 +221,8 @@ export const GeminiSearchDock: React.FC<GeminiSearchDockProps> = ({
       >
         <div className="flex items-center gap-2 truncate">
           <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">
-            <Sparkles className="h-3.5 w-3.5 text-[#5584B4] animate-pulse shrink-0" />
-            <span>GEMINI SEARCH</span>
+            <Sparkles className="h-3.5 w-3.5 text-[#5584B4] shrink-0" />
+            <span>ASK GEMINI</span>
           </div>
 
           <span className="text-[10px] text-slate-400 dark:text-slate-500">·</span>
@@ -322,19 +323,16 @@ export const GeminiSearchDock: React.FC<GeminiSearchDockProps> = ({
 
       {/* Expanded Content: Thread Messages & Conversation History */}
       {isExpanded && (
-        <div className="flex flex-col max-h-[380px] min-h-[220px]">
+        <div className={`flex flex-col ${compact ? 'max-h-[250px] min-h-[150px]' : 'max-h-[420px] min-h-[240px]'}`}>
           {/* Thread messages container */}
-          <div className="flex-grow p-3 overflow-y-auto space-y-2.5 text-xs font-mono select-text min-h-[120px]">
+          <div className="flex-grow p-2.5 overflow-y-auto space-y-2 text-xs font-mono select-text min-h-[96px]">
             {!activeThread?.messages || activeThread.messages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center p-3 text-slate-400 my-auto">
-                <div className="p-2 rounded-xl bg-[#5584B4]/10 border border-[#5584B4]/20 text-[#5584B4] mb-2">
-                  <Sparkles className="h-5 w-5" />
-                </div>
-                <div className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
-                  Gemini Venture Grounding (Simulation Ready)
+              <div className="h-full flex flex-col items-center justify-center text-center p-2.5 text-slate-400 my-auto">
+                <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
+                  Ask Gemini · Venture Intelligence
                 </div>
                 <p className="text-[11px] text-slate-500 max-w-xs mt-1 lowercase leading-relaxed">
-                  Type your financial formulas, multiples, or business queries below to test live data submission and grounded synthesis.
+                  Ask financial formula, runway, pricing, or venture strategy questions below.
                 </p>
                 <div className="flex flex-wrap gap-1.5 justify-center mt-3">
                   {[
@@ -427,18 +425,6 @@ export const GeminiSearchDock: React.FC<GeminiSearchDockProps> = ({
                           )}
                           <span>{copiedMsgId === msg.id ? 'copied' : 'copy'}</span>
                         </button>
-
-                        {onSendToDialogue && (
-                          <button
-                            type="button"
-                            onClick={() => onSendToDialogue(msg.text)}
-                            className="flex items-center gap-1 text-[#5584B4] hover:underline font-bold transition-colors lowercase cursor-pointer"
-                            title="Discuss with Coach GIM"
-                          >
-                            <MessageSquare className="h-3 w-3" />
-                            <span>discuss with coach gim</span>
-                          </button>
-                        )}
                       </div>
                     )}
                   </div>
@@ -475,9 +461,9 @@ export const GeminiSearchDock: React.FC<GeminiSearchDockProps> = ({
                     handleExecuteSearch();
                   }
                 }}
-                rows={3}
-                placeholder="Ask Gemini search (type your formula, benchmark, or financial query here)..."
-                className={`w-full p-2.5 text-xs font-mono rounded-xl border focus:outline-none transition-colors resize-none leading-relaxed min-h-[68px] ${
+                rows={compact ? 2 : 3}
+                placeholder="Ask Gemini (formulas, benchmarks, or financial queries)..."
+                className={`w-full p-2 text-xs font-mono rounded-xl border focus:outline-none transition-colors resize-none leading-relaxed ${compact ? 'min-h-[52px]' : 'min-h-[68px]'} ${
                   isDark
                     ? 'bg-[#141A2E] border-[#252E4A] text-white placeholder-slate-500 focus:border-[#5584B4]'
                     : 'bg-white border-[#D8CEBC] text-slate-900 placeholder-slate-400 focus:border-[#12172A]'
@@ -487,7 +473,7 @@ export const GeminiSearchDock: React.FC<GeminiSearchDockProps> = ({
 
             <div className="flex items-center justify-between gap-2">
               <div className="text-[10px] font-mono text-slate-400 dark:text-slate-500 lowercase flex items-center gap-1 truncate">
-                <span>press enter to search · shift+enter for new line</span>
+                <span>enter to ask · shift+enter for line</span>
               </div>
 
               <div className="flex items-center gap-1.5 shrink-0">
@@ -511,10 +497,10 @@ export const GeminiSearchDock: React.FC<GeminiSearchDockProps> = ({
                         : 'bg-[#12172A] hover:bg-[#1E2548] text-white shadow-xs active:scale-95'
                       : 'opacity-40 cursor-not-allowed bg-slate-300 dark:bg-slate-700 text-slate-500'
                   }`}
-                  title="Submit Inquiry for Grounded Venture Synthesis"
+                  title="Ask Gemini for Grounded Venture Synthesis"
                 >
                   <Sparkles className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
-                  <span>{isLoading ? 'synthesizing...' : 'search'}</span>
+                  <span>{isLoading ? 'asking...' : 'ask'}</span>
                 </button>
               </div>
             </div>

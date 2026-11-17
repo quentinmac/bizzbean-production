@@ -7,7 +7,7 @@ import payfastRouter from './src/server/payfastRouter.ts';
 import emailRouter from './src/server/emailRouter.ts';
 
 import { exec } from 'child_process';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 
 dotenv.config();
 
@@ -284,6 +284,421 @@ OUTPUT REQUIREMENTS:
     } catch (error: any) {
       console.error('Coach GIM Advice endpoint error:', error);
       return res.status(500).json({ error: error.message || 'Failed to generate Coach GIM advice.' });
+    }
+  });
+
+  // CLIENT AI PITCH DECK STUDIO (Notebook-grade structured 10-slide investor/lender deck)
+  app.post('/api/gemini/pitch-deck', async (req, res) => {
+    try {
+      const {
+        businessName,
+        businessType,
+        founderName,
+        vision,
+        mission,
+        audience = 'investor',
+        pitch,
+        sectionsSummary,
+        financialSummary,
+      } = req.body || {};
+
+      const ventureName = (businessName || 'Your Venture').trim();
+      const ventureType = (businessType || 'Private Enterprise').trim();
+      const currency = financialSummary?.currency || 'ZAR';
+      const revY1 = Number(financialSummary?.revenue?.[0] || 0);
+      const revY3 = Number(financialSummary?.revenue?.[2] || 0);
+      const revY5 = Number(financialSummary?.revenue?.[4] || 0);
+      const npY5 = Number(financialSummary?.netProfit?.[4] || 0);
+      const gpMarginY1 = Number(financialSummary?.gpMargin?.[0] || 0);
+      const totalFunding =
+        Number(financialSummary?.founderEquity || 0) +
+        Number(financialSummary?.investorEquity || 0) +
+        Number(financialSummary?.bankLoanAmount || 0);
+
+      const formatCurr = (n: number) =>
+        `${currency} ${new Intl.NumberFormat('en-ZA', { maximumFractionDigits: 0 }).format(Math.round(n))}`;
+
+      const buildFallbackDeck = () => {
+        const audienceLabel =
+          audience === 'lender'
+            ? 'Bank & Institutional Lending Memorandum'
+            : audience === 'executive'
+            ? 'Executive Board Strategy Briefing'
+            : 'Institutional Investor Pitch Deck';
+
+        const valueBullets = (pitch?.valueOffer || []).filter((x: string) => x?.trim());
+        const revBullets = (pitch?.revenueModel || []).filter((x: string) => x?.trim());
+        const outlookBullets = (pitch?.financialOutlook || []).filter((x: string) => x?.trim());
+        const compBullets = (pitch?.competitorLandscape || []).filter((x: string) => x?.trim());
+        const gtmBullets = (pitch?.getToMarket || []).filter((x: string) => x?.trim());
+        const leverBullets = (pitch?.growthLeverFunding || []).filter((x: string) => x?.trim());
+        const dealBullets = (pitch?.fundingDeal || []).filter((x: string) => x?.trim());
+
+        return {
+          deckTitle: `${ventureName} — ${audienceLabel}`,
+          deckSubtitle:
+            mission ||
+            vision ||
+            `Quantitative growth thesis, unit economics, and 5-year execution roadmap for ${ventureName}.`,
+          executiveBrief:
+            pitch?.elevatorPitch ||
+            `${ventureName} (${ventureType}) combines disciplined unit economics with structured 5-year financial modeling to capture durable market share.`,
+          slides: [
+            {
+              slideNumber: 1,
+              kicker: '01. Venture Thesis',
+              title: `${ventureName}: Institutional Growth Blueprint`,
+              keyTakeaway:
+                pitch?.elevatorPitch ||
+                vision ||
+                `${ventureName} delivers disciplined commercial execution backed by live 3-statement financial modeling.`,
+              layout: 'hero',
+              bullets: [
+                `Sector & Legal Mandate: ${ventureType}`,
+                vision ? `Long-Term Vision: ${vision}` : 'Built for capital readiness and measurable cash conversion',
+                mission ? `Core Mission: ${mission}` : 'Focused on repeatable unit profitability from Year 1',
+                founderName ? `Presented by: ${founderName}` : 'Prepared inside the BizzBean Venture Operating System',
+              ],
+              highlightMetric: {
+                label: '5-Year Revenue Horizon',
+                value: revY5 > 0 ? formatCurr(revY5) : 'Model Pending',
+                context: 'Projected Year 5 annualized turnover from active BizzModel simulation',
+              },
+              speakerNotes: `Welcome. Today I'm presenting ${ventureName}, a ${ventureType} built on rigorous unit economics and a 5-year cash-flow verified operating plan.`,
+            },
+            {
+              slideNumber: 2,
+              kicker: '02. Market Problem',
+              title: 'The Structural Gap Customers Need Solved',
+              keyTakeaway:
+                sectionsSummary?.environment ||
+                'Customers face fragmented, high-friction alternatives that waste capital and slow operational execution.',
+              layout: 'split',
+              bullets: [
+                'Incumbent solutions remain slow, opaque, or poorly adapted to local operating realities.',
+                'Buyers lose margin and time navigating disconnected workflows and inconsistent quality.',
+                sectionsSummary?.customers
+                  ? `Customer Discovery Focus: ${sectionsSummary.customers.slice(0, 140)}`
+                  : 'Validated buyer demand anchored around speed, reliability, and transparent ROI.',
+              ],
+              highlightMetric: {
+                label: 'Primary Customer Pain',
+                value: 'High Friction',
+                context: 'Inefficient workflows & margin leakage among underserved buyers',
+              },
+              speakerNotes: `Across our target market, buyers are underserved by legacy providers. This slide frames the operational pain our product directly removes.`,
+            },
+            {
+              slideNumber: 3,
+              kicker: '03. Value Offer',
+              title: 'Defensible Product & Differentiated Value',
+              keyTakeaway:
+                valueBullets[0] ||
+                `${ventureName} replaces complexity with a measurable, repeatable customer outcome.`,
+              layout: 'split',
+              bullets:
+                valueBullets.length > 0
+                  ? valueBullets.slice(0, 4)
+                  : [
+                      sectionsSummary?.products || 'Core product engineered for rapid customer onboarding and retention.',
+                      'Clear price-to-value advantage driving strong gross margins.',
+                      'Repeatable delivery workflow designed to scale without linear headcount bloat.',
+                    ],
+              highlightMetric: {
+                label: 'Year 1 Gross Margin',
+                value: gpMarginY1 > 0 ? `${gpMarginY1.toFixed(1)}%` : 'Target >= 55%',
+                context: 'Direct contribution margin supporting operating leverage',
+              },
+              speakerNotes: `Our value offer focuses on concrete customer ROI. Every feature ties directly to faster adoption and protected gross margin.`,
+            },
+            {
+              slideNumber: 4,
+              kicker: '04. Go-To-Market',
+              title: 'Customer Acquisition & Distribution Engine',
+              keyTakeaway:
+                gtmBullets[0] ||
+                'Targeted channel distribution focused on high-intent buyers and disciplined customer payback.',
+              layout: 'split',
+              bullets:
+                gtmBullets.length > 0
+                  ? gtmBullets.slice(0, 4)
+                  : [
+                      'Direct commercial outreach paired with high-conversion digital funnels.',
+                      'Strategic partner channels accelerating credibility and lowering acquisition cost.',
+                      'Structured onboarding milestones converting trial buyers into recurring accounts.',
+                    ],
+              highlightMetric: {
+                label: 'Year 1 Revenue Target',
+                value: revY1 > 0 ? formatCurr(revY1) : 'Launch Baseline',
+                context: 'Initial 12-month commercial ramp from modeled unit assumptions',
+              },
+              speakerNotes: `Rather than broad, expensive marketing, our go-to-market concentrates on repeatable conversion channels with measurable payback.`,
+            },
+            {
+              slideNumber: 5,
+              kicker: '05. Revenue Model',
+              title: 'Pricing Architecture & Monetization Mechanics',
+              keyTakeaway:
+                revBullets[0] ||
+                'Disciplined pricing calibrated around cost recovery, statutory VAT clarity, and recurring expansion.',
+              layout: 'metrics',
+              bullets:
+                revBullets.length > 0
+                  ? revBullets.slice(0, 4)
+                  : [
+                      'Transparent unit pricing protecting contribution margin at every volume tier.',
+                      'Predictable billing cadence stabilizing monthly working capital.',
+                      'Upsell pathways across complementary services as account tenure matures.',
+                    ],
+              highlightMetric: {
+                label: 'Year 3 Scale Milestone',
+                value: revY3 > 0 ? formatCurr(revY3) : 'Growth Inflection',
+                context: 'Mid-horizon turnover expansion as distribution compounds',
+              },
+              speakerNotes: `Our revenue mechanics link unit pricing directly to cost recovery and sustainable cash generation from day one.`,
+            },
+            {
+              slideNumber: 6,
+              kicker: '06. Competitive Moat',
+              title: 'Landscape Positioning & Switching Friction',
+              keyTakeaway:
+                compBullets[0] ||
+                'Positioned in an underserved value quadrant combining speed, local compliance, and execution rigor.',
+              layout: 'split',
+              bullets:
+                compBullets.length > 0
+                  ? compBullets.slice(0, 4)
+                  : [
+                      'Superior responsiveness and tailored local execution compared to rigid global incumbents.',
+                      'Lower total cost of ownership versus fragmented manual service providers.',
+                      'Cumulative operational data and supplier relationships deepen switching friction over time.',
+                    ],
+              highlightMetric: {
+                label: 'Competitive Advantage',
+                value: '3-Statement Sync',
+                context: 'Operational discipline and agility outpacing slower legacy players',
+              },
+              speakerNotes: `Competitors either overcharge with rigid overhead or under-deliver on reliability. Our positioning captures the underserved middle.`,
+            },
+            {
+              slideNumber: 7,
+              kicker: '07. Financial Outlook',
+              title: '5-Year Quantitative Trajectory & Margin Profile',
+              keyTakeaway:
+                outlookBullets[0] ||
+                `Modeled to scale from ${revY1 > 0 ? formatCurr(revY1) : 'Year 1 launch'} to ${revY5 > 0 ? formatCurr(revY5) : 'Year 5 maturity'} with disciplined cost control.`,
+              layout: 'financials',
+              bullets:
+                outlookBullets.length > 0
+                  ? outlookBullets.slice(0, 4)
+                  : [
+                      `Year 1 Projected Revenue: ${revY1 > 0 ? formatCurr(revY1) : 'Configured in BizzModel'}`,
+                      `Year 3 Projected Revenue: ${revY3 > 0 ? formatCurr(revY3) : 'Mid-stage expansion'}`,
+                      `Year 5 Projected Revenue: ${revY5 > 0 ? formatCurr(revY5) : 'Long-term target'}`,
+                      `Year 5 Net Profit After Tax: ${npY5 !== 0 ? formatCurr(npY5) : 'Positive cash retention'}`,
+                    ],
+              highlightMetric: {
+                label: 'Year 5 Net Profit',
+                value: npY5 !== 0 ? formatCurr(npY5) : 'Operating Leverage',
+                context: 'Bottom-line earnings after operating expenses, interest, and tax',
+              },
+              speakerNotes: `Every figure on this slide pulls directly from our integrated 60-month financial engine across Income Statement, Balance Sheet, and Cash Flow.`,
+            },
+            {
+              slideNumber: 8,
+              kicker: '08. Team & Governance',
+              title: 'Leadership, Controls & Operational Readiness',
+              keyTakeaway:
+                sectionsSummary?.employees ||
+                'Lean leadership team supported by clear statutory governance and staged hiring triggers.',
+              layout: 'split',
+              bullets: [
+                sectionsSummary?.governance || 'Defined board oversight, delegation of authority, and statutory compliance cadence.',
+                sectionsSummary?.infrastructure || 'Right-sized physical and digital infrastructure aligned to revenue milestones.',
+                sectionsSummary?.systems || 'Core financial, reporting, and operational systems integrated for auditability.',
+              ],
+              highlightMetric: {
+                label: 'Governance Standard',
+                value: 'Audit Ready',
+                context: 'Structured COA controls, CIPC/SARS alignment, and monthly tracking',
+              },
+              speakerNotes: `Capital only compounds when governance is tight. Hiring and fixed overhead scale strictly against verified revenue triggers.`,
+            },
+            {
+              slideNumber: 9,
+              kicker: '09. Growth Capital',
+              title: 'Capital Deployment & Acceleration Levers',
+              keyTakeaway:
+                leverBullets[0] ||
+                'Funding acts directly as a high-leverage catalyst for revenue capacity, working capital, and distribution.',
+              layout: 'split',
+              bullets:
+                leverBullets.length > 0
+                  ? leverBullets.slice(0, 4)
+                  : [
+                      'Accelerate customer acquisition across highest-converting commercial channels.',
+                      'Fund essential productive assets and inventory buffers to eliminate delivery bottlenecks.',
+                      'Maintain prudent liquidity buffer across the initial cash conversion cycle.',
+                    ],
+              highlightMetric: {
+                label: 'Modeled Capital Base',
+                value: totalFunding > 0 ? formatCurr(totalFunding) : 'Staged Allocation',
+                context: 'Combined founder equity, investor capital, and structured debt facilities',
+              },
+              speakerNotes: `Every Rand of capital deployed maps to a clear operational bottleneck removal or revenue multiplier inside our model.`,
+            },
+            {
+              slideNumber: 10,
+              kicker: '10. The Ask & Deal',
+              title: 'Partnership Structure & Next Milestones',
+              keyTakeaway:
+                dealBullets[0] ||
+                `Structured ${audience === 'lender' ? 'debt coverage' : 'investment'} opportunity anchored in transparent 5-year reporting.`,
+              layout: 'ask',
+              bullets:
+                dealBullets.length > 0
+                  ? dealBullets.slice(0, 4)
+                  : [
+                      'Milestone 1 (Months 1–6): Commercial launch, initial anchor customers, and working capital discipline.',
+                      'Milestone 2 (Months 7–18): Channel repeatability and positive monthly operating cash flow.',
+                      'Milestone 3 (Years 2–5): Multi-year margin expansion and institutional value creation.',
+                    ],
+              highlightMetric: {
+                label: audience === 'lender' ? 'Repayment Resilience' : 'Investor Alignment',
+                value: revY5 > 0 ? formatCurr(revY5) : '5-Yr Roadmap',
+                context: 'Full 3-statement data room and monthly variance reporting ready on request',
+              },
+              speakerNotes: `Thank you for your time. Our complete 5-year financial model and supporting business plan data room are ready for detailed due diligence.`,
+            },
+          ],
+        };
+      };
+
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.json({
+          deck: buildFallbackDeck(),
+          generatedBy: 'grounded-fallback',
+        });
+      }
+
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+      });
+
+      const audienceDirective =
+        audience === 'lender'
+          ? 'Bank & DFI Lenders (emphasize cash flow coverage, collateral/fixed assets, working capital cycle, DSCR resilience, and downside risk protection)'
+          : audience === 'executive'
+          ? 'Executive Board & Strategic Partners (emphasize operational execution, KPI governance, unit economics, and 5-year strategic milestones)'
+          : 'Venture / Angel / Equity Investors (emphasize asymmetric problem-solution fit, market capture, scalable unit economics, competitive moat, and 5-year return trajectory)';
+
+      const systemInstruction = `You are an elite institutional investment banker and executive presentation architect (producing NotebookLM-grade investor pitch decks).
+Your task is to synthesize a client's real business plan data and 5-year quantitative financial simulation into a sharp, cohesive 10-slide presentation.
+
+Audience Target: ${audienceDirective}
+
+Strict Quality Rules:
+1. Produce EXACTLY 10 slides following this arc:
+   01. Venture Thesis (layout: "hero")
+   02. Market Problem (layout: "split")
+   03. Value Offer & Solution (layout: "split")
+   04. Go-To-Market Engine (layout: "split")
+   05. Revenue Model & Unit Economics (layout: "metrics")
+   06. Competitive Landscape & Moat (layout: "split")
+   07. 5-Year Financial Outlook (layout: "financials")
+   08. Team, Systems & Governance (layout: "split")
+   09. Capital Deployment & Growth Levers (layout: "split")
+   10. The Ask, Deal & Milestones (layout: "ask")
+2. Use the client's ACTUAL business name, vision, mission, pitch bullets, section context, and 5-year financial figures provided in the prompt. NEVER invent fake revenue figures that contradict the supplied numbers. If modeled revenue is 0, frame financials cleanly around unit assumptions & capital deployment milestones without fabricating fake historical sales.
+3. Keep copy crisp, punchy, and presentation-ready:
+   - title: max 9 words, vivid executive headline
+   - keyTakeaway: 1 razor-sharp synthesis sentence summarizing the slide's core insight
+   - bullets: 3–4 concise, concrete points (no fluff, no filler)
+   - speakerNotes: 2–3 natural first-person sentences the founder can speak aloud when presenting the slide.
+4. Keep currency formatting aligned to ${currency}.`;
+
+      const contextPayload = {
+        businessName: ventureName,
+        businessType: ventureType,
+        founderName: founderName || 'Founder',
+        vision: vision || '',
+        mission: mission || '',
+        audience,
+        pitch: pitch || {},
+        sectionsSummary: sectionsSummary || {},
+        financialSummary: financialSummary || {},
+      };
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-4-hydrogen',
+        contents: `Synthesize a 10-slide executive pitch deck from this client venture dossier:\n\n${JSON.stringify(contextPayload, null, 2)}`,
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              deckTitle: { type: Type.STRING, description: 'Concise presentation title including business name.' },
+              deckSubtitle: { type: Type.STRING, description: 'One-sentence executive positioning statement.' },
+              executiveBrief: { type: Type.STRING, description: '2-sentence high-level summary of the venture.' },
+              slides: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    slideNumber: { type: Type.INTEGER },
+                    kicker: { type: Type.STRING, description: 'Numbered chapter label e.g. 01. Venture Thesis' },
+                    title: { type: Type.STRING, description: 'Crisp executive headline (max 9 words).' },
+                    keyTakeaway: { type: Type.STRING, description: 'Single-sentence synthesis insight.' },
+                    layout: { type: Type.STRING, description: 'One of: hero, split, metrics, financials, ask' },
+                    bullets: {
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING },
+                    },
+                    highlightMetric: {
+                      type: Type.OBJECT,
+                      properties: {
+                        label: { type: Type.STRING },
+                        value: { type: Type.STRING },
+                        context: { type: Type.STRING },
+                      },
+                    },
+                    speakerNotes: { type: Type.STRING },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const rawText = (response.text ?? '').trim();
+      if (!rawText) {
+        return res.json({
+          deck: buildFallbackDeck(),
+          generatedBy: 'grounded-fallback',
+        });
+      }
+
+      const parsedDeck = JSON.parse(rawText);
+      if (!parsedDeck || !Array.isArray(parsedDeck.slides) || parsedDeck.slides.length === 0) {
+        return res.json({
+          deck: buildFallbackDeck(),
+          generatedBy: 'grounded-fallback',
+        });
+      }
+
+      return res.json({
+        deck: parsedDeck,
+        generatedBy: 'gemini-4-hydrogen',
+      });
+    } catch (error: any) {
+      console.error('Gemini Pitch Deck synthesis error:', error);
+      return res.status(500).json({
+        error: error?.message || 'Failed to synthesize pitch deck.',
+      });
     }
   });
 

@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>BizzCalculator - roa dynamics</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.css" />
+    <link rel="stylesheet" href="calculator-style.css" />
+  </head>
+  <body>
+    <div class="mobile-container">
+      <header class="panel-header">
+        <button class="bulb-btn" id="bulbBtn"><i class="ri-lightbulb-line"></i></button>
+        <h3>roa dynamics</h3>
+        <div style="width: 20px;"></div>
+      </header>
+
+      <div class="panel-body">
+        <div class="section-title">trading account</div>
+
+        <div class="calc-row">
+          <div class="calc-label">number of trading months measured</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="months" class="data-entry" value="12"  oninput="calculate()">
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">revenue</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="revenue" class="data-entry" value="8500000"  oninput="calculate()">
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">cost of sales (show as a negative value)</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="cos" class="data-entry" value="-6500000"  oninput="calculate()">
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">gross profit</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="gp" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">gross profit adjustments (+ or -)</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="gpAdj" class="data-entry" value="200000"  oninput="calculate()">
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">other income</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="otherInc" class="data-entry" value="120000"  oninput="calculate()">
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">total income</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="totalInc" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">operating expenses (show as a negative value)</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="opExp" class="data-entry" value="-1000000"  oninput="calculate()">
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">net operating profit</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="nop" class="calculation" value="" readonly >
+          </div>
+        </div><div class="section-title">trading account - ratios</div>
+
+        <div class="calc-row">
+          <div class="calc-label">gross profit</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="gpPct" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">gross profit adjustments</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="gpAdjPct" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">other income</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="otherIncPct" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">total income</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="totalIncPct" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">operating expenses</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="opExpPct" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">net operating profit</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="nopPct" class="calculation" value="" readonly >
+          </div>
+        </div><div class="section-title">balance sheet</div>
+
+        <div class="calc-row">
+          <div class="calc-label">fixed assets</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="fixedAssets" class="data-entry" value="1680000"  oninput="calculate()">
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">inventory</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="inventory" class="data-entry" value="900000"  oninput="calculate()">
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">receivables</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="receivables" class="data-entry" value="1530200"  oninput="calculate()">
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">total assets</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="totalAssets" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">payables ("-")</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="payables" class="data-entry" value="-902777.78"  oninput="calculate()">
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">net operating assets</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="noa" class="calculation" value="" readonly >
+          </div>
+        </div><div class="section-title">efficiency ratios</div>
+
+        <div class="calc-row">
+          <div class="calc-label">ROS - return on sales</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="ros" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">AT - asset turn</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="at" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">ROA - return on net operating assets</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="roa" class="calculation" value="" readonly >
+          </div>
+        </div><div class="section-title">target efficiency ratios</div>
+
+        <div class="calc-row">
+          <div class="calc-label">ROS - return on sales</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="targetRos" class="data-entry" value="15.53"  oninput="calculate()">
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">ROA - return on net operating assets</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="targetRoa" class="data-entry" value="41.12"  oninput="calculate()">
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">AT - asset turn</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="targetAt" class="calculation" value="" readonly >
+          </div>
+        </div><div class="section-title">changes required to achieve target ROS</div>
+
+        <div class="calc-row">
+          <div class="calc-label">net operating profit</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="actualNop" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">net operating profit - required</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="requiredNop" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">adjustment required</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="nopAdj" class="calculation" value="" readonly >
+          </div>
+        </div><div class="section-title">changes required to achieve target ROA</div>
+
+        <div class="calc-row">
+          <div class="calc-label">net operating assets - actual</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="actualNoa" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">net operating assets - required</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="requiredNoa" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">adjustments required</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="noaAdj" class="calculation" value="" readonly >
+          </div>
+        </div><div class="section-title">trading account - % adjustmants</div>
+
+        <div class="calc-row">
+          <div class="calc-label">revenue</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="adjRevPct" class="data-entry" value="1"  oninput="calculate()">
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">gross profit margin</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="adjGpPct" class="data-entry" value="1"  oninput="calculate()">
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">gross profit adjustments</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="adjGpAdjPct" class="data-entry" value="1"  oninput="calculate()">
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">other income</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="adjOtherIncPct" class="data-entry" value="1"  oninput="calculate()">
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">operating expenses</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="adjOpExpPct" class="data-entry" value="1"  oninput="calculate()">
+          </div>
+        </div><div class="section-title">adjusted trading account</div>
+
+        <div class="calc-row">
+          <div class="calc-label">revenue</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjRev" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">cost of sales</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjCos" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">gross profit</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjGp" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">gross profit adjustments</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjGpAdj" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">other income</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjOtherInc" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">total income</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjTotalInc" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">operating expenses</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjOpExp" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">net operating profit</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjNop" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">variance to actual</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="nopVar" class="calculation" value="" readonly >
+          </div>
+        </div><div class="section-title">adjusted trading account - ratios</div>
+
+        <div class="calc-row">
+          <div class="calc-label">revenue</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjRevRatio" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">cost of sales</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjCosRatio" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">gross profit</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjGpRatio" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">gross profit adjustments</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjGpAdjRatio" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">other income</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjOtherIncRatio" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">total income</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjTotalIncRatio" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">operating expenses</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjOpExpRatio" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">net operating profit</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjNopRatio" class="calculation" value="" readonly >
+          </div>
+        </div><div class="section-title">working capital days - calculated</div>
+
+        <div class="calc-row">
+          <div class="calc-label">days inventory</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="daysInv" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">days receivables</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="daysRec" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">days payables</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="daysPay" class="calculation" value="" readonly >
+          </div>
+        </div><div class="section-title">working capital days - targets</div>
+
+        <div class="calc-row">
+          <div class="calc-label">days inventory</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="targetDaysInv" class="data-entry" value="30"  oninput="calculate()">
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">days receivables</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="targetDaysRec" class="data-entry" value="30"  oninput="calculate()">
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">days payables</div>
+          <div class="calc-input-wrapper">
+            <input type="number" id="targetDaysPay" class="data-entry" value="30"  oninput="calculate()">
+          </div>
+        </div><div class="section-title">adjusted balance sheet</div>
+
+        <div class="calc-row">
+          <div class="calc-label">fixed assets</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjFixedAssets" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">inventory</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjInventory" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">receivables</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjReceivables" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">total assets</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjTotalAssets" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">payables</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjPayables" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">net operating assets</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjNoa" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">variance to actual</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="noaVar" class="calculation" value="" readonly >
+          </div>
+        </div><div class="section-title">adjusted efficiency ratios</div>
+
+        <div class="calc-row">
+          <div class="calc-label">ROS - return on sales</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjRos" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">AT - asset turn</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjAt" class="calculation" value="" readonly >
+          </div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-label">ROA - return on net operating assets</div>
+          <div class="calc-input-wrapper">
+            <input type="text" id="adjRoa" class="calculation" value="" readonly >
+          </div>
+        </div>
+      </div>
+
+      <footer class="bottom-bar">
+        <div class="goto-container">
+          <button class="btn goto-btn" id="gotoBtn">GO TO</button>
+          <div class="goto-menu" id="gotoMenu">
+            <a href="index.html" class="goto-item">home</a>
+            <a href="breakeven.html" class="goto-item ">breakeven point</a>
+            <a href="buy-vs-lease.html" class="goto-item ">buy vs lease</a>
+            <a href="cost-benefit.html" class="goto-item ">cost benefit analysis</a>
+            <a href="depreciation.html" class="goto-item ">depreciation</a>
+            <a href="funding.html" class="goto-item ">funding calculator</a>
+            <a href="margin-markup.html" class="goto-item ">margin vs markup</a>
+            <a href="revenue-factor.html" class="goto-item ">revenue factor</a>
+            <a href="roa-dynamics.html" class="goto-item ">roa dynamics</a>
+            <a href="ros-at-roa.html" class="goto-item ">ros x at = roa</a>
+            <a href="term-loan.html" class="goto-item ">term loan</a>
+            <a href="working-capital.html" class="goto-item ">working capital dynamics</a>
+          </div>
+        </div>
+        <button class="btn reset-btn" onclick="resetCalc()">RESET</button>
+        <button class="btn clear-btn" onclick="clearCalc()">CLEAR</button>
+      </footer>
+    </div>
+
+    <div class="modal-overlay" id="bulbModal">
+      <div class="modal-content">
+        <button class="modal-close" id="closeModal">&times;</button>
+        <h3 style="margin-top:0">roa dynamics</h3>
+        <p style="margin-top:10px">Calculate changes required to operating profits and net operating assets to achieve a targeted return of net operating assets.</p>
+      </div>
+    </div>
+
+    <script>
+      function getVal(id) { return parseFloat(document.getElementById(id).value) || 0; }
+      function setVal(id, val) { 
+        const el = document.getElementById(id);
+        if (el.classList.contains('calculation')) {
+          el.value = val.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        } else {
+          el.value = val;
+        }
+      }
+
+      function calculate() {
+        
+      const months = getVal('months');
+      const revenue = getVal('revenue');
+      const cos = getVal('cos');
+      const gp = revenue + cos;
+      setVal('gp', gp);
+
+      const gpAdj = getVal('gpAdj');
+      const otherInc = getVal('otherInc');
+      const totalInc = gp + gpAdj + otherInc;
+      setVal('totalInc', totalInc);
+
+      const opExp = getVal('opExp');
+      const nop = totalInc + opExp;
+      setVal('nop', nop);
+
+      // Ratios
+      setVal('gpPct', revenue !== 0 ? gp / revenue : 0);
+      setVal('gpAdjPct', revenue !== 0 ? gpAdj / revenue : 0);
+      setVal('otherIncPct', revenue !== 0 ? otherInc / revenue : 0);
+      setVal('totalIncPct', revenue !== 0 ? totalInc / revenue : 0);
+      setVal('opExpPct', revenue !== 0 ? opExp / revenue : 0);
+      setVal('nopPct', revenue !== 0 ? nop / revenue : 0);
+
+      // Balance Sheet
+      const fixedAssets = getVal('fixedAssets');
+      const inventory = getVal('inventory');
+      const receivables = getVal('receivables');
+      const totalAssets = fixedAssets + inventory + receivables;
+      setVal('totalAssets', totalAssets);
+
+      const payables = getVal('payables');
+      const noa = totalAssets + payables;
+      setVal('noa', noa);
+
+      // Efficiency Ratios
+      const ros = revenue !== 0 ? nop / revenue : 0;
+      setVal('ros', ros);
+      const at = noa !== 0 ? revenue / noa : 0;
+      setVal('at', at);
+      const roa = ros * at;
+      setVal('roa', roa);
+
+      // Target Efficiency Ratios
+      const targetRos = getVal('targetRos') / 100;
+      const targetRoa = getVal('targetRoa') / 100;
+      const targetAt = targetRos !== 0 ? targetRoa / targetRos : 0;
+      setVal('targetAt', targetAt);
+
+      // Trading account - % adjustments
+      const adjRevPct = getVal('adjRevPct') / 100;
+      const adjGpPct = getVal('adjGpPct') / 100;
+      const adjGpAdjPct = getVal('adjGpAdjPct') / 100;
+      const adjOtherIncPct = getVal('adjOtherIncPct') / 100;
+      const adjOpExpPct = getVal('adjOpExpPct') / 100;
+
+      // Adjusted trading account
+      const adjRev = revenue * (1 + adjRevPct);
+      setVal('adjRev', adjRev);
+
+      // Changes required to achieve target ROS
+      setVal('actualNop', nop);
+      const requiredNop = adjRev * targetRos;
+      setVal('requiredNop', requiredNop);
+      setVal('nopAdj', requiredNop - nop);
+
+      // Changes required to achieve target ROA
+      setVal('actualNoa', noa);
+      const requiredNoa = targetAt !== 0 ? adjRev / targetAt : 0;
+      setVal('requiredNoa', requiredNoa);
+      setVal('noaAdj', requiredNoa - noa);
+
+      const currentGpMargin = revenue !== 0 ? gp / revenue : 0;
+      const adjGpMargin = currentGpMargin + adjGpPct;
+      const adjGp = adjRev * adjGpMargin;
+      setVal('adjGp', adjGp);
+      setVal('adjCos', adjGp - adjRev);
+      const adjGpAdj = gpAdj * (1 + adjGpAdjPct);
+      setVal('adjGpAdj', adjGpAdj);
+      const adjOtherInc = otherInc * (1 + adjOtherIncPct);
+      setVal('adjOtherInc', adjOtherInc);
+      const adjTotalInc = adjGp + adjGpAdj + adjOtherInc;
+      setVal('adjTotalInc', adjTotalInc);
+      const adjOpExp = opExp * (1 + adjOpExpPct);
+      setVal('adjOpExp', adjOpExp);
+      const adjNop = adjTotalInc + adjOpExp;
+      setVal('adjNop', adjNop);
+      setVal('nopVar', adjNop - nop);
+
+      // Adjusted trading account - ratios
+      setVal('adjRevRatio', 1);
+      setVal('adjCosRatio', adjRev !== 0 ? (adjGp - adjRev) / adjRev : 0);
+      setVal('adjGpRatio', adjRev !== 0 ? adjGp / adjRev : 0);
+      setVal('adjGpAdjRatio', adjRev !== 0 ? adjGpAdj / adjRev : 0);
+      setVal('adjOtherIncRatio', adjRev !== 0 ? adjOtherInc / adjRev : 0);
+      setVal('adjTotalIncRatio', adjRev !== 0 ? adjTotalInc / adjRev : 0);
+      setVal('adjOpExpRatio', adjRev !== 0 ? adjOpExp / adjRev : 0);
+      setVal('adjNopRatio', adjRev !== 0 ? adjNop / adjRev : 0);
+
+      // Working capital days - calculated
+      const monthlyCos = Math.abs(cos) / months;
+      const monthlyRev = revenue / months;
+      setVal('daysInv', monthlyCos !== 0 ? (inventory / monthlyCos) * 30 : 0);
+      setVal('daysRec', monthlyRev !== 0 ? (receivables / monthlyRev) * 30 : 0);
+      setVal('daysPay', (cos / months) !== 0 ? (payables / (cos / months)) * 30 : 0);
+
+      // Adjusted balance sheet
+      setVal('adjFixedAssets', fixedAssets);
+      const targetDaysInv = getVal('targetDaysInv');
+      const targetDaysRec = getVal('targetDaysRec');
+      const targetDaysPay = getVal('targetDaysPay');
+      
+      const adjCos = adjGp - adjRev;
+      const adjMonthlyCos = Math.abs(adjCos) / months;
+      const adjMonthlyRev = adjRev / months;
+      
+      const adjInventory = targetDaysInv * adjMonthlyCos / 30;
+      setVal('adjInventory', adjInventory);
+      const adjReceivables = targetDaysRec * adjMonthlyRev / 30;
+      setVal('adjReceivables', adjReceivables);
+      const adjTotalAssets = fixedAssets + adjInventory + adjReceivables;
+      setVal('adjTotalAssets', adjTotalAssets);
+      const adjPayables = targetDaysPay * (adjCos / months) / 30;
+      setVal('adjPayables', adjPayables);
+      const adjNoa = adjTotalAssets + adjPayables;
+      setVal('adjNoa', adjNoa);
+      setVal('noaVar', adjNoa - noa);
+
+      // Adjusted efficiency ratios
+      const adjRos = adjRev !== 0 ? adjNop / adjRev : 0;
+      setVal('adjRos', adjRos);
+      const adjAt = adjNoa !== 0 ? adjRev / adjNoa : 0;
+      setVal('adjAt', adjAt);
+      setVal('adjRoa', adjRos * adjAt);
+    
+      }
+
+      function resetCalc() {
+        document.getElementById('months').value = '12';
+        document.getElementById('revenue').value = '8500000';
+        document.getElementById('cos').value = '-6500000';
+        document.getElementById('gpAdj').value = '200000';
+        document.getElementById('otherInc').value = '120000';
+        document.getElementById('opExp').value = '-1000000';
+        document.getElementById('fixedAssets').value = '1680000';
+        document.getElementById('inventory').value = '900000';
+        document.getElementById('receivables').value = '1530200';
+        document.getElementById('payables').value = '-902777.78';
+        document.getElementById('targetRos').value = '15.53';
+        document.getElementById('targetRoa').value = '41.12';
+        document.getElementById('adjRevPct').value = '1';
+        document.getElementById('adjGpPct').value = '1';
+        document.getElementById('adjGpAdjPct').value = '1';
+        document.getElementById('adjOtherIncPct').value = '1';
+        document.getElementById('adjOpExpPct').value = '1';
+        document.getElementById('targetDaysInv').value = '30';
+        document.getElementById('targetDaysRec').value = '30';
+        document.getElementById('targetDaysPay').value = '30';
+        calculate();
+      }
+
+      function clearCalc() {
+        document.getElementById('months').value = '0';
+        document.getElementById('revenue').value = '0';
+        document.getElementById('cos').value = '0';
+        document.getElementById('gpAdj').value = '0';
+        document.getElementById('otherInc').value = '0';
+        document.getElementById('opExp').value = '0';
+        document.getElementById('fixedAssets').value = '0';
+        document.getElementById('inventory').value = '0';
+        document.getElementById('receivables').value = '0';
+        document.getElementById('payables').value = '0';
+        document.getElementById('targetRos').value = '0';
+        document.getElementById('targetRoa').value = '0';
+        document.getElementById('adjRevPct').value = '0';
+        document.getElementById('adjGpPct').value = '0';
+        document.getElementById('adjGpAdjPct').value = '0';
+        document.getElementById('adjOtherIncPct').value = '0';
+        document.getElementById('adjOpExpPct').value = '0';
+        document.getElementById('targetDaysInv').value = '0';
+        document.getElementById('targetDaysRec').value = '0';
+        document.getElementById('targetDaysPay').value = '0';
+        calculate();
+      }
+
+      document.getElementById('gotoBtn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('gotoMenu').classList.toggle('show');
+      });
+      document.getElementById('bulbBtn').addEventListener('click', () => document.getElementById('bulbModal').classList.add('show'));
+      document.getElementById('closeModal').addEventListener('click', () => document.getElementById('bulbModal').classList.remove('show'));
+      window.onclick = function(e) {
+        if (e.target == document.getElementById('bulbModal')) document.getElementById('bulbModal').classList.remove('show');
+        if (!e.target.matches('.goto-btn')) document.getElementById('gotoMenu').classList.remove('show');
+      }
+
+      calculate();
+    </script>
+  </body>
+</html>

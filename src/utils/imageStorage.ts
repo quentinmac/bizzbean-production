@@ -903,6 +903,7 @@ export function cleanLegacyProducts(products: CmsProduct[]): CmsProduct[] {
 
     const WIP_PROJECT_IDS = new Set([
       'bizzdynamics',
+      'bizzcalculators',
       'bizzmodel',
       'rolling-forecast',
       'hi-level-forecast',
@@ -1305,6 +1306,7 @@ export function mergeLoadedProducts(
 
     const WIP_PROJECT_IDS = new Set([
       'bizzdynamics',
+      'bizzcalculators',
       'bizzmodel',
       'hi-level-forecast',
       'bizzforecasta',

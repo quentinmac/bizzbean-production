@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { ModellingSuiteModal } from '../bizzdynamics/components/ModellingSuiteModal';
+import { PlatformHelpModal } from '../../components/PlatformHelpModal';
+import { PlatformHelpStepId } from '../../services/platformHelpService';
 
 interface BizzModelLayoutProps {
   theme?: 'light' | 'dark';
@@ -17,6 +19,8 @@ interface BizzModelLayoutProps {
   onSelectFundingTab?: (tab: 'dynamics' | 'what-if') => void;
   isBizzPlanTabActive?: boolean;
   onSelectBizzPlanTab?: (active: boolean) => void;
+  isPitchDeckTabActive?: boolean;
+  onSelectPitchDeckTab?: (active: boolean) => void;
   onClose: () => void;
   children: React.ReactNode;
 }
@@ -36,6 +40,8 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
   onSelectFundingTab,
   isBizzPlanTabActive = false,
   onSelectBizzPlanTab,
+  isPitchDeckTabActive = false,
+  onSelectPitchDeckTab,
   onClose,
   children,
 }) => {
@@ -58,6 +64,7 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
       window.dispatchEvent(new CustomEvent('bizz_subtab_change', { detail: tab }));
     } catch {}
     if (onSelectBizzPlanTab) onSelectBizzPlanTab(false);
+    if (onSelectPitchDeckTab) onSelectPitchDeckTab(false);
     if (onSelectStepSubTab) onSelectStepSubTab(tab);
     if (onSelectSetupTab) onSelectSetupTab(tab);
     setInternalSubTab(tab);
@@ -80,6 +87,7 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
       window.dispatchEvent(new CustomEvent('bizz_funding_tab_change', { detail: tab }));
     } catch {}
     if (onSelectBizzPlanTab) onSelectBizzPlanTab(false);
+    if (onSelectPitchDeckTab) onSelectPitchDeckTab(false);
     if (onSelectFundingTab) onSelectFundingTab(tab);
     setInternalFundingTab(tab);
   };
@@ -147,15 +155,18 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
             />
           </button>
 
-          {/* Function tabs + integrated free bizzplan tab on every step */}
+          {/* Function tabs + integrated free bizzplan & pitch deck tabs on every step */}
           <div className="flex items-center gap-1.5 sm:gap-2">
             {activeStep === 'reports' ? (
               <>
                 <button
                   type="button"
-                  onClick={() => onSelectBizzPlanTab?.(false)}
+                  onClick={() => {
+                    onSelectBizzPlanTab?.(false);
+                    onSelectPitchDeckTab?.(false);
+                  }}
                   className={`py-1.5 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold lowercase transition-all border cursor-pointer whitespace-nowrap ${
-                    !isBizzPlanTabActive
+                    !isBizzPlanTabActive && !isPitchDeckTabActive
                       ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-2xs'
                       : isDark
                       ? 'bg-[#141A2E] text-slate-400 hover:text-white border-[#252E4A]'
@@ -167,7 +178,10 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                 {showBizzPlanTab && onSelectBizzPlanTab && (
                   <button
                     type="button"
-                    onClick={() => onSelectBizzPlanTab(true)}
+                    onClick={() => {
+                      onSelectPitchDeckTab?.(false);
+                      onSelectBizzPlanTab(true);
+                    }}
                     className={`py-1.5 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold lowercase transition-all border cursor-pointer whitespace-nowrap ${
                       isBizzPlanTabActive
                         ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-2xs'
@@ -177,6 +191,24 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                     }`}
                   >
                     bizzplan
+                  </button>
+                )}
+                {showBizzPlanTab && onSelectPitchDeckTab && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectBizzPlanTab?.(false);
+                      onSelectPitchDeckTab(true);
+                    }}
+                    className={`py-1.5 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold lowercase transition-all border cursor-pointer whitespace-nowrap ${
+                      isPitchDeckTabActive
+                        ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-2xs'
+                        : isDark
+                        ? 'bg-[#141A2E] text-slate-400 hover:text-white border-[#252E4A]'
+                        : 'bg-white text-[#2E5E88] hover:bg-[#2E5E88]/5 border-[#2E5E88]/40'
+                    }`}
+                  >
+                    pitch deck
                   </button>
                 )}
               </>
@@ -191,7 +223,7 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                     type="button"
                     onClick={() => handleSelectFundingTab(tab.id as any)}
                     className={`py-1.5 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold lowercase transition-all border cursor-pointer whitespace-nowrap ${
-                      !isBizzPlanTabActive && currentFundingTab === tab.id
+                      !isBizzPlanTabActive && !isPitchDeckTabActive && currentFundingTab === tab.id
                         ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-2xs'
                         : isDark
                         ? 'bg-[#141A2E] text-slate-400 hover:text-white border-[#252E4A]'
@@ -204,7 +236,10 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                 {showBizzPlanTab && onSelectBizzPlanTab && (
                   <button
                     type="button"
-                    onClick={() => onSelectBizzPlanTab(true)}
+                    onClick={() => {
+                      onSelectPitchDeckTab?.(false);
+                      onSelectBizzPlanTab(true);
+                    }}
                     className={`py-1.5 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold lowercase transition-all border cursor-pointer whitespace-nowrap ${
                       isBizzPlanTabActive
                         ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-2xs'
@@ -214,6 +249,24 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                     }`}
                   >
                     bizzplan
+                  </button>
+                )}
+                {showBizzPlanTab && onSelectPitchDeckTab && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectBizzPlanTab?.(false);
+                      onSelectPitchDeckTab(true);
+                    }}
+                    className={`py-1.5 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold lowercase transition-all border cursor-pointer whitespace-nowrap ${
+                      isPitchDeckTabActive
+                        ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-2xs'
+                        : isDark
+                        ? 'bg-[#141A2E] text-slate-400 hover:text-white border-[#252E4A]'
+                        : 'bg-white text-[#2E5E88] hover:bg-[#2E5E88]/5 border-[#2E5E88]/40'
+                    }`}
+                  >
+                    pitch deck
                   </button>
                 )}
               </>
@@ -229,7 +282,7 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                     type="button"
                     onClick={() => handleSelectSubTab(tab.id as any)}
                     className={`py-1.5 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold lowercase transition-all border cursor-pointer whitespace-nowrap ${
-                      !isBizzPlanTabActive && currentSubTab === tab.id
+                      !isBizzPlanTabActive && !isPitchDeckTabActive && currentSubTab === tab.id
                         ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-2xs'
                         : isDark
                         ? 'bg-[#141A2E] text-slate-400 hover:text-white border-[#252E4A]'
@@ -242,7 +295,10 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                 {showBizzPlanTab && onSelectBizzPlanTab && (
                   <button
                     type="button"
-                    onClick={() => onSelectBizzPlanTab(true)}
+                    onClick={() => {
+                      onSelectPitchDeckTab?.(false);
+                      onSelectBizzPlanTab(true);
+                    }}
                     className={`py-1.5 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold lowercase transition-all border cursor-pointer whitespace-nowrap ${
                       isBizzPlanTabActive
                         ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-2xs'
@@ -252,6 +308,24 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                     }`}
                   >
                     bizzplan
+                  </button>
+                )}
+                {showBizzPlanTab && onSelectPitchDeckTab && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectBizzPlanTab?.(false);
+                      onSelectPitchDeckTab(true);
+                    }}
+                    className={`py-1.5 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold lowercase transition-all border cursor-pointer whitespace-nowrap ${
+                      isPitchDeckTabActive
+                        ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-2xs'
+                        : isDark
+                        ? 'bg-[#141A2E] text-slate-400 hover:text-white border-[#252E4A]'
+                        : 'bg-white text-[#2E5E88] hover:bg-[#2E5E88]/5 border-[#2E5E88]/40'
+                    }`}
+                  >
+                    pitch deck
                   </button>
                 )}
               </>
@@ -312,6 +386,7 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                 type="button"
                 onClick={() => {
                   onSelectBizzPlanTab?.(false);
+                  onSelectPitchDeckTab?.(false);
                   onSelectStep(st.id);
                   if (st.id === 'reports') {
                     handleSelectSubTab('results');
@@ -354,61 +429,14 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
       {/* ===================================================================== */}
       {/* 4. MODALS: ASSISTANCE GUIDANCE & MODELLING SUITE NAVIGATION           */}
       {/* ===================================================================== */}
-      {showAssistanceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-2xs animate-in fade-in duration-150">
-          <div
-            className={`w-full max-w-lg rounded-3xl border shadow-xl overflow-hidden font-mono ${
-              isDark ? 'bg-[#0E1322] border-[#222F4C] text-slate-200' : 'bg-white border-[#D8CEBC] text-slate-800'
-            }`}
-          >
-            <div className="px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs lowercase font-bold text-[#2E5E88] dark:text-[#5584B4]">
-                <img src="/help.jpg" alt="help" className="w-4 h-4 object-contain mix-blend-multiply dark:bg-white dark:rounded-xs dark:p-0.5" />
-                <span className="text-slate-400">/</span>
-                <img src={encodeURI(currentStepDef.icon)} alt={currentStepDef.name} className="w-4 h-4 object-contain mix-blend-multiply dark:bg-white dark:rounded-xs dark:p-0.5" />
-                <span>{currentStepDef.name} assistance</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAssistanceModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="p-5 space-y-3.5 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-[#2E5E88] dark:text-blue-300">
-                <strong>{appDisplayName.toUpperCase()} Purpose:</strong>{' '}
-                {mode === 'rolling-forecast'
-                  ? 'Stand-alone rolling forecast engine with 1-product unit sales model-set, cost-as-a-percentage-of-revenue calculations, and prior year-end balance sheet baseline inputs.'
-                  : 'Comprehensive 3-statement financial simulation engine linking Income Statement, Balance Sheet, and Cash Flow.'}
-              </div>
-
-              <div>
-                <h4 className="font-bold text-slate-900 dark:text-white uppercase mb-1">
-                  How to Navigate Steps:
-                </h4>
-                <ul className="space-y-1 list-disc pl-4">
-                  <li>Use the <strong>7 bottom icon buttons</strong> to move across steps (Setup, Revenue, Employment, OPEX, Assets, Funding, Reports).</li>
-                  <li>In <strong>Setup</strong>, explore <em>assumptions</em>, <em>results</em> (12-month calendar and base rates), and <em>charts</em>.</li>
-                  <li>Use the <strong>dynamic base rate adjustment tool</strong> to scrub years 1 to 5 and edit effective monthly rates.</li>
-                </ul>
-              </div>
-
-              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowAssistanceModal(false)}
-                  className="px-4 py-1.5 rounded-xl bg-[#2E5E88] text-white text-xs font-bold hover:bg-[#254d70] transition-colors cursor-pointer"
-                >
-                  understood
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <PlatformHelpModal
+        isOpen={showAssistanceModal}
+        onClose={() => setShowAssistanceModal(false)}
+        appId={isRollingForecast ? 'rolling-forecast' : 'bizzmodel'}
+        stepId={(currentStepDef.id as PlatformHelpStepId) || 'setup'}
+        stepIcon={currentStepDef.icon}
+        theme={theme}
+      />
 
       {/* Modelling Suite Architecture Modal */}
       <ModellingSuiteModal

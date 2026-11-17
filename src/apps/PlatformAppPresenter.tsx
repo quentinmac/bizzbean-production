@@ -143,9 +143,9 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
       id: 'bizzcalculators',
       name: 'bizzcalculators',
       sku: 'BA-CALC',
-      stage: 'vi-ability',
-      stageCode: 'Stage 01',
-      subtitle: 'Specialized CAC : LTV, Working Capital & True Hourly Labor Suite',
+      stage: 'operations-sandbox',
+      stageCode: 'Operations Sandbox',
+      subtitle: '11-Tool Financial Workbench: Breakeven, Buy vs Lease, Cost Benefit, ROA & Working Capital',
       icon: Calculator,
       hasCompanion: true,
       mobileReady: true,
@@ -306,6 +306,19 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
           userProfile={userProfile}
           onClose={onBackToWorkstation}
           onContextSwitch={(app) => setActiveApp(normalizeAppId(app))}
+        />
+      </div>
+    );
+  }
+
+  // Standalone BizzCalculators Direct Experience (Removes outer presenter header and suite strip like bizzcalc/bizzdynamics)
+  if (activeApp === 'bizzcalculators') {
+    return (
+      <div className="w-full h-full flex-1 flex flex-col overflow-hidden">
+        <BizzCalculators
+          theme={theme}
+          onClose={onBackToWorkstation}
+          onSelectCalculator={() => {}}
         />
       </div>
     );

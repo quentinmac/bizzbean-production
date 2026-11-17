@@ -19,6 +19,7 @@ import { FormattedAboutContent } from './FormattedAboutContent';
 import { AboutPanelTextEditor } from './AboutPanelTextEditor';
 import { BizzbeanLogoIcon } from './BizzbeanLogoIcon';
 import { ErrorBoundary } from './ErrorBoundary';
+import { GeminiSearchDock } from './GeminiSearchDock';
 import {
   DEFAULT_WHO_ARE_WE,
   DEFAULT_WHAT_WE_DO,
@@ -33,12 +34,13 @@ import {
   DEFAULT_MISSION_EQUATION,
   DEFAULT_MISSION_SUBTEXT,
 } from '../services/siteContentService';
+import { fetchPlatformHelpFromCloud } from '../services/platformHelpService';
 import { findMatchingCourse, getCanonicalCourseId, getDeletedProductIds, getDeletedVideoIds, getDeletedArticleIds } from '../utils/imageStorage';
 
 interface WorkAreaProps {
   activeSolution: BizzSolution | null;
   activeStageId?: string;
-  activeView: 'flashcard' | 'active-app' | 'about' | 'footer' | 'workspace' | 'library' | 'admin-centre' | 'education-centre' | 'bizzclass' | 'platform-apps';
+  activeView: 'flashcard' | 'active-app' | 'about' | 'footer' | 'workspace' | 'library' | 'admin-centre' | 'education-centre' | 'bizzclass' | 'platform-apps' | 'ask-gemini';
   isMember: boolean;
   isAdmin?: boolean;
   tokenBalance: number;
@@ -170,6 +172,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
     fetchAboutContentFromCloud().then((cloud) => {
       if (cloud) setAboutData(cloud);
     });
+    fetchPlatformHelpFromCloud().catch(() => {});
     const handleUpdate = () => {
       setAboutData(getCachedAboutContent());
     };
@@ -334,6 +337,40 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
     );
   }
 
+  // Render: ASK GEMINI WORKSPACE VIEW (Accessible from Calm Mode footer & mobile carousel)
+  if (activeView === 'ask-gemini') {
+    return (
+      <div
+        className={`flex-grow p-4 sm:p-8 overflow-y-auto flex flex-col transition-colors ${
+          isDark ? 'bg-[#0A0D14] text-[#E2E8F0]' : 'bg-architectural-grid text-slate-800'
+        }`}
+      >
+        <div className="max-w-3xl mx-auto w-full space-y-4">
+          <div className="flex items-center justify-between gap-3 pb-3 border-b border-[#E8E2D8] dark:border-[#252E4A]">
+            <div>
+              <span className="font-mono text-[11px] font-bold text-[#5584B4] uppercase tracking-wider block">
+                VENTURE INTELLIGENCE
+              </span>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white font-sans">
+                Ask Gemini
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={onBackToWorkstation || onCloseActiveApp}
+              className="px-3.5 py-2 rounded-xl border border-[#D8CEBC] dark:border-[#252E4A] bg-white dark:bg-[#141A2E] text-xs font-mono font-semibold text-slate-700 dark:text-slate-200 hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] cursor-pointer lowercase"
+            >
+              back to work area
+            </button>
+          </div>
+          <div className="rounded-2xl overflow-hidden border border-[#D8CEBC] dark:border-[#252E4A] shadow-sm bg-white dark:bg-[#141A2E]">
+            <GeminiSearchDock theme={theme} userProfile={userProfile} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Render: BIZZCLASS EDUCATION DELIVERY SYSTEM (V1 Course Master Suite matching bizzclass.jpg)
   if (
     activeView === 'bizzclass' ||
@@ -353,6 +390,127 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
 
     const matchedCourse = findMatchingCourse(rawCourseCandidate, cmsProducts || []);
     const resolvedInitialCourseId = matchedCourse ? matchedCourse.id : (rawCourseCandidate || 'cost-recovery-calculator');
+    const courseCanon = getCanonicalCourseId(resolvedInitialCourseId) || resolvedInitialCourseId;
+    const isFreeCourse =
+      ['learn-earn-capital', 'how-to-bizzcalc', 'follow-the-money', 'vi-ability'].includes(resolvedInitialCourseId) ||
+      ['learn-earn-capital', 'how-to-bizzcalc', 'follow-the-money', 'vi-ability'].includes(courseCanon) ||
+      (matchedCourse?.sellingPriceZAR === 0);
+    const isCourseOwned =
+      isAdmin ||
+      activeStageId === 'operations-sandbox' ||
+      currentStageKey === 'operations-sandbox' ||
+      isFreeCourse ||
+      userPurchases.includes(resolvedInitialCourseId) ||
+      userPurchases.includes(courseCanon);
+
+    if (!isCourseOwned) {
+      const courseFallback = BIZZ_SOLUTIONS.find(
+        (s) => s.id === resolvedInitialCourseId || s.id === courseCanon
+      );
+      const coursePrice = matchedCourse?.sellingPriceZAR ?? courseFallback?.priceZAR ?? 229;
+      const courseName = matchedCourse?.name || courseFallback?.name || resolvedInitialCourseId;
+      const courseSubtitle =
+        matchedCourse?.subtitle ||
+        courseFallback?.subtitle ||
+        'Executive BizzClass Masterclass & Companion Workbook';
+      const earnedTokens = matchedCourse?.tokensAllocated ?? Math.round(coursePrice * 0.2);
+
+      return (
+        <div
+          className={`flex-grow p-6 sm:p-10 flex flex-col items-center justify-center text-center transition-colors ${
+            isDark ? 'bg-[#0A0D14] text-white' : 'bg-architectural-grid text-slate-800'
+          }`}
+        >
+          <div className="max-w-md w-full p-6 sm:p-8 rounded-2xl border border-[#D8CEBC] dark:border-[#252E4A] bg-white dark:bg-[#141A2E] shadow-lg space-y-5">
+            <div className="mx-auto w-12 h-12 rounded-xl bg-[#5584B4]/10 border border-[#5584B4]/30 flex items-center justify-center text-[#5584B4]">
+              <Lock className="h-6 w-6" />
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="text-[11px] font-mono font-semibold text-[#5584B4] uppercase tracking-wider">
+                BizzClass Access Required
+              </div>
+              <h3 className="text-xl font-bold font-sans text-slate-900 dark:text-white lowercase">
+                unlock {courseName}
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                {courseSubtitle}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 pt-1 leading-relaxed">
+                This masterclass is reserved for enrolled founders. Unlock it anytime to stream all lessons, download companion workbooks, and earn BizzTokens.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0E1220] border border-[#E8E2D8] dark:border-[#252E4A] text-left text-xs font-mono space-y-1.5">
+              <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                <span>Course Investment:</span>
+                <span className="font-bold tabular-nums text-slate-900 dark:text-white">
+                  R{coursePrice.toFixed(2)} once-off
+                </span>
+              </div>
+              <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                <span>BizzToken Reward:</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold tabular-nums">
+                  +{earnedTokens} tokens
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const solToBuy: any = matchedCourse || courseFallback || {
+                    id: resolvedInitialCourseId,
+                    name: courseName,
+                    subtitle: courseSubtitle,
+                    priceZAR: coursePrice,
+                    sellingPriceZAR: coursePrice,
+                    exclusivePriceZAR: Math.round((coursePrice / 1.15) * 100) / 100,
+                    vatZAR: Math.round((coursePrice - coursePrice / 1.15) * 100) / 100,
+                    tokensAllocated: earnedTokens,
+                    isPurchased: false,
+                  };
+                  onBuySolution(solToBuy);
+                }}
+                className="w-full py-3 rounded-xl bg-[#E02475] hover:bg-[#C91A63] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+              >
+                <ShoppingCart className="h-4 w-4" />
+                <span>Unlock Course (R{coursePrice.toFixed(2)})</span>
+              </button>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsTransparencyModalOpen(true)}
+                  className="py-2.5 px-3 rounded-xl border border-[#D8CEBC] dark:border-[#252E4A] bg-[#FAF8F5] dark:bg-[#0E1220] text-slate-700 dark:text-slate-200 hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] text-xs font-mono lowercase cursor-pointer"
+                >
+                  preview syllabus
+                </button>
+                <button
+                  type="button"
+                  onClick={onBackToWorkstation || onCloseActiveApp}
+                  className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#1E2548] dark:hover:bg-[#252F52] text-slate-700 dark:text-slate-300 text-xs font-mono lowercase cursor-pointer"
+                >
+                  back to workspace
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <SolutionTransparencyModal
+            isOpen={isTransparencyModalOpen}
+            onClose={() => setIsTransparencyModalOpen(false)}
+            solution={(matchedCourse || courseFallback || activeSolution || (cmsProducts && cmsProducts[0])) as any}
+            cmsProducts={cmsProducts}
+            isMember={isMember}
+            onBuySolution={onBuySolution}
+            onOpenSignUp={onOpenSignUp}
+            theme={theme}
+          />
+        </div>
+      );
+    }
 
     return (
       <BizzClass
@@ -1048,7 +1206,9 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
     const solName = (activeSolution?.name || '').toLowerCase();
     const solId = (activeSolution?.id || '').toLowerCase();
     const effectiveAppId =
-      solName.includes('dynamics') || solId.includes('dynamics')
+      solName.includes('calculators') || solId.includes('calculators')
+        ? 'bizzcalculators'
+        : solName.includes('dynamics') || solId.includes('dynamics')
         ? 'bizzdynamics'
         : solName.includes('rolling') || solId.includes('rolling')
         ? 'rolling-forecast'
@@ -1084,42 +1244,46 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
 
       return (
         <div
-          className={`flex-grow p-6 sm:p-12 flex flex-col items-center justify-center text-center transition-colors ${
-            isDark ? 'bg-[#0A0D14] text-white' : 'bg-[#F8FAFC] text-slate-800'
+          className={`flex-grow p-6 sm:p-10 flex flex-col items-center justify-center text-center transition-colors ${
+            isDark ? 'bg-[#0A0D14] text-white' : 'bg-architectural-grid text-slate-800'
           }`}
         >
-          <div className="max-w-md w-full p-6 sm:p-8 rounded-2xl border border-rose-500/30 bg-white dark:bg-[#141A2E] shadow-xl space-y-4">
-            <div className="mx-auto w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-500">
-              <Lock className="h-7 w-7" />
+          <div className="max-w-md w-full p-6 sm:p-8 rounded-2xl border border-[#D8CEBC] dark:border-[#252E4A] bg-white dark:bg-[#141A2E] shadow-lg space-y-5">
+            <div className="mx-auto w-12 h-12 rounded-xl bg-[#5584B4]/10 border border-[#5584B4]/30 flex items-center justify-center text-[#5584B4]">
+              <Lock className="h-6 w-6" />
             </div>
 
-            <div>
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-rose-500 bg-rose-500/10 px-2.5 py-0.5 rounded-full border border-rose-500/20">
-                Purchase Required
-              </span>
-              <h3 className="text-xl font-bold font-sans text-slate-900 dark:text-white mt-2 lowercase">
-                {appName} locked
+            <div className="space-y-1.5">
+              <div className="text-[11px] font-mono font-semibold text-[#5584B4] uppercase tracking-wider">
+                Solution Access Required
+              </div>
+              <h3 className="text-xl font-bold font-sans text-slate-900 dark:text-white lowercase">
+                unlock {appName}
               </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed">
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                 {appSubtitle}
               </p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                You must purchase this application before launching it in the work area.
+              <p className="text-xs text-slate-500 dark:text-slate-400 pt-1 leading-relaxed">
+                This application is not yet unlocked on your account. Unlock full workspace access anytime to run scenarios, export models, and earn BizzTokens.
               </p>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#0E1220] border border-slate-200 dark:border-[#252E4A] text-left text-xs font-mono space-y-1">
+            <div className="p-3.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0E1220] border border-[#E8E2D8] dark:border-[#252E4A] text-left text-xs font-mono space-y-1.5">
               <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                <span>Application Price:</span>
-                <span className="font-bold text-slate-900 dark:text-white">R{appPrice.toFixed(2)} once-off</span>
+                <span>Solution Investment:</span>
+                <span className="font-bold tabular-nums text-slate-900 dark:text-white">
+                  R{appPrice.toFixed(2)} once-off
+                </span>
               </div>
               <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>BizzToken Reward:</span>
-                <span className="text-emerald-500 font-bold">+{earnedTokens} BizzTokens</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold tabular-nums">
+                  +{earnedTokens} tokens
+                </span>
               </div>
             </div>
 
-            <div className="flex flex-col gap-2 pt-2">
+            <div className="flex flex-col gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -1136,21 +1300,41 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                   };
                   onBuySolution(solToBuy);
                 }}
-                className="w-full py-3 rounded-xl bg-[#E02475] hover:bg-[#C91A63] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99] cursor-pointer"
+                className="w-full py-3 rounded-xl bg-[#E02475] hover:bg-[#C91A63] text-white font-bold text-xs uppercase font-mono flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.99] cursor-pointer"
               >
                 <ShoppingCart className="h-4 w-4" />
-                <span>Buy Solution Now (R{appPrice.toFixed(2)})</span>
+                <span>Unlock Solution (R{appPrice.toFixed(2)})</span>
               </button>
 
-              <button
-                type="button"
-                onClick={onCloseActiveApp}
-                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#1E2548] dark:hover:bg-[#252F52] text-slate-700 dark:text-slate-300 text-xs font-mono uppercase cursor-pointer"
-              >
-                Back to Workspace
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsTransparencyModalOpen(true)}
+                  className="py-2.5 px-3 rounded-xl border border-[#D8CEBC] dark:border-[#252E4A] bg-[#FAF8F5] dark:bg-[#0E1220] text-slate-700 dark:text-slate-200 hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] text-xs font-mono lowercase cursor-pointer"
+                >
+                  view deliverables
+                </button>
+                <button
+                  type="button"
+                  onClick={onCloseActiveApp}
+                  className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#1E2548] dark:hover:bg-[#252F52] text-slate-700 dark:text-slate-300 text-xs font-mono lowercase cursor-pointer"
+                >
+                  back to workspace
+                </button>
+              </div>
             </div>
           </div>
+
+          <SolutionTransparencyModal
+            isOpen={isTransparencyModalOpen}
+            onClose={() => setIsTransparencyModalOpen(false)}
+            solution={(matchingCms || activeSolution || (cmsProducts && cmsProducts[0])) as any}
+            cmsProducts={cmsProducts}
+            isMember={isMember}
+            onBuySolution={onBuySolution}
+            onOpenSignUp={onOpenSignUp}
+            theme={theme}
+          />
         </div>
       );
     }
@@ -1477,7 +1661,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
         isDark ? 'bg-[#0A0D14]' : 'bg-architectural-grid'
       }`}
     >
-      <div className="max-w-4xl mx-auto w-full space-y-5">
+      <div className={`${isHeroSplashMode ? 'max-w-5xl' : 'max-w-4xl'} mx-auto w-full space-y-5`}>
         
         {/* PANEL A: TOP STAGE NAVIGATION PANEL (Stage name, Previous & Next solution buttons, clean panel styling) */}
         {!isHeroSplashMode && (
@@ -1568,128 +1752,187 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
 
         {/* CENTER DISPLAY AREA */}
         {isHeroSplashMode && activePromotion ? (
-          /* HERO SPLASH PAGE (Pristine hero image, stage story message space, and buttons placed below the image) */
-          <div className="w-full space-y-6 animate-fade-in select-none">
-            {/* 1. Pristine Hero Image Container - 100% Clean: No wording, no buttons, no references on image */}
-            {activePromotion.imageUrl &&
-            activePromotion.imageUrl.trim() !== '' &&
-            !activePromotion.imageUrl.includes('1553877522-43269d4ea984') && (
-              <div className="relative w-full rounded-2xl sm:rounded-3xl overflow-hidden bg-black/5 dark:bg-[#0A0D14] border border-[#D8CEBC] dark:border-[#252E4A] shadow-xl">
-                <img
-                  src={activePromotion.imageUrl}
-                  alt={activePromotion.displayName}
-                  className="w-full h-auto object-contain sm:object-cover max-h-[60vh] mx-auto block transition-transform duration-700 hover:scale-[1.01]"
-                />
+          /* ENHANCED LANDING HERO: Horizontal Split Hero + 3 Workspace Jump Cards (Coach GIM replaced with Library) */
+          <div className="w-full space-y-4 animate-fade-in select-none">
+            <div className="rounded-3xl border border-[#D8CEBC] dark:border-[#252E4A] bg-white dark:bg-[#141A2E] shadow-md overflow-hidden grid grid-cols-1 lg:grid-cols-12 items-stretch">
+              {/* Compact Pristine Hero Image */}
+              <div className="lg:col-span-5 relative bg-black/5 dark:bg-[#0A0D14]">
+                {activePromotion.imageUrl &&
+                activePromotion.imageUrl.trim() !== '' &&
+                !activePromotion.imageUrl.includes('1553877522-43269d4ea984') ? (
+                  <img
+                    src={activePromotion.imageUrl}
+                    alt={activePromotion.displayName}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-[210px] sm:h-[250px] lg:h-full lg:min-h-[260px] lg:max-h-[310px] object-cover block"
+                  />
+                ) : (
+                  <div className="w-full h-[210px] sm:h-[250px] lg:h-full flex items-center justify-center bg-[#F4EFE6] dark:bg-[#0E1220] p-6">
+                    <BizzbeanLogoIcon className="w-12 h-12" />
+                  </div>
+                )}
               </div>
-            )}
 
-            {/* 2. Action & Navigation Bar - Positioned DIRECTLY BELOW the Hero Image */}
-            <div className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#141A2E] border border-[#D8CEBC] dark:border-[#252E4A] shadow-md flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-              {/* Left: Previous / Next Stage Story Carousel Steppers */}
-              <div className="flex items-center gap-2">
-                {onCyclePromotion && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => onCyclePromotion('prev')}
-                      className="px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0E1220] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] border border-[#D8CEBC] dark:border-[#252E4A] text-xs font-mono text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
-                      title="Browse previous stage story"
-                      aria-label="Previous story"
-                    >
-                      <ChevronLeft className="h-4 w-4 text-[#5584B4]" />
-                      <span>prev<span className="hidden sm:inline">&nbsp;story</span></span>
-                    </button>
-
-                    <span className="px-2.5 sm:px-3 py-2 text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-[#0E1220] border border-[#E8E2D8] dark:border-[#252E4A] rounded-xl whitespace-nowrap">
+              {/* Stage Story & Primary Action Controls */}
+              <div className="lg:col-span-7 p-5 sm:p-6 flex flex-col justify-between gap-4">
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between gap-2 text-[11px] font-mono text-[#5584B4] font-semibold">
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                      <span>THE STAGE STORY · {activePromotion.displayName}</span>
+                    </span>
+                    <span className="text-slate-400 tabular-nums shrink-0">
                       {activePromoNum} of {totalPromosCount}
                     </span>
+                  </div>
 
+                  <h2 className="text-xl sm:text-2xl font-bold font-sans text-slate-900 dark:text-white tracking-tight text-balance">
+                    {activePromotion.displayName}
+                  </h2>
+
+                  <p className="text-sm font-sans text-slate-600 dark:text-slate-300 leading-relaxed">
+                    {activePromotion.stageStory?.narrative || activePromotion.tagline}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-[#E8E2D8] dark:border-[#252E4A]">
+                  <div className="flex items-center gap-2">
+                    {onCyclePromotion && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => onCyclePromotion('prev')}
+                          className="px-3 py-2 rounded-xl border border-[#D8CEBC] dark:border-[#252E4A] bg-[#FAF8F5] dark:bg-[#0E1220] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] text-xs font-mono text-slate-700 dark:text-slate-200 flex items-center gap-1 cursor-pointer transition-colors"
+                          aria-label="Previous story"
+                        >
+                          <ChevronLeft className="h-3.5 w-3.5 text-[#5584B4]" />
+                          <span>prev</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onCyclePromotion('next')}
+                          className="px-3 py-2 rounded-xl border border-[#D8CEBC] dark:border-[#252E4A] bg-[#FAF8F5] dark:bg-[#0E1220] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] text-xs font-mono text-slate-700 dark:text-slate-200 flex items-center gap-1 cursor-pointer transition-colors"
+                          aria-label="Next story"
+                        >
+                          <span>next</span>
+                          <ChevronRight className="h-3.5 w-3.5 text-[#5584B4]" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {onClosePromotion && (
+                      <button
+                        type="button"
+                        onClick={onClosePromotion}
+                        className="px-3.5 py-2 rounded-xl border border-[#E8E2D8] dark:border-[#252E4A] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-mono lowercase cursor-pointer transition-colors"
+                      >
+                        enter workspace
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => onCyclePromotion('next')}
-                      className="px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0E1220] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] border border-[#D8CEBC] dark:border-[#252E4A] text-xs font-mono text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
-                      title="Browse next stage story"
-                      aria-label="Next story"
+                      onClick={() => {
+                        if (onNavigateToSection) onNavigateToSection(activePromotion);
+                      }}
+                      className="px-5 py-2 rounded-xl bg-[#5584B4] hover:bg-[#4773A0] text-white font-sans font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition-all"
                     >
-                      <span>next<span className="hidden sm:inline">&nbsp;story</span></span>
-                      <ChevronRight className="h-4 w-4 text-[#5584B4]" />
+                      <span>{activePromotion.buttonText || `explore ${activePromotion.name}`}</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-[#C59B63]" />
                     </button>
-                  </>
-                )}
-              </div>
-
-              {/* Right: Primary Stage Action CTA & Close to Workspace */}
-              <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (onNavigateToSection) onNavigateToSection(activePromotion);
-                  }}
-                  className="px-6 py-2.5 rounded-xl bg-[#5584B4] hover:bg-[#4773A0] text-white font-bold text-sm font-sans flex items-center gap-2 transition-all shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
-                >
-                  <span>{activePromotion.buttonText || `explore ${activePromotion.name}`}</span>
-                  <ArrowRight className="h-4 w-4 text-[#C59B63]" />
-                </button>
-
-                {onClosePromotion && (
-                  <button
-                    type="button"
-                    onClick={onClosePromotion}
-                    className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#1E2548] dark:hover:bg-[#252F52] text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-mono lowercase transition-colors border border-slate-200 dark:border-[#2B3452] cursor-pointer"
-                    title="Close story and enter workspace"
-                  >
-                    close & enter workspace
-                  </button>
-                )}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* 3. Stage Story Message & Content Space */}
-            <div className="p-6 sm:p-8 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#141A2E] border border-[#D8CEBC] dark:border-[#252E4A] shadow-md space-y-6">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-xs font-mono text-[#5584B4] tracking-wider font-semibold">
-                  <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                  <span>THE STAGE STORY · {activePromotion.displayName}</span>
+            {/* Quick Workspace Jump Cards (01 · Active Stage, 02 · Library, 03 · Instant Launch) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onNavigateToSection) onNavigateToSection(activePromotion);
+                }}
+                className="p-4 rounded-2xl border border-[#E8E2D8] dark:border-[#252E4A] bg-white/95 dark:bg-[#141A2E] hover:border-[#5584B4] transition-colors text-left cursor-pointer"
+              >
+                <div className="text-[11px] font-mono font-bold text-amber-600 dark:text-amber-400 uppercase">
+                  01 · Active Stage
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-bold font-sans tracking-tight text-slate-900 dark:text-white">
+                <div className="text-xs font-bold text-slate-900 dark:text-white mt-1 lowercase">
                   {activePromotion.displayName}
-                </h2>
-                <p className="text-base sm:text-lg text-slate-700 dark:text-slate-200 leading-relaxed font-sans max-w-3xl font-medium">
-                  {activePromotion.stageStory?.narrative || activePromotion.tagline}
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  12-month & 5-year solutions ready
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (onSelectSolutionById) onSelectSolutionById('library');
+                }}
+                className="p-4 rounded-2xl border border-[#E8E2D8] dark:border-[#252E4A] bg-white/95 dark:bg-[#141A2E] hover:border-[#5584B4] transition-colors text-left cursor-pointer"
+              >
+                <div className="text-[11px] font-mono font-bold text-[#5584B4] uppercase">
+                  02 · Library
+                </div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white mt-1">
+                  Virtual Library & Objectives
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Models, memos & Google Drive sync
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (onSelectSolutionById) onSelectSolutionById('platform-apps');
+                }}
+                className="p-4 rounded-2xl border border-[#E8E2D8] dark:border-[#252E4A] bg-white/95 dark:bg-[#141A2E] hover:border-[#5584B4] transition-colors text-left cursor-pointer"
+              >
+                <div className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400 uppercase">
+                  03 · Instant Launch
+                </div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white mt-1 lowercase">
+                  bizzcalc · bizzmodel · bizzplan
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Open apps navigator or unlock suite
+                </div>
+              </button>
+            </div>
+
+            {/* Structured Stage Context Summary */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-white/90 dark:bg-[#141A2E] border border-[#E8E2D8] dark:border-[#252E4A] grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <div className="text-[11px] font-mono font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                  <span>STAGE CHALLENGE</span>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  {activePromotion.stageStory?.stageChallenge || activePromotion.tagline}
                 </p>
               </div>
 
-              {/* Structured Stage Story Content Space: Reality & Challenge, Milestone to Advance, Institutional Asset */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 pt-1">
-                <div className="p-4 rounded-xl bg-[#FAF8F5] dark:bg-[#0E1220] border border-[#E8E2D8] dark:border-[#222F4C] space-y-1.5">
-                  <div className="text-[11px] font-mono font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide flex items-center gap-1.5">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    <span>STAGE CHALLENGE</span>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                    {activePromotion.stageStory?.stageChallenge || activePromotion.tagline}
-                  </p>
+              <div className="space-y-1 md:border-l md:pl-4 border-[#E8E2D8] dark:border-[#252E4A]">
+                <div className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5 shrink-0" />
+                  <span>MILESTONE TO ADVANCE</span>
                 </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  {activePromotion.stageStory?.milestone || 'Quantitative model calibration & verified unit economics.'}
+                </p>
+              </div>
 
-                <div className="p-4 rounded-xl bg-[#FAF8F5] dark:bg-[#0E1220] border border-[#E8E2D8] dark:border-[#222F4C] space-y-1.5">
-                  <div className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide flex items-center gap-1.5">
-                    <Check className="h-3.5 w-3.5" />
-                    <span>MILESTONE TO ADVANCE</span>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                    {activePromotion.stageStory?.milestone || 'Quantitative model calibration & verified unit economics.'}
-                  </p>
+              <div className="space-y-1 md:border-l md:pl-4 border-[#E8E2D8] dark:border-[#252E4A]">
+                <div className="text-[11px] font-mono font-bold text-[#5584B4] uppercase tracking-wide flex items-center gap-1.5">
+                  <Layers className="h-3.5 w-3.5 shrink-0" />
+                  <span>INSTITUTIONAL ASSET</span>
                 </div>
-
-                <div className="p-4 rounded-xl bg-[#FAF8F5] dark:bg-[#0E1220] border border-[#E8E2D8] dark:border-[#222F4C] space-y-1.5">
-                  <div className="text-[11px] font-mono font-bold text-[#5584B4] uppercase tracking-wide flex items-center gap-1.5">
-                    <Layers className="h-3.5 w-3.5" />
-                    <span>INSTITUTIONAL ASSET</span>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                    {activePromotion.stageStory?.keyDeliverable || 'Institutional model & validation audit artifacts.'}
-                  </p>
-                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  {activePromotion.stageStory?.keyDeliverable || 'Institutional model & validation audit artifacts.'}
+                </p>
               </div>
             </div>
           </div>
@@ -2188,7 +2431,9 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                     const handleLaunchApp = () => {
                       const nameCheck = `${currentProd?.name || ''} ${currentProd?.id || ''} ${matchingCms?.name || ''} ${activeSolution?.id || ''}`.toLowerCase();
                       const targetId =
-                        nameCheck.includes('dynamics')
+                        nameCheck.includes('calculators')
+                          ? 'bizzcalculators'
+                          : nameCheck.includes('dynamics')
                           ? 'bizzdynamics'
                           : nameCheck.includes('rolling')
                           ? 'rolling-forecast'

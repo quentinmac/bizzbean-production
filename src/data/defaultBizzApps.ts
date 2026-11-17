@@ -2,7 +2,7 @@ export interface BizzAppCatalogItem {
   id: string;
   sku: string;
   name: string;
-  stage: 'vi-ability' | 'fund-ability' | 'sustain-ability' | 'invest-ability' | 'operations' | 'growth';
+  stage: 'vi-ability' | 'fund-ability' | 'sustain-ability' | 'invest-ability' | 'operations' | 'operations-sandbox' | 'growth';
   stageCode: string;
   subtitle: string;
   description: string;
@@ -48,10 +48,10 @@ export const DEFAULT_BIZZ_APPS: BizzAppCatalogItem[] = [
     id: 'bizzcalculators',
     sku: 'BA-CALC',
     name: 'bizzcalculators',
-    stage: 'vi-ability',
-    stageCode: 'Stage 01',
-    subtitle: 'Specialized CAC : LTV, Working Capital & True Hourly Labor Suite',
-    description: 'Instant micro-calculators for customer acquisition payback, cash conversion cycle, working capital requirements, and real labor cost hourly rates.',
+    stage: 'operations-sandbox',
+    stageCode: 'Operations Sandbox',
+    subtitle: '11 Specialized Decision Calculators: Breakeven, Buy vs Lease, Cost Benefit, ROA & Working Capital',
+    description: 'Authentic 11-calculator suite covering breakeven point, buy vs lease, cost benefit analysis, depreciation, funding, margin vs markup, revenue factor, ROA dynamics, ROS x AT = ROA, term loan, and working capital dynamics.',
     purpose: 'Provide rapid decision dials for daily executive operations without setting up a full financial statement model.',
     iconName: 'Calculator',
     billingModel: 'once-off',
@@ -60,12 +60,12 @@ export const DEFAULT_BIZZ_APPS: BizzAppCatalogItem[] = [
     entryComponent: 'src/apps/bizzcalculators/BizzCalculators.tsx',
     rootDirectory: 'src/apps/bizzcalculators/',
     features: [
-      'Customer Acquisition Cost vs. Lifetime Value (CAC : LTV) ratio',
-      'Payback period in months',
-      'Cash Conversion Cycle (CCC) & trapped working capital',
-      'Burn & Runway months with buffer protection',
-      'Gross margin vs. markup price converter',
-      'True cost-to-company labor billable hour builder',
+      'Breakeven Point & Unit Contribution margin analyzer',
+      'Buy vs Lease asset financing & lifetime cashflow comparison',
+      'Cost Benefit Analysis (NPV, DCF & payback viability)',
+      'Asset Depreciation, Funding & Term Loan schedules',
+      'Margin vs Markup & Revenue Factor pricing calculators',
+      'ROA Dynamics, ROS x AT = ROA & Working Capital Dynamics',
     ],
   },
   {

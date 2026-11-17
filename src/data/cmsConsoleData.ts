@@ -1189,6 +1189,45 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
       "Prior Year End Balance Sheet Integration",
       "Dynamic Base Rate Adjustments"
     ]
+  },
+  {
+    "id": "bizzcalculators",
+    "seq": 6,
+    "type": "app",
+    "stage": "operations-sandbox",
+    "sku": "BA-CALC",
+    "name": "bizzcalculators",
+    "subtitle": "11-Calculator Financial Workbench: Breakeven, Buy vs Lease, Cost Benefit, ROA & Working Capital",
+    "description": "Mobile-ready interactive suite of 11 specialized business calculators: breakeven point, buy vs lease, cost benefit analysis, depreciation, funding calculator, margin vs markup, revenue factor, roa dynamics, ros x at = roa, term loan, and working capital dynamics.",
+    "purpose": "Provide rapid decision dials for daily executive operations without setting up a full 3-statement financial model.",
+    "billingModel": "once-off",
+    "exclusivePriceZAR": 216.67,
+    "vatZAR": 32.5,
+    "sellingPriceZAR": 249.17,
+    "tokensAllocated": 49.8,
+    "ticketPriceZAR": 299,
+    "isPurchased": false,
+    "activeInSync": true,
+    "canonicalCoverUrl": "",
+    "youtubeDemoUrl": "",
+    "courseLessons": [],
+    "companionMaterialFilename": "",
+    "coursePromoVideoUrl": "",
+    "syllabusLessonsCount": 0,
+    "lessonTitles": [],
+    "modules": [
+      "Breakeven Point",
+      "Buy vs Lease",
+      "Cost Benefit Analysis",
+      "Depreciation",
+      "Funding Calculator",
+      "Margin vs Markup",
+      "Revenue Factor",
+      "ROA Dynamics",
+      "ROS x AT = ROA",
+      "Term Loan",
+      "Working Capital Dynamics"
+    ]
   }
 ];
 

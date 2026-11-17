@@ -24,6 +24,8 @@ import {
   STANDARD_ASSET_CATEGORIES,
 } from '../bizzmodel/constants';
 import { generateBizzCalcPdf } from './utils/pdfExport';
+import { PlatformHelpModal } from '../../components/PlatformHelpModal';
+import { stepNumberToHelpStepId } from '../../services/platformHelpService';
 
 // Types for BizzCalc Scenarios
 export type ScenarioId = 'learn' | 'my dream' | 'break that constraint' | 'when this happens';
@@ -718,85 +720,6 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
     fundingMetrics,
     current.assets,
   ]);
-
-  // Assistance descriptions matching PDF requirements
-  const assistanceContent = useMemo(() => {
-    switch (activeStep) {
-      case 1:
-        return {
-          title: 'business details assistance',
-          body: 'configure your business entity name, operating scenario, and calendar rhythms. the working calendar calculates productive operating days across the 12-month period.',
-          bullets: [
-            'choose an operating scenario from the four available baseline models.',
-            'set your starting month and financial year (changing this resets the scenario to a clean baseline).',
-            'select which weekdays your business operates.',
-            'review the public holidays calendar and toggle or add custom operational holidays.',
-          ],
-        };
-      case 2:
-        return {
-          title: 'revenue calculator assistance',
-          body: 'forecast monthly turnover using daily operating revenue multiplied by productive days worked, compounded with monthly rate adjustments.',
-          bullets: [
-            'enter base daily revenue and starting gross profit margin %.',
-            'dial monthly percentage rate changes to capture seasonality, marketing ramps, or scaling.',
-            'review annual turnover and gross profit in the results tab.',
-          ],
-        };
-      case 3:
-        return {
-          title: 'employment assistance',
-          body: 'structure your team headcount and payroll costs across the operating period.',
-          bullets: [
-            'set annual salary review month and rate percentage.',
-            'add positions with monthly base remuneration and headcount counts.',
-            'schedule hiring start months to reflect phased team growth.',
-          ],
-        };
-      case 4:
-        return {
-          title: 'operating expenses assistance',
-          body: 'budget and track overhead expenses across the standard 27 operating expense accounts.',
-          bullets: [
-            'set the annual inflationary cost adjustment month and percentage.',
-            'specify monthly spend and inception month for each active opex line item.',
-            'monitor annual overhead run-rate and expense timing.',
-          ],
-        };
-      case 5:
-        return {
-          title: 'fixed assets assistance',
-          body: 'schedule capital acquisitions and compute straight-line asset depreciation.',
-          bullets: [
-            'select standard asset categories with regulated depreciation schedules.',
-            'enter unit purchase costs, quantities, and acquisition months.',
-            'track original cost, accumulated depreciation, and balance sheet carrying value.',
-          ],
-        };
-      case 6:
-        return {
-          title: 'funding calculator assistance',
-          body: 'model working capital cycles and cash buffers to ensure liquidity.',
-          bullets: [
-            'set working capital turnover days for inventory (dio), receivables (dso), and payables (dpo).',
-            'configure essential liquidity buffers including bank deposits, cash floats, and petty cash.',
-            'analyze monthly working capital requirements and liquidity strain.',
-          ],
-        };
-      case 7:
-      default:
-        return {
-          title: 'reports assistance',
-          body: 'review your integrated 12-month financial position and export executive summaries.',
-          bullets: [
-            'inspect the executive income statement and balance sheet.',
-            'analyze the monthly and annual cash flow projections.',
-            'review the full schedule of expenses.',
-            'download your complete financial scenario in printable pdf format.',
-          ],
-        };
-    }
-  }, [activeStep]);
 
   // Handler for adding staff
   const handleSaveStaff = () => {
@@ -2700,64 +2623,16 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
       </div>
 
       {/* ===================================================================== */}
-      {/* SIMPLE ASSISTANCE POPUP MODAL (MATCHING PDF: PAGE HEADING, BODY, BULLETS) */}
+      {/* DYNAMIC ASSISTANCE POPUP MODAL (EDITABLE VIA PLATFORM HELP SERVICE)   */}
       {/* ===================================================================== */}
-      {showAssistanceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
-          <div
-            className={`w-full max-w-sm rounded-3xl border p-5 space-y-4 shadow-2xl ${
-              isDark ? 'bg-[#101626] border-[#222F4C] text-[#E2E8F0]' : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-800'
-            }`}
-          >
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-2 text-xs lowercase font-normal text-[#2E5E88] dark:text-[#5584B4]">
-                <img
-                  src="/help.jpg"
-                  alt="help"
-                  className="w-4 h-4 object-contain mix-blend-multiply dark:bg-white dark:rounded-xs dark:p-0.5"
-                />
-                <img
-                  src={encodeURI(currentStepDef.icon)}
-                  alt={currentStepDef.name}
-                  className="w-4 h-4 object-contain mix-blend-multiply dark:bg-white dark:rounded dark:p-0.5"
-                />
-                <span>{assistanceContent.title}</span>
-              </div>
-              <button
-                onClick={() => setShowAssistanceModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="text-xs font-normal text-slate-600 dark:text-slate-300 lowercase leading-relaxed">
-              {assistanceContent.body}
-            </div>
-
-            <div className="space-y-2 pt-1 border-t border-slate-200 dark:border-slate-800">
-              <div className="text-[11px] font-normal text-slate-400 lowercase">key steps & rules:</div>
-              <ul className="space-y-1.5 text-xs font-normal lowercase list-disc pl-4 text-slate-700 dark:text-slate-300">
-                {assistanceContent.bullets.map((b, idx) => (
-                  <li key={idx} className="leading-snug">
-                    {b}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => setShowAssistanceModal(false)}
-                className="w-full py-2 rounded-xl bg-[#2E5E88] text-white text-xs lowercase font-normal shadow-2xs"
-              >
-                got it
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PlatformHelpModal
+        isOpen={showAssistanceModal}
+        onClose={() => setShowAssistanceModal(false)}
+        appId="bizzcalc"
+        stepId={stepNumberToHelpStepId(activeStep)}
+        stepIcon={currentStepDef.icon}
+        theme={theme}
+      />
 
       {/* ===================================================================== */}
       {/* SCENARIO RESET CONFIRMATION MODAL                                     */}

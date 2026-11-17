@@ -800,23 +800,25 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
           {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
 
-        {/* Expand / Maximize Work Area (Hides side panels for full undistracted focus) */}
+        {/* Expand / Calm View Toggle (Hides or shows Left & Right Panels) */}
         <button
+          type="button"
           onClick={onToggleMaximize}
           title={
             isMaximized
-              ? 'Restore 3-Panel View (Show Solutions Panel & Knowledge Base)'
-              : 'Maximize Work Area (Hide Side Panels for Undistracted Focus)'
+              ? 'Open 3-Panel Desk (Show Solutions Panel & Knowledge Base)'
+              : 'Return to Calm Focus View (Hide Side Panels)'
           }
-          className={`p-1.5 rounded-lg border transition-all ${
-            isMaximized
-              ? 'bg-[#5584B4]/20 border-[#5584B4] text-[#5584B4] dark:text-[#DDEBF7] shadow-xs'
-              : isDark
-              ? 'bg-[#161C30] hover:bg-[#1E2548] border-[#252E4A] text-slate-300 hover:text-white'
-              : 'bg-white hover:bg-[#F4EFE6] border-[#E8E2D8] text-slate-700 hover:text-slate-900'
+          className={`px-2.5 py-1.5 rounded-lg border text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+            !isMaximized
+              ? 'bg-[#2E5E88] hover:bg-[#234E73] border-[#2E5E88] text-white shadow-xs'
+              : 'bg-[#5584B4]/10 hover:bg-[#5584B4]/20 border-[#5584B4]/50 text-[#2E5E88] dark:text-[#7EB2E2]'
           }`}
         >
-          {isMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          {!isMaximized ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+          <span className="hidden lg:inline lowercase">
+            {!isMaximized ? 'calm view' : '3-panel desk'}
+          </span>
         </button>
 
         {/* Close Doors (Opens Close Shop / Session Review) */}

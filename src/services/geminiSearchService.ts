@@ -170,7 +170,7 @@ Within the Bizzbean ecosystem, this inquiry directly interfaces with your ventur
 3. **Institutional Readiness**:
    Maintain documentation in your Virtual Data Room to withstand partner scrutiny during investor due diligence.
 
-*Coach Recommendation*: Discuss this inquiry with Coach GIM in the **DIALOGUE** tab for tailored Socratic exploration.`,
+*Next Step*: Save key takeaways in your **Library** or test these numbers inside your active BizzBean workspace tools.`,
     sources: ['Bizzbean Ecosystem Grounded Knowledge Base', 'Gemini Multi-Stage Venture Synthesis', 'Venture Financial Governance'],
   };
 }

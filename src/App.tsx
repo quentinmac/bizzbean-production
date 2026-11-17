@@ -71,6 +71,16 @@ import {
   Sparkles,
   Lock,
   ShoppingCart,
+  ChevronLeft,
+  ChevronRight,
+  Library,
+  GraduationCap,
+  Video,
+  FileText,
+  Globe,
+  Info,
+  Mail,
+  BookOpen,
 } from 'lucide-react';
 
 export default function App() {
@@ -120,6 +130,7 @@ export default function App() {
   useEffect(() => {
     try {
       localStorage.setItem('bizzdesk_token_balance_v1', tokenBalance.toString());
+      window.dispatchEvent(new CustomEvent('bizz-token-balance-updated', { detail: tokenBalance }));
     } catch (e) {}
   }, [tokenBalance]);
 
@@ -131,8 +142,15 @@ export default function App() {
         setTokenBalance((prev) => Math.max(0, prev - amount));
       }
     };
+    const handleOpenBuyTokens = () => {
+      setIsBuyTokensModalOpen(true);
+    };
     window.addEventListener('bizz-token-deduction', handleTokenDeduction);
-    return () => window.removeEventListener('bizz-token-deduction', handleTokenDeduction);
+    window.addEventListener('bizz-open-buy-tokens', handleOpenBuyTokens);
+    return () => {
+      window.removeEventListener('bizz-token-deduction', handleTokenDeduction);
+      window.removeEventListener('bizz-open-buy-tokens', handleOpenBuyTokens);
+    };
   }, []);
 
   // Theme state: Default to 'light' (black & grey on white) with instant dark theme toggle
@@ -345,8 +363,10 @@ export default function App() {
 
   const [activeStageId, setActiveStageId] = useState<string>('vi-ability');
   const [activeSolutionId, setActiveSolutionId] = useState<string>('learn-earn-capital');
-  const [activeView, setActiveView] = useState<'flashcard' | 'active-app' | 'about' | 'footer' | 'workspace' | 'library' | 'admin-centre' | 'education-centre' | 'bizzclass' | 'platform-apps'>('flashcard');
-  const [isMaximized, setIsMaximized] = useState<boolean>(false);
+  const [activeView, setActiveView] = useState<'flashcard' | 'active-app' | 'about' | 'footer' | 'workspace' | 'library' | 'ask-gemini' | 'admin-centre' | 'education-centre' | 'bizzclass' | 'platform-apps'>('flashcard');
+  const [isMaximized, setIsMaximized] = useState<boolean>(true);
+  const [isCalmSolutionsOpen, setIsCalmSolutionsOpen] = useState<boolean>(false);
+  const mobileCarouselRef = useRef<HTMLDivElement>(null);
   const [purchasedNotice, setPurchasedNotice] = useState<{
     solutionName: string;
     tokensCredited: number;
@@ -751,7 +771,7 @@ export default function App() {
       }
     }
   }, [cmsPromotions, activePromotion, showPromotion]);
-  const [activeKbTab, setActiveKbTab] = useState<'search' | 'dialogue' | 'library'>('dialogue');
+  const [activeKbTab, setActiveKbTab] = useState<'search' | 'dialogue' | 'library'>('library');
 
   const [videoModalSolution, setVideoModalSolution] = useState<BizzSolution | null>(null);
   const [inspectedLibraryItem, setInspectedLibraryItem] = useState<LibraryItem | null>(null);
@@ -1077,7 +1097,8 @@ export default function App() {
     setIsCloseShopModalOpen(false);
     setInSplashDoors(true);
     setActiveView('flashcard');
-    setIsMaximized(false);
+    setIsMaximized(true);
+    setIsCalmSolutionsOpen(false);
     setShowPromotion(false);
     const nextPromo = getRandomActivePromotion(cmsPromotions);
     if (nextPromo) {
@@ -1090,16 +1111,18 @@ export default function App() {
   // Navigate directly to section from promotion billboard
   const handleNavigateFromPromotion = (promo: CmsPromotionSection) => {
     setShowPromotion(false);
+    setIsCalmSolutionsOpen(false);
     if (promo.targetType === 'solution') {
       const targetId = (promo.targetId === 'budget' || promo.targetId === 'bizzbudget') ? 'bizzbudget' : promo.targetId;
       handleSelectSolution(targetId);
     } else if (promo.targetType === 'knowledge-base') {
-      setIsMaximized(false);
-      if (promo.targetTab === 'library' || promo.targetId === 'library') {
+      if (promo.targetTab === 'search' || promo.targetId === 'ask-gemini') {
+        setActiveView('ask-gemini');
+        setActiveSolutionId('ask-gemini');
+      } else {
         setActiveView('library');
+        setActiveSolutionId('sandbox-library');
         setActiveKbTab('library');
-      } else if (promo.targetTab) {
-        setActiveKbTab(promo.targetTab);
       }
     }
   };
@@ -1158,6 +1181,7 @@ export default function App() {
 
     // CRITICAL: Any navigation from solutions panel or header MUST clear promotional billboard and route to work area!
     setShowPromotion(false);
+    setIsCalmSolutionsOpen(false);
     setMobileActivePanel('workarea');
 
     if (targetId === 'talk-to-us' || targetId === 'dialogue') {
@@ -1207,6 +1231,12 @@ export default function App() {
     if (targetId === 'library' || targetId === 'sandbox-library') {
       setActiveView('library');
       setActiveSolutionId('sandbox-library');
+      return;
+    }
+
+    if (targetId === 'ask-gemini' || targetId === 'gemini') {
+      setActiveView('ask-gemini');
+      setActiveSolutionId('ask-gemini');
       return;
     }
 
@@ -1373,32 +1403,32 @@ export default function App() {
   );
 
   // Launch solution into Active Work Area (or BizzClass Suite for courses)
+  // WorkArea strictly enforces ownership verification and presents a gentle nudge to buy if unowned
   const handleLaunchSolution = (solId?: string) => {
-    const effectiveId = solId || activeSolutionId;
-    if (solId) {
-      setActiveSolutionId(solId);
-    }
-    const matchingProd = (cmsProducts || []).find((p) => p.id === effectiveId);
+    const rawId = solId || activeSolutionId;
+    const effectiveId = rawId === 'budget' ? 'bizzbudget' : rawId;
+    setActiveSolutionId(effectiveId);
+    setShowPromotion(false);
+    setIsCalmSolutionsOpen(false);
+
+    const matchingProd = (cmsProducts || []).find((p) => p.id === effectiveId || (effectiveId === 'bizzbudget' && p.id === 'budget'));
     const nameLower = (matchingProd?.name || effectiveId || '').toLowerCase();
+    const isAppProduct =
+      matchingProd?.type === 'app' ||
+      nameLower.includes('bizzcalculators') ||
+      nameLower.includes('bizzcalc') ||
+      nameLower.includes('dynamics') ||
+      nameLower.includes('bizzmodel') ||
+      nameLower.includes('rolling') ||
+      nameLower.includes('bizzmoney') ||
+      nameLower.includes('bizzbudget') ||
+      nameLower.includes('bizzplan') ||
+      nameLower.includes('optimizer');
     const isCourse =
-      !nameLower.includes('dynamics') &&
+      !isAppProduct &&
       ((cmsProducts || []).some((p) => p.id === effectiveId && p.type === 'course') ||
       ['learn-earn-capital', 'how-to-bizzcalc', 'cost-recovery-calculator', 'follow-the-money', 'financial-reports', 'your-first-hire', 'profit-optimizer', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(effectiveId) ||
       effectiveId.includes('cost-recovery') || effectiveId.includes('course') || nameLower.includes('calculator') || nameLower.includes('masterclass'));
-
-    // Strictly verify ownership before granting access to paid apps or courses (admin & operations-sandbox exempt)
-    if (!isAdmin && activeStageId !== 'operations-sandbox' && !isAppOrSolutionOwned(effectiveId)) {
-      const prodPrice = matchingProd?.sellingPriceZAR ?? 229;
-      const prodName = matchingProd?.name || effectiveId;
-      const solToBuy: any = matchingProd || {
-        id: effectiveId,
-        name: prodName,
-        priceZAR: prodPrice,
-        sellingPriceZAR: prodPrice,
-      };
-      handleBuySolution(solToBuy);
-      return;
-    }
 
     if (isCourse) {
       setActiveView('bizzclass');
@@ -1408,25 +1438,11 @@ export default function App() {
     setMobileActivePanel('workarea');
   };
 
-  // Launch app directly from mobile navigator or header
+  // Launch app directly from mobile navigator or header (WorkArea displays access lock & gentle nudge if unowned)
   const handleLaunchAppDirectly = (appId: string) => {
-    if (!isAdmin && activeStageId !== 'operations-sandbox' && !isAppOrSolutionOwned(appId)) {
-      const matchingProd = (cmsProducts || []).find((p) => p.id === appId);
-      const prodPrice = matchingProd?.sellingPriceZAR ?? 229;
-      const prodName = appId === 'bizzcalc' ? 'bizzcalc' : appId === 'bizzcalculators' ? 'bizzcalculators' : appId;
-      const solToBuy: any = matchingProd || {
-        id: appId,
-        name: prodName,
-        subtitle: appId === 'bizzcalc' ? 'Cost Recovery, Break-Even & Contribution Margin Simulator' : 'CAC:LTV & Working Capital Micro-Suite',
-        priceZAR: prodPrice,
-        sellingPriceZAR: prodPrice,
-      };
-      handleBuySolution(solToBuy);
-      setIsMobileAppsDrawerOpen(false);
-      return;
-    }
-
-    setActiveSolutionId(appId);
+    setActiveSolutionId(appId === 'budget' ? 'bizzbudget' : appId);
+    setShowPromotion(false);
+    setIsCalmSolutionsOpen(false);
     setActiveView('active-app');
     setMobileActivePanel('workarea');
     setIsMobileAppsDrawerOpen(false);
@@ -1849,8 +1865,9 @@ export default function App() {
               theme={theme}
               onSelectSolution={handleSelectSolution}
               onToggleMaximize={() => {
-                setIsMaximized(!isMaximized);
+                setIsMaximized((prev) => !prev);
                 setSolutionsPanelMode('solutions');
+                setIsCalmSolutionsOpen(false);
               }}
               onToggleTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
               onSignOut={handleSignOut}
@@ -1859,7 +1876,9 @@ export default function App() {
               onBuyTokens={() => setIsBuyTokensModalOpen(true)}
               onSelectLibrary={() => {
                 setActiveView('library');
+                setActiveSolutionId('sandbox-library');
                 setMobileActivePanel('workarea');
+                setIsCalmSolutionsOpen(false);
               }}
               onOpenTalkToUs={handleOpenTalkToUs}
               cmsProducts={cmsProducts}
@@ -1876,12 +1895,12 @@ export default function App() {
 
           {/* The Workstation Area (Responsive 3-Panel on Desktop / Single Full-Width Panel on Mobile) */}
           <div className="flex-grow flex flex-col md:flex-row overflow-hidden relative">
-            {/* Panel 1: Solutions Navigation (Left) - Hidden when isMaximized for full work focus */}
+            {/* Panel 1: Solutions Navigation (Left) - Hidden when isMaximized for calm work focus */}
             {!isMaximized && (
               <div
                 className={`shrink-0 ${
                   mobileActivePanel === 'solutions'
-                    ? 'h-full flex w-full pb-16 lg:pb-0'
+                    ? 'h-full flex w-full pb-14 md:pb-0'
                     : 'hidden md:flex md:w-72 lg:w-76 md:ml-3 lg:ml-6 md:my-2 lg:my-3 mr-2 md:h-[calc(100%-1rem)] lg:h-[calc(100%-1.5rem)]'
                 }`}
               >
@@ -1939,7 +1958,7 @@ export default function App() {
             {/* Panel 2: Center Work Area - Expands to full screen width when isMaximized */}
             <main
               className={`flex-grow flex-col overflow-hidden relative ${
-                mobileActivePanel === 'workarea' ? 'flex w-full h-full pb-16 lg:pb-0' : 'hidden md:flex'
+                mobileActivePanel === 'workarea' ? 'flex w-full h-full pb-14 md:pb-0' : 'hidden md:flex'
               } md:my-2 lg:my-3 md:h-[calc(100%-1rem)] lg:h-[calc(100%-1.5rem)] border md:rounded-2xl shadow-xs ${
                 isMaximized ? 'md:mx-3 lg:mx-6' : ''
               } ${
@@ -2005,12 +2024,12 @@ export default function App() {
               </ErrorBoundary>
             </main>
 
-            {/* Panel 3: Knowledge Base & AI-LOOP (Right) - Symmetrically aligned with Left-Hand Solutions Panel */}
+            {/* Panel 3: Knowledge Base & Library (Right) - Symmetrically aligned with Left-Hand Solutions Panel */}
             {!isMaximized && (
               <div
                 className={`shrink-0 ${
                   mobileActivePanel === 'knowledge'
-                    ? 'h-full flex w-full pb-16 lg:pb-0'
+                    ? 'h-full flex w-full pb-14 md:pb-0'
                     : 'hidden md:flex md:w-72 lg:w-80 md:mr-3 lg:mr-6 md:my-2 lg:my-3 ml-2 md:h-[calc(100%-1rem)] lg:h-[calc(100%-1.5rem)]'
                 }`}
               >
@@ -2046,16 +2065,343 @@ export default function App() {
                 />
               </div>
             )}
+
+            {/* ===================================================================== */}
+            {/* CONTEXTUAL CALM SOLUTIONS EXPLORER DRAWER (Operative in Calm View)    */}
+            {/* Keeps users inside Calm Mode rather than forcing 3-panel expansion    */}
+            {/* ===================================================================== */}
+            {isMaximized && isCalmSolutionsOpen && (
+              <div
+                className="hidden md:flex fixed inset-0 z-30 bg-slate-950/35 backdrop-blur-[2px] items-end justify-center p-6 pb-20 animate-in fade-in duration-150"
+                onClick={() => setIsCalmSolutionsOpen(false)}
+              >
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className={`w-full max-w-4xl rounded-2xl border shadow-2xl overflow-hidden font-mono ${
+                    theme === 'dark'
+                      ? 'bg-[#101424] border-[#252E4A] text-slate-200'
+                      : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-800'
+                  }`}
+                >
+                  <div
+                    className={`px-5 py-3.5 border-b flex items-center justify-between ${
+                      theme === 'dark' ? 'bg-[#161C30] border-[#252E4A]' : 'bg-[#F4EFE6] border-[#E8E2D8]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#2E5E88] dark:text-[#7EB2E2]">
+                      <Layers className="h-4 w-4 text-[#5584B4]" />
+                      <span>Solutions & Navigation Explorer</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsCalmSolutionsOpen(false)}
+                      className="p-1 rounded-lg text-slate-400 hover:text-slate-800 dark:hover:text-white cursor-pointer"
+                      aria-label="Close solutions explorer"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-5 max-h-[65vh] overflow-y-auto text-xs">
+                    {/* Column 1: Startup Stages (Growth Engine hidden until ready) */}
+                    <div className="space-y-2">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-1">
+                        Startup Stages
+                      </div>
+                      <div className="space-y-1">
+                        {[
+                          { id: 'vi-ability', label: '01. vi-ability' },
+                          { id: 'fund-ability', label: '02. fund-ability' },
+                          { id: 'sustain-ability', label: '03. sustain-ability' },
+                          { id: 'invest-ability', label: '04. invest-ability' },
+                          { id: 'personal-sandbox', label: '05. personal-sandbox' },
+                        ].map((stage) => (
+                          <button
+                            key={stage.id}
+                            type="button"
+                            onClick={() => handleSelectSolution(stage.id)}
+                            className={`w-full text-left px-3 py-2 rounded-xl border transition-colors lowercase cursor-pointer flex items-center justify-between ${
+                              activeStageId === stage.id && activeView === 'flashcard'
+                                ? 'bg-[#5584B4]/15 border-[#5584B4]/50 text-[#2E5E88] dark:text-[#7EB2E2] font-bold'
+                                : theme === 'dark'
+                                ? 'bg-[#141A2E] border-[#252E4A] hover:border-[#5584B4]/50 text-slate-300'
+                                : 'bg-white border-[#E8E2D8] hover:border-[#5584B4]/50 text-slate-700'
+                            }`}
+                          >
+                            <span>{stage.label}</span>
+                            <ChevronRight className="h-3.5 w-3.5 opacity-60 shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Column 2: Operations, Media & Academy */}
+                    <div className="space-y-2">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-1">
+                        Operations & Media
+                      </div>
+                      <div className="space-y-1">
+                        <button
+                          type="button"
+                          onClick={() => handleSelectSolution('operations')}
+                          className={`w-full text-left px-3 py-2 rounded-xl border transition-colors lowercase cursor-pointer flex items-center justify-between ${
+                            theme === 'dark'
+                              ? 'bg-[#141A2E] border-[#252E4A] hover:border-[#5584B4]/50 text-slate-300'
+                              : 'bg-white border-[#E8E2D8] hover:border-[#5584B4]/50 text-slate-700'
+                          }`}
+                        >
+                          <span>operations suite</span>
+                          <ChevronRight className="h-3.5 w-3.5 opacity-60 shrink-0" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectSolution('videos')}
+                          className={`w-full text-left px-3 py-2 rounded-xl border transition-colors lowercase cursor-pointer flex items-center justify-between ${
+                            theme === 'dark'
+                              ? 'bg-[#141A2E] border-[#252E4A] hover:border-[#5584B4]/50 text-slate-300'
+                              : 'bg-white border-[#E8E2D8] hover:border-[#5584B4]/50 text-slate-700'
+                          }`}
+                        >
+                          <span>videos</span>
+                          <ChevronRight className="h-3.5 w-3.5 opacity-60 shrink-0" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectSolution('articles')}
+                          className={`w-full text-left px-3 py-2 rounded-xl border transition-colors lowercase cursor-pointer flex items-center justify-between ${
+                            theme === 'dark'
+                              ? 'bg-[#141A2E] border-[#252E4A] hover:border-[#5584B4]/50 text-slate-300'
+                              : 'bg-white border-[#E8E2D8] hover:border-[#5584B4]/50 text-slate-700'
+                          }`}
+                        >
+                          <span>articles</span>
+                          <ChevronRight className="h-3.5 w-3.5 opacity-60 shrink-0" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectSolution('bizzclass')}
+                          className={`w-full text-left px-3 py-2 rounded-xl border transition-colors lowercase cursor-pointer flex items-center justify-between ${
+                            theme === 'dark'
+                              ? 'bg-[#141A2E] border-[#252E4A] hover:border-[#5584B4]/50 text-slate-300'
+                              : 'bg-white border-[#E8E2D8] hover:border-[#5584B4]/50 text-slate-700'
+                          }`}
+                        >
+                          <span>bizzclass courses</span>
+                          <ChevronRight className="h-3.5 w-3.5 opacity-60 shrink-0" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectSolution('platform-apps')}
+                          className={`w-full text-left px-3 py-2 rounded-xl border transition-colors lowercase cursor-pointer flex items-center justify-between ${
+                            theme === 'dark'
+                              ? 'bg-[#141A2E] border-[#252E4A] hover:border-[#5584B4]/50 text-slate-300'
+                              : 'bg-white border-[#E8E2D8] hover:border-[#5584B4]/50 text-slate-700'
+                          }`}
+                        >
+                          <span>platform apps suite</span>
+                          <ChevronRight className="h-3.5 w-3.5 opacity-60 shrink-0" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Column 3: Ecosystem, Workspace & Footer */}
+                    <div className="space-y-2">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-1">
+                        Workspace & Ecosystem
+                      </div>
+                      <div className="space-y-1">
+                        <button
+                          type="button"
+                          onClick={() => handleSelectSolution('google-workspace')}
+                          className={`w-full text-left px-3 py-2 rounded-xl border transition-colors lowercase cursor-pointer flex items-center justify-between ${
+                            theme === 'dark'
+                              ? 'bg-[#141A2E] border-[#252E4A] hover:border-[#5584B4]/50 text-slate-300'
+                              : 'bg-white border-[#E8E2D8] hover:border-[#5584B4]/50 text-slate-700'
+                          }`}
+                        >
+                          <span>google workspace</span>
+                          <ChevronRight className="h-3.5 w-3.5 opacity-60 shrink-0" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectSolution('website-footer')}
+                          className={`w-full text-left px-3 py-2 rounded-xl border transition-colors lowercase cursor-pointer flex items-center justify-between ${
+                            theme === 'dark'
+                              ? 'bg-[#141A2E] border-[#252E4A] hover:border-[#5584B4]/50 text-slate-300'
+                              : 'bg-white border-[#E8E2D8] hover:border-[#5584B4]/50 text-slate-700'
+                          }`}
+                        >
+                          <span>website footer</span>
+                          <ChevronRight className="h-3.5 w-3.5 opacity-60 shrink-0" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectSolution('about-bizzbean')}
+                          className={`w-full text-left px-3 py-2 rounded-xl border transition-colors lowercase cursor-pointer flex items-center justify-between ${
+                            theme === 'dark'
+                              ? 'bg-[#141A2E] border-[#252E4A] hover:border-[#5584B4]/50 text-slate-300'
+                              : 'bg-white border-[#E8E2D8] hover:border-[#5584B4]/50 text-slate-700'
+                          }`}
+                        >
+                          <span>{isAdmin ? 'about bizzbean' : (userProfile.companyName ? `about ${userProfile.companyName}` : 'about bizzbean')}</span>
+                          <ChevronRight className="h-3.5 w-3.5 opacity-60 shrink-0" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCalmSolutionsOpen(false);
+                            handleDownloadBook();
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded-xl border transition-colors lowercase cursor-pointer flex items-center justify-between ${
+                            theme === 'dark'
+                              ? 'bg-[#141A2E] border-[#252E4A] hover:border-[#5584B4]/50 text-slate-300'
+                              : 'bg-white border-[#E8E2D8] hover:border-[#5584B4]/50 text-slate-700'
+                          }`}
+                        >
+                          <span>download getting to value</span>
+                          <BookOpen className="h-3.5 w-3.5 text-[#5584B4] shrink-0" />
+                        </button>
+                        {isAdmin && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleSelectSolution('administration-centre')}
+                              className={`w-full text-left px-3 py-2 rounded-xl border transition-colors lowercase cursor-pointer flex items-center justify-between ${
+                                theme === 'dark'
+                                  ? 'bg-[#141A2E] border-[#252E4A] hover:border-[#5584B4]/50 text-slate-300'
+                                  : 'bg-white border-[#E8E2D8] hover:border-[#5584B4]/50 text-slate-700'
+                              }`}
+                            >
+                              <span>administration centre</span>
+                              <span className="text-[10px] text-[#5584B4]">admin</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSelectSolution('operations-sandbox')}
+                              className={`w-full text-left px-3 py-2 rounded-xl border transition-colors lowercase cursor-pointer flex items-center justify-between ${
+                                theme === 'dark'
+                                  ? 'bg-[#141A2E] border-[#252E4A] hover:border-[#5584B4]/50 text-slate-300'
+                                  : 'bg-white border-[#E8E2D8] hover:border-[#5584B4]/50 text-slate-700'
+                              }`}
+                            >
+                              <span>operations sandbox</span>
+                              <span className="text-[10px] text-amber-500">staging</span>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ===================================================================== */}
-          {/* FRIENDLY MOBILE NAVIGATION SYSTEM (PER PROPOSAL 3)                   */}
-          {/* Allows seamless navigation to and from chosen apps without crowding   */}
+          {/* DESKTOP CALM QUICK-LINK FOOTER (Shown ONLY in Calm View on >= md)     */}
+          {/* Auto-hides when 3-panel mode is active so nothing duplicates sidebars */}
+          {/* ===================================================================== */}
+          {!isStandaloneApp && isMaximized && (
+            <footer
+              aria-label="Desktop calm workspace navigation"
+              className={`hidden md:flex shrink-0 border-t px-4 lg:px-8 py-2 items-center justify-around gap-2 backdrop-blur-md transition-colors ${
+                theme === 'dark'
+                  ? 'bg-[#101424]/95 border-[#252E4A] text-slate-200'
+                  : 'bg-white/95 border-[#D8CEBC] text-slate-800 shadow-[0_-4px_16px_rgba(0,0,0,0.04)]'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => setIsCalmSolutionsOpen((prev) => !prev)}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-mono font-bold tracking-wide whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                  isCalmSolutionsOpen
+                    ? 'text-[#2E5E88] dark:text-[#7EB2E2] bg-[#5584B4]/15 ring-1 ring-[#5584B4]/35'
+                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-[#1A213B]'
+                }`}
+              >
+                <Menu className="h-4 w-4 shrink-0" />
+                <span>SOLUTIONS</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCalmSolutionsOpen(false);
+                  setShowPromotion(false);
+                  setActiveView('flashcard');
+                }}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-mono font-bold tracking-wide whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                  !isCalmSolutionsOpen && (activeView === 'flashcard' || activeView === 'active-app')
+                    ? 'text-[#2E5E88] dark:text-[#7EB2E2] bg-[#5584B4]/15 ring-1 ring-[#5584B4]/35'
+                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-[#1A213B]'
+                }`}
+              >
+                <Layers className="h-4 w-4 shrink-0" />
+                <span>WORK AREA</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSelectSolution('library')}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-mono font-bold tracking-wide whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                  !isCalmSolutionsOpen && activeView === 'library'
+                    ? 'text-[#2E5E88] dark:text-[#7EB2E2] bg-[#5584B4]/15 ring-1 ring-[#5584B4]/35'
+                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-[#1A213B]'
+                }`}
+              >
+                <Library className="h-4 w-4 shrink-0 text-[#5584B4]" />
+                <span>LIBRARY</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSelectSolution('ask-gemini')}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-mono font-bold tracking-wide whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                  !isCalmSolutionsOpen && activeView === 'ask-gemini'
+                    ? 'text-[#2E5E88] dark:text-[#7EB2E2] bg-[#5584B4]/15 ring-1 ring-[#5584B4]/35'
+                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-[#1A213B]'
+                }`}
+              >
+                <Sparkles className="h-4 w-4 shrink-0 text-[#5584B4]" />
+                <span>ASK GEMINI</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSelectSolution('bizzclass')}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-mono font-bold tracking-wide whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                  !isCalmSolutionsOpen && activeView === 'bizzclass'
+                    ? 'text-[#2E5E88] dark:text-[#7EB2E2] bg-[#5584B4]/15 ring-1 ring-[#5584B4]/35'
+                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-[#1A213B]'
+                }`}
+              >
+                <GraduationCap className="h-4 w-4 shrink-0 text-[#C59B63]" />
+                <span>BIZZCLASS</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSelectSolution('platform-apps')}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-mono font-bold tracking-wide whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                  !isCalmSolutionsOpen && activeView === 'platform-apps'
+                    ? 'text-[#2E5E88] dark:text-[#7EB2E2] bg-[#5584B4]/15 ring-1 ring-[#5584B4]/35'
+                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-[#1A213B]'
+                }`}
+              >
+                <Smartphone className="h-4 w-4 shrink-0 text-[#84CC16]" />
+                <span>APPS</span>
+              </button>
+            </footer>
+          )}
+
+          {/* ===================================================================== */}
+          {/* MOBILE CAROUSEL NAVIGATION CONTAINER (< md screens)                  */}
+          {/* Swipeable / scrollable single row ensuring all links stay reachable   */}
           {/* ===================================================================== */}
           {!isStandaloneApp && (
             <nav
-              aria-label="Mobile navigation"
-              className={`fixed bottom-0 left-0 right-0 z-40 lg:hidden border-t flex items-center justify-around py-2 px-1 select-none transition-colors backdrop-blur-md pb-[max(0.5rem,env(safe-area-inset-bottom))] ${
+              aria-label="Mobile navigation carousel"
+              className={`fixed bottom-0 left-0 right-0 z-40 md:hidden border-t flex items-center gap-1 px-1.5 py-1.5 select-none transition-colors backdrop-blur-md pb-[max(0.375rem,env(safe-area-inset-bottom))] ${
                 theme === 'dark'
                   ? 'bg-[#101424]/95 border-[#252E4A] shadow-[0_-4px_20px_rgba(0,0,0,0.5)] text-slate-100'
                   : 'bg-white/95 border-[#E8E2D8] shadow-[0_-4px_16px_rgba(0,0,0,0.06)] text-slate-800'
@@ -2063,50 +2409,157 @@ export default function App() {
             >
               <button
                 type="button"
-                onClick={() => setMobileActivePanel('solutions')}
-                className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-mono font-bold transition-all ${
-                  mobileActivePanel === 'solutions'
-                    ? 'text-[#5584B4] bg-[#5584B4]/15 ring-1 ring-[#5584B4]/30'
-                    : 'text-slate-400 hover:text-slate-600'
-                }`}
+                onClick={() => mobileCarouselRef.current?.scrollBy({ left: -180, behavior: 'smooth' })}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white shrink-0 cursor-pointer"
+                aria-label="Scroll navigation left"
               >
-                <Menu className="h-4 w-4" />
-                <span>SOLUTIONS</span>
+                <ChevronLeft className="h-4 w-4" />
               </button>
+
+              <div
+                ref={mobileCarouselRef}
+                className="flex-1 flex items-center gap-1.5 overflow-x-auto snap-x snap-mandatory no-scrollbar px-0.5"
+              >
+                {[
+                  {
+                    id: 'workarea',
+                    label: 'WORK AREA',
+                    icon: Layers,
+                    active: mobileActivePanel === 'workarea' && ['flashcard', 'active-app'].includes(activeView),
+                    onClick: () => {
+                      setMobileActivePanel('workarea');
+                      if (!['flashcard', 'active-app'].includes(activeView)) {
+                        setActiveView('flashcard');
+                      }
+                    },
+                    accent: '',
+                  },
+                  {
+                    id: 'solutions',
+                    label: 'SOLUTIONS',
+                    icon: Menu,
+                    active: mobileActivePanel === 'solutions',
+                    onClick: () => {
+                      setIsMaximized(false);
+                      setMobileActivePanel('solutions');
+                    },
+                    accent: '',
+                  },
+                  {
+                    id: 'library',
+                    label: 'LIBRARY',
+                    icon: Library,
+                    active: mobileActivePanel === 'workarea' && activeView === 'library',
+                    onClick: () => handleSelectSolution('library'),
+                    accent: 'text-[#5584B4]',
+                  },
+                  {
+                    id: 'ask-gemini',
+                    label: 'ASK GEMINI',
+                    icon: Sparkles,
+                    active: mobileActivePanel === 'workarea' && activeView === 'ask-gemini',
+                    onClick: () => handleSelectSolution('ask-gemini'),
+                    accent: 'text-[#5584B4]',
+                  },
+                  {
+                    id: 'apps',
+                    label: 'APPS',
+                    icon: Smartphone,
+                    active: isMobileAppsDrawerOpen,
+                    onClick: () => setIsMobileAppsDrawerOpen(true),
+                    accent: 'text-[#84CC16]',
+                  },
+                  {
+                    id: 'videos',
+                    label: 'VIDEOS',
+                    icon: Video,
+                    active: mobileActivePanel === 'workarea' && activeSolutionId === 'videos',
+                    onClick: () => handleSelectSolution('videos'),
+                    accent: '',
+                  },
+                  {
+                    id: 'articles',
+                    label: 'ARTICLES',
+                    icon: FileText,
+                    active: mobileActivePanel === 'workarea' && activeSolutionId === 'articles',
+                    onClick: () => handleSelectSolution('articles'),
+                    accent: '',
+                  },
+                  {
+                    id: 'bizzclass',
+                    label: 'BIZZCLASS',
+                    icon: GraduationCap,
+                    active: mobileActivePanel === 'workarea' && activeView === 'bizzclass',
+                    onClick: () => handleSelectSolution('bizzclass'),
+                    accent: 'text-[#C59B63]',
+                  },
+                  {
+                    id: 'workspace',
+                    label: 'WORKSPACE',
+                    icon: Globe,
+                    active: mobileActivePanel === 'workarea' && activeView === 'workspace',
+                    onClick: () => handleSelectSolution('google-workspace'),
+                    accent: '',
+                  },
+                  {
+                    id: 'footer',
+                    label: 'FOOTER',
+                    icon: MessageSquare,
+                    active: mobileActivePanel === 'workarea' && activeView === 'footer',
+                    onClick: () => handleSelectSolution('website-footer'),
+                    accent: '',
+                  },
+                  {
+                    id: 'about',
+                    label: 'ABOUT',
+                    icon: Info,
+                    active: mobileActivePanel === 'workarea' && activeView === 'about',
+                    onClick: () => handleSelectSolution('about-bizzbean'),
+                    accent: '',
+                  },
+                  {
+                    id: 'tokens',
+                    label: 'TOKENS',
+                    icon: Coins,
+                    active: isBuyTokensModalOpen,
+                    onClick: () => setIsBuyTokensModalOpen(true),
+                    accent: 'text-[#E02475]',
+                  },
+                  {
+                    id: 'talk-to-us',
+                    label: 'TALK TO US',
+                    icon: Mail,
+                    active: isTalkToUsModalOpen || isNonMemberTalkToUsOpen,
+                    onClick: () => handleOpenTalkToUs(),
+                    accent: 'text-[#5584B4]',
+                  },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={item.onClick}
+                      className={`snap-start whitespace-nowrap shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                        item.active
+                          ? 'text-[#2E5E88] dark:text-[#7EB2E2] bg-[#5584B4]/15 ring-1 ring-[#5584B4]/35'
+                          : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white bg-transparent'
+                      }`}
+                    >
+                      <Icon className={`h-3.5 w-3.5 shrink-0 ${item.active ? '' : item.accent}`} />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
               <button
                 type="button"
-                onClick={() => setMobileActivePanel('workarea')}
-                className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-mono font-bold transition-all ${
-                  mobileActivePanel === 'workarea'
-                    ? 'text-[#5584B4] bg-[#5584B4]/15 ring-1 ring-[#5584B4]/30'
-                    : 'text-slate-400 hover:text-slate-600'
-                }`}
+                onClick={() => mobileCarouselRef.current?.scrollBy({ left: 180, behavior: 'smooth' })}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white shrink-0 cursor-pointer"
+                aria-label="Scroll navigation right"
               >
-                <Layers className="h-4 w-4" />
-                <span>WORK AREA</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setMobileActivePanel('knowledge')}
-                className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-mono font-bold transition-all ${
-                  mobileActivePanel === 'knowledge'
-                    ? 'text-[#5584B4] bg-[#5584B4]/15 ring-1 ring-[#5584B4]/30'
-                    : 'text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                <MessageSquare className="h-4 w-4" />
-                <span>KNOWLEDGE</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsMobileAppsDrawerOpen(true)}
-                className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-mono font-bold text-emerald-500 hover:bg-emerald-500/10 transition-all"
-              >
-                <Smartphone className="h-4 w-4 text-[#84CC16]" />
-                <span>APPS</span>
+                <ChevronRight className="h-4 w-4" />
               </button>
             </nav>
           )}

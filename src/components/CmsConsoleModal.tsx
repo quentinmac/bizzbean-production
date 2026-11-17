@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { CoaManagementView } from './coa/CoaManagementView';
 import { FormattedAboutContent } from './FormattedAboutContent';
+import { HelpScreensCmsTab } from './HelpScreensCmsTab';
 import {
   DEFAULT_WHO_ARE_WE,
   DEFAULT_WHAT_WE_DO,
@@ -143,7 +144,7 @@ import {
 interface CmsConsoleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialTab?: 'products' | 'videos' | 'articles' | 'promotions' | 'book' | 'admin' | 'coa' | 'about';
+  initialTab?: 'products' | 'videos' | 'articles' | 'promotions' | 'book' | 'admin' | 'coa' | 'about' | 'help';
   cmsProducts?: CmsProduct[];
   cmsVideos?: CmsVideo[];
   cmsArticles?: CmsArticle[];
@@ -171,7 +172,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
 }) => {
   // Navigation tabs
   const [activeTab, setActiveTab] = useState<
-    'products' | 'videos' | 'articles' | 'promotions' | 'book' | 'admin' | 'coa' | 'about'
+    'products' | 'videos' | 'articles' | 'promotions' | 'book' | 'admin' | 'coa' | 'about' | 'help'
   >(initialTab || 'products');
 
   const tabsNavRef = useRef<HTMLDivElement>(null);
@@ -2238,6 +2239,19 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
               <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#8CB843]/20 text-[#A3E635] border border-[#8CB843]/30">
                 Official
               </span>
+            </button>
+
+            {/* TAB 9: PLATFORM APP HELP SCREENS */}
+            <button
+              onClick={() => setActiveTab('help')}
+              className={`px-4 py-2.5 text-xs font-mono font-bold tracking-wide uppercase transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'help'
+                  ? 'border-[#5584B4] text-[#DDEBF7] bg-[#1A213B]/60 rounded-t-lg'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <HelpCircle className="h-3.5 w-3.5 text-[#5584B4]" />
+              <span>App Help Screens</span>
             </button>
           </div>
 
@@ -5840,6 +5854,11 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
               </div>
             </div>
           )}
+
+          {/* ========================================================================= */}
+          {/* TAB 9: PLATFORM APP HELP SCREENS (28 EDITABLE SCREENS)                    */}
+          {/* ========================================================================= */}
+          {activeTab === 'help' && <HelpScreensCmsTab />}
 
         </div>
 

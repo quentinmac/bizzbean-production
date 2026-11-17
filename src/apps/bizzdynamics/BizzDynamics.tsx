@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { BaseRateAdjustmentTool } from './components/BaseRateAdjustmentTool';
 import { ModellingSuiteModal } from './components/ModellingSuiteModal';
+import { PlatformHelpModal } from '../../components/PlatformHelpModal';
+import { PlatformHelpStepId } from '../../services/platformHelpService';
 import { AssumptionElementChart } from './components/AssumptionElementChart';
 import { DaysWorkedChart } from './components/DaysWorkedChart';
 import { ReportsCarousel } from './components/ReportsCarousel';
@@ -3913,63 +3915,14 @@ export const BizzDynamics: React.FC<BizzDynamicsProps> = ({
       {/* ===================================================================== */}
       {/* 5. MODALS: ASSISTANCE GUIDANCE MODAL & MODELLING SUITE OVERVIEW       */}
       {/* ===================================================================== */}
-      {/* Assistance Guidance Modal */}
-      {showAssistanceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-2xs animate-in fade-in duration-150">
-          <div
-            className={`w-full max-w-lg rounded-3xl border shadow-xl overflow-hidden font-mono ${
-              isDark ? 'bg-[#0E1322] border-[#222F4C] text-slate-200' : 'bg-white border-[#D8CEBC] text-slate-800'
-            }`}
-          >
-            {/* Header with /help.jpg */}
-            <div className="px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs lowercase font-bold text-[#2E5E88] dark:text-[#5584B4]">
-                <img src="/help.jpg" alt="help" className="w-4 h-4 object-contain mix-blend-multiply dark:bg-white dark:rounded-xs dark:p-0.5" />
-                <span className="text-slate-400">/</span>
-                <img src={encodeURI(currentStepDef.icon)} alt={currentStepDef.name} className="w-4 h-4 object-contain mix-blend-multiply dark:bg-white dark:rounded-xs dark:p-0.5" />
-                <span>{currentStepDef.name} assistance</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAssistanceModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Assistance Content */}
-            <div className="p-5 space-y-3.5 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-[#2E5E88] dark:text-blue-300">
-                <strong>BizzDynamics Educational Purpose:</strong> This application focuses on foundational business physics, value-based content, and dynamic 5-year rate adjustments before creating a comprehensive business plan.
-              </div>
-
-              <div>
-                <h4 className="font-bold text-slate-900 dark:text-white uppercase mb-1">
-                  How to Use the Base Rate Adjustment Tool:
-                </h4>
-                <ul className="space-y-1 list-disc pl-4">
-                  <li>In the <strong>assumptions</strong> tab, click any radio button alongside a base rate.</li>
-                  <li>The assumption immediately displays in the tool at the bottom of the page.</li>
-                  <li>Use the <strong>1 – 5 Year Slider</strong> to scrub across Years 1 to 5.</li>
-                  <li>Edit any of the 12 month cells (either as a percentage or numeric value).</li>
-                  <li>Click the <strong>microphone icon</strong> to make voice changes (e.g. <em>"set month 4 to 5%"</em> or <em>"increase all by 1%"</em>).</li>
-                </ul>
-              </div>
-
-              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowAssistanceModal(false)}
-                  className="px-4 py-1.5 rounded-xl bg-[#2E5E88] text-white text-xs font-bold hover:bg-[#254d70] transition-colors"
-                >
-                  understood
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <PlatformHelpModal
+        isOpen={showAssistanceModal}
+        onClose={() => setShowAssistanceModal(false)}
+        appId="bizzdynamics"
+        stepId={(currentStepDef.key as PlatformHelpStepId) || 'setup'}
+        stepIcon={currentStepDef.icon}
+        theme={theme}
+      />
 
       {/* Modelling Suite Architecture Modal (Page 1) */}
       <ModellingSuiteModal

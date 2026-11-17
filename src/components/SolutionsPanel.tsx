@@ -129,51 +129,13 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
     return Array.from(map.values());
   }, [cmsProducts, deletedIds]);
 
-  // Growth solutions derived dynamically from live CMS products, respecting deletions
-  const growthSolutions = React.useMemo(() => {
-    if (cmsProducts && Array.isArray(cmsProducts) && cmsProducts.length > 0) {
-      const fromCms = cmsProducts.filter(
-        (p) =>
-          p.stage === 'growth' &&
-          p.id !== 'strategy' &&
-          !deletedIds.has(p.id) &&
-          !deletedIds.has(getCanonicalCourseId(p.id) || '') &&
-          !deletedIds.has(p.name?.toLowerCase().trim() || '')
-      );
-      const map = new Map<string, { id: string; name: string }>();
-      fromCms.forEach((p) => {
-        const canonId = p.id === 'strategy' ? 'growth-strategy' : p.id;
-        const nameKey = p.name.toLowerCase().trim();
-        if (!map.has(canonId) && !map.has(nameKey)) {
-          map.set(canonId, { id: canonId, name: p.name });
-        }
-      });
-      return Array.from(map.values());
-    }
-
-    const map = new Map<string, { id: string; name: string }>();
-    BIZZ_SOLUTIONS.filter((s) => s.category === 'growth' && s.id !== 'strategy').forEach((s) => {
-      const canonId = s.id === 'strategy' ? 'growth-strategy' : s.id;
-      const nameKey = s.name.toLowerCase().trim();
-      if (
-        !deletedIds.has(s.id) &&
-        !deletedIds.has(canonId) &&
-        !deletedIds.has(nameKey) &&
-        !map.has(canonId) &&
-        !map.has(nameKey)
-      ) {
-        map.set(canonId, { id: canonId, name: s.name });
-      }
-    });
-    return Array.from(map.values());
-  }, [cmsProducts, deletedIds]);
-
+  // Sort education solutions cleanly: videos first, articles right below videos
   const educationSolutions = BIZZ_SOLUTIONS.filter(
     (s) =>
       s.category === 'education' &&
       s.id !== 'learn-earn-capital' &&
       s.id !== 'education-centre'
-  );
+  ).sort((a, b) => (a.id === 'videos' ? -1 : b.id === 'videos' ? 1 : 0));
 
   return (
     <aside
@@ -263,9 +225,8 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
                 <>
                   {/* STARTUP STAGE */}
                   <div>
-                    <div className="text-xs font-mono font-bold text-slate-500 tracking-wider uppercase px-2 mb-1 flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#5584B4]" />
-                      <span>STARTUP STAGE</span>
+                    <div className="text-[11px] font-mono font-bold text-slate-500 tracking-wider uppercase px-2 mb-1">
+                      STARTUP STAGE
                     </div>
                     <div className="space-y-0.5">
                       {startupSolutions.map((sol) => {
@@ -280,7 +241,7 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
                           <button
                             key={sol.id}
                             onClick={() => onSelectSolution(sol.id)}
-                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase ${getSubtleActiveBtnClass(
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase cursor-pointer ${getSubtleActiveBtnClass(
                               isActive
                             )}`}
                           >
@@ -288,11 +249,7 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
                               {sol.name.toLowerCase()}
                             </span>
                             {isActive && (
-                              <span
-                                className={`h-1.5 w-1.5 rounded-full ${
-                                  isDark ? 'bg-[#D4A373]' : 'bg-[#8C6D3F]'
-                                } shrink-0`}
-                              />
+                              <ChevronRight className="h-3.5 w-3.5 opacity-75 shrink-0" />
                             )}
                           </button>
                         );
@@ -300,29 +257,19 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
                     </div>
                   </div>
 
-                  {/* OPERATIONS */}
+                  {/* OPERATIONS (Clean, uncluttered list — Growth Engine hidden until content is ready) */}
                   <div>
-                    <div
+                    <button
+                      type="button"
                       onClick={() => onSelectSolution('operations')}
-                      className={`relative group/opheader text-xs font-mono font-bold tracking-wider uppercase px-2 mb-1 flex items-center justify-between cursor-pointer rounded-lg py-1 transition-colors ${
-                        !isSpecialView && activeStageId === 'operations' ? 'bg-[#5584B4]/15 text-[#5584B4]' : 'text-slate-500 hover:text-slate-300'
+                      className={`w-full text-left text-[11px] font-mono font-bold tracking-wider uppercase px-2 mb-1 rounded-lg py-1 transition-colors cursor-pointer ${
+                        !isSpecialView && activeStageId === 'operations'
+                          ? 'text-[#5584B4]'
+                          : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
                       }`}
-                      title="Operations Stage - Click to view stage"
                     >
-                      <div className="flex items-center gap-1.5">
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#5584B4]" />
-                        <span>OPERATIONS</span>
-                      </div>
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-medium">
-                        coming soon
-                      </span>
-                      {/* Header Tooltip */}
-                      <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 pointer-events-none hidden group-hover/opheader:flex items-center">
-                        <div className="bg-[#12172A] text-white text-[11px] font-mono font-medium py-1 px-2.5 rounded-lg shadow-xl border border-[#2B3452] whitespace-nowrap animate-in fade-in duration-150">
-                          Operations modules will be coming soon
-                        </div>
-                      </div>
-                    </div>
+                      OPERATIONS
+                    </button>
                     {operationsSolutions.length > 0 && (
                       <div className="space-y-0.5">
                         {operationsSolutions.map((sol) => {
@@ -333,97 +280,30 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
                               (activeSolutionId === 'budget' && sol.id === 'bizzbudget') ||
                               (activeSolutionId === 'bizzbudget' && sol.id === 'bizzbudget'));
                           return (
-                            <div key={sol.id} className="relative group/soon">
-                              <button
-                                onClick={() => onSelectSolution(sol.id)}
-                                title="Coming Soon - This element will be coming soon"
-                                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase ${getSubtleActiveBtnClass(
-                                  isActive
-                                )}`}
-                              >
-                                <span className={isActive ? 'font-bold' : 'font-normal'}>
-                                  {sol.name.toLowerCase()}
-                                </span>
-                                <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 font-semibold opacity-75 group-hover/soon:opacity-100">
-                                  soon
-                                </span>
-                              </button>
-
-                              {/* Tooltip */}
-                              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 pointer-events-none hidden group-hover/soon:flex items-center">
-                                <div className="bg-[#12172A] text-white text-[11px] font-mono font-medium py-1 px-2.5 rounded-lg shadow-xl border border-[#2B3452] whitespace-nowrap animate-in fade-in duration-150">
-                                  {sol.name} will be coming soon
-                                </div>
-                              </div>
-                            </div>
+                            <button
+                              key={sol.id}
+                              onClick={() => onSelectSolution(sol.id)}
+                              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase cursor-pointer ${getSubtleActiveBtnClass(
+                                isActive
+                              )}`}
+                            >
+                              <span className={isActive ? 'font-bold' : 'font-normal'}>
+                                {sol.name.toLowerCase()}
+                              </span>
+                              {isActive && (
+                                <ChevronRight className="h-3.5 w-3.5 opacity-75 shrink-0" />
+                              )}
+                            </button>
                           );
                         })}
                       </div>
                     )}
                   </div>
 
-                  {/* GROWTH STAGE */}
+                  {/* MEDIA & ARTICLES (Videos, followed cleanly by Articles) */}
                   <div>
-                    <div
-                      onClick={() => onSelectSolution('growth')}
-                      className={`relative group/growthheader text-xs font-mono font-bold tracking-wider uppercase px-2 mb-1 flex items-center justify-between cursor-pointer rounded-lg py-1 transition-colors ${
-                        !isSpecialView && activeStageId === 'growth' ? 'bg-[#5584B4]/15 text-[#5584B4]' : 'text-slate-500 hover:text-slate-300'
-                      }`}
-                      title="Growth Stage - Click to view stage"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#5584B4]" />
-                        <span>GROWTH STAGE</span>
-                      </div>
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-medium">
-                        coming soon
-                      </span>
-                      {/* Header Tooltip */}
-                      <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 pointer-events-none hidden group-hover/growthheader:flex items-center">
-                        <div className="bg-[#12172A] text-white text-[11px] font-mono font-medium py-1 px-2.5 rounded-lg shadow-xl border border-[#2B3452] whitespace-nowrap animate-in fade-in duration-150">
-                          Growth stage modules will be coming soon
-                        </div>
-                      </div>
-                    </div>
-                    {growthSolutions.length > 0 && (
-                      <div className="space-y-0.5">
-                        {growthSolutions.map((sol) => {
-                          const isActive = !isSpecialView && activeStageId === 'growth' && activeSolutionId === sol.id;
-                          return (
-                            <div key={sol.id} className="relative group/soon">
-                              <button
-                                onClick={() => onSelectSolution(sol.id)}
-                                title="Coming Soon - This element will be coming soon"
-                                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase ${getSubtleActiveBtnClass(
-                                  isActive
-                                )}`}
-                              >
-                                <span className={isActive ? 'font-bold' : 'font-normal'}>
-                                  {sol.name.toLowerCase()}
-                                </span>
-                                <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 font-semibold opacity-75 group-hover/soon:opacity-100">
-                                  soon
-                                </span>
-                              </button>
-
-                              {/* Tooltip */}
-                              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 pointer-events-none hidden group-hover/soon:flex items-center">
-                                <div className="bg-[#12172A] text-white text-[11px] font-mono font-medium py-1 px-2.5 rounded-lg shadow-xl border border-[#2B3452] whitespace-nowrap animate-in fade-in duration-150">
-                                  {sol.name} will be coming soon
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* MEDIA & ARTICLES */}
-                  <div>
-                    <div className="text-xs font-mono font-bold text-slate-500 tracking-wider uppercase px-2 mb-1 flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#5584B4]" />
-                      <span>MEDIA & ARTICLES</span>
+                    <div className="text-[11px] font-mono font-bold text-slate-500 tracking-wider uppercase px-2 mb-1">
+                      MEDIA & ARTICLES
                     </div>
                     <div className="space-y-0.5">
                       {educationSolutions.map((sol) => {
@@ -436,7 +316,7 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
                           <button
                             key={sol.id}
                             onClick={() => onSelectSolution(sol.id)}
-                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase ${getSubtleActiveBtnClass(
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase cursor-pointer ${getSubtleActiveBtnClass(
                               isActive
                             )}`}
                           >
@@ -444,11 +324,7 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
                               {sol.name.toLowerCase()}
                             </span>
                             {isActive && (
-                              <span
-                                className={`h-1.5 w-1.5 rounded-full ${
-                                  isDark ? 'bg-[#D4A373]' : 'bg-[#8C6D3F]'
-                                } shrink-0`}
-                              />
+                              <ChevronRight className="h-3.5 w-3.5 opacity-75 shrink-0" />
                             )}
                           </button>
                         );
@@ -465,29 +341,32 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
       {/* 3. FOOTER SECTION: GOOGLE WORKSPACE & WEBSITE FOOTER                  */}
       {/* ===================================================================== */}
       <div
-        className={`p-3 border-t space-y-1 shrink-0 ${
+        className={`p-3 border-t space-y-0.5 shrink-0 ${
           isDark ? 'bg-[#161C30]/50 border-[#252E4A]' : 'bg-[#F4EFE6]/60 border-[#E8E2D8]'
         }`}
       >
         <button
           onClick={onSelectWorkspace}
-          className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between ${getSubtleActiveBtnClass(
+          className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between cursor-pointer ${getSubtleActiveBtnClass(
             activeSolutionId === 'google-workspace'
           )}`}
         >
           <span>google workspace</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded font-mono lowercase bg-[#DDEBF7] text-[#24496B] dark:bg-[#1E3048] dark:text-[#DDEBF7] font-semibold">
-            sync
-          </span>
+          {activeSolutionId === 'google-workspace' && (
+            <ChevronRight className="h-3.5 w-3.5 opacity-75 shrink-0" />
+          )}
         </button>
 
         <button
           onClick={onSelectFooter}
-          className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase ${getSubtleActiveBtnClass(
+          className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between cursor-pointer ${getSubtleActiveBtnClass(
             activeSolutionId === 'website-footer'
           )}`}
         >
-          website footer
+          <span>website footer</span>
+          {activeSolutionId === 'website-footer' && (
+            <ChevronRight className="h-3.5 w-3.5 opacity-75 shrink-0" />
+          )}
         </button>
 
         {/* Dedicated Book Download Button */}
@@ -501,9 +380,6 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
             title="Download our free foundational book 'getting to value' by Quentin G. McCullough"
           >
             <span>download getting to value</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded font-mono lowercase bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 font-semibold">
-              book
-            </span>
           </button>
         )}
 
@@ -512,14 +388,11 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
           <button
             type="button"
             onClick={onOpenAboutBook}
-            className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300`}
+            className="w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5"
             title="Watch the Getting to Value walkthrough on YouTube"
           >
             <span>about the book</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded font-mono lowercase bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 font-semibold flex items-center gap-1">
-              <Play className="h-2.5 w-2.5 fill-current" />
-              <span>video</span>
-            </span>
+            <Play className="h-3 w-3 text-slate-400 shrink-0" />
           </button>
         )}
 
@@ -529,28 +402,24 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
             {onSelectAdminCentre && (
               <button
                 onClick={onSelectAdminCentre}
-                className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between ${getSubtleActiveBtnClass(
+                className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between cursor-pointer ${getSubtleActiveBtnClass(
                   activeSolutionId === 'administration-centre'
                 )}`}
               >
                 <span>administration centre</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded font-mono lowercase bg-[#DDEBF7] text-[#24496B] dark:bg-[#1E3048] dark:text-[#DDEBF7] font-semibold">
-                  admin
-                </span>
+                <span className="text-[10px] font-mono text-[#5584B4]">admin</span>
               </button>
             )}
 
             <button
               onClick={() => onSelectSolution('operations-sandbox')}
-              className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between ${getSubtleActiveBtnClass(
+              className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between cursor-pointer ${getSubtleActiveBtnClass(
                 activeStageId === 'operations-sandbox'
               )}`}
-              title="Operations Sandbox: Staging & Incubation Lab for testing unallocated SKU projects (e.g. bizzdynamics)"
+              title="Operations Sandbox: Staging & Incubation Lab"
             >
               <span>operations sandbox</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded font-mono lowercase bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-semibold">
-                staging
-              </span>
+              <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400">staging</span>
             </button>
           </>
         )}

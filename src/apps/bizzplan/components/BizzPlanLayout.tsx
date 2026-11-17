@@ -27,6 +27,8 @@ interface BizzPlanLayoutProps {
   embeddedInModel?: boolean;
   onBackToModel?: () => void;
   backToModelLabel?: string;
+  isPitchDeckActive?: boolean;
+  onTogglePitchDeck?: (active: boolean) => void;
 }
 
 export default function BizzPlanLayout({
@@ -44,6 +46,8 @@ export default function BizzPlanLayout({
   embeddedInModel = false,
   onBackToModel,
   backToModelLabel = 'back to bizzmodel step',
+  isPitchDeckActive = false,
+  onTogglePitchDeck,
 }: BizzPlanLayoutProps) {
   const isDark = theme === 'dark';
   const [mobilePane, setMobilePane] = useState<'edit' | 'preview'>('edit');
@@ -105,12 +109,15 @@ export default function BizzPlanLayout({
               { id: 'bizzmodel', label: 'bizzmodel' },
               { id: 'bizzplan', label: 'bizzplan' },
             ].map((tab) => {
-              const isSelected = tab.id === 'bizzplan';
+              const isSelected = tab.id === 'bizzplan' && !isPitchDeckActive;
               return (
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => onContextSwitch(tab.id)}
+                  onClick={() => {
+                    onTogglePitchDeck?.(false);
+                    onContextSwitch(tab.id);
+                  }}
                   className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap lowercase tracking-wider border cursor-pointer ${
                     isSelected
                       ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-2xs'
@@ -123,6 +130,21 @@ export default function BizzPlanLayout({
                 </button>
               );
             })}
+            {onTogglePitchDeck && (
+              <button
+                type="button"
+                onClick={() => onTogglePitchDeck(!isPitchDeckActive)}
+                className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap lowercase tracking-wider border cursor-pointer ${
+                  isPitchDeckActive
+                    ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-2xs'
+                    : isDark
+                    ? 'bg-[#101626] text-[#7FAADC] hover:text-white border-[#252E4A] hover:border-[#5584B4]'
+                    : 'bg-white text-[#2E5E88] hover:bg-[#2E5E88]/5 border-[#2E5E88]/40'
+                }`}
+              >
+                pitch deck
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -339,27 +361,29 @@ export default function BizzPlanLayout({
       {/* 3. TWO-PANEL WORKSPACE: LEFT = WIDE DATA ENTRY | RIGHT = PRINT READY  */}
       {/* ===================================================================== */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden print:block print:overflow-visible">
-        {/* LEFT-HAND PANEL: Wide Data-Entry Studio */}
+        {/* LEFT-HAND PANEL: Wide Data-Entry Studio (or Full-Width Pitch Deck Studio) */}
         <main
-          className={`w-full lg:w-1/2 overflow-y-auto p-4 sm:p-6 no-print ${
-            mobilePane === 'edit' ? 'block flex-1 lg:flex-none' : 'hidden lg:block'
+          className={`w-full ${isPitchDeckActive ? 'flex-1' : 'lg:w-1/2'} overflow-y-auto p-4 sm:p-6 no-print ${
+            mobilePane === 'edit' || isPitchDeckActive ? 'block flex-1 lg:flex-none' : 'hidden lg:block'
           } ${isDark ? 'bg-[#0A0D14]' : 'bg-[#FAF8F5]'}`}
         >
           {children}
         </main>
 
         {/* RIGHT-HAND PANEL: Synchronized Print-Ready A4 Presentation */}
-        <section
-          className={`w-full lg:w-1/2 overflow-y-auto print:w-full print:overflow-visible border-t lg:border-t-0 lg:border-l print:border-none ${
-            mobilePane === 'preview' ? 'block flex-1 lg:flex-none' : 'hidden lg:block'
-          } ${
-            isDark
-              ? 'bg-[#0D1220] border-[#222F4C]'
-              : 'bg-[#EDE7DC]/70 border-[#D8CEBC]'
-          }`}
-        >
-          {rightPanel}
-        </section>
+        {!isPitchDeckActive && (
+          <section
+            className={`w-full lg:w-1/2 overflow-y-auto print:w-full print:overflow-visible border-t lg:border-t-0 lg:border-l print:border-none ${
+              mobilePane === 'preview' ? 'block flex-1 lg:flex-none' : 'hidden lg:block'
+            } ${
+              isDark
+                ? 'bg-[#0D1220] border-[#222F4C]'
+                : 'bg-[#EDE7DC]/70 border-[#D8CEBC]'
+            }`}
+          >
+            {rightPanel}
+          </section>
+        )}
       </div>
     </div>
   );

@@ -41,8 +41,8 @@ export const LiquidityVsDebtChart: React.FC<LiquidityVsDebtChartProps> = ({
 
   // Chart dimensions
   const svgWidth = 920;
-  const svgHeight = 350;
-  const margin = { top: 32, right: 85, bottom: 45, left: 85 };
+  const svgHeight = 360;
+  const margin = { top: hasWhatIf ? 46 : 32, right: 85, bottom: 45, left: 85 };
   const plotWidth = svgWidth - margin.left - margin.right;
   const plotHeight = svgHeight - margin.top - margin.bottom;
 
@@ -127,6 +127,17 @@ export const LiquidityVsDebtChart: React.FC<LiquidityVsDebtChartProps> = ({
     return `${sign}${prefix}${abs}`;
   };
 
+  const formatShortDiff = (val: number) => {
+    const rounded = Math.round(val);
+    if (rounded === 0) return '0';
+    const abs = Math.abs(rounded);
+    const sign = rounded > 0 ? '+' : '-';
+    const prefix = currencyPrefix ? `${currencyPrefix}` : '';
+    if (abs >= 1_000_000) return `${sign}${prefix}${(abs / 1_000_000).toFixed(1)}M`;
+    if (abs >= 1_000) return `${sign}${prefix}${Math.round(abs / 1_000)}k`;
+    return `${sign}${prefix}${abs}`;
+  };
+
   // Build SVG path for Base Debt line
   const debtPoints = data.map((d, i) => ({
     x: getX(i),
@@ -180,6 +191,15 @@ export const LiquidityVsDebtChart: React.FC<LiquidityVsDebtChartProps> = ({
               <span className="w-3 h-3 rounded-xs bg-[#38bdf8] shadow-xs inline-block" />
               <span className="text-sky-600 dark:text-sky-400 font-bold text-[11px]">
                 What-If Cash (L)
+              </span>
+            </div>
+          )}
+
+          {/* Diff Legend (What-If - Forecast) */}
+          {hasWhatIf && (
+            <div className="flex items-center gap-1.5">
+              <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-[#161C30] border border-[#D8CEBC] dark:border-[#252E4A] text-[10px] font-bold text-slate-700 dark:text-slate-200">
+                Δ What-If − Forecast
               </span>
             </div>
           )}
@@ -364,6 +384,12 @@ export const LiquidityVsDebtChart: React.FC<LiquidityVsDebtChartProps> = ({
               const wiBarHeight = Math.max(3, Math.abs(getCashY(wiVal) - zeroCashY));
               const wiBarX = cx + 1;
 
+              const cashDiff = Math.round(wiVal - d.bank_balance_closing);
+              const diffLabel = formatShortDiff(cashDiff);
+              const topBarY = Math.min(baseBarY, wiBarY);
+              const pillWidth = Math.max(32, diffLabel.length * 6 + 10);
+              const pillY = Math.max(margin.top - 22, topBarY - 22);
+
               return (
                 <g
                   key={`paired-bar-${d.id}`}
@@ -395,6 +421,57 @@ export const LiquidityVsDebtChart: React.FC<LiquidityVsDebtChartProps> = ({
                       isHovered ? 'filter drop-shadow(0 0 6px rgba(56,189,248,0.7))' : 'opacity-95'
                     }`}
                   />
+                  {/* In-Chart Value Difference Notation (What-If - Forecast) */}
+                  <g>
+                    <rect
+                      x={cx - pillWidth / 2}
+                      y={pillY}
+                      width={pillWidth}
+                      height={16}
+                      rx={4}
+                      fill={
+                        isDark
+                          ? isHovered
+                            ? '#18233D'
+                            : 'rgba(14,19,34,0.88)'
+                          : isHovered
+                          ? '#F4EFE6'
+                          : 'rgba(255,255,255,0.92)'
+                      }
+                      stroke={
+                        cashDiff === 0
+                          ? isDark
+                            ? '#252E4A'
+                            : '#E2D9C8'
+                          : cashDiff > 0
+                          ? '#0d9488'
+                          : '#e11d48'
+                      }
+                      strokeOpacity={cashDiff === 0 ? 0.7 : 0.45}
+                      strokeWidth={isHovered ? 1.3 : 1}
+                    />
+                    <text
+                      x={cx}
+                      y={pillY + 11.2}
+                      textAnchor="middle"
+                      fill={
+                        cashDiff === 0
+                          ? isDark
+                            ? '#94a3b8'
+                            : '#64748b'
+                          : cashDiff > 0
+                          ? isDark
+                            ? '#2dd4bf'
+                            : '#0f766e'
+                          : isDark
+                          ? '#fb7185'
+                          : '#be123c'
+                      }
+                      className="text-[9px] font-bold font-mono"
+                    >
+                      {diffLabel}
+                    </text>
+                  </g>
                 </g>
               );
             }
@@ -579,23 +656,35 @@ export const LiquidityVsDebtChart: React.FC<LiquidityVsDebtChartProps> = ({
                     {currencyPrefix ? `${currencyPrefix} ` : ''}
                     {activePoint.whatif_bank_balance_closing.toLocaleString()}
                   </span>
-                  {activePoint.whatif_bank_balance_closing !== activePoint.bank_balance_closing && (
-                    <span
-                      className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                        activePoint.whatif_bank_balance_closing >= activePoint.bank_balance_closing
-                          ? 'bg-emerald-500/10 text-emerald-500'
-                          : 'bg-rose-500/10 text-rose-500'
-                      }`}
-                    >
-                      {activePoint.whatif_bank_balance_closing >= activePoint.bank_balance_closing ? '+' : ''}
-                      {(
-                        activePoint.whatif_bank_balance_closing - activePoint.bank_balance_closing
-                      ).toLocaleString()}
-                    </span>
-                  )}
                 </div>
               </div>
             )}
+
+            {hasWhatIf && activePoint.whatif_bank_balance_closing !== undefined && (() => {
+              const cashDiff = Math.round(
+                activePoint.whatif_bank_balance_closing - activePoint.bank_balance_closing
+              );
+              return (
+                <div className="border-l border-slate-200 dark:border-slate-800 pl-3">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                    Diff (What-If − Forecast)
+                  </span>
+                  <span
+                    className={`font-bold ${
+                      cashDiff === 0
+                        ? 'text-slate-500'
+                        : cashDiff > 0
+                        ? 'text-emerald-500'
+                        : 'text-rose-500'
+                    }`}
+                  >
+                    {cashDiff > 0 ? '+' : ''}
+                    {currencyPrefix ? `${currencyPrefix} ` : ''}
+                    {cashDiff.toLocaleString()}
+                  </span>
+                </div>
+              );
+            })()}
 
             {/* Debt Comparison */}
             <div className="border-l border-slate-200 dark:border-slate-800 pl-3">
@@ -659,6 +748,213 @@ export const LiquidityVsDebtChart: React.FC<LiquidityVsDebtChartProps> = ({
           </div>
         )}
       </div>
+
+      {/* ================================================================= */}
+      {/* WHAT-IF VS FORECAST VALUE DIFFERENCE TABLE (WHAT-IF - FORECAST)   */}
+      {/* ================================================================= */}
+      {hasWhatIf && (() => {
+        const hasDebtDiff = data.some(
+          (d) =>
+            d.whatif_term_loan_balance !== undefined &&
+            Math.round(Math.abs(d.whatif_term_loan_balance) - Math.abs(d.term_loan_balance)) !== 0
+        );
+
+        return (
+          <div
+            className={`mx-2 sm:mx-4 mb-2 rounded-xl border overflow-hidden font-mono ${
+              isDark ? 'bg-[#0E1322] border-[#222F4C]' : 'bg-[#FAF8F5] border-[#D8CEBC]'
+            }`}
+          >
+            <div
+              className={`px-3.5 py-2 border-b flex flex-wrap items-center justify-between gap-2 text-[11px] ${
+                isDark ? 'bg-[#141A2E] border-[#222F4C]' : 'bg-[#F2EDE4] border-[#D8CEBC]'
+              }`}
+            >
+              <span className="font-bold uppercase tracking-wider text-slate-800 dark:text-slate-100">
+                value difference breakdown (what if − forecast)
+              </span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                positive = what-if cash exceeds forecast · negative = what-if below forecast
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-[11px] tabular-nums border-collapse">
+                <thead>
+                  <tr
+                    className={`border-b ${
+                      isDark ? 'border-[#222F4C] text-slate-400' : 'border-[#EAE4D8] text-slate-500'
+                    }`}
+                  >
+                    <th
+                      className={`sticky left-0 z-10 text-left px-3 py-2 font-bold uppercase text-[10px] whitespace-nowrap border-r ${
+                        isDark
+                          ? 'bg-[#0E1322] border-[#222F4C]'
+                          : 'bg-[#FAF8F5] border-[#D8CEBC]'
+                      }`}
+                    >
+                      metric
+                    </th>
+                    {data.map((d, i) => {
+                      const isColHovered = hoveredIndex === i;
+                      return (
+                        <th
+                          key={`th-${d.id}`}
+                          onMouseEnter={() => setHoveredIndex(i)}
+                          onMouseLeave={() => setHoveredIndex(null)}
+                          className={`px-2.5 py-2 text-right font-bold whitespace-nowrap cursor-pointer transition-colors ${
+                            isColHovered
+                              ? isDark
+                                ? 'bg-[#18233D] text-white'
+                                : 'bg-[#EFE7DA] text-slate-900'
+                              : ''
+                          }`}
+                        >
+                          {d.label}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isDark ? 'divide-[#1C2540]' : 'divide-[#EAE4D8]'}`}>
+                  {/* Row 1: Forecast Cash */}
+                  <tr>
+                    <td
+                      className={`sticky left-0 z-10 px-3 py-1.5 font-medium whitespace-nowrap border-r flex items-center gap-1.5 ${
+                        isDark
+                          ? 'bg-[#0E1322] border-[#222F4C] text-slate-300'
+                          : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-700'
+                      }`}
+                    >
+                      <span className="w-2 h-2 rounded-xs bg-[#00d4b6] shrink-0" />
+                      <span>Forecast Cash</span>
+                    </td>
+                    {data.map((d, i) => {
+                      const val = Math.round(d.bank_balance_closing);
+                      const isColHovered = hoveredIndex === i;
+                      return (
+                        <td
+                          key={`fc-${d.id}`}
+                          onMouseEnter={() => setHoveredIndex(i)}
+                          onMouseLeave={() => setHoveredIndex(null)}
+                          className={`px-2.5 py-1.5 text-right whitespace-nowrap transition-colors ${
+                            val < 0 ? 'text-rose-500' : 'text-slate-700 dark:text-slate-200'
+                          } ${isColHovered ? (isDark ? 'bg-[#18233D]/60' : 'bg-[#F4EFE6]') : ''}`}
+                        >
+                          {currencyPrefix ? `${currencyPrefix} ` : ''}
+                          {val.toLocaleString()}
+                        </td>
+                      );
+                    })}
+                  </tr>
+
+                  {/* Row 2: What-If Cash */}
+                  <tr>
+                    <td
+                      className={`sticky left-0 z-10 px-3 py-1.5 font-medium whitespace-nowrap border-r flex items-center gap-1.5 ${
+                        isDark
+                          ? 'bg-[#0E1322] border-[#222F4C] text-slate-300'
+                          : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-700'
+                      }`}
+                    >
+                      <span className="w-2 h-2 rounded-xs bg-[#38bdf8] shrink-0" />
+                      <span>What-If Cash</span>
+                    </td>
+                    {data.map((d, i) => {
+                      const val = Math.round(d.whatif_bank_balance_closing ?? d.bank_balance_closing);
+                      const isColHovered = hoveredIndex === i;
+                      return (
+                        <td
+                          key={`wi-${d.id}`}
+                          onMouseEnter={() => setHoveredIndex(i)}
+                          onMouseLeave={() => setHoveredIndex(null)}
+                          className={`px-2.5 py-1.5 text-right whitespace-nowrap transition-colors ${
+                            val < 0 ? 'text-rose-500' : 'text-sky-600 dark:text-sky-400'
+                          } ${isColHovered ? (isDark ? 'bg-[#18233D]/60' : 'bg-[#F4EFE6]') : ''}`}
+                        >
+                          {currencyPrefix ? `${currencyPrefix} ` : ''}
+                          {val.toLocaleString()}
+                        </td>
+                      );
+                    })}
+                  </tr>
+
+                  {/* Row 3: Difference = What-If - Forecast */}
+                  <tr className={isDark ? 'bg-[#141A2E]/70' : 'bg-[#F4EFE6]/70'}>
+                    <td
+                      className={`sticky left-0 z-10 px-3 py-2 font-bold whitespace-nowrap border-r ${
+                        isDark
+                          ? 'bg-[#141A2E] border-[#222F4C] text-white'
+                          : 'bg-[#EFE7DA] border-[#D8CEBC] text-slate-900'
+                      }`}
+                    >
+                      What-If − Forecast
+                    </td>
+                    {data.map((d, i) => {
+                      const wiCash = d.whatif_bank_balance_closing ?? d.bank_balance_closing;
+                      const diff = Math.round(wiCash - d.bank_balance_closing);
+                      const isColHovered = hoveredIndex === i;
+                      return (
+                        <td
+                          key={`diff-${d.id}`}
+                          onMouseEnter={() => setHoveredIndex(i)}
+                          onMouseLeave={() => setHoveredIndex(null)}
+                          className={`px-2.5 py-2 text-right font-bold whitespace-nowrap transition-colors ${
+                            diff === 0
+                              ? 'text-slate-400'
+                              : diff > 0
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : 'text-rose-600 dark:text-rose-400'
+                          } ${isColHovered ? (isDark ? 'bg-[#18233D]' : 'bg-[#E7DEC8]') : ''}`}
+                        >
+                          {diff > 0 ? '+' : ''}
+                          {currencyPrefix ? `${currencyPrefix} ` : ''}
+                          {diff.toLocaleString()}
+                        </td>
+                      );
+                    })}
+                  </tr>
+
+                  {/* Row 4 (Conditional): Debt Difference if any Debt changes under What-If */}
+                  {hasDebtDiff && (
+                    <tr className={isDark ? 'bg-[#141A2E]/40' : 'bg-[#F4EFE6]/40'}>
+                      <td
+                        className={`sticky left-0 z-10 px-3 py-1.5 font-bold whitespace-nowrap border-r ${
+                          isDark
+                            ? 'bg-[#141A2E] border-[#222F4C] text-amber-300'
+                            : 'bg-[#EFE7DA] border-[#D8CEBC] text-amber-800'
+                        }`}
+                      >
+                        Debt Diff (W − F)
+                      </td>
+                      {data.map((d, i) => {
+                        const baseDebt = Math.abs(d.term_loan_balance);
+                        const wiDebt = Math.abs(d.whatif_term_loan_balance ?? d.term_loan_balance);
+                        const dDiff = Math.round(wiDebt - baseDebt);
+                        const isColHovered = hoveredIndex === i;
+                        return (
+                          <td
+                            key={`ddiff-${d.id}`}
+                            onMouseEnter={() => setHoveredIndex(i)}
+                            onMouseLeave={() => setHoveredIndex(null)}
+                            className={`px-2.5 py-1.5 text-right font-bold whitespace-nowrap ${
+                              dDiff === 0 ? 'text-slate-400' : 'text-amber-600 dark:text-amber-400'
+                            } ${isColHovered ? (isDark ? 'bg-[#18233D]' : 'bg-[#E7DEC8]') : ''}`}
+                          >
+                            {dDiff > 0 ? '+' : ''}
+                            {currencyPrefix ? `${currencyPrefix} ` : ''}
+                            {dDiff.toLocaleString()}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
