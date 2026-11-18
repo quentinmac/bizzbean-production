@@ -802,13 +802,13 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
 
   return (
     <div
-      className={`w-full h-full flex flex-col font-mono text-slate-800 transition-colors select-none overflow-hidden ${
+      className={`w-full max-w-full min-w-0 h-full flex flex-col font-mono text-slate-800 transition-colors select-none overflow-hidden ${
         isDark ? 'bg-[#0A0D14] text-[#E2E8F0]' : 'bg-[#FAF8F5]'
       }`}
     >
       {/* Outer wrapper: Centered mobile screen container to maximize mobile device experience */}
       <div
-        className={`w-full mx-auto flex flex-col h-full transition-all overflow-hidden ${
+        className={`w-full max-w-full min-w-0 mx-auto flex flex-col h-full transition-all overflow-hidden ${
           isPhoneFrame ? 'max-w-md my-auto h-[96vh] rounded-3xl border border-[#D8CEBC] dark:border-[#252E4A] shadow-2xl' : 'max-w-xl'
         } ${isDark ? 'bg-[#101626]' : 'bg-[#FAF8F5]'}`}
       >
@@ -816,7 +816,7 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
         {/* 1. TOP HEADER: LOGO, LOWERCASE STEP NAME, SCENARIO SUBTITLE, X LOGOUT  */}
         {/* ===================================================================== */}
         <header
-          className={`px-4 py-3 border-b flex items-center justify-between shrink-0 ${
+          className={`px-3 sm:px-4 py-3 border-b flex items-center justify-between gap-2 shrink-0 min-w-0 max-w-full ${
             isDark ? 'bg-[#0E1322] border-[#222F4C]' : 'bg-[#FAF8F5] border-[#D8CEBC]'
           }`}
         >
@@ -952,16 +952,16 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
         {/* ===================================================================== */}
         {/* 3. STEP CONTENT BODY                                                  */}
         {/* ===================================================================== */}
-        <main className="flex-grow p-4 sm:p-5 overflow-y-auto space-y-4">
+        <main className="flex-grow min-w-0 max-w-full p-3 sm:p-5 overflow-y-auto overflow-x-hidden space-y-4">
           
           {/* ================================================================= */}
           {/* STEP 1: BUSINESS DETAILS                                          */}
           {/* ================================================================= */}
           {activeStep === 1 && (
-            <div className="space-y-4">
+            <div className="space-y-4 min-w-0 max-w-full">
               {/* Assumptions Tab */}
               {activeTab === 'assumptions' && (
-                <div className={`p-4 rounded-2xl border space-y-4 ${isDark ? 'bg-[#0E1322] border-[#222F4C]' : 'bg-white border-[#D8CEBC]'}`}>
+                <div className={`p-3.5 sm:p-4 rounded-2xl border space-y-4 min-w-0 max-w-full ${isDark ? 'bg-[#0E1322] border-[#222F4C]' : 'bg-white border-[#D8CEBC]'}`}>
                   <div className="text-xs font-normal text-slate-500 lowercase pb-1 border-b border-slate-200 dark:border-slate-800">
                     business assumptions & operating calendar
                   </div>
@@ -975,18 +975,18 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
                       type="text"
                       value={current.businessName}
                       onChange={(e) => updateCurrent({ businessName: e.target.value })}
-                      className={`w-full p-2.5 rounded-xl border text-xs font-normal ${
+                      className={`w-full min-w-0 p-2.5 rounded-xl border text-xs font-normal ${
                         isDark ? 'bg-[#141A2E] border-[#252E4A] text-white' : 'bg-[#FAF8F5] border-[#D8CEBC]'
                       }`}
                     />
                   </div>
 
                   {/* Start Date & Scenario Dropdown */}
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs min-w-0">
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
                         <label className="text-slate-500 lowercase block">start date:</label>
-                        <label className="text-[10px] text-slate-400 flex items-center gap-1 cursor-pointer select-none" title="sync start date across all scenarios">
+                        <label className="text-[10px] text-slate-400 flex items-center gap-1 cursor-pointer select-none shrink-0" title="sync start date across all scenarios">
                           <input
                             type="checkbox"
                             checked={syncStartDateAcrossScenarios}
@@ -1000,19 +1000,19 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
                         type="month"
                         value={current.startDate}
                         onChange={(e) => handleStartDateChange(e.target.value)}
-                        className={`w-full p-2 rounded-xl border text-xs font-normal ${
+                        className={`w-full min-w-0 p-2 rounded-xl border text-xs font-normal ${
                           isDark ? 'bg-[#141A2E] border-[#252E4A] text-white' : 'bg-[#FAF8F5] border-[#D8CEBC]'
                         }`}
                       />
                     </div>
 
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
                         <label className="text-slate-500 lowercase block">scenario:</label>
                         <button
                           type="button"
                           onClick={() => setShowResetConfirmModal(true)}
-                          className="text-[10px] text-slate-400 hover:text-[#2E5E88] dark:hover:text-[#5584B4] flex items-center gap-1 cursor-pointer transition-colors"
+                          className="text-[10px] text-slate-400 hover:text-[#2E5E88] dark:hover:text-[#5584B4] flex items-center gap-1 cursor-pointer transition-colors shrink-0"
                           title="reset scenario to default zero baseline"
                         >
                           <RotateCcw className="h-2.5 w-2.5" />
@@ -1022,7 +1022,7 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
                       <select
                         value={activeScenario}
                         onChange={(e) => setActiveScenario(e.target.value as ScenarioId)}
-                        className={`w-full p-2 rounded-xl border text-xs font-normal lowercase ${
+                        className={`w-full min-w-0 p-2 rounded-xl border text-xs font-normal lowercase ${
                           isDark ? 'bg-[#141A2E] border-[#252E4A] text-white' : 'bg-[#FAF8F5] border-[#D8CEBC]'
                         }`}
                       >

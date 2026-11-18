@@ -1657,11 +1657,11 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
 
   return (
     <div
-      className={`flex-grow p-4 sm:p-8 overflow-y-auto flex flex-col justify-between transition-colors ${
+      className={`flex-grow p-3 sm:p-8 overflow-y-auto overflow-x-hidden min-w-0 max-w-full flex flex-col justify-between transition-colors ${
         isDark ? 'bg-[#0A0D14]' : 'bg-architectural-grid'
       }`}
     >
-      <div className={`${isHeroSplashMode ? 'max-w-5xl' : 'max-w-4xl'} mx-auto w-full space-y-5`}>
+      <div className={`${isHeroSplashMode ? 'max-w-2xl' : 'max-w-4xl'} mx-auto w-full min-w-0 space-y-5`}>
         
         {/* PANEL A: TOP STAGE NAVIGATION PANEL (Stage name, Previous & Next solution buttons, clean panel styling) */}
         {!isHeroSplashMode && (
@@ -1752,11 +1752,11 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
 
         {/* CENTER DISPLAY AREA */}
         {isHeroSplashMode && activePromotion ? (
-          /* ENHANCED LANDING HERO: Horizontal Split Hero + 3 Workspace Jump Cards (Coach GIM replaced with Library) */
-          <div className="w-full space-y-4 animate-fade-in select-none">
-            <div className="rounded-3xl border border-[#D8CEBC] dark:border-[#252E4A] bg-white dark:bg-[#141A2E] shadow-md overflow-hidden grid grid-cols-1 lg:grid-cols-12 items-stretch">
-              {/* Compact Pristine Hero Image */}
-              <div className="lg:col-span-5 relative bg-black/5 dark:bg-[#0A0D14]">
+          /* CLEAN CENTERED LANDING HERO: Framed Image Above + Stage Dialogue Box Below */
+          <div className="w-full max-w-2xl mx-auto animate-fade-in select-none">
+            <div className="rounded-3xl border border-[#D8CEBC] dark:border-[#252E4A] bg-white dark:bg-[#141A2E] shadow-md overflow-hidden p-4 sm:p-6 space-y-4 sm:space-y-5">
+              {/* Inset Pristine Hero Image (does not span full page width) */}
+              <div className="w-full max-w-[460px] sm:max-w-[520px] mx-auto rounded-2xl overflow-hidden border border-[#E8E2D8] dark:border-[#252E4A] bg-black/5 dark:bg-[#0A0D14] shadow-sm">
                 {activePromotion.imageUrl &&
                 activePromotion.imageUrl.trim() !== '' &&
                 !activePromotion.imageUrl.includes('1553877522-43269d4ea984') ? (
@@ -1764,45 +1764,45 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                     src={activePromotion.imageUrl}
                     alt={activePromotion.displayName}
                     referrerPolicy="no-referrer"
-                    className="w-full h-[210px] sm:h-[250px] lg:h-full lg:min-h-[260px] lg:max-h-[310px] object-cover block"
+                    className="w-full h-[230px] sm:h-[290px] object-cover block"
                   />
                 ) : (
-                  <div className="w-full h-[210px] sm:h-[250px] lg:h-full flex items-center justify-center bg-[#F4EFE6] dark:bg-[#0E1220] p-6">
+                  <div className="w-full h-[230px] sm:h-[290px] flex items-center justify-center bg-[#F4EFE6] dark:bg-[#0E1220] p-6">
                     <BizzbeanLogoIcon className="w-12 h-12" />
                   </div>
                 )}
               </div>
 
-              {/* Stage Story & Primary Action Controls */}
-              <div className="lg:col-span-7 p-5 sm:p-6 flex flex-col justify-between gap-4">
-                <div className="space-y-2.5">
+              {/* Dialogue Box Underneath Image */}
+              <div className="rounded-2xl border border-[#E8E2D8] dark:border-[#252E4A] bg-[#FAF8F5]/90 dark:bg-[#0E1220]/80 p-4 sm:p-5 flex flex-col justify-between gap-4">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2 text-[11px] font-mono text-[#5584B4] font-semibold">
-                    <span className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1.5 min-w-0">
                       <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                      <span>THE STAGE STORY · {activePromotion.displayName}</span>
+                      <span className="truncate">THE STAGE STORY · {activePromotion.displayName}</span>
                     </span>
                     <span className="text-slate-400 tabular-nums shrink-0">
                       {activePromoNum} of {totalPromosCount}
                     </span>
                   </div>
 
-                  <h2 className="text-xl sm:text-2xl font-bold font-sans text-slate-900 dark:text-white tracking-tight text-balance">
+                  <h2 className="text-lg sm:text-2xl font-bold font-sans text-slate-900 dark:text-white tracking-tight text-balance">
                     {activePromotion.displayName}
                   </h2>
 
-                  <p className="text-sm font-sans text-slate-600 dark:text-slate-300 leading-relaxed">
+                  <p className="text-xs sm:text-sm font-sans text-slate-600 dark:text-slate-300 leading-relaxed">
                     {activePromotion.stageStory?.narrative || activePromotion.tagline}
                   </p>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-[#E8E2D8] dark:border-[#252E4A]">
+                <div className="flex flex-wrap items-center justify-between gap-2.5 pt-3 border-t border-[#E8E2D8] dark:border-[#252E4A]">
                   <div className="flex items-center gap-2">
                     {onCyclePromotion && (
                       <>
                         <button
                           type="button"
                           onClick={() => onCyclePromotion('prev')}
-                          className="px-3 py-2 rounded-xl border border-[#D8CEBC] dark:border-[#252E4A] bg-[#FAF8F5] dark:bg-[#0E1220] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] text-xs font-mono text-slate-700 dark:text-slate-200 flex items-center gap-1 cursor-pointer transition-colors"
+                          className="px-3 py-2 rounded-xl border border-[#D8CEBC] dark:border-[#252E4A] bg-white dark:bg-[#141A2E] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] text-xs font-mono text-slate-700 dark:text-slate-200 flex items-center gap-1 cursor-pointer transition-colors"
                           aria-label="Previous story"
                         >
                           <ChevronLeft className="h-3.5 w-3.5 text-[#5584B4]" />
@@ -1811,7 +1811,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                         <button
                           type="button"
                           onClick={() => onCyclePromotion('next')}
-                          className="px-3 py-2 rounded-xl border border-[#D8CEBC] dark:border-[#252E4A] bg-[#FAF8F5] dark:bg-[#0E1220] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] text-xs font-mono text-slate-700 dark:text-slate-200 flex items-center gap-1 cursor-pointer transition-colors"
+                          className="px-3 py-2 rounded-xl border border-[#D8CEBC] dark:border-[#252E4A] bg-white dark:bg-[#141A2E] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] text-xs font-mono text-slate-700 dark:text-slate-200 flex items-center gap-1 cursor-pointer transition-colors"
                           aria-label="Next story"
                         >
                           <span>next</span>
@@ -1826,7 +1826,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                       <button
                         type="button"
                         onClick={onClosePromotion}
-                        className="px-3.5 py-2 rounded-xl border border-[#E8E2D8] dark:border-[#252E4A] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-mono lowercase cursor-pointer transition-colors"
+                        className="px-3.5 py-2 rounded-xl border border-[#D8CEBC] dark:border-[#252E4A] bg-white dark:bg-[#141A2E] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-mono lowercase cursor-pointer transition-colors"
                       >
                         enter workspace
                       </button>
@@ -1836,103 +1836,13 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                       onClick={() => {
                         if (onNavigateToSection) onNavigateToSection(activePromotion);
                       }}
-                      className="px-5 py-2 rounded-xl bg-[#5584B4] hover:bg-[#4773A0] text-white font-sans font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition-all"
+                      className="px-4 sm:px-5 py-2 rounded-xl bg-[#5584B4] hover:bg-[#4773A0] text-white font-sans font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition-all"
                     >
                       <span>{activePromotion.buttonText || `explore ${activePromotion.name}`}</span>
                       <ArrowRight className="h-3.5 w-3.5 text-[#C59B63]" />
                     </button>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Quick Workspace Jump Cards (01 · Active Stage, 02 · Library, 03 · Instant Launch) */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  if (onNavigateToSection) onNavigateToSection(activePromotion);
-                }}
-                className="p-4 rounded-2xl border border-[#E8E2D8] dark:border-[#252E4A] bg-white/95 dark:bg-[#141A2E] hover:border-[#5584B4] transition-colors text-left cursor-pointer"
-              >
-                <div className="text-[11px] font-mono font-bold text-amber-600 dark:text-amber-400 uppercase">
-                  01 · Active Stage
-                </div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white mt-1 lowercase">
-                  {activePromotion.displayName}
-                </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  12-month & 5-year solutions ready
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (onSelectSolutionById) onSelectSolutionById('library');
-                }}
-                className="p-4 rounded-2xl border border-[#E8E2D8] dark:border-[#252E4A] bg-white/95 dark:bg-[#141A2E] hover:border-[#5584B4] transition-colors text-left cursor-pointer"
-              >
-                <div className="text-[11px] font-mono font-bold text-[#5584B4] uppercase">
-                  02 · Library
-                </div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white mt-1">
-                  Virtual Library & Objectives
-                </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  Models, memos & Google Drive sync
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (onSelectSolutionById) onSelectSolutionById('platform-apps');
-                }}
-                className="p-4 rounded-2xl border border-[#E8E2D8] dark:border-[#252E4A] bg-white/95 dark:bg-[#141A2E] hover:border-[#5584B4] transition-colors text-left cursor-pointer"
-              >
-                <div className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400 uppercase">
-                  03 · Instant Launch
-                </div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white mt-1 lowercase">
-                  bizzcalc · bizzmodel · bizzplan
-                </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  Open apps navigator or unlock suite
-                </div>
-              </button>
-            </div>
-
-            {/* Structured Stage Context Summary */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-white/90 dark:bg-[#141A2E] border border-[#E8E2D8] dark:border-[#252E4A] grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <div className="text-[11px] font-mono font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide flex items-center gap-1.5">
-                  <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                  <span>STAGE CHALLENGE</span>
-                </div>
-                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                  {activePromotion.stageStory?.stageChallenge || activePromotion.tagline}
-                </p>
-              </div>
-
-              <div className="space-y-1 md:border-l md:pl-4 border-[#E8E2D8] dark:border-[#252E4A]">
-                <div className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide flex items-center gap-1.5">
-                  <Check className="h-3.5 w-3.5 shrink-0" />
-                  <span>MILESTONE TO ADVANCE</span>
-                </div>
-                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                  {activePromotion.stageStory?.milestone || 'Quantitative model calibration & verified unit economics.'}
-                </p>
-              </div>
-
-              <div className="space-y-1 md:border-l md:pl-4 border-[#E8E2D8] dark:border-[#252E4A]">
-                <div className="text-[11px] font-mono font-bold text-[#5584B4] uppercase tracking-wide flex items-center gap-1.5">
-                  <Layers className="h-3.5 w-3.5 shrink-0" />
-                  <span>INSTITUTIONAL ASSET</span>
-                </div>
-                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                  {activePromotion.stageStory?.keyDeliverable || 'Institutional model & validation audit artifacts.'}
-                </p>
               </div>
             </div>
           </div>

@@ -118,7 +118,7 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
   const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
   const [showGotoMenu, setShowGotoMenu] = useState<boolean>(false);
   const gotoContainerRef = useRef<HTMLDivElement | null>(null);
-  const mobileCarouselRef = useRef<HTMLDivElement | null>(null);
+  const carouselTouchStartXRef = useRef<number | null>(null);
 
   const [inputsByCalc, setInputsByCalc] = useState<
     Record<CalculatorId, Record<string, string>>
@@ -179,14 +179,7 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [showGotoMenu]);
 
-  useEffect(() => {
-    const container = mobileCarouselRef.current;
-    if (!container) return;
-    const activeEl = container.querySelector<HTMLButtonElement>(`[data-calc-id="${activeView}"]`);
-    if (activeEl) {
-      activeEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    }
-  }, [activeView, isPhoneFrame]);
+  // Keyboard-safe outside click handling completed above
 
   const selectView = (view: ActiveView) => {
     setActiveView(view);
@@ -274,11 +267,11 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
 
   return (
     <div
-      className={`w-full ${embedded ? 'min-h-[680px]' : 'h-full'} flex flex-col font-mono transition-colors select-none overflow-hidden ${shellBg}`}
+      className={`w-full max-w-full min-w-0 ${embedded ? 'min-h-[680px]' : 'h-full'} flex flex-col font-mono transition-colors select-none overflow-hidden ${shellBg}`}
     >
       {/* Frame container: full workstation width or compact 480px mobile device preview */}
       <div
-        className={`w-full mx-auto flex flex-col ${
+        className={`w-full max-w-full min-w-0 mx-auto flex flex-col ${
           embedded ? 'flex-1' : 'h-full'
         } transition-all overflow-hidden ${
           isPhoneFrame
@@ -290,7 +283,7 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
         {/* 1. COMPACT SINGLE TOP HEADER BAR (No subheader strip above app)   */}
         {/* ================================================================= */}
         <header
-          className={`px-3 sm:px-4 py-2.5 sm:py-3 border-b flex items-center justify-between gap-2 sm:gap-3 shrink-0 ${headerBg}`}
+          className={`px-3 sm:px-4 py-2.5 sm:py-3 border-b flex items-center justify-between gap-2 sm:gap-3 shrink-0 min-w-0 max-w-full ${headerBg}`}
         >
           {/* Left: BizzBean Brand Emblem + Home Index Toggle + Mobile Preview Toggle */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
@@ -434,7 +427,7 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
         {/* ================================================================= */}
         {/* 3. WORKSPACE BODY: DESKTOP SIDEBAR + AUTHENTIC CALCULATOR SHEET   */}
         {/* ================================================================= */}
-        <div className="flex-1 flex min-h-0 overflow-hidden">
+        <div className="flex-1 flex min-h-0 min-w-0 max-w-full overflow-hidden">
           {/* Desktop Left Directory Rail (hidden in 480px mobile frame) */}
           {!isPhoneFrame && (
             <aside
@@ -487,7 +480,7 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
           )}
 
           {/* Main Scrollable Stage */}
-          <main className="flex-1 overflow-y-auto p-3 sm:p-5">
+          <main className="flex-1 min-w-0 max-w-full overflow-y-auto overflow-x-hidden p-3 sm:p-5">
             {activeView === 'home' ? (
               <div className="max-w-3xl mx-auto space-y-4">
                 <div
@@ -557,20 +550,20 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
             ) : (
               /* Centered Calculator Worksheet matching V1 480px mobile width & 60/40 row geometry */
               <div
-                className={`mx-auto ${
+                className={`mx-auto min-w-0 max-w-full ${
                   isPhoneFrame ? 'w-full' : 'max-w-[540px]'
                 }`}
               >
-                <div className={`rounded-xl border overflow-hidden ${sheetCardBg}`}>
+                <div className={`rounded-xl border overflow-hidden min-w-0 max-w-full ${sheetCardBg}`}>
                   {/* Subtle context strip above sections */}
                   <div
-                    className={`px-4 py-2.5 border-b flex items-center justify-between gap-3 text-[11px] ${
+                    className={`px-3 sm:px-4 py-2.5 border-b flex items-center justify-between gap-2 sm:gap-3 text-[11px] min-w-0 ${
                       isDark
                         ? 'bg-[#0E1322] border-[#222F4C] text-slate-400'
                         : 'bg-[#FAF8F5] border-[#EAE4D8] text-slate-500'
                     }`}
                   >
-                    <span className="truncate">{activeDef.description}</span>
+                    <span className="truncate min-w-0 flex-1">{activeDef.description}</span>
                     <div className="flex items-center gap-2 shrink-0 text-[10px]">
                       <span className="inline-flex items-center gap-1">
                         <span
@@ -600,7 +593,7 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
                     {activeDef.sections.map((section) => (
                       <section key={section.title}>
                         <div
-                          className={`px-4 py-2 text-[11px] font-bold lowercase tracking-wide border-b ${sectionBarBg}`}
+                          className={`px-3 sm:px-4 py-2 text-[11px] font-bold lowercase tracking-wide border-b ${sectionBarBg}`}
                         >
                           {section.title}
                         </div>
@@ -614,13 +607,13 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
                             return (
                               <div
                                 key={row.id}
-                                className="flex items-center justify-between gap-3 px-4 py-2 text-xs"
+                                className="flex items-center justify-between gap-2.5 sm:gap-3 px-3 sm:px-4 py-2 text-xs min-w-0"
                               >
                                 <label
                                   htmlFor={
                                     isInput ? `calc-input-${activeDef.id}-${row.id}` : undefined
                                   }
-                                  className={`w-[60%] leading-snug lowercase ${
+                                  className={`flex-1 min-w-0 pr-1 leading-snug lowercase break-words ${
                                     row.emphasize
                                       ? 'font-bold text-slate-900 dark:text-white'
                                       : isInput
@@ -631,7 +624,7 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
                                   {row.label}
                                 </label>
 
-                                <div className="w-[40%] shrink-0">
+                                <div className="w-[42%] sm:w-[40%] max-w-[175px] shrink-0">
                                   {isInput ? (
                                     <CalcNumberInput
                                       id={`calc-input-${activeDef.id}-${row.id}`}
@@ -672,78 +665,83 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
         <footer
           className={`border-t flex flex-col shrink-0 ${subheaderBg}`}
         >
-          {/* Housed Swipeable 11-Calculator Carousel fixed at bottom on mobile / phone-frame */}
-          <div
-            className={`${
-              isPhoneFrame ? 'flex' : 'flex md:hidden'
-            } items-center gap-1 px-2 py-1.5 border-b ${
-              isDark ? 'border-[#222F4C] bg-[#0E1322]/90' : 'border-[#D8CEBC] bg-[#FAF8F5]'
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() =>
-                mobileCarouselRef.current?.scrollBy({ left: -180, behavior: 'smooth' })
-              }
-              className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white shrink-0 cursor-pointer"
-              aria-label="Scroll calculators left"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
+          {/* Single-Item Swipeable Calculator Carousel fixed at bottom on mobile / phone-frame */}
+          {(() => {
+            const carouselViews: ActiveView[] = [
+              'home',
+              ...CALCULATOR_DEFINITIONS.map((c) => c.id),
+            ];
+            const currentIdx = Math.max(0, carouselViews.indexOf(activeView));
+            const handlePrevCalc = () =>
+              selectView(
+                carouselViews[
+                  (currentIdx - 1 + carouselViews.length) % carouselViews.length
+                ]
+              );
+            const handleNextCalc = () =>
+              selectView(carouselViews[(currentIdx + 1) % carouselViews.length]);
 
-            <div
-              ref={mobileCarouselRef}
-              className="flex-1 flex items-center gap-1.5 overflow-x-auto scrollbar-none snap-x snap-mandatory min-w-0 px-0.5"
-            >
-              <button
-                type="button"
-                data-calc-id="home"
-                onClick={() => selectView('home')}
-                className={`py-1.5 px-2.5 rounded-lg text-[11px] text-center transition-all lowercase whitespace-nowrap shrink-0 border cursor-pointer snap-start inline-flex items-center gap-1 ${
-                  activeView === 'home'
-                    ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-2xs font-bold'
-                    : isDark
-                    ? 'bg-[#101626] text-slate-300 hover:text-white border-[#222F4C]'
-                    : 'bg-white text-slate-600 hover:text-slate-900 border-[#D8CEBC]'
+            return (
+              <div
+                onTouchStart={(e) => {
+                  carouselTouchStartXRef.current = e.touches[0]?.clientX ?? null;
+                }}
+                onTouchEnd={(e) => {
+                  if (carouselTouchStartXRef.current === null) return;
+                  const delta =
+                    (e.changedTouches[0]?.clientX ?? 0) - carouselTouchStartXRef.current;
+                  carouselTouchStartXRef.current = null;
+                  if (Math.abs(delta) > 36) {
+                    if (delta > 0) handlePrevCalc();
+                    else handleNextCalc();
+                  }
+                }}
+                className={`${
+                  isPhoneFrame ? 'flex' : 'flex md:hidden'
+                } items-center justify-between gap-2 px-2 py-1.5 border-b min-w-0 max-w-full ${
+                  isDark ? 'border-[#222F4C] bg-[#0E1322]/90' : 'border-[#D8CEBC] bg-[#FAF8F5]'
                 }`}
               >
-                <LayoutGrid className="h-3 w-3" />
-                <span>home</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={handlePrevCalc}
+                  className="p-1.5 rounded-md text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white shrink-0 cursor-pointer"
+                  aria-label="Previous calculator"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
 
-              {CALCULATOR_DEFINITIONS.map((calc) => {
-                const isSelected = activeView === calc.id;
-                return (
+                <div className="flex-1 min-w-0 flex justify-center">
                   <button
-                    key={calc.id}
                     type="button"
-                    data-calc-id={calc.id}
-                    onClick={() => selectView(calc.id)}
-                    className={`py-1.5 px-2.5 rounded-lg text-[11px] text-center transition-all lowercase whitespace-nowrap shrink-0 border cursor-pointer snap-start ${
-                      isSelected
-                        ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-2xs font-bold'
-                        : isDark
-                        ? 'bg-[#101626] text-slate-300 hover:text-white border-[#222F4C]'
-                        : 'bg-white text-slate-600 hover:text-slate-900 border-[#D8CEBC]'
-                    }`}
+                    onClick={() => setShowGotoMenu((prev) => !prev)}
+                    className="max-w-full py-1.5 px-3.5 rounded-lg text-[11px] text-center transition-all lowercase whitespace-nowrap border cursor-pointer inline-flex items-center justify-center gap-1.5 bg-[#2E5E88] text-white border-[#2E5E88] shadow-2xs font-bold truncate"
+                    title="Tap to open calculator index menu"
                   >
-                    {calc.num}. {calc.shortLabel}
+                    {activeView === 'home' ? (
+                      <>
+                        <LayoutGrid className="h-3 w-3 shrink-0" />
+                        <span className="truncate">home · 11 calculators</span>
+                      </>
+                    ) : (
+                      <span className="truncate">
+                        {activeDef.num}. {activeDef.shortLabel}
+                      </span>
+                    )}
                   </button>
-                );
-              })}
-            </div>
+                </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                mobileCarouselRef.current?.scrollBy({ left: 180, behavior: 'smooth' })
-              }
-              className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white shrink-0 cursor-pointer"
-              aria-label="Scroll calculators right"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
+                <button
+                  type="button"
+                  onClick={handleNextCalc}
+                  className="p-1.5 rounded-md text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white shrink-0 cursor-pointer"
+                  aria-label="Next calculator"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            );
+          })()}
 
           {/* Unified Drop-Up GO TO Menu + RESET / CLEAR Control Row (Mobile & Desktop) */}
           <div className="px-3 sm:px-4 py-2 flex items-center justify-between gap-2">

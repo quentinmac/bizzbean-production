@@ -268,18 +268,18 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
 
   return (
     <header
-      className={`h-14 border-b flex items-center justify-between px-3 sm:px-6 select-none shrink-0 z-30 transition-colors ${
+      className={`h-14 border-b flex items-center justify-between gap-1.5 px-2.5 sm:px-6 select-none shrink-0 z-30 min-w-0 max-w-full overflow-hidden transition-colors ${
         isDark
           ? 'bg-[#101424] border-[#252E4A] text-[#E2E8F0]'
           : 'bg-[#FAF8F5] border-[#E8E2D8] text-slate-800'
       }`}
     >
       {/* Zone 1: Reserved to welcome the logged-in user with bizzbean-favicon.jpg & discreet link to transaction journal / client profile */}
-      <div className="flex items-center gap-2.5 shrink-0 min-w-0">
+      <div className="flex items-center gap-2 shrink-0 min-w-0">
         <button
           type="button"
           onClick={onOpenClientProfileJournal}
-          className="group flex items-center gap-2.5 text-left p-1 -ml-1 rounded-xl hover:bg-slate-200/50 dark:hover:bg-slate-800/60 transition-all cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#5584B4]"
+          className="group flex items-center gap-2 text-left p-1 -ml-1 rounded-xl hover:bg-slate-200/50 dark:hover:bg-slate-800/60 transition-all cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#5584B4] min-w-0"
           title="Open Client Profile & Transaction Journal (view slips, download invoices, edit profile)"
         >
           <div className="h-8 w-8 rounded-full overflow-hidden flex items-center justify-center shrink-0 border border-[#D8CEBC] dark:border-[#252E4A] bg-white shadow-2xs group-hover:scale-105 transition-transform">
@@ -305,7 +305,7 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
                 slips
               </span>
             </div>
-            <span className="font-mono text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[160px] sm:max-w-[220px] group-hover:text-[#5584B4] dark:group-hover:text-[#90CDF4] transition-colors">
+            <span className="font-mono text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[112px] sm:max-w-[220px] group-hover:text-[#5584B4] dark:group-hover:text-[#90CDF4] transition-colors">
               {welcomeName}
             </span>
           </div>
@@ -313,22 +313,22 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
       </div>
 
       {/* Zone 2: Mobile Apps Launcher (Mobile) vs PINBOARD Dropdown (Desktop) */}
-      {/* Mobile Apps Button (Per Proposal 3: friendly navigation to and from chosen apps) */}
-      <div className="md:hidden flex items-center gap-1.5">
+      {/* Mobile Apps Button (Unshaded styling per mobile review) */}
+      <div className="md:hidden flex items-center shrink-0">
         <button
           type="button"
           onClick={() => setIsMobileAppsModalOpen(true)}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#5584B4]/20 hover:bg-[#5584B4]/30 border border-[#5584B4]/40 text-[#5584B4] dark:text-[#90CDF4] text-xs font-mono font-bold transition-all shadow-2xs"
+          className="flex items-center gap-1 px-2 py-1 rounded-xl bg-transparent hover:bg-slate-200/40 dark:hover:bg-slate-800/40 border border-[#D8CEBC] dark:border-[#252E4A] text-slate-800 dark:text-slate-100 text-[11px] font-mono font-bold transition-colors whitespace-nowrap"
           title="Open Mobile Platform Apps Navigator"
         >
-          <Smartphone className="h-3.5 w-3.5 text-[#84CC16]" />
+          <Smartphone className="h-3.5 w-3.5 text-[#5584B4] shrink-0" />
           <span className="uppercase">APPS</span>
           {ownedMobileAppsCount > 0 ? (
-            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-500 font-bold border border-emerald-500/30">
+            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-transparent text-slate-700 dark:text-slate-300 font-semibold border border-[#D8CEBC] dark:border-[#252E4A] whitespace-nowrap">
               {ownedMobileAppsCount} READY
             </span>
           ) : (
-            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-500 dark:text-amber-400 font-bold border border-amber-500/30 flex items-center gap-0.5">
+            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-transparent text-amber-600 dark:text-amber-400 font-semibold border border-amber-500/40 flex items-center gap-0.5 whitespace-nowrap">
               <Lock className="h-2.5 w-2.5" /> STORE
             </span>
           )}
@@ -722,10 +722,10 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
       </div>
 
       {/* Zone 3: Member Tokenomics, BUY TOKENS, Theme Toggle, Layout & Close Doors */}
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
         {/* Token Balance */}
         <div
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-mono ${
+          className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg border text-xs font-mono ${
             isDark
               ? 'bg-[#161C30] border-[#252E4A] text-slate-200'
               : 'bg-white border-[#E8E2D8] text-slate-700'
@@ -800,7 +800,7 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
           {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
 
-        {/* Expand / Calm View Toggle (Hides or shows Left & Right Panels) */}
+        {/* Expand / Calm View Toggle (Desktop only — hides/shows Left & Right Panels) */}
         <button
           type="button"
           onClick={onToggleMaximize}
@@ -809,7 +809,7 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
               ? 'Open 3-Panel Desk (Show Solutions Panel & Knowledge Base)'
               : 'Return to Calm Focus View (Hide Side Panels)'
           }
-          className={`px-2.5 py-1.5 rounded-lg border text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+          className={`hidden md:flex px-2.5 py-1.5 rounded-lg border text-xs font-mono font-bold items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
             !isMaximized
               ? 'bg-[#2E5E88] hover:bg-[#234E73] border-[#2E5E88] text-white shadow-xs'
               : 'bg-[#5584B4]/10 hover:bg-[#5584B4]/20 border-[#5584B4]/50 text-[#2E5E88] dark:text-[#7EB2E2]'
@@ -825,7 +825,7 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
         <button
           onClick={onSignOut}
           title="Close Shop for the Day"
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#12172A] hover:bg-[#1E2548] text-white text-xs font-mono transition-colors border border-[#2B3452]"
+          className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg bg-[#12172A] hover:bg-[#1E2548] text-white text-xs font-mono transition-colors border border-[#2B3452]"
         >
           <LogOut className="h-3.5 w-3.5 text-[#DDEBF7]" />
           <span className="hidden sm:inline lowercase">close doors</span>
