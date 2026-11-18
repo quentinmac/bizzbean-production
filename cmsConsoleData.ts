@@ -1,6 +1,6 @@
 // =============================================================================
 // BIZZBEAN CMS MASTER REPOSITORY DATA (AUTO-GENERATED VIA CMS CONSOLE EXPORT)
-// Generated at: 2026-11-17T15:31:01.958Z
+// Generated at: 2026-11-18T13:35:33.692Z
 //
 // INSTRUCTIONS FOR GITHUB DEPLOYMENT:
 // 1. Commit/upload this file directly to: src/data/cmsConsoleData.ts
@@ -11,7 +11,7 @@
 
 import { TransactionRecord, ClientProfile, ClientNotification } from '../types';
 
-export const CMS_BUNDLE_GENERATED_AT = '2026-11-17T15:31:01.958Z';
+export const CMS_BUNDLE_GENERATED_AT = '2026-11-18T13:35:33.692Z';
 
 export interface CmsCourseLesson {
   id: string;
@@ -208,9 +208,9 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "stage": "vi-ability",
     "sku": "BC-001",
     "name": "learn how to earn access to capital",
-    "subtitle": "learn how to earn access to capital",
+    "subtitle": "prove business viability and pass investor readiness checks",
     "description": "This free course will teach you how our 7-step / 4-scenario financial modelling simulator will enable you to earn access to capital.",
-    "purpose": "This free course will teach you how our 7-step / 4-scenario financial modelling simulator will enable you to earn access to capital.",
+    "purpose": "Learn the exact financial numbers so investors and lenders check before funding an early-stage business. This free step-by-step course shows you how to validate customer economics, cost products accurately, and stress-test cash survival using our 7-step financial model.",
     "billingModel": "once-off",
     "exclusivePriceZAR": 0,
     "vatZAR": 0,
@@ -228,10 +228,10 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "youtubeUrl": "https://youtu.be/eJ_8N_NfGBI",
-        "id": "cl-1-1",
+        "duration": "4:57",
         "name": "Lesson 01: LEARN HOW TO EARN ACCESS TO CAPITAL",
-        "duration": "4:57"
+        "id": "cl-1-1",
+        "youtubeUrl": "https://youtu.be/eJ_8N_NfGBI"
       }
     ],
     "companionMaterialFilename": "Framework_Templates.zip",
@@ -248,9 +248,9 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "stage": "vi-ability",
     "sku": "BA-001",
     "name": "bizzcalc",
-    "subtitle": "test the financial viability of your startup business idea",
+    "subtitle": "startup viability simulator",
     "description": "It takes 5 minutes to dream up a business idea. You can gamble your personal savings on gut feel, or you can run your numbers through bizzcalc, our 7-step / 4-scenario financial modelling simulator, to test its financial viability.",
-    "purpose": "It takes 5 minutes to dream up a business idea. You can gamble your personal savings on gut feel, or you can run your numbers through bizzcalc, our 7-step / 4-scenario financial modelling simulator, to test its financial viability.",
+    "purpose": "Stop guessing with your startup savings. Test product pricing, fixed overheads, staffing costs, and break-even sales targets in minutes with a structured 7-step financial viability model across four risk scenarios.",
     "billingModel": "once-off",
     "exclusivePriceZAR": 216.67,
     "vatZAR": 32.5,
@@ -279,66 +279,66 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "challengeText": "It's easy to write an inspiring pitch deck. It's uncomfortable to open a financial model and watch your break-even point move four months further into the future than you hoped.\n\nThat discomfort? That's reality speaking. And confronting it right now costs zero. Confronting it six months after signing a commercial lease costs everything.\n\nIn this stage, you can learn how to earn access to capital. You can test the financial viability of your startup idea, and you can learn the basics of financial modelling.",
     "engineSteps": [
       {
-        "outputs": [
-          "calculate the number of working days"
-        ],
-        "step": 1,
         "inputs": [
           "business name",
           "calendar start month",
           "working days allocation (Mon-Sun)",
           "public holiday deduction flag"
         ],
+        "outputs": [
+          "calculate the number of working days"
+        ],
+        "title": "business details & scenario selection",
         "desc": "Defines business name, incorporation milestone, 5-day / 6-day operating rhythm, working days, and statutory holiday deductions.",
-        "title": "business details & scenario selection"
+        "step": 1
       },
       {
         "desc": "Models products, direct bill of materials (BOM), indirect labor, gross margin targets, and sales volume trajectories.",
-        "title": "Revenue Calculator",
+        "step": 2,
         "inputs": [
           "daily sales forecast",
           "gross profit margin",
           "monthly growth in daily sales"
         ],
+        "title": "Revenue Calculator",
         "outputs": [
           "annual revenue",
           "annual gross profit"
-        ],
-        "step": 2
+        ]
       },
       {
-        "outputs": [
-          "annual employment expense"
-        ],
-        "step": 3,
-        "desc": "Calculates fully burdened headcount economics, executive compensation, operational labor, and payroll tax reserves.",
         "inputs": [
           "job title & head count",
           "base monthly salary (cost to company)",
           "annual review month and review rate"
         ],
-        "title": "Employment & Organizational Burdens"
+        "outputs": [
+          "annual employment expense"
+        ],
+        "title": "Employment & Organizational Burdens",
+        "desc": "Calculates fully burdened headcount economics, executive compensation, operational labor, and payroll tax reserves.",
+        "step": 3
       },
       {
         "outputs": [
           "annual operating expenses"
         ],
-        "desc": "Categorizes fixed overheads (rent, software, insurance, auditing) and variable operational distribution expenses.",
+        "title": "Operating Expenses & Overhead Distribution",
         "inputs": [
           "monthly expense base from listed expenses",
           "annual review month and review rate"
         ],
-        "title": "Operating Expenses & Overhead Distribution",
+        "desc": "Categorizes fixed overheads (rent, software, insurance, auditing) and variable operational distribution expenses.",
         "step": 4
       },
       {
         "step": 5,
-        "title": "Fixed Assets & Capital Depreciation",
         "desc": "Schedules machinery, technology hardware, vehicles, and office assets with GAAP straight-line depreciation calculations.",
         "inputs": [
           "fixed asset description and month purchased",
           "allocation to asset category"
         ],
+        "title": "Fixed Assets & Capital Depreciation",
         "outputs": [
           "original cost of fixed assets",
           "annual depreciation",
@@ -346,15 +346,15 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
         ]
       },
       {
-        "title": "Funding Calculator & Capital Structure",
-        "desc": "Structures founder equity, angel/seed venture capital, commercial term debt, interest rates, and loan amortizations.",
         "inputs": [
           "days debtors",
           "days inventory",
           "days creditors",
           "other asst values"
         ],
+        "title": "Funding Calculator & Capital Structure",
         "step": 6,
+        "desc": "Structures founder equity, angel/seed venture capital, commercial term debt, interest rates, and loan amortizations.",
         "outputs": [
           "year end debtors value",
           "year end inventory value",
@@ -363,7 +363,6 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
         ]
       },
       {
-        "desc": "Reconciles the 5-year Income Statement, Balance Sheet, Cash Flow Statement, Break-Even Horizon, and Liquidity vs Debt.",
         "outputs": [
           "income statement",
           "balance sheet",
@@ -372,11 +371,12 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "cashflow - monthly chart",
           "schedule of expenses"
         ],
-        "title": "Authentic 3-Statement & Break-Even Reports",
         "step": 7,
+        "desc": "Reconciles the 5-year Income Statement, Balance Sheet, Cash Flow Statement, Break-Even Horizon, and Liquidity vs Debt.",
         "inputs": [
           "no inputs"
-        ]
+        ],
+        "title": "Authentic 3-Statement & Break-Even Reports"
       }
     ],
     "whatYouGet": [
@@ -395,9 +395,9 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "stage": "vi-ability",
     "sku": "BC-002",
     "name": "How to Use bizzcalc",
-    "subtitle": "7 steps of brutal math simplified",
+    "subtitle": "step-by-step startup costing and break-even walkthrough",
     "description": "You can spend 3 weeks building a 50-tab financial model, or you can use bizzcalc immediately. This course will show you how to use a 7-step / 4-scenario financial modelling simulator, to earn access to capital.",
-    "purpose": "You can spend 3 weeks building a 50-tab financial model, or you can use bizzcalc immediately. This course will show you how to use a 7-step / 4-scenario financial modelling simulator, to earn access to capital.",
+    "purpose": "Skip complex spreadsheets. Follow a practical 7-step video walkthrough to map unit costs, set profitable price floors, and generate funding-ready viability numbers you can defend to any bank or investor.",
     "billingModel": "once-off",
     "exclusivePriceZAR": 0,
     "vatZAR": 0,
@@ -416,9 +416,9 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "courseLessons": [
       {
         "name": "Lesson 01: HOW TO USE BIZZCALC",
+        "id": "cl-2-1",
         "duration": "5:31",
-        "youtubeUrl": "https://youtu.be/MG1rOrFyz6M",
-        "id": "cl-2-1"
+        "youtubeUrl": "https://youtu.be/MG1rOrFyz6M"
       }
     ],
     "companionMaterialFilename": "Framework_Templates.zip",
@@ -443,9 +443,9 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "stage": "fund-ability",
     "sku": "BC-004",
     "name": "cost recovery calculator",
-    "subtitle": "improve trading profits",
+    "subtitle": "product costing, pricing and break-even mastery",
     "description": "This cost recovery calculator programme will enable one to cost products accurately and to set products’ selling prices so that they recover all operating expenses to optimize trading profits.",
-    "purpose": "This cost recovery calculator programme will enable one to cost products accurately and to set products’ selling prices so that they recover all operating expenses to optimize trading profits.",
+    "purpose": "Learn how to calculate true product and labour costs, allocate fixed overheads, and set selling prices that recover every operating expense - ensuring profitable growth from unit one.",
     "billingModel": "once-off",
     "exclusivePriceZAR": 260.87,
     "vatZAR": 39.13,
@@ -472,64 +472,64 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
+        "youtubeUrl": "https://youtu.be/YG6tmrBWG5E",
         "name": "Lesson 01: INTRODUCTION",
         "id": "crc-1",
-        "youtubeUrl": "https://youtu.be/YG6tmrBWG5E",
         "duration": "2:58"
       },
       {
-        "duration": "6:30",
-        "id": "crc-2",
         "youtubeUrl": "https://youtu.be/UxtwQBhP-WE",
+        "id": "crc-2",
+        "duration": "6:30",
         "name": "Lesson 02: PRODUCTION CALCULATOR"
       },
       {
-        "duration": "3:32",
+        "youtubeUrl": "https://youtu.be/R8ucx0JnLYM",
         "name": "Lesson 03: EMPLOYEE CALCULATOR",
         "id": "crc-3",
-        "youtubeUrl": "https://youtu.be/R8ucx0JnLYM"
+        "duration": "3:32"
       },
       {
-        "id": "crc-4",
+        "name": "Lesson 04: MATERIALS COSTING",
         "duration": "6:54",
-        "youtubeUrl": "https://youtu.be/pf8sABLgYjc",
-        "name": "Lesson 04: MATERIALS COSTING"
+        "id": "crc-4",
+        "youtubeUrl": "https://youtu.be/pf8sABLgYjc"
       },
       {
-        "youtubeUrl": "https://youtu.be/jh1N0JjJ2G0",
         "id": "crc-5",
         "name": "Lesson 05: EXPENSE DYNAMICS",
-        "duration": "5:21"
+        "duration": "5:21",
+        "youtubeUrl": "https://youtu.be/jh1N0JjJ2G0"
       },
       {
-        "duration": "2:44",
         "name": "Lesson 06: FIXED ASSETS",
         "id": "crc-6",
-        "youtubeUrl": "https://youtu.be/LJdLgozkhNQ"
+        "youtubeUrl": "https://youtu.be/LJdLgozkhNQ",
+        "duration": "2:44"
       },
       {
-        "id": "crc-7",
         "duration": "1:20",
-        "name": "Lesson 07: EMPLOYMENT EXPENSES",
-        "youtubeUrl": "https://youtu.be/EJLJqsw1FZQ"
+        "id": "crc-7",
+        "youtubeUrl": "https://youtu.be/EJLJqsw1FZQ",
+        "name": "Lesson 07: EMPLOYMENT EXPENSES"
       },
       {
-        "youtubeUrl": "https://youtu.be/2GvmMzT4lKM",
-        "name": "Lesson 08: OPERATING EXPENSES",
+        "id": "lesson-1793180554556-2geo",
         "duration": "1:29",
-        "id": "lesson-1793180554556-2geo"
+        "youtubeUrl": "https://youtu.be/2GvmMzT4lKM",
+        "name": "Lesson 08: OPERATING EXPENSES"
       },
       {
-        "id": "lesson-1793180555666-9o4n",
-        "name": "Lesson 09: REVENUE CALCULATOR",
         "duration": "4:42",
-        "youtubeUrl": "https://youtu.be/iG7CUhBa3o8"
+        "name": "Lesson 09: REVENUE CALCULATOR",
+        "youtubeUrl": "https://youtu.be/iG7CUhBa3o8",
+        "id": "lesson-1793180555666-9o4n"
       },
       {
         "duration": "12:47",
         "id": "lesson-1793180556806-gy5r",
-        "youtubeUrl": "https://youtu.be/uIZ-99CWFYU",
-        "name": "Lesson 10: CALCULATORS"
+        "name": "Lesson 10: CALCULATORS",
+        "youtubeUrl": "https://youtu.be/uIZ-99CWFYU"
       }
     ],
     "companionMaterialFilename": "Cost_Recovery_Calculator_Workbook.zip",
@@ -551,9 +551,9 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "stage": "fund-ability",
     "sku": "BC-003",
     "name": "follow the money",
-    "subtitle": "understand the difference between profits and cashflow",
+    "subtitle": "profit vs. cash flow and working capital velocity",
     "description": "This programme shows where transactions end up in the financial reports of a business.",
-    "purpose": "This programme shows where transactions end up in the financial reports of a business.",
+    "purpose": "Discover why profitable businesses still run out of cash. Trace real daily transactions through your income statement, balance sheet, and cash flow so you can manage debtor lag and cash conversion cycles.",
     "billingModel": "once-off",
     "exclusivePriceZAR": 0,
     "vatZAR": 0,
@@ -569,8 +569,8 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "id": "ftm-1",
         "name": "Lesson 01: FOLLOW THE MONEY",
+        "id": "ftm-1",
         "youtubeUrl": "https://youtu.be/4L5XhVPZFsc",
         "duration": "16:47"
       }
@@ -596,9 +596,9 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "stage": "fund-ability",
     "sku": "BC-005",
     "name": "financial reports",
-    "subtitle": "read financial reports like a pro",
+    "subtitle": "master income statements, balance sheets and cash flow",
     "description": "This course teaches startup entrepreneurs how to read financial reports for understanding.",
-    "purpose": "This course teaches startup entrepreneurs how to read financial reports for understanding.",
+    "purpose": "Learn how to read, reconcile, and explain your 3-statement financial reports with confidence - free cash flow to answering tough investor balance-sheet questions.",
     "billingModel": "once-off",
     "exclusivePriceZAR": 173.91,
     "vatZAR": 26.09,
@@ -614,9 +614,9 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "duration": "16:47",
         "name": "Lesson 01: FINANCIAL REPORTS",
         "id": "fr-1",
+        "duration": "16:47",
         "youtubeUrl": "https://youtu.be/4L5XhVPZFsc"
       }
     ],
@@ -642,7 +642,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "name": "profit optimizer",
     "subtitle": "unlock value in your business",
     "description": "The profit enhancer is an extension of the cost recovery calculator to show how profits can be optimized in a business The objective of this profit optimizer programme is to encourage the introduction of some financial science to the management of a business.  It includes the cost recovery calculator course.",
-    "purpose": "The profit optimizer programme is an extension of the cost recovery calculator course. It shows how profits can be optimized in a business. The objective of this profit optimizer programme is to encourage the introduction of some financial science to the management of a business. It includes the cost recovery calculator course.",
+    "purpose": "Identify hidden margin leaks, fix under-priced lines, and apply disciplined unit economics to increase net profit without cutting growth.\n\nIncludes full access to the cost recovery calculator course.\n",
     "billingModel": "once-off",
     "exclusivePriceZAR": 347.83,
     "vatZAR": 52.17,
@@ -678,88 +678,88 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "youtubeUrl": "https://youtu.be/TbTj8_-Op7k",
         "id": "po-1",
+        "name": "Lesson 01: INTRODUCTION",
         "duration": "3:18",
-        "name": "Lesson 01: INTRODUCTION"
+        "youtubeUrl": "https://youtu.be/TbTj8_-Op7k"
       },
       {
-        "id": "po-2",
-        "duration": "6:30",
+        "youtubeUrl": "https://youtu.be/00H9IiTvIaQ",
         "name": "Lesson 02: PRODUCTION CALCULATOR",
-        "youtubeUrl": "https://youtu.be/00H9IiTvIaQ"
+        "duration": "6:30",
+        "id": "po-2"
       },
       {
         "duration": "3:32",
         "name": "Lesson 03: EMPLOYEE CALCULATOR",
-        "id": "po-3",
-        "youtubeUrl": "https://youtu.be/k2jLXZrNTJ4"
+        "youtubeUrl": "https://youtu.be/k2jLXZrNTJ4",
+        "id": "po-3"
       },
       {
-        "duration": "6:54",
         "youtubeUrl": "https://youtu.be/P7lFx_epDMc",
-        "name": "Lesson 04: MATERIALS COSTING",
-        "id": "lesson-1793181908239-2dgk"
+        "duration": "6:54",
+        "id": "lesson-1793181908239-2dgk",
+        "name": "Lesson 04: MATERIALS COSTING"
       },
       {
-        "id": "lesson-1793181909031-r2qw",
-        "duration": "5:21",
         "name": "Lesson 05: EXPENSE DYNAMICS",
-        "youtubeUrl": "https://youtu.be/bcN9Zgqy5IQ"
+        "id": "lesson-1793181909031-r2qw",
+        "youtubeUrl": "https://youtu.be/bcN9Zgqy5IQ",
+        "duration": "5:21"
       },
       {
-        "name": "Lesson 06: FIXED ASSETS",
-        "id": "lesson-1793181909694-nqtz",
         "duration": "2:44",
-        "youtubeUrl": "https://youtu.be/cjdxQCRztPM"
+        "youtubeUrl": "https://youtu.be/cjdxQCRztPM",
+        "id": "lesson-1793181909694-nqtz",
+        "name": "Lesson 06: FIXED ASSETS"
       },
       {
-        "youtubeUrl": "https://youtu.be/UrGJBhdjp-Q",
-        "duration": "1:20",
         "name": "Lesson 07: EMPLOYMENT EXPENSES",
-        "id": "lesson-1793181910448-37ye"
+        "id": "lesson-1793181910448-37ye",
+        "youtubeUrl": "https://youtu.be/UrGJBhdjp-Q",
+        "duration": "1:20"
       },
       {
         "id": "lesson-1793181911094-rvyg",
-        "name": "Lesson 08: OPERATING EXPENSES",
         "duration": "1:29",
+        "name": "Lesson 08: OPERATING EXPENSES",
         "youtubeUrl": "https://youtu.be/IoF2xtDLANk"
       },
       {
-        "id": "lesson-1793181911845-jlep",
+        "youtubeUrl": "https://youtu.be/XauZ0jyrHEY",
         "name": "Lesson 09: REVENUE CALCULATOR",
         "duration": "4:42",
-        "youtubeUrl": "https://youtu.be/XauZ0jyrHEY"
+        "id": "lesson-1793181911845-jlep"
       },
       {
-        "youtubeUrl": "https://youtu.be/o7Zq4rOzNeU",
-        "id": "lesson-1793181912587-tvkg",
         "name": "Lesson 10: CALCULATORS",
+        "id": "lesson-1793181912587-tvkg",
+        "youtubeUrl": "https://youtu.be/o7Zq4rOzNeU",
         "duration": "12:46"
       },
       {
         "id": "lesson-1793181913368-yolw",
         "youtubeUrl": "https://youtu.be/6PC1i1VvXJk",
-        "duration": "12:13",
-        "name": "Lesson 11: REPORTS"
+        "name": "Lesson 11: REPORTS",
+        "duration": "12:13"
       },
       {
-        "youtubeUrl": "https://youtu.be/tTvj-IeN7-o",
-        "name": "Lesson 12: BACKSOLVE STRUCTURE",
         "id": "lesson-1793181914165-qhjm",
-        "duration": "1:42"
+        "youtubeUrl": "https://youtu.be/tTvj-IeN7-o",
+        "duration": "1:42",
+        "name": "Lesson 12: BACKSOLVE STRUCTURE"
       },
       {
         "youtubeUrl": "https://youtu.be/57xL2ILxyk4",
-        "name": "Lesson 13: TARGET OPTIMIZATION",
+        "duration": "5:41",
         "id": "lesson-1793181915023-8u7y",
-        "duration": "5:41"
+        "name": "Lesson 13: TARGET OPTIMIZATION"
       },
       {
-        "youtubeUrl": "https://youtu.be/57xL2ILxyk4",
         "duration": "3:48",
+        "id": "lesson-1793181915953-cbee",
         "name": "Lesson 14: TARGET SETTING",
-        "id": "lesson-1793181915953-cbee"
+        "youtubeUrl": "https://youtu.be/57xL2ILxyk4"
       },
       {
         "name": "Lesson 15: WORKING CAPITAL MANAGEMENT",
@@ -768,10 +768,10 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
         "id": "lesson-1793181916926-sadv"
       },
       {
-        "id": "lesson-1793181918010-2k46",
         "youtubeUrl": "https://youtu.be/OFvzXblBRs8",
+        "name": "Lesson 16: FUNDING CALCULATOR",
         "duration": "3:25",
-        "name": "Lesson 16: FUNDING CALCULATOR"
+        "id": "lesson-1793181918010-2k46"
       },
       {
         "name": "Lesson 17: NO QUICK FIX",
@@ -799,9 +799,9 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "stage": "sustain-ability",
     "sku": "BC-008",
     "name": "financial scenario planning",
-    "subtitle": "prepare for changing business dynamics",
+    "subtitle": "cash runway, sensitivity and what-if scenario modelling",
     "description": "This programme consolidates the financial learnings from Quentin McCullough’s book, getting to value. It encourages business owners to work on their business and not in their business while mastering forecasting, scenario planning and much more.",
-    "purpose": "This programme consolidates the financial learnings from Quentin McCullough’s book, getting to value. It encourages business owners to work on their business and not in their business while mastering forecasting, scenario planning and much more.",
+    "purpose": "Model base, best-case, and downside scenarios before hiring, raising prices, or taking on debt. Learn how to build early-warning runway triggers and steer your business proactively - based on Quentin McCullough’s book getting to value.",
     "billingModel": "once-off",
     "exclusivePriceZAR": 260.87,
     "vatZAR": 39.13,
@@ -823,46 +823,46 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "id": "fsp-1",
-        "duration": "3:23",
         "youtubeUrl": "https://youtu.be/a2DjjxI7puk",
-        "name": "Lesson 01: INTRODUCTION"
+        "duration": "3:23",
+        "name": "Lesson 01: INTRODUCTION",
+        "id": "fsp-1"
       },
       {
-        "duration": "7:12",
-        "name": "Lesson 02: SCENARIO",
         "youtubeUrl": "https://youtu.be/PaDEQocDW3M",
-        "id": "lesson-1793184760523-nx4w"
+        "id": "lesson-1793184760523-nx4w",
+        "duration": "7:12",
+        "name": "Lesson 02: SCENARIO"
       },
       {
         "duration": "7:51",
-        "youtubeUrl": "https://youtu.be/_cHu1JnVDNE",
         "id": "lesson-1793184761317-1ggr",
-        "name": "Lesson 03: FORECASTING"
+        "name": "Lesson 03: FORECASTING",
+        "youtubeUrl": "https://youtu.be/_cHu1JnVDNE"
       },
       {
-        "youtubeUrl": "https://youtu.be/cc2h9zu5Qik",
-        "name": "Lesson 04: CALCULATORS",
         "id": "lesson-1793184761917-yhnc",
-        "duration": "12:57"
+        "name": "Lesson 04: CALCULATORS",
+        "duration": "12:57",
+        "youtubeUrl": "https://youtu.be/cc2h9zu5Qik"
       },
       {
-        "name": "Lesson 05: DOC",
         "youtubeUrl": "https://youtu.be/yXdvOm6p0Hk",
-        "id": "lesson-1793184762497-01yf",
-        "duration": "1:47"
+        "duration": "1:47",
+        "name": "Lesson 05: DOC",
+        "id": "lesson-1793184762497-01yf"
       },
       {
-        "id": "lesson-1793184763182-je6u",
         "duration": "1:42",
-        "youtubeUrl": "https://youtu.be/tH_dBZ8oFaE",
-        "name": "Lesson 06: MANAGENENT ACCOUNTS"
+        "name": "Lesson 06: MANAGENENT ACCOUNTS",
+        "id": "lesson-1793184763182-je6u",
+        "youtubeUrl": "https://youtu.be/tH_dBZ8oFaE"
       },
       {
-        "youtubeUrl": "https://youtu.be/ZRLbNo84Odw",
         "duration": "4:19",
-        "name": "Lesson 07: BCG MODEL",
-        "id": "lesson-1793184763846-kwof"
+        "id": "lesson-1793184763846-kwof",
+        "youtubeUrl": "https://youtu.be/ZRLbNo84Odw",
+        "name": "Lesson 07: BCG MODEL"
       }
     ],
     "companionMaterialFilename": "Financial_Scenario_Modeler.zip",
@@ -885,7 +885,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "stage": "sustain-ability",
     "sku": "BC-009",
     "name": "annual business planning cycle",
-    "subtitle": "being busy is not the same as building an asset of value",
+    "subtitle": "annual budgeting, audits and board discipline",
     "description": "Scaling a business requires far more than working harder. It requires mastering operating cash cycles, eliminating margin leaks, and enforcing budget governance. This 8-step process will teach you how to professionalise your business.",
     "purpose": "Scaling a business requires far more than working harder. It requires mastering operating cash cycles, eliminating margin leaks, and enforcing budget governance. This 8-step process will teach you how to professionalise your business.",
     "billingModel": "once-off",
@@ -910,16 +910,16 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "id": "abp-1",
-        "name": "Lesson 01: INTRODUCTION",
         "duration": "4:54",
-        "youtubeUrl": "https://youtu.be/Ryoyo1W6P6s"
+        "id": "abp-1",
+        "youtubeUrl": "https://youtu.be/Ryoyo1W6P6s",
+        "name": "Lesson 01: INTRODUCTION"
       },
       {
-        "name": "Lesson 02: INNOVATION LABRATORY",
-        "youtubeUrl": "https://youtu.be/o43azAxA3ok",
         "id": "lesson-1793185140382-crm0",
-        "duration": "3:09"
+        "duration": "3:09",
+        "name": "Lesson 02: INNOVATION LABRATORY",
+        "youtubeUrl": "https://youtu.be/o43azAxA3ok"
       },
       {
         "youtubeUrl": "https://youtu.be/HqQ3PSOm_wA",
@@ -934,28 +934,28 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
         "id": "lesson-1793185141625-xd9g"
       },
       {
-        "name": "Lesson 05: BUDGET",
-        "duration": "6:51",
         "youtubeUrl": "https://youtu.be/NcUv9k_Sfzc",
-        "id": "lesson-1793185142230-dz8u"
+        "id": "lesson-1793185142230-dz8u",
+        "name": "Lesson 05: BUDGET",
+        "duration": "6:51"
       },
       {
         "id": "lesson-1793185142869-gemk",
+        "name": "Lesson 06: OPERATIONAL PLAN",
         "duration": "5:04",
-        "youtubeUrl": "https://youtu.be/zrqNV4V9lTw",
-        "name": "Lesson 06: OPERATIONAL PLAN"
+        "youtubeUrl": "https://youtu.be/zrqNV4V9lTw"
       },
       {
+        "name": "Lesson 07: FINANCIAL YEAREND",
         "duration": "2:49",
         "youtubeUrl": "https://youtu.be/IH3ZnMkn0sQ",
-        "id": "lesson-1793185143534-j2kp",
-        "name": "Lesson 07: FINANCIAL YEAREND"
+        "id": "lesson-1793185143534-j2kp"
       },
       {
-        "youtubeUrl": "https://youtu.be/nGjXbsH7BwE",
-        "id": "lesson-1793185144592-eq4m",
         "duration": "9:45",
-        "name": "Lesson 08: REVIEW AND REACT"
+        "name": "Lesson 08: REVIEW AND REACT",
+        "id": "lesson-1793185144592-eq4m",
+        "youtubeUrl": "https://youtu.be/nGjXbsH7BwE"
       }
     ],
     "companionMaterialFilename": "Annual_Planning_Cycle_Playbook.zip",
@@ -980,7 +980,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "name": "your first hire",
     "subtitle": "a first hire can make or break a startup",
     "description": "This business educational programme is designed to highlight important issues that should be considered when hiring employees.",
-    "purpose": "This business educational programme is designed to highlight important issues that should be considered when hiring employees.",
+    "purpose": "Understand the burden of a new hire, when vision and culture are not aligned.",
     "billingModel": "once-off",
     "exclusivePriceZAR": 260.87,
     "vatZAR": 39.13,
@@ -1001,40 +1001,40 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "id": "lesson-1793181449109-1",
         "duration": "4:46",
-        "name": "Lesson 01: INTRODUCTION",
-        "youtubeUrl": "https://youtu.be/M7njKIEELaA"
+        "youtubeUrl": "https://youtu.be/M7njKIEELaA",
+        "id": "lesson-1793181449109-1",
+        "name": "Lesson 01: INTRODUCTION"
       },
       {
+        "id": "lesson-1793181539055-gmlk",
         "duration": "16:37",
-        "name": "Lesson 02: OUR VALUES",
         "youtubeUrl": "https://youtu.be/Q8scvMewr9k",
-        "id": "lesson-1793181539055-gmlk"
+        "name": "Lesson 02: OUR VALUES"
       },
       {
-        "duration": "8:22",
         "id": "lesson-1793181540046-37tt",
+        "name": "Lesson 03: HUMAN RESOURCE POLICY",
         "youtubeUrl": "https://youtu.be/lrfZ9Er1iRs",
-        "name": "Lesson 03: HUMAN RESOURCE POLICY"
+        "duration": "8:22"
       },
       {
         "id": "lesson-1793181540910-a8uu",
-        "youtubeUrl": "https://youtu.be/2mTlqkiyTF0",
+        "name": "Lesson 04: THE JOB",
         "duration": "7:20",
-        "name": "Lesson 04: THE JOB"
+        "youtubeUrl": "https://youtu.be/2mTlqkiyTF0"
       },
       {
-        "id": "lesson-1793181541999-4ylu",
         "youtubeUrl": "https://youtu.be/iqBWHggcArk",
         "duration": "10:58",
-        "name": "Lesson 05: TALENT DEVELOPMENT"
+        "name": "Lesson 05: TALENT DEVELOPMENT",
+        "id": "lesson-1793181541999-4ylu"
       },
       {
-        "id": "lesson-1793181543187-654g",
-        "duration": "8:46",
+        "youtubeUrl": "https://youtu.be/p7sER_g71Is",
         "name": "Lesson 06: THE INTERVIEW",
-        "youtubeUrl": "https://youtu.be/p7sER_g71Is"
+        "duration": "8:46",
+        "id": "lesson-1793181543187-654g"
       }
     ],
     "companionMaterialFilename": "your first hire.zip",
@@ -1105,9 +1105,9 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "stage": "fund-ability",
     "sku": "BA-DYN",
     "name": "bizzdynamics",
-    "subtitle": "a financial simulator that replaces guesswork",
+    "subtitle": "learn how business finance works through hands-on what-if simulation",
     "description": "Interactive operational simulator for business physics, pricing dynamics, and unit cost elasticity.",
-    "purpose": "bizzdynamics is a business simulator. It shows you how changes to key business elements, such as contribution, expenses, asset levels and funding strategies, impact the financial results of your business.",
+    "purpose": "Master the financial mechanics of a business by experimenting, not just reading theory. bizzdynamics is an interactive financial education app and what-if simulator that lets entrepreneurs, managers, and students see firsthand how changes to contribution margins, operating expenses, asset levels, and funding strategies impact profit, cash flow, and debt - replacing guesswork with practical financial intuition.",
     "billingModel": "once-off",
     "exclusivePriceZAR": 325.37,
     "vatZAR": 48.8,
@@ -1139,9 +1139,9 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "stage": "fund-ability",
     "sku": "BA-002",
     "name": "bizzmodel",
-    "subtitle": "you have a business and you need funding to grow",
+    "subtitle": "funding-ready financial model and checklist business plan",
     "description": "Macro-free financial forecasting engine linking Income Statement, Balance Sheet, and Cash Flow with dynamic sensitivity dials.",
-    "purpose": "bizzmodel allows you to evaluate the financial viability of your business idea before going to the expense of developing a business plan.",
+    "purpose": "Need funding to grow or launch? Validate the financial viability of your business before going to the expense of developing a full formal business plan. bizzmodel builds lender and investor-ready financial projections to test funding requirements - and it includes bizzplan, our structured checklist business plan.",
     "billingModel": "once-off",
     "exclusivePriceZAR": 1086.23,
     "vatZAR": 162.94,
@@ -1165,7 +1165,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "stage": "fund-ability",
     "sku": "BA-ROL",
     "name": "rolling forecast",
-    "subtitle": "know where your business is heading",
+    "subtitle": "know where your business is heading: 5-year rolling financial forecast",
     "description": "Perform hi-level rolling forecasts with prior year end balance sheet values and 1-product unit sales model-set.",
     "purpose": "Forecast your next 5 years in 10 minutes.\nTurn your current financial position into a forward-looking 5-year financial forecast. Start from zero or load your existing balance sheet figures. Quickly evaluate your company's future financial health and make better-informed business decisions.",
     "billingModel": "once-off",
@@ -1230,144 +1230,144 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
 // =============================================================================
 export const INITIAL_CMS_VIDEOS: CmsVideo[] = [
   {
-    "author": "Rich Mulholland",
-    "linked": true,
+    "title": "how to write the perfect elevator pitch",
     "isMustWatch": true,
-    "duration": "5:32",
-    "id": "vid-1793102512275",
     "category": "masterclass",
+    "linked": true,
+    "id": "vid-1793102512275",
     "youtubeUrl": "https://youtu.be/P3S4s5fJ70s",
-    "title": "how to write the perfect elevator pitch"
+    "author": "Rich Mulholland",
+    "duration": "5:32"
   },
   {
-    "id": "vid-1793102484225",
-    "category": "masterclass",
-    "title": "changing world order",
-    "isMustWatch": true,
     "youtubeUrl": "https://youtu.be/Pc66lnxaixs",
+    "id": "vid-1793102484225",
+    "isMustWatch": true,
+    "category": "masterclass",
     "author": "Ray Dalio",
+    "title": "changing world order",
     "linked": true,
     "duration": "42:28"
   },
   {
-    "title": "warren buffett's value investing formula",
-    "category": "masterclass",
     "id": "vid-1793102460048",
     "isMustWatch": false,
-    "youtubeUrl": "https://youtu.be/9M_uxnkMtE8",
-    "duration": "16:02",
+    "title": "warren buffett's value investing formula",
+    "category": "masterclass",
     "linked": true,
-    "author": "Benjamin Graham"
+    "duration": "16:02",
+    "author": "Benjamin Graham",
+    "youtubeUrl": "https://youtu.be/9M_uxnkMtE8"
   },
   {
-    "id": "vid-1793102433404",
+    "linked": true,
     "duration": "30:52",
     "title": "how the economic machine works",
     "category": "masterclass",
     "youtubeUrl": "https://youtu.be/cU1Lg52VeFI",
     "isMustWatch": true,
-    "linked": true,
-    "author": "Ray Dalio"
+    "author": "Ray Dalio",
+    "id": "vid-1793102433404"
   },
   {
-    "duration": "4:41",
-    "linked": true,
     "author": "avimarketing",
     "youtubeUrl": "https://youtu.be/c7sWFPRRXcM",
-    "title": "breaking business bottlenecks – theory of constraints",
+    "linked": true,
+    "id": "vid-1793102402911",
     "category": "masterclass",
+    "duration": "4:41",
     "isMustWatch": false,
-    "id": "vid-1793102402911"
+    "title": "breaking business bottlenecks – theory of constraints"
   },
   {
-    "youtubeUrl": "https://youtu.be/6C15PryTfio",
+    "linked": true,
+    "category": "masterclass",
+    "author": "Clem Sunter",
     "title": "what the future holds",
+    "isMustWatch": false,
     "duration": "30:53",
     "id": "vid-1793102375746",
-    "category": "masterclass",
-    "isMustWatch": false,
-    "author": "Clem Sunter",
-    "linked": true
+    "youtubeUrl": "https://youtu.be/6C15PryTfio"
   },
   {
-    "youtubeUrl": "https://youtu.be/0IuXz1uAIJI",
+    "linked": true,
     "title": "what is product market fit",
+    "author": "Marketing Business Network",
     "id": "vid-1793102352705",
-    "category": "masterclass",
     "isMustWatch": true,
     "duration": "3:28",
-    "linked": true,
-    "author": "Marketing Business Network"
-  },
-  {
-    "duration": "4:36",
-    "title": "how to create a company",
-    "id": "vid-1793102328476",
-    "isMustWatch": false,
-    "youtubeUrl": "https://youtu.be/TSoaIlbDVLU",
-    "category": "masterclass",
-    "author": "Elon Musk",
-    "linked": true
-  },
-  {
-    "category": "masterclass",
-    "id": "vid-1793102258740",
-    "title": "the next global superpower is not who you think",
-    "author": "Ian Bremmer",
-    "linked": true,
-    "isMustWatch": false,
-    "youtubeUrl": "https://youtu.be/5kbdL0ACbBQ",
-    "duration": "15:00"
-  },
-  {
-    "duration": "2:47",
-    "linked": true,
-    "title": "kindness",
-    "author": "unknown",
-    "youtubeUrl": "https://youtu.be/Ta6PYt80HKw",
-    "id": "vid-1793102233913",
-    "category": "masterclass",
-    "isMustWatch": false
-  },
-  {
-    "title": "branding & marketing In the age of AI",
-    "duration": "41:00",
-    "author": "Seth Godin",
-    "linked": true,
-    "isMustWatch": false,
-    "category": "masterclass",
-    "id": "vid-1793102204748",
-    "youtubeUrl": "https://youtu.be/HNfTboNtQIg"
-  },
-  {
-    "title": "a plan is not a strategy",
-    "isMustWatch": true,
-    "category": "masterclass",
-    "youtubeUrl": "https://youtu.be/JS79sfYgfdo",
-    "id": "vid-1793102172365",
-    "duration": "9:31",
-    "author": "Harvard Business Review",
-    "linked": true
-  },
-  {
-    "isMustWatch": false,
-    "author": "eisenhower.me",
-    "linked": true,
-    "youtubeUrl": "https://youtu.be/L0neEsxf4No",
-    "duration": "2:28",
-    "title": "the eisenhower matrix",
-    "id": "vid-1793102142382",
+    "youtubeUrl": "https://youtu.be/0IuXz1uAIJI",
     "category": "masterclass"
   },
   {
-    "title": "how kindergartnerd outperformed the ceos",
+    "author": "Elon Musk",
+    "youtubeUrl": "https://youtu.be/TSoaIlbDVLU",
+    "linked": true,
+    "id": "vid-1793102328476",
+    "isMustWatch": false,
+    "category": "masterclass",
+    "duration": "4:36",
+    "title": "how to create a company"
+  },
+  {
+    "linked": true,
+    "title": "the next global superpower is not who you think",
+    "youtubeUrl": "https://youtu.be/5kbdL0ACbBQ",
+    "isMustWatch": false,
+    "author": "Ian Bremmer",
+    "id": "vid-1793102258740",
+    "duration": "15:00",
+    "category": "masterclass"
+  },
+  {
+    "youtubeUrl": "https://youtu.be/Ta6PYt80HKw",
+    "duration": "2:47",
+    "title": "kindness",
+    "isMustWatch": false,
+    "category": "masterclass",
+    "linked": true,
+    "id": "vid-1793102233913",
+    "author": "unknown"
+  },
+  {
+    "youtubeUrl": "https://youtu.be/HNfTboNtQIg",
+    "author": "Seth Godin",
+    "duration": "41:00",
+    "category": "masterclass",
+    "linked": true,
+    "isMustWatch": false,
+    "id": "vid-1793102204748",
+    "title": "branding & marketing In the age of AI"
+  },
+  {
+    "youtubeUrl": "https://youtu.be/JS79sfYgfdo",
+    "id": "vid-1793102172365",
+    "title": "a plan is not a strategy",
+    "category": "masterclass",
+    "linked": true,
+    "isMustWatch": true,
+    "author": "Harvard Business Review",
+    "duration": "9:31"
+  },
+  {
+    "title": "the eisenhower matrix",
+    "isMustWatch": false,
+    "youtubeUrl": "https://youtu.be/L0neEsxf4No",
+    "linked": true,
+    "duration": "2:28",
+    "id": "vid-1793102142382",
+    "category": "masterclass",
+    "author": "eisenhower.me"
+  },
+  {
+    "category": "masterclass",
     "youtubeUrl": "https://youtu.be/oJ9a4uzm3cE",
     "duration": "3:59",
     "isMustWatch": false,
+    "author": "Improvement Pill",
     "id": "vid-1793102108978",
     "linked": true,
-    "author": "Improvement Pill",
-    "category": "masterclass"
+    "title": "how kindergartnerd outperformed the ceos"
   }
 ];
 
@@ -1835,7 +1835,27 @@ export const INITIAL_CMS_TRANSACTIONS: CmsTransactionRecord[] = [
   }
 ];
 
-export const INITIAL_V1_TRANSACTIONS: TransactionRecord[] = [];
+export const INITIAL_V1_TRANSACTIONS: TransactionRecord[] = [
+  {
+    "unitPrice": 295.65,
+    "sku": "OPERATIONS",
+    "lineValue": 295.65,
+    "vatRate": 0.15,
+    "productType": "app",
+    "invoiceNumber": "INV-2026-0001",
+    "quantity": 1,
+    "productName": "bizzmoney",
+    "invoiceValue": 340,
+    "country": "South Africa",
+    "associate": "Direct Online (Sandbox Grant)",
+    "transactionDate": "2026-11-17",
+    "paymentRef": "GRANT_bizzmoney_1794930051618",
+    "createdAt": "2026-11-17T15:40:51.618Z",
+    "customer": "Quentin McCullough",
+    "vatAmount": 44.35,
+    "customerEmail": "qgmccullough@gmail.com"
+  }
+];
 
 // =============================================================================
 // CLIENT PROFILES & NOTIFICATIONS
