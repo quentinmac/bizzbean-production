@@ -1866,9 +1866,9 @@ export default function App() {
             theme === 'dark' ? 'bg-[#0A0D14] text-[#E2E8F0]' : 'bg-architectural-grid text-slate-800'
           }`}
         >
-          {/* Top Bar with Pinboard and Tokenomics (Hidden on mobile when an active platform app is open) */}
+          {/* Top Bar with Pinboard and Tokenomics (Hidden on mobile when an active app or BizzClass course suite is open) */}
           {!isStandaloneApp && (
-            <div className={activeView === 'active-app' ? 'hidden md:block shrink-0' : 'shrink-0'}>
+            <div className={activeView === 'active-app' || activeView === 'bizzclass' ? 'hidden md:block shrink-0' : 'shrink-0'}>
               <BizzDeskHeader
                 isMember={isMember}
                 userEmail={userEmail}

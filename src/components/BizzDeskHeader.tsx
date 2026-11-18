@@ -305,7 +305,7 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
                 slips
               </span>
             </div>
-            <span className="font-mono text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[112px] sm:max-w-[220px] group-hover:text-[#5584B4] dark:group-hover:text-[#90CDF4] transition-colors">
+            <span className="font-mono text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[92px] sm:max-w-[220px] group-hover:text-[#5584B4] dark:group-hover:text-[#90CDF4] transition-colors">
               {welcomeName}
             </span>
           </div>
@@ -318,17 +318,17 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
         <button
           type="button"
           onClick={() => setIsMobileAppsModalOpen(true)}
-          className="flex items-center gap-1 px-2 py-1 rounded-xl bg-transparent hover:bg-slate-200/40 dark:hover:bg-slate-800/40 border border-[#D8CEBC] dark:border-[#252E4A] text-slate-800 dark:text-slate-100 text-[11px] font-mono font-bold transition-colors whitespace-nowrap"
+          className="flex items-center gap-1 px-1.5 py-1 rounded-xl bg-transparent hover:bg-slate-200/40 dark:hover:bg-slate-800/40 border border-[#D8CEBC] dark:border-[#252E4A] text-slate-800 dark:text-slate-100 text-[10px] font-mono font-bold transition-colors whitespace-nowrap"
           title="Open Mobile Platform Apps Navigator"
         >
-          <Smartphone className="h-3.5 w-3.5 text-[#5584B4] shrink-0" />
+          <Smartphone className="h-3 w-3 text-[#5584B4] shrink-0" />
           <span className="uppercase">APPS</span>
           {ownedMobileAppsCount > 0 ? (
-            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-transparent text-slate-700 dark:text-slate-300 font-semibold border border-[#D8CEBC] dark:border-[#252E4A] whitespace-nowrap">
+            <span className="text-[9px] px-1 py-0.2 rounded-full bg-transparent text-slate-700 dark:text-slate-300 font-semibold border border-[#D8CEBC] dark:border-[#252E4A] whitespace-nowrap">
               {ownedMobileAppsCount} READY
             </span>
           ) : (
-            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-transparent text-amber-600 dark:text-amber-400 font-semibold border border-amber-500/40 flex items-center gap-0.5 whitespace-nowrap">
+            <span className="text-[9px] px-1 py-0.2 rounded-full bg-transparent text-amber-600 dark:text-amber-400 font-semibold border border-amber-500/40 flex items-center gap-0.5 whitespace-nowrap">
               <Lock className="h-2.5 w-2.5" /> STORE
             </span>
           )}

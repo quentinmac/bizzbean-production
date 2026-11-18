@@ -600,11 +600,14 @@ export const BizzClass: React.FC<BizzClassProps> = ({
     }
   };
 
-  // Sync editingLessonUrl when active lesson changes
+  // Sync editingLessonUrl when active lesson changes (only reset isPlaying when switching courses)
   useEffect(() => {
     setEditingLessonUrl(currentLesson.youtubeUrl || '');
-    setIsPlaying(false);
   }, [activeLessonIdx, selectedCourseId, currentLesson.youtubeUrl]);
+
+  useEffect(() => {
+    setIsPlaying(false);
+  }, [selectedCourseId]);
 
   // Toast auto-clear
   useEffect(() => {
@@ -614,6 +617,8 @@ export const BizzClass: React.FC<BizzClassProps> = ({
   }, [toastMessage]);
 
   const courseScrollRef = useRef<HTMLDivElement>(null);
+  const playerSectionRef = useRef<HTMLDivElement>(null);
+  const courseSwipeTouchStartXRef = useRef<number | null>(null);
   const handleScrollCourses = (direction: 'left' | 'right') => {
     if (courseScrollRef.current) {
       const scrollAmount = direction === 'left' ? -260 : 260;
@@ -713,7 +718,7 @@ export const BizzClass: React.FC<BizzClassProps> = ({
 
   return (
     <div
-      className={`w-full h-full flex flex-col font-sans select-none overflow-hidden transition-colors ${
+      className={`w-full max-w-full min-w-0 h-full flex flex-col font-sans select-none overflow-hidden transition-colors ${
         isDark ? 'bg-[#0E1322] text-slate-100' : 'bg-[#EBF1F6] text-slate-900'
       }`}
     >
@@ -725,47 +730,147 @@ export const BizzClass: React.FC<BizzClassProps> = ({
         </div>
       )}
 
-      {/* TOP HEADER BAR (Directly matching bizzclass.jpg with generous vertical headroom & clear button visibility matching BizzDynamics) */}
+      {/* TOP HEADER BAR (Clean single-line header on mobile & desktop) */}
       <header
-        className={`px-4 sm:px-6 py-3.5 sm:py-4.5 min-h-[64px] sm:min-h-[72px] border-b flex items-center justify-between gap-3 shrink-0 ${
+        className={`px-3 sm:px-6 py-2.5 sm:py-4 min-h-[56px] sm:min-h-[72px] border-b flex items-center justify-between gap-2 sm:gap-3 shrink-0 min-w-0 max-w-full overflow-hidden ${
           isDark ? 'bg-[#141B2D] border-[#252F4A]' : 'bg-[#3A5D7C] border-[#2C4A65] text-white shadow-xs'
         }`}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {/* Back button (circular button with left arrow) */}
           <button
             type="button"
             onClick={onBackToWorkstation}
-            className="h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center bg-white/15 hover:bg-white/25 active:scale-95 transition-all text-white shadow-xs shrink-0"
+            className="h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center bg-white/15 hover:bg-white/25 active:scale-95 transition-all text-white shadow-xs shrink-0"
             title="Return to Workstation"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
 
           {/* bizzclass — course master suite */}
-          <div className="flex items-center gap-2 ml-1">
-            <span className="font-logo font-bold text-base sm:text-lg lowercase tracking-wide text-white leading-none">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-logo font-bold text-base sm:text-lg lowercase tracking-wide text-white leading-none whitespace-nowrap">
               bizzclass
             </span>
-            <span className="text-white/70 text-xs sm:text-sm font-sans">
+            <span className="hidden sm:inline text-white/70 text-xs sm:text-sm font-sans whitespace-nowrap">
               — course master suite
             </span>
           </div>
         </div>
 
-        {/* Right side: Welcome, Quentin McCullough */}
-        <div className="flex items-center gap-2 text-xs sm:text-sm font-mono shrink-0">
-          <BookOpen className="h-4 w-4 text-white/80" />
-          <span className="text-white/80">Welcome,</span>
-          <span className="text-[#84CC16] font-bold tracking-wide">
+        {/* Right side: Welcome, Student */}
+        <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-mono min-w-0 shrink-0">
+          <BookOpen className="h-4 w-4 text-white/80 shrink-0" />
+          <span className="hidden sm:inline text-white/80">Welcome,</span>
+          <span className="text-[#84CC16] font-bold tracking-wide truncate max-w-[130px] sm:max-w-none">
             {studentName}
           </span>
         </div>
       </header>
 
-      {/* COURSE CAROUSEL / NAVIGATION ROW (Matching bizzclass.jpg) */}
+      {/* COURSE CAROUSEL / NAVIGATION ROW */}
+      {/* Mobile (< sm): Compact Toggle + Single-Item Course Carousel */}
+      {(() => {
+        const activeCourseIdx = Math.max(
+          0,
+          availableCourses.findIndex((c) => c.id === activeCourse.id)
+        );
+        const stepPrevCourse = () => {
+          if (availableCourses.length <= 1) return;
+          const prev =
+            availableCourses[
+              (activeCourseIdx - 1 + availableCourses.length) % availableCourses.length
+            ];
+          setSelectedCourseId(prev.id);
+          setActiveLessonIdx(0);
+          setIsPlaying(false);
+        };
+        const stepNextCourse = () => {
+          if (availableCourses.length <= 1) return;
+          const next = availableCourses[(activeCourseIdx + 1) % availableCourses.length];
+          setSelectedCourseId(next.id);
+          setActiveLessonIdx(0);
+          setIsPlaying(false);
+        };
+
+        return (
+          <div
+            className={`sm:hidden px-3 py-2 border-b flex flex-col gap-2 shrink-0 min-w-0 max-w-full ${
+              isDark ? 'bg-[#111728] border-[#202942]' : 'bg-[#F4F7FA] border-[#D2DCE6]'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                  INCLUDE ALL COURSES
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIncludeAllCourses(!includeAllCourses)}
+                  className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors ${
+                    includeAllCourses ? 'bg-[#2E5E88]' : 'bg-slate-300 dark:bg-slate-700'
+                  }`}
+                  aria-label="Toggle include all courses"
+                >
+                  <div
+                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                      includeAllCourses ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+              <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 tabular-nums">
+                {activeCourseIdx + 1} / {availableCourses.length}
+              </span>
+            </div>
+
+            <div
+              onTouchStart={(e) => {
+                courseSwipeTouchStartXRef.current = e.touches[0]?.clientX ?? null;
+              }}
+              onTouchEnd={(e) => {
+                if (courseSwipeTouchStartXRef.current === null) return;
+                const delta =
+                  (e.changedTouches[0]?.clientX ?? 0) - courseSwipeTouchStartXRef.current;
+                courseSwipeTouchStartXRef.current = null;
+                if (Math.abs(delta) > 36) {
+                  if (delta > 0) stepPrevCourse();
+                  else stepNextCourse();
+                }
+              }}
+              className="flex items-center justify-between gap-2 min-w-0"
+            >
+              <button
+                type="button"
+                onClick={stepPrevCourse}
+                className="h-8 w-8 rounded-lg flex items-center justify-center bg-slate-200 dark:bg-[#1A233A] hover:bg-slate-300 dark:hover:bg-[#253254] text-slate-700 dark:text-slate-300 transition-colors shrink-0"
+                aria-label="Previous course"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+
+              <div className="flex-1 min-w-0 flex justify-center">
+                <div className="max-w-full px-3.5 py-1.5 rounded-xl text-[11px] font-mono font-bold tracking-wide uppercase bg-[#2E5E88] text-white shadow-xs border border-[#457C9F] truncate text-center">
+                  {activeCourse.name}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={stepNextCourse}
+                className="h-8 w-8 rounded-lg flex items-center justify-center bg-slate-200 dark:bg-[#1A233A] hover:bg-slate-300 dark:hover:bg-[#253254] text-slate-700 dark:text-slate-300 transition-colors shrink-0"
+                aria-label="Next course"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Desktop (sm+): Horizontal Course Strip */}
       <div
-        className={`px-4 py-2 border-b flex items-center gap-3 shrink-0 ${
+        className={`hidden sm:flex px-4 py-2 border-b items-center gap-3 shrink-0 min-w-0 max-w-full ${
           isDark ? 'bg-[#111728] border-[#202942]' : 'bg-[#F4F7FA] border-[#D2DCE6]'
         }`}
       >
@@ -801,7 +906,7 @@ export const BizzClass: React.FC<BizzClassProps> = ({
         {/* Horizontal Scrollable Course Tabs */}
         <div
           ref={courseScrollRef}
-          className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth py-1"
+          className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth py-1 min-w-0"
         >
           {availableCourses.map((c) => {
             const isSelected = c.id === activeCourse.id;
@@ -837,15 +942,15 @@ export const BizzClass: React.FC<BizzClassProps> = ({
         </button>
       </div>
 
-      {/* MAIN BODY: 2-COLUMN LAYOUT (Course Details & Lessons on Left, Simulator Stream on Right) */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4 overflow-hidden">
+      {/* MAIN BODY: MOBILE = VERTICAL SCROLL (VIDEO TOP + FULL LESSONS LIST), DESKTOP = 2-COLUMN */}
+      <div className="flex-1 flex flex-col lg:flex-row gap-3 sm:gap-4 p-3 sm:p-4 overflow-y-auto lg:overflow-hidden min-h-0 min-w-0 max-w-full">
         
-        {/* LEFT COLUMN: SELECTED COURSE, COURSE MATERIAL, LESSONS */}
-        <div className="w-full lg:w-80 flex flex-col gap-3 shrink-0 overflow-y-auto">
+        {/* COURSE DETAILS & LESSONS COLUMN (order-2 below player on mobile; order-1 left sidebar on desktop) */}
+        <div className="order-2 lg:order-1 w-full lg:w-80 flex flex-col gap-3 shrink-0 lg:min-h-0 lg:overflow-y-auto pb-6 lg:pb-0">
           
           {/* 1. SELECTED COURSE CARD */}
           <div
-            className={`p-4 rounded-2xl border text-center ${
+            className={`p-3 sm:p-4 rounded-2xl border text-center ${
               isDark
                 ? 'bg-[#141B2D] border-[#252F4A]'
                 : 'bg-[#2E5579] border-[#244360] text-white shadow-xs'
@@ -861,7 +966,7 @@ export const BizzClass: React.FC<BizzClassProps> = ({
 
           {/* 2. COURSE MATERIAL CARD */}
           <div
-            className={`p-3.5 rounded-2xl border ${
+            className={`p-3 sm:p-3.5 rounded-2xl border ${
               isDark ? 'bg-[#141B2D] border-[#252F4A]' : 'bg-[#2E5579] border-[#244360] text-white'
             }`}
           >
@@ -873,18 +978,18 @@ export const BizzClass: React.FC<BizzClassProps> = ({
               onClick={handleDownloadMaterial}
               className="w-full py-2.5 px-3 rounded-xl bg-white hover:bg-slate-100 text-[#234563] font-mono font-bold text-xs uppercase flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-[0.99]"
             >
-              <Download className="h-4 w-4" />
+              <Download className="h-4 w-4 shrink-0" />
               <span>DOWNLOAD COURSE MATERIAL</span>
             </button>
           </div>
 
-          {/* 3. LESSONS LIST CARD */}
+          {/* 3. LESSONS LIST CARD (Flows naturally on mobile so all lessons are scrollable; scrolls inside on desktop) */}
           <div
-            className={`flex-1 rounded-2xl border flex flex-col overflow-hidden min-h-[300px] ${
+            className={`rounded-2xl border flex flex-col lg:flex-1 lg:min-h-0 lg:overflow-hidden ${
               isDark ? 'bg-[#141B2D] border-[#252F4A]' : 'bg-[#2E5579] border-[#244360] text-white'
             }`}
           >
-            <div className="p-3 text-[10px] font-mono font-bold uppercase tracking-wider text-white/80 border-b border-white/15 flex items-center justify-between">
+            <div className="p-3 text-[10px] font-mono font-bold uppercase tracking-wider text-white/80 border-b border-white/15 flex items-center justify-between gap-2">
               <span>LESSONS ({lessons.length})</span>
               <button
                 type="button"
@@ -894,15 +999,15 @@ export const BizzClass: React.FC<BizzClassProps> = ({
                   setNewLessonUrl('');
                   setIsAddLessonModalOpen(true);
                 }}
-                className="px-2 py-0.5 rounded bg-emerald-500 hover:bg-emerald-600 text-white font-mono text-[10px] font-bold flex items-center gap-1 shadow-xs transition-colors"
+                className="px-2 py-0.5 rounded bg-emerald-500 hover:bg-emerald-600 text-white font-mono text-[10px] font-bold flex items-center gap-1 shadow-xs transition-colors shrink-0"
                 title="Add a new lesson to this course"
               >
                 <Plus className="h-3 w-3" />
-                <span>+ ADD LESSON</span>
+                <span>ADD LESSON</span>
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+            <div className="lg:flex-1 lg:overflow-y-auto p-2 space-y-1.5">
               {lessons.map((lesson, idx) => {
                 const isActive = idx === activeLessonIdx;
                 const hasUrl = Boolean(lesson.youtubeUrl && lesson.youtubeUrl.trim());
@@ -915,6 +1020,12 @@ export const BizzClass: React.FC<BizzClassProps> = ({
                     onClick={() => {
                       setActiveLessonIdx(idx);
                       setIsPlaying(true);
+                      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                        playerSectionRef.current?.scrollIntoView({
+                          behavior: 'smooth',
+                          block: 'start',
+                        });
+                      }
                     }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
@@ -923,19 +1034,19 @@ export const BizzClass: React.FC<BizzClassProps> = ({
                         setIsPlaying(true);
                       }
                     }}
-                    className={`w-full p-2.5 rounded-xl text-left transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                    className={`w-full p-2.5 rounded-xl text-left transition-all flex items-center justify-between gap-2 cursor-pointer min-w-0 ${
                       isActive
                         ? 'bg-white text-[#20405E] font-bold shadow-md'
                         : 'bg-white/10 hover:bg-white/20 text-white font-medium'
                     }`}
                   >
-                    <div className="flex items-center gap-2 overflow-hidden flex-1">
+                    <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
                       <span className="text-xs font-mono uppercase truncate">
                         {lesson.name}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0 text-[10px] font-mono">
+                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 text-[10px] font-mono">
                       <span className={isActive ? 'text-[#20405E]' : 'text-white/70'}>
                         {lesson.duration || '6 min'}
                       </span>
@@ -944,12 +1055,16 @@ export const BizzClass: React.FC<BizzClassProps> = ({
                       ) : (
                         <Film className={`h-3 w-3 ${isActive ? 'text-slate-400' : 'text-white/40'}`} />
                       )}
-                      <div className="flex items-center gap-1 ml-1" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-0.5 sm:gap-1 ml-0.5" onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
                           onClick={(e) => handleOpenEditLesson(idx, e)}
                           title="Edit Lesson Title, Duration & Video"
-                          className="p-1 rounded hover:bg-black/20 text-white/70 hover:text-white transition-colors"
+                          className={`p-1 rounded transition-colors ${
+                            isActive
+                              ? 'hover:bg-slate-200 text-[#20405E]/70 hover:text-[#20405E]'
+                              : 'hover:bg-black/20 text-white/70 hover:text-white'
+                          }`}
                         >
                           <Edit2 className="h-3 w-3" />
                         </button>
@@ -957,7 +1072,11 @@ export const BizzClass: React.FC<BizzClassProps> = ({
                           type="button"
                           onClick={(e) => handleDeleteLessonAction(idx, e)}
                           title="Delete Lesson"
-                          className="p-1 rounded hover:bg-rose-500/30 text-white/70 hover:text-rose-200 transition-colors"
+                          className={`p-1 rounded transition-colors ${
+                            isActive
+                              ? 'hover:bg-rose-100 text-[#20405E]/70 hover:text-rose-600'
+                              : 'hover:bg-rose-500/30 text-white/70 hover:text-rose-200'
+                          }`}
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
@@ -971,39 +1090,59 @@ export const BizzClass: React.FC<BizzClassProps> = ({
 
         </div>
 
-        {/* RIGHT AREA: THE SIMULATION STREAM DELIVERY PLAYER (Matching bizzclass.jpg) */}
-        <div className="flex-1 flex flex-col rounded-2xl overflow-hidden border border-[#2B4E73] bg-[#224467] dark:bg-[#122438] relative min-h-[420px] shadow-xl">
-          
-          {/* Top Badges & Controls inside Player */}
-          <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
+        {/* VIDEO STREAM DELIVERY PLAYER (order-1 top on mobile so immediately visible; order-2 right area on desktop) */}
+        <div
+          ref={playerSectionRef}
+          className="order-1 lg:order-2 w-full lg:flex-1 flex flex-col rounded-2xl overflow-hidden border border-[#2B4E73] bg-[#224467] dark:bg-[#122438] relative shrink-0 lg:shrink lg:min-h-[420px] shadow-xl scroll-mt-3"
+        >
+          {/* Top Stream Status Bar (Slim bar above video when playing so iframe controls remain unobstructed) */}
+          <div
+            className={`${
+              isPlaying && currentEmbedUrl
+                ? 'px-3 py-2 bg-[#183450] dark:bg-[#0D1A29] border-b border-white/10 flex items-center justify-between gap-2 shrink-0'
+                : 'p-3 sm:p-4 flex items-center justify-between gap-2 shrink-0 z-20'
+            }`}
+          >
             {/* Left: SECURE SIMULATION STREAM */}
-            <div className="pointer-events-auto px-3 py-1 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider bg-black/60 backdrop-blur-md text-white border border-white/20 flex items-center gap-1.5 shadow-sm">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>SECURE SIMULATION STREAM</span>
+            <div className="px-2.5 py-1 rounded-md text-[9px] sm:text-[10px] font-mono font-bold uppercase tracking-wider bg-black/50 text-white border border-white/15 flex items-center gap-1.5 shadow-sm min-w-0">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <span className="truncate">
+                {isPlaying && currentEmbedUrl ? currentLesson.name.toLowerCase() : 'SECURE SIMULATION STREAM'}
+              </span>
             </div>
 
-            {/* Right: Direct Watch Link & HLS 1080p */}
-            <div className="pointer-events-auto flex items-center gap-2">
+            {/* Right: Direct Watch Link, Stream Link Config & HLS 1080p */}
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               {currentLesson?.youtubeUrl && (
                 <a
                   href={currentLesson.youtubeUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-2.5 py-1 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider bg-black/60 hover:bg-black/80 backdrop-blur-md text-[#DDEBF7] hover:text-white border border-white/20 transition-all flex items-center gap-1 shadow-sm"
+                  className="px-2 py-1 rounded-md text-[9px] sm:text-[10px] font-mono font-bold uppercase tracking-wider bg-black/50 hover:bg-black/75 text-[#DDEBF7] hover:text-white border border-white/20 transition-all flex items-center gap-1 shadow-sm"
                   title="Open lesson stream directly in a new browser tab / YouTube"
                 >
                   <ExternalLink className="h-3 w-3 text-[#D48B28]" />
                   <span>Open in Tab</span>
                 </a>
               )}
-              <div className="px-2.5 py-1 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider bg-black/60 backdrop-blur-md text-white/90 border border-white/20">
+              {isPlaying && currentEmbedUrl && (
+                <button
+                  type="button"
+                  onClick={() => setIsLinkModalOpen(true)}
+                  className="p-1.5 rounded-md bg-[#D48B28] hover:bg-[#EAA13D] text-[#111628] transition-colors cursor-pointer"
+                  title="Lesson Video Stream Link Manager"
+                >
+                  <LinkIcon className="h-3 w-3" />
+                </button>
+              )}
+              <div className="hidden sm:block px-2.5 py-1 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider bg-black/50 text-white/90 border border-white/20">
                 HLS 1080p
               </div>
             </div>
           </div>
 
-          {/* Player Display Area */}
-          <div className="flex-1 w-full h-full relative flex items-center justify-center p-4">
+          {/* Player Display Area (Guaranteed 16:9 height on mobile & full height on desktop) */}
+          <div className="w-full aspect-video lg:aspect-auto lg:flex-1 relative flex items-center justify-center p-2 sm:p-4 min-h-[205px] sm:min-h-[280px] lg:min-h-0">
             {isPlaying && currentEmbedUrl ? (
               <div className="w-full h-full rounded-xl overflow-hidden bg-black shadow-2xl flex items-center justify-center relative">
                 {currentEmbedUrl.includes('youtube.com/embed') || currentEmbedUrl.includes('player.vimeo.com') || currentEmbedUrl.includes('loom.com') ? (
@@ -1019,15 +1158,14 @@ export const BizzClass: React.FC<BizzClassProps> = ({
                     src={currentEmbedUrl}
                     controls
                     autoPlay
+                    playsInline
                     className="w-full h-full object-contain"
                   />
                 )}
               </div>
             ) : (
-              /* Sleek Lesson Placeholder matching bizzclass.jpg */
-              <div
-                className="w-full h-full flex flex-col items-center justify-center text-center group select-none"
-              >
+              /* Sleek Lesson Placeholder */
+              <div className="w-full h-full flex flex-col items-center justify-center text-center group select-none px-2 py-2">
                 {/* Large Circular Play Button */}
                 <button
                   type="button"
@@ -1038,34 +1176,34 @@ export const BizzClass: React.FC<BizzClassProps> = ({
                       setIsLinkModalOpen(true);
                     }
                   }}
-                  className="w-20 h-20 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-2xl transition-all duration-300 hover:scale-110 mb-4 cursor-pointer"
+                  className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-2xl transition-all duration-300 hover:scale-110 mb-2.5 sm:mb-4 cursor-pointer"
                   title={currentEmbedUrl ? 'Play stream lesson' : 'Configure stream link'}
                 >
-                  <Play className="h-8 w-8 ml-1 fill-white" />
+                  <Play className="h-6 w-6 sm:h-8 sm:w-8 ml-0.5 sm:ml-1 fill-white" />
                 </button>
 
                 {/* Lesson Title */}
-                <h3 className="text-xl sm:text-2xl font-bold font-mono lowercase tracking-wide text-white drop-shadow-sm">
+                <h3 className="text-sm sm:text-2xl font-bold font-mono lowercase tracking-wide text-white drop-shadow-sm line-clamp-2 max-w-md">
                   {currentLesson.name.toLowerCase()}
                 </h3>
 
                 {/* Subtitle & Quick Link Actions */}
-                <p className="text-xs sm:text-sm font-sans text-white/70 lowercase mt-1.5 flex items-center gap-1.5">
+                <p className="text-[11px] sm:text-sm font-sans text-white/70 lowercase mt-1 flex items-center gap-1.5 flex-wrap justify-center">
                   <span>{activeCourse.name.toLowerCase()}</span>
                   <span>•</span>
-                  <span>click play to launch simulation lesson</span>
+                  <span>tap play to watch lesson</span>
                 </p>
 
                 {/* Action Buttons Row under Placeholder */}
-                <div className="mt-4 flex items-center gap-2.5 flex-wrap justify-center">
+                <div className="mt-2.5 sm:mt-4 flex items-center gap-2 flex-wrap justify-center">
                   {currentEmbedUrl ? (
                     <>
                       <button
                         type="button"
                         onClick={() => setIsPlaying(true)}
-                        className="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-[#20405E] font-mono text-xs font-bold uppercase transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+                        className="px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-white hover:bg-slate-100 text-[#20405E] font-mono text-[11px] sm:text-xs font-bold uppercase transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
                       >
-                        <Play className="h-3.5 w-3.5 fill-[#20405E]" />
+                        <Play className="h-3 w-3 sm:h-3.5 sm:w-3.5 fill-[#20405E]" />
                         <span>Play Lesson</span>
                       </button>
 
@@ -1074,10 +1212,11 @@ export const BizzClass: React.FC<BizzClassProps> = ({
                           href={currentLesson.youtubeUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white font-mono text-xs font-semibold uppercase transition-all border border-white/30 flex items-center gap-1.5 shadow-sm"
+                          className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white font-mono text-[11px] sm:text-xs font-semibold uppercase transition-all border border-white/30 flex items-center gap-1.5 shadow-sm"
                         >
-                          <ExternalLink className="h-3.5 w-3.5 text-[#D48B28]" />
-                          <span>Watch on YouTube / Tab</span>
+                          <ExternalLink className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#D48B28]" />
+                          <span className="hidden sm:inline">Watch on YouTube / Tab</span>
+                          <span className="sm:hidden">YouTube</span>
                         </a>
                       )}
                     </>
@@ -1096,18 +1235,20 @@ export const BizzClass: React.FC<BizzClassProps> = ({
             )}
           </div>
 
-          {/* FLOATING GOLD LINK ICON IN BOTTOM RIGHT (Matching bizzclass.jpg) */}
-          <button
-            type="button"
-            onClick={() => setIsLinkModalOpen(true)}
-            className="absolute bottom-5 right-5 z-30 h-11 w-11 rounded-full bg-[#D48B28] hover:bg-[#EAA13D] text-[#111628] flex items-center justify-center shadow-2xl transition-transform hover:scale-110 active:scale-95 border-2 border-white/30"
-            title="Lesson Video Stream Link Manager (Upload & Test Links)"
-          >
-            <LinkIcon className="h-5 w-5 font-bold" />
-            {currentEmbedUrl && (
-              <span className="absolute top-0 right-0 h-3 w-3 rounded-full bg-emerald-400 border-2 border-[#111628]" />
-            )}
-          </button>
+          {/* FLOATING GOLD LINK ICON IN BOTTOM RIGHT (Shown on placeholder view only so YouTube fullscreen control stays clear during playback) */}
+          {(!isPlaying || !currentEmbedUrl) && (
+            <button
+              type="button"
+              onClick={() => setIsLinkModalOpen(true)}
+              className="absolute bottom-3 right-3 sm:bottom-5 sm:right-5 z-30 h-9 w-9 sm:h-11 sm:w-11 rounded-full bg-[#D48B28] hover:bg-[#EAA13D] text-[#111628] flex items-center justify-center shadow-2xl transition-transform hover:scale-110 active:scale-95 border-2 border-white/30"
+              title="Lesson Video Stream Link Manager (Upload & Test Links)"
+            >
+              <LinkIcon className="h-4 w-4 sm:h-5 sm:w-5 font-bold" />
+              {currentEmbedUrl && (
+                <span className="absolute top-0 right-0 h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-emerald-400 border-2 border-[#111628]" />
+              )}
+            </button>
+          )}
 
         </div>
 
