@@ -267,12 +267,12 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
 
   return (
     <div
-      className={`w-full max-w-full min-w-0 ${embedded ? 'min-h-[680px]' : 'h-full'} flex flex-col font-mono transition-colors select-none overflow-hidden ${shellBg}`}
+      className={`w-full max-w-full min-w-0 ${embedded ? 'min-h-[680px]' : 'h-full min-h-0'} flex flex-col font-mono transition-colors select-none overflow-hidden ${shellBg}`}
     >
       {/* Frame container: full workstation width or compact 480px mobile device preview */}
       <div
-        className={`w-full max-w-full min-w-0 mx-auto flex flex-col ${
-          embedded ? 'flex-1' : 'h-full'
+        className={`w-full max-w-full min-w-0 mx-auto flex flex-col flex-1 min-h-0 ${
+          embedded ? '' : 'h-full'
         } transition-all overflow-hidden ${
           isPhoneFrame
             ? 'max-w-[480px] my-auto max-h-[96vh] rounded-3xl border border-[#D8CEBC] dark:border-[#252E4A] shadow-2xl'
@@ -343,10 +343,10 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
             <h1 className="text-xs sm:text-sm font-bold lowercase tracking-tight text-slate-900 dark:text-white truncate max-w-full">
               {activeView === 'home' ? 'bizzcalculator directory' : activeDef.title}
             </h1>
-            <div className="text-[10px] sm:text-[11px] font-normal text-slate-500 dark:text-slate-400 lowercase flex items-center justify-center gap-1.5 truncate">
-              <span>bizzcalculators</span>
-              <span aria-hidden="true">·</span>
-              <span className="text-[#2E5E88] dark:text-[#5584B4] font-medium">
+            <div className="text-[10px] sm:text-[11px] font-normal text-slate-500 dark:text-slate-400 lowercase flex items-center justify-center gap-1 sm:gap-1.5 truncate max-w-full">
+              <span className="hidden sm:inline">bizzcalculators</span>
+              <span className="hidden sm:inline" aria-hidden="true">·</span>
+              <span className="text-[#2E5E88] dark:text-[#5584B4] font-medium whitespace-nowrap">
                 {activeView === 'home'
                   ? '11 financial models'
                   : `calc ${activeDef.num} of 11`}
@@ -744,7 +744,7 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
           })()}
 
           {/* Unified Drop-Up GO TO Menu + RESET / CLEAR Control Row (Mobile & Desktop) */}
-          <div className="px-3 sm:px-4 py-2 flex items-center justify-between gap-2">
+          <div className="px-3 sm:px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex items-center justify-between gap-2">
             {/* GO TO selector drop-up */}
             <div className="relative" ref={gotoContainerRef}>
               <button

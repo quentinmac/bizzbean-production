@@ -16,6 +16,7 @@ import {
 import { BizzSolution } from '../types';
 import { CmsProduct } from '../data/cmsConsoleData';
 import { initiatePayfastCheckout, getPayfastConfig, setPayfastMode } from '../services/payfastService';
+import { trackAddPaymentInfo } from '../utils/analytics';
 import { CMS_STORAGE_KEYS } from '../utils/imageStorage';
 
 interface ProductCheckoutModalProps {
@@ -170,6 +171,12 @@ export const ProductCheckoutModal: React.FC<ProductCheckoutModalProps> = ({
 
     try {
       const paymentId = `PROD_${product.id}_${Date.now()}`;
+      trackAddPaymentInfo({
+        id: product.id,
+        name: product.name,
+        priceZAR: sellingPrice,
+        paymentType: isSandbox ? 'payfast_sandbox' : 'payfast',
+      });
       await initiatePayfastCheckout({
         amount: sellingPrice,
         itemName: product.name,

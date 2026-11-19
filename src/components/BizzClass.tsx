@@ -21,6 +21,7 @@ import {
 import { CmsProduct, CmsCourseLesson } from '../data/cmsConsoleData';
 import { safeSaveStorage, getDeletedProductIds, MASTER_COURSE_CURRICULA, findMasterCurriculum, getCanonicalCourseId, findMatchingCourse, isBogusLessonUrl, CMS_STORAGE_KEYS, CANONICAL_MASTER_COURSE_IDS } from '../utils/imageStorage';
 import { saveCmsProductsToFirestore } from '../services/cmsFirestoreService';
+import { trackLessonPlay } from '../utils/analytics';
 
 interface BizzClassProps {
   theme?: string;
@@ -608,6 +609,17 @@ export const BizzClass: React.FC<BizzClassProps> = ({
   useEffect(() => {
     setIsPlaying(false);
   }, [selectedCourseId]);
+
+  // GA4: Track lesson video play events
+  useEffect(() => {
+    if (!isPlaying) return;
+    trackLessonPlay(
+      activeCourse.id,
+      activeCourse.name,
+      currentLesson?.name || `Lesson ${activeLessonIdx + 1}`,
+      activeLessonIdx + 1
+    );
+  }, [isPlaying, activeCourse.id, activeCourse.name, activeLessonIdx, currentLesson?.name]);
 
   // Toast auto-clear
   useEffect(() => {

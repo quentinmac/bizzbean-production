@@ -2094,20 +2094,20 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
             const solutionSubtitle = !hasStageProducts
               ? 'this stage is currently in preparation · allocate solutions via the cms console or operations sandbox'
               : isViabilityDefault && (!matchingCms?.subtitle || matchingCms?.subtitle.toLowerCase().includes('market fit'))
-                ? 'earn access to capital'
-                : matchingCms?.subtitle || currentProd?.subtitle || activeSolution?.subtitle || 'earn access to capital';
+                ? 'Free Startup Viability & Investor-Readiness Course'
+                : matchingCms?.subtitle || currentProd?.subtitle || activeSolution?.subtitle || 'Free Startup Viability & Investor-Readiness Course';
 
             const courseObjectivesText = !hasStageProducts
               ? `There are currently no solutions allocated to the ${currentStageKey.replace('-', ' ')} stage. Work-in-progress solutions are staged in the Operations Sandbox and can be allocated to this stage anytime via the CMS Console.`
               : isViabilityDefault && (!matchingCms?.purpose || matchingCms?.purpose.toLowerCase().includes('rigorous pre-build'))
-                ? 'This free course will teach you how to earn access to capital.'
+                ? 'Learn the financial proof lenders and investors require before funding a startup—covering unit economics, break-even thresholds, and capital-readiness metrics using our 7-step financial model.'
                 : matchingCms?.purpose ||
                   matchingCms?.description ||
                   currentProd?.purpose ||
                   currentProd?.description ||
                   activeSolution?.purpose ||
                   activeSolution?.description ||
-                  'This free course will teach you how to earn access to capital.';
+                  'Learn the financial proof lenders and investors require before funding a startup—covering unit economics, break-even thresholds, and capital-readiness metrics using our 7-step financial model.';
 
             return (
               <div

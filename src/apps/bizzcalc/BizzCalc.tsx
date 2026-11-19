@@ -802,13 +802,13 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
 
   return (
     <div
-      className={`w-full max-w-full min-w-0 h-full flex flex-col font-mono text-slate-800 transition-colors select-none overflow-hidden ${
+      className={`w-full max-w-full min-w-0 h-full min-h-0 flex flex-col font-mono text-slate-800 transition-colors select-none overflow-hidden ${
         isDark ? 'bg-[#0A0D14] text-[#E2E8F0]' : 'bg-[#FAF8F5]'
       }`}
     >
       {/* Outer wrapper: Centered mobile screen container to maximize mobile device experience */}
       <div
-        className={`w-full max-w-full min-w-0 mx-auto flex flex-col h-full transition-all overflow-hidden ${
+        className={`w-full max-w-full min-w-0 mx-auto flex flex-col flex-1 min-h-0 h-full transition-all overflow-hidden ${
           isPhoneFrame ? 'max-w-md my-auto h-[96vh] rounded-3xl border border-[#D8CEBC] dark:border-[#252E4A] shadow-2xl' : 'max-w-xl'
         } ${isDark ? 'bg-[#101626]' : 'bg-[#FAF8F5]'}`}
       >
@@ -934,7 +934,7 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`py-1.5 px-1.5 sm:px-2 rounded-lg text-xs font-normal text-center transition-all lowercase whitespace-nowrap overflow-hidden text-ellipsis border ${
+                  className={`py-1.5 px-1 sm:px-2 rounded-lg text-[11px] sm:text-xs font-normal text-center transition-all lowercase whitespace-nowrap overflow-hidden text-ellipsis border ${
                     isSelected
                       ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-2xs font-medium'
                       : isDark
@@ -952,7 +952,7 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
         {/* ===================================================================== */}
         {/* 3. STEP CONTENT BODY                                                  */}
         {/* ===================================================================== */}
-        <main className="flex-grow min-w-0 max-w-full p-3 sm:p-5 overflow-y-auto overflow-x-hidden space-y-4">
+        <main className="flex-grow min-h-0 min-w-0 max-w-full p-3 sm:p-5 overflow-y-auto overflow-x-hidden space-y-4">
           
           {/* ================================================================= */}
           {/* STEP 1: BUSINESS DETAILS                                          */}
@@ -2562,7 +2562,7 @@ export const BizzCalc: React.FC<BizzCalcProps> = ({
         {/* 4. BOTTOM STEP NAVIGATION DOCK: 7 STEP ICONS (MATCHING BIZZDYNAMICS)  */}
         {/* ===================================================================== */}
         <footer
-          className={`px-2 sm:px-3 py-1 border-t shrink-0 flex items-center justify-around gap-1 sm:gap-2 h-11 sm:h-12 max-h-12 rounded-b-2xl ${
+          className={`px-2 sm:px-3 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] border-t shrink-0 flex items-center justify-around gap-1 sm:gap-2 min-h-[3rem] sm:rounded-b-2xl ${
             isDark ? 'bg-[#0E1322] border-[#222F4C]' : 'bg-[#FAF8F5] border-[#D8CEBC]'
           }`}
         >

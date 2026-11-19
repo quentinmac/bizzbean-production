@@ -57,6 +57,17 @@ import { ClientProfileJournalModal } from './components/ClientProfileJournalModa
 import { downloadGettingToValueBook } from './utils/bookDownload';
 import { sendWelcomeEmail } from './services/emailService';
 import { recordTransactionToJournal, upsertClientProfile } from './services/transactionJournalService';
+import { parseDeepLinkFromSearch, buildDeepLinkSearch, inferStageForSolution } from './utils/deepLink';
+import {
+  initAnalytics,
+  trackPageView,
+  trackWorkspaceEnter,
+  trackSignUp,
+  trackViewItem,
+  trackAppLaunch,
+  trackBeginCheckout,
+  trackPurchase,
+} from './utils/analytics';
 import {
   Menu,
   Layers,
@@ -84,8 +95,14 @@ import {
 } from 'lucide-react';
 
 export default function App() {
-  // Navigation / View state
-  const [inSplashDoors, setInSplashDoors] = useState<boolean>(true);
+  // Parse deep-link parameters (?stage=...&solution=...&view=...&course=...&launch=1) once on mount
+  const initialDeepLink = useMemo(
+    () => parseDeepLinkFromSearch(typeof window !== 'undefined' ? window.location.search : ''),
+    []
+  );
+
+  // Navigation / View state (bypass splash doors automatically on ad/share deep-links)
+  const [inSplashDoors, setInSplashDoors] = useState<boolean>(() => !initialDeepLink.hasDeepLink);
   const [showWelcomeLetter, setShowWelcomeLetter] = useState<boolean>(false);
   const [bookNotice, setBookNotice] = useState<string | null>(null);
   const [isMember, setIsMember] = useState<boolean>(() => {
@@ -235,9 +252,20 @@ export default function App() {
 
   useEffect(() => {
     try {
+      // Initialize GA4 & preserve UTM / gclid parameters before any URL rewrite
+      initAnalytics();
+
       const urlParams = new URLSearchParams(window.location.search);
       const pfStatus = urlParams.get('payfast_status');
       const pfPaymentId = urlParams.get('payment_id');
+
+      if (initialDeepLink.hasDeepLink && !pfStatus) {
+        trackWorkspaceEnter('deep_link', {
+          stage_id: initialDeepLink.stageId || 'vi-ability',
+          solution_id: initialDeepLink.solutionId || 'learn-earn-capital',
+          view: initialDeepLink.view || 'flashcard',
+        });
+      }
 
       if (pfStatus === 'success') {
         const storedEmail =
@@ -266,6 +294,15 @@ export default function App() {
               grossSellingPriceZAR: tokensToAdd * 5,
               paymentRef: pfPaymentId,
             }).catch(() => {});
+
+            trackPurchase({
+              transactionId: pfPaymentId,
+              itemId: `bizztokens_${tokensToAdd}`,
+              itemName: `BizzTokens Pack (${tokensToAdd} Tokens)`,
+              priceZAR: tokensToAdd * 5,
+              stage: 'tokens',
+              type: 'tokens',
+            });
           }
           setPayfastNotice({
             status: 'success',
@@ -323,6 +360,15 @@ export default function App() {
               paymentRef: pfPaymentId,
             }).catch(() => {});
 
+            trackPurchase({
+              transactionId: pfPaymentId,
+              itemId: targetProdId,
+              itemName: matchedProd?.name || targetProdId.replace(/-/g, ' '),
+              priceZAR: sellingPriceZAR,
+              stage: matchedProd?.stage || inferStageForSolution(targetProdId) || 'bizzdesk',
+              type: isCourse ? 'course' : 'app',
+            });
+
             setActiveSolutionId(targetProdId === 'budget' ? 'bizzbudget' : targetProdId);
             if (isCourse) {
               setActiveView('bizzclass');
@@ -361,9 +407,9 @@ export default function App() {
     { id: 'obj-3', text: 'Map operational accounts in bizzmoney', completed: false },
   ]);
 
-  const [activeStageId, setActiveStageId] = useState<string>('vi-ability');
-  const [activeSolutionId, setActiveSolutionId] = useState<string>('learn-earn-capital');
-  const [activeView, setActiveView] = useState<'flashcard' | 'active-app' | 'about' | 'footer' | 'workspace' | 'library' | 'ask-gemini' | 'admin-centre' | 'education-centre' | 'bizzclass' | 'platform-apps'>('flashcard');
+  const [activeStageId, setActiveStageId] = useState<string>(() => initialDeepLink.stageId || 'vi-ability');
+  const [activeSolutionId, setActiveSolutionId] = useState<string>(() => initialDeepLink.solutionId || 'learn-earn-capital');
+  const [activeView, setActiveView] = useState<'flashcard' | 'active-app' | 'about' | 'footer' | 'workspace' | 'library' | 'ask-gemini' | 'admin-centre' | 'education-centre' | 'bizzclass' | 'platform-apps'>(() => initialDeepLink.view || 'flashcard');
   const [isMaximized, setIsMaximized] = useState<boolean>(true);
   const [isCalmSolutionsOpen, setIsCalmSolutionsOpen] = useState<boolean>(false);
   const [mobileCarouselIdx, setMobileCarouselIdx] = useState<number>(0);
@@ -877,12 +923,13 @@ export default function App() {
               : matchingCms.stage === 'invest-ability'
               ? 'STAGE 04'
               : matchingCms.stage.toUpperCase(),
-          description: isViabilityCourse
-            ? 'This free course will teach you how to earn access to capital.'
-            : matchingCms.description,
-          purpose: isViabilityCourse
-            ? 'This free course will teach you how to earn access to capital.'
-            : matchingCms.purpose,
+          description:
+            matchingCms.description ||
+            'Learn the financial proof lenders and investors require before funding a startup—covering unit economics, break-even thresholds, and capital-readiness metrics using our 7-step financial model.',
+          purpose:
+            matchingCms.purpose ||
+            matchingCms.description ||
+            'Learn the financial proof lenders and investors require before funding a startup—covering unit economics, break-even thresholds, and capital-readiness metrics using our 7-step financial model.',
           priceUSD: isViabilityCourse ? 0 : Math.round(matchingCms.sellingPriceZAR / 18.5),
           priceZAR: isViabilityCourse ? 0 : matchingCms.sellingPriceZAR,
           sellingPriceZAR: isViabilityCourse ? 0 : matchingCms.sellingPriceZAR,
@@ -958,6 +1005,64 @@ export default function App() {
         isPurchased: isOwned,
       };
     }, [activeSolutionId, cmsProducts, userPurchases]);
+
+  // Sync URL query params for shareable deep-links & fire GA4 SPA page_view / view_item events
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (inSplashDoors) {
+      trackPageView('/splash-doors', 'bizz-DESK | Welcome Doors', {
+        screen_name: 'splash_doors',
+      });
+      return;
+    }
+
+    try {
+      if (!window.location.search.includes('payfast_status=')) {
+        const nextSearch = buildDeepLinkSearch({
+          stageId: activeStageId,
+          solutionId: activeSolutionId,
+          view: activeView,
+          existingSearch: window.location.search,
+        });
+        const nextUrl = `${window.location.pathname}${nextSearch}`;
+        const currentUrl = `${window.location.pathname}${window.location.search}`;
+        if (nextUrl !== currentUrl) {
+          window.history.replaceState({}, document.title, nextUrl);
+        }
+      }
+    } catch {}
+
+    const viewLabel =
+      activeView === 'flashcard' || activeView === 'active-app' || activeView === 'bizzclass'
+        ? `${activeStageId} / ${activeSolution?.name || activeSolutionId} (${activeView})`
+        : activeView;
+
+    const virtualPath = buildDeepLinkSearch({
+      stageId: activeStageId,
+      solutionId: activeSolutionId,
+      view: activeView,
+    });
+
+    trackPageView(
+      `/${virtualPath}`,
+      `bizz-DESK | ${viewLabel}`,
+      {
+        stage_id: activeStageId,
+        solution_id: activeSolutionId,
+        view_mode: activeView,
+      }
+    );
+
+    if (activeView === 'flashcard' || activeView === 'active-app' || activeView === 'bizzclass') {
+      trackViewItem({
+        id: activeSolution?.id || activeSolutionId,
+        name: activeSolution?.name || activeSolutionId,
+        stage: activeStageId,
+        type: activeView === 'bizzclass' ? 'course' : 'solution',
+        priceZAR: Number((activeSolution as any)?.sellingPriceZAR ?? activeSolution?.priceZAR ?? 0),
+      });
+    }
+  }, [inSplashDoors, activeStageId, activeSolutionId, activeView, activeSolution]);
 
   // Triggered the instant the sliding doors start opening to immediately randomize the HERO PROMOTION image
   const handleTriggerDoorOpening = useCallback((): CmsPromotionSection | null => {
@@ -1095,6 +1200,9 @@ export default function App() {
       setActiveSolutionId('learn-earn-capital');
     }
     setInSplashDoors(false);
+    trackWorkspaceEnter(asMember ? 'member' : 'guest', {
+      has_promo: Boolean(randomPromo),
+    });
   };
 
   // Sign out / Close doors (Triggers Close Shop Session Review)
@@ -1114,6 +1222,10 @@ export default function App() {
     setIsMaximized(true);
     setIsCalmSolutionsOpen(false);
     setShowPromotion(false);
+    try {
+      const cleanQs = buildDeepLinkSearch({ existingSearch: window.location.search });
+      window.history.replaceState({}, document.title, `${window.location.pathname}${cleanQs}`);
+    } catch {}
     const nextPromo = getRandomActivePromotion(cmsPromotions);
     if (nextPromo) {
       setActivePromotion(nextPromo);
@@ -1449,17 +1561,30 @@ export default function App() {
     } else {
       setActiveView('active-app');
     }
+    trackAppLaunch({
+      id: effectiveId,
+      name: matchingProd?.name || effectiveId,
+      stage: matchingProd?.stage || activeStageId,
+      mode: isCourse ? 'course' : 'app',
+    });
     setMobileActivePanel('workarea');
   };
 
   // Launch app directly from mobile navigator or header (WorkArea displays access lock & gentle nudge if unowned)
   const handleLaunchAppDirectly = (appId: string) => {
-    setActiveSolutionId(appId === 'budget' ? 'bizzbudget' : appId);
+    const cleanAppId = appId === 'budget' ? 'bizzbudget' : appId;
+    setActiveSolutionId(cleanAppId);
     setShowPromotion(false);
     setIsCalmSolutionsOpen(false);
     setActiveView('active-app');
     setMobileActivePanel('workarea');
     setIsMobileAppsDrawerOpen(false);
+    trackAppLaunch({
+      id: cleanAppId,
+      name: cleanAppId,
+      stage: inferStageForSolution(cleanAppId) || activeStageId,
+      mode: 'app',
+    });
   };
 
   // Close active app back to flashcard
@@ -1611,6 +1736,13 @@ export default function App() {
     }
 
     // Open PayFast Product Checkout Modal with enriched live pricing
+    trackBeginCheckout({
+      id: enrichedSol.id,
+      name: enrichedSol.name,
+      priceZAR: Number(enrichedSol.sellingPriceZAR ?? 0),
+      stage: matchingCms?.stage || activeStageId,
+      type: matchingCms?.type || 'solution',
+    });
     setCheckoutProduct(enrichedSol);
   };
 
@@ -1803,6 +1935,9 @@ export default function App() {
     try {
       localStorage.setItem('bizz_is_member', 'true');
     } catch (e) {}
+    trackSignUp('bizzdesk_signup', {
+      has_company: Boolean(cleanCompany),
+    });
 
     if (cleanEmail) {
       sendWelcomeEmail({
@@ -1910,7 +2045,7 @@ export default function App() {
           )}
 
           {/* The Workstation Area (Responsive 3-Panel on Desktop / Single Full-Width Panel on Mobile) */}
-          <div className="flex-grow flex flex-col md:flex-row min-w-0 max-w-full overflow-hidden relative">
+          <div className="flex-grow min-h-0 flex flex-col md:flex-row min-w-0 max-w-full overflow-hidden relative">
             {/* Panel 1: Solutions Navigation (Left) - Hidden when isMaximized for calm work focus */}
             {!isMaximized && (
               <div
@@ -1973,8 +2108,12 @@ export default function App() {
 
             {/* Panel 2: Center Work Area - Expands to full screen width when isMaximized */}
             <main
-              className={`flex-grow flex-col min-w-0 max-w-full overflow-hidden relative ${
-                mobileActivePanel === 'workarea' ? 'flex w-full h-full pb-14 md:pb-0' : 'hidden md:flex'
+              className={`flex-grow min-h-0 flex-col min-w-0 max-w-full overflow-hidden relative ${
+                mobileActivePanel === 'workarea'
+                  ? activeView === 'active-app'
+                    ? 'flex w-full h-full pb-0'
+                    : 'flex w-full h-full pb-14 md:pb-0'
+                  : 'hidden md:flex'
               } md:my-2 lg:my-3 md:h-[calc(100%-1rem)] lg:h-[calc(100%-1.5rem)] border md:rounded-2xl shadow-xs ${
                 isMaximized ? 'md:mx-3 lg:mx-6' : ''
               } ${
@@ -2412,9 +2551,9 @@ export default function App() {
 
           {/* ===================================================================== */}
           {/* MOBILE SINGLE-ITEM CAROUSEL NAVIGATION CONTAINER (< md screens)       */}
-          {/* Displays one centered menu item at a time with prev/next & swipe      */}
+          {/* Hidden inside active apps so each app owns the full mobile bottom bar */}
           {/* ===================================================================== */}
-          {!isStandaloneApp && (() => {
+          {!isStandaloneApp && activeView !== 'active-app' && (() => {
             const mobileNavItems = [
               {
                 id: 'workarea',

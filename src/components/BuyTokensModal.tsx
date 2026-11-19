@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Coins, Check, Sparkles, ShieldCheck, CreditCard, Zap, ArrowRight, Loader2 } from 'lucide-react';
 import { BizzbeanLogoIcon } from './BizzbeanLogoIcon';
 import { initiatePayfastCheckout } from '../services/payfastService';
+import { trackBeginCheckout, trackAddPaymentInfo } from '../utils/analytics';
 
 interface BuyTokensModalProps {
   isOpen: boolean;
@@ -115,6 +116,19 @@ export const BuyTokensModal: React.FC<BuyTokensModalProps> = ({
     // PayFast Gateway Checkout flow (Card / Instant EFT)
     try {
       setIsProcessing(true);
+      trackBeginCheckout({
+        id: `bizztokens_${effectiveTokens}`,
+        name: `${effectiveTokens} BizzBean Token Pack`,
+        priceZAR: effectivePriceZAR,
+        stage: 'tokens',
+        type: 'tokens',
+      });
+      trackAddPaymentInfo({
+        id: `bizztokens_${effectiveTokens}`,
+        name: `${effectiveTokens} BizzBean Token Pack`,
+        priceZAR: effectivePriceZAR,
+        paymentType: paymentMethod,
+      });
       await initiatePayfastCheckout({
         amount: effectivePriceZAR,
         itemName: `${effectiveTokens} BizzBean Token Pack (${selectedPack?.name || 'Custom'})`,
