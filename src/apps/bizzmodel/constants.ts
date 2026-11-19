@@ -1,4 +1,8 @@
 import { AssumptionRateItem } from '../bizzdynamics/types';
+import {
+  BatchLotsProductConfig,
+  FamilyRestaurantProductConfig,
+} from './components/modelsets/modelSetTypes';
 
 export const BUSINESS_TYPES = [
   'trading', 'manufacturing', 'services', 'mobility',
@@ -94,7 +98,7 @@ export const ALL_MODEL_SETS: ModelSetCategory[] = [
   {
     type: 'manufacturing',
     modelSets: [
-      { id: 'batch-lots', name: 'batch lots', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'batch-lots', name: 'batch lots', isAvailable: true, statusLabel: 'Available' },
       { id: 'continuous-production', name: 'continuous production', isAvailable: false, statusLabel: 'coming soon' },
       { id: 'fabrication', name: 'fabrication', isAvailable: false, statusLabel: 'coming soon' },
     ],
@@ -125,7 +129,7 @@ export const ALL_MODEL_SETS: ModelSetCategory[] = [
   {
     type: 'hospitality',
     modelSets: [
-      { id: 'family-restaurant', name: 'family restaurant', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'family-restaurant', name: 'family restaurant', isAvailable: true, statusLabel: 'Available' },
       { id: 'guest-house', name: 'guest house', isAvailable: false, statusLabel: 'coming soon' },
       { id: 'events-organizer', name: 'events organizer', isAvailable: false, statusLabel: 'coming soon' },
     ],
@@ -241,6 +245,8 @@ export interface RevenueItem {
   salesCommissionPctMonthly?: number[];
   inventoryAdjustmentPctMonthly?: number[];
   otherIncomeMonthly?: number[];
+  batchLotsConfig?: BatchLotsProductConfig;
+  familyRestaurantConfig?: FamilyRestaurantProductConfig;
 }
 
 export interface EmploymentCategory {
@@ -654,6 +660,7 @@ export interface HighLevelForecastData {
 
 export interface BizzModelState {
   appMode?: PlatformForecastAppId;
+  activeModelSet?: 'unit-sales' | 'batch-lots' | 'family-restaurant';
   businessDetails: BusinessDetails;
   revenueItems: RevenueItem[];
   employmentCategories?: EmploymentCategory[];

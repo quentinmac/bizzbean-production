@@ -9,7 +9,8 @@ export type CalculatorId =
   | 'roa-dynamics'
   | 'ros-at-roa'
   | 'term-loan'
-  | 'working-capital';
+  | 'working-capital'
+  | 'bill-of-materials';
 
 export type CalculatorRowFormat = 'percent';
 
@@ -630,6 +631,14 @@ export const CALCULATOR_DEFINITIONS: CalculatorDefinition[] = [
         ],
       },
     ],
+  },
+  {
+    id: 'bill-of-materials',
+    num: '12',
+    title: 'bill of materials (bom)',
+    shortLabel: 'bill of materials',
+    description: 'Maintain product unit costs across ingredients, multi-level packaging, variable costs, and unit cost dynamics.',
+    sections: [],
   },
 ];
 

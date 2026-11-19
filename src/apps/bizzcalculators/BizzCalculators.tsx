@@ -24,6 +24,14 @@ import {
   formatCalcValue,
   formatInputDisplay,
 } from './calculatorDefinitions';
+import {
+  BomCalculatorWorkbook,
+  createDefaultBomWorkbook,
+  loadBomWorkbook,
+  saveBomWorkbook,
+  zeroBomProductValues,
+} from './bomCalculatorState';
+import { BomCalculatorView } from './BomCalculatorView';
 
 export type { CalculatorId };
 
@@ -148,6 +156,10 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
     return defaults;
   });
 
+  const [bomWorkbook, setBomWorkbook] = useState<BomCalculatorWorkbook>(() =>
+    loadBomWorkbook()
+  );
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(inputsByCalc));
@@ -155,6 +167,10 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
       // ignore storage quota errors
     }
   }, [inputsByCalc]);
+
+  useEffect(() => {
+    saveBomWorkbook(bomWorkbook);
+  }, [bomWorkbook]);
 
   useEffect(() => {
     if (!initialCalculatorId) return;
@@ -218,6 +234,11 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
   const handleResetActive = () => {
     if (activeView === 'home') {
       setInputsByCalc(getAllDefaultInputs());
+      setBomWorkbook(createDefaultBomWorkbook());
+      return;
+    }
+    if (activeView === 'bill-of-materials') {
+      setBomWorkbook(createDefaultBomWorkbook());
       return;
     }
     setInputsByCalc((prev) => ({
@@ -228,11 +249,53 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
 
   const handleClearActive = () => {
     if (activeView === 'home') return;
+    if (activeView === 'bill-of-materials') {
+      setBomWorkbook((prev) => ({
+        ...prev,
+        products: prev.products.map((p) =>
+          p.id === prev.activeProductId ? zeroBomProductValues(p) : p
+        ),
+      }));
+      return;
+    }
     setInputsByCalc((prev) => ({
       ...prev,
       [activeView]: getZeroInputsForCalculator(activeView),
     }));
   };
+
+  const handlePushBomToMarginMarkup = (modeledUnitCost: number) => {
+    const safeCost = Number.isFinite(modeledUnitCost) ? modeledUnitCost : 0;
+    setInputsByCalc((prev) => ({
+      ...prev,
+      'margin-markup': {
+        ...(prev['margin-markup'] || getDefaultInputsForCalculator('margin-markup')),
+        itemCost: safeCost.toFixed(2),
+      },
+    }));
+    selectView('margin-markup');
+  };
+
+  const handlePushBomToBreakeven = (
+    materialsUnitCost: number,
+    productionUnitCost: number
+  ) => {
+    const safeMat = Number.isFinite(materialsUnitCost) ? Math.abs(materialsUnitCost) : 0;
+    const safeProd = Number.isFinite(productionUnitCost)
+      ? Math.abs(productionUnitCost)
+      : 0;
+    setInputsByCalc((prev) => ({
+      ...prev,
+      breakeven: {
+        ...(prev.breakeven || getDefaultInputsForCalculator('breakeven')),
+        unitMaterial: (-safeMat).toFixed(2),
+        unitProduction: (-safeProd).toFixed(2),
+      },
+    }));
+    selectView('breakeven');
+  };
+
+  const totalCalculators = CALCULATOR_DEFINITIONS.length;
 
   // Surface tokens aligned with BizzBean architectural palette
   const shellBg = isDark ? 'bg-[#0A0D14] text-[#E2E8F0]' : 'bg-[#FAF8F5] text-slate-800';
@@ -311,8 +374,8 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
                   ? 'border-[#252E4A] text-slate-300 hover:text-white hover:border-[#5584B4]'
                   : 'border-[#D8CEBC] text-slate-600 hover:text-slate-900 bg-white'
               }`}
-              title="all 11 calculators index"
-              aria-label="all 11 calculators index"
+              title={`all ${totalCalculators} calculators index`}
+              aria-label={`all ${totalCalculators} calculators index`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">home</span>
@@ -348,8 +411,8 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
               <span className="hidden sm:inline" aria-hidden="true">·</span>
               <span className="text-[#2E5E88] dark:text-[#5584B4] font-medium whitespace-nowrap">
                 {activeView === 'home'
-                  ? '11 financial models'
-                  : `calc ${activeDef.num} of 11`}
+                  ? `${totalCalculators} financial models`
+                  : `calc ${activeDef.num} of ${totalCalculators}`}
               </span>
             </div>
           </div>
@@ -434,7 +497,7 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
               className={`hidden md:flex w-64 shrink-0 border-r flex-col overflow-y-auto p-3 gap-1 ${sidebarBg}`}
             >
               <div className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                11 calculators
+                {totalCalculators} calculators
               </div>
               <button
                 type="button"
@@ -523,7 +586,7 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             <div className="text-[10px] text-[#2E5E88] dark:text-[#7FB0DF] tabular-nums font-bold">
-                              {calc.num} / 11
+                              {calc.num} / {totalCalculators}
                             </div>
                             <h2 className="text-sm font-bold lowercase text-slate-900 dark:text-white mt-0.5 group-hover:text-[#2E5E88] dark:group-hover:text-[#7FB0DF] transition-colors">
                               {calc.title}
@@ -537,15 +600,39 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
                         </p>
 
                         <div className="text-[10px] text-slate-400 dark:text-slate-500 tabular-nums pt-2 border-t border-[#EAE4D8] dark:border-[#1E2945] flex items-center justify-between">
-                          <span>{calc.sections.length} sections</span>
-                          <span>
-                            {inputCount} inputs · {outputCount} outputs
-                          </span>
+                          {calc.id === 'bill-of-materials' ? (
+                            <>
+                              <span>4 modules</span>
+                              <span>multi-product costing</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>{calc.sections.length} sections</span>
+                              <span>
+                                {inputCount} inputs · {outputCount} outputs
+                              </span>
+                            </>
+                          )}
                         </div>
                       </button>
                     );
                   })}
                 </div>
+              </div>
+            ) : activeView === 'bill-of-materials' ? (
+              <div
+                className={`mx-auto min-w-0 max-w-full ${
+                  isPhoneFrame ? 'w-full' : 'max-w-5xl'
+                }`}
+              >
+                <BomCalculatorView
+                  workbook={bomWorkbook}
+                  onChangeWorkbook={setBomWorkbook}
+                  isDark={isDark}
+                  isPhoneFrame={isPhoneFrame}
+                  onPushToMarginMarkup={handlePushBomToMarginMarkup}
+                  onPushToBreakeven={handlePushBomToBreakeven}
+                />
               </div>
             ) : (
               /* Centered Calculator Worksheet matching V1 480px mobile width & 60/40 row geometry */
@@ -721,7 +808,7 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
                     {activeView === 'home' ? (
                       <>
                         <LayoutGrid className="h-3 w-3 shrink-0" />
-                        <span className="truncate">home · 11 calculators</span>
+                        <span className="truncate">home · {totalCalculators} calculators</span>
                       </>
                     ) : (
                       <span className="truncate">
@@ -891,7 +978,7 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
 
             <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-300">
               {activeView === 'home'
-                ? 'Select any of the 11 specialized business calculators from the home grid or GO TO menu.'
+                ? `Select any of the ${totalCalculators} specialized business calculators from the home grid or GO TO menu.`
                 : activeDef.description}
             </p>
 
@@ -902,15 +989,30 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
                   : 'bg-white border-[#D8CEBC] text-slate-600'
               }`}
             >
-              <div>
-                <span className="font-bold text-slate-900 dark:text-white">white entry fields:</span>{' '}
-                enter positive or negative numbers matching the row hint (for example{' '}
-                <code className="text-[#2E5E88] dark:text-[#7FB0DF]">("-")</code> denotes negative expense/liability entries). light tan cells calculate live.
-              </div>
-              <div>
-                <span className="font-bold text-slate-900 dark:text-white">reset / clear:</span>{' '}
-                RESET restores reference scenario numbers; CLEAR zeroes every entry field for fresh data input.
-              </div>
+              {activeView === 'bill-of-materials' ? (
+                <>
+                  <div>
+                    <span className="font-bold text-slate-900 dark:text-white">product cost book:</span>{' '}
+                    maintain multiple products (e.g. food truck menu items) on your phone — every change saves automatically.
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-900 dark:text-white">4-module flow:</span>{' '}
+                    enter ingredients (bom), multi-level packaging, and variable costs to calculate your modeled unit cost, then send it straight to margin vs markup or breakeven point.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <span className="font-bold text-slate-900 dark:text-white">white entry fields:</span>{' '}
+                    enter positive or negative numbers matching the row hint (for example{' '}
+                    <code className="text-[#2E5E88] dark:text-[#7FB0DF]">("-")</code> denotes negative expense/liability entries). light tan cells calculate live.
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-900 dark:text-white">reset / clear:</span>{' '}
+                    RESET restores reference scenario numbers; CLEAR zeroes every entry field for fresh data input.
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="flex justify-end pt-1">

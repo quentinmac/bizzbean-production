@@ -30,6 +30,16 @@ import {
 import { calculate60MonthWorkingCalendar } from '../utils/calendarCalc';
 import { AssumptionRateItem } from '../../bizzdynamics/types';
 import { BaseRateAdjustmentTool } from '../../bizzdynamics/components/BaseRateAdjustmentTool';
+import {
+  ManufacturingBatchLotsWorkbench,
+  FamilyRestaurantWorkbench,
+  createDefaultBatchLotsConfig,
+  calculateBatchLotsFull,
+  createDefaultFamilyRestaurantConfig,
+  calculateFamilyRestaurantFull,
+  BatchLotsProductConfig,
+  FamilyRestaurantProductConfig,
+} from '../components/modelsets';
 
 interface RevenueStepProps {
   theme?: 'light' | 'dark';
@@ -138,8 +148,12 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
   const activeSubTab = subTabProp ? normalizedSubTab : internalSubTab;
   const setActiveSubTab = onSelectSubTab ?? setInternalSubTab;
 
-  // Selected Model-Set (UNIT SALES is the only active one)
-  const [selectedModelSet, setSelectedModelSet] = useState<string>('unit-sales');
+  // Selected Model-Set (persisted on state so switching tabs/steps keeps user choice)
+  const selectedModelSet: 'unit-sales' | 'batch-lots' | 'family-restaurant' =
+    mode === 'bizzmodel' &&
+    (state.activeModelSet === 'batch-lots' || state.activeModelSet === 'family-restaurant')
+      ? state.activeModelSet
+      : 'unit-sales';
   const [showTaxonomyTable, setShowTaxonomyTable] = useState<boolean>(false);
 
   // Active Year in 12-month views (Years 1 to 5)
@@ -265,24 +279,79 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
   // Add Product for BizzModel
   const handleAddBizzModelProduct = () => {
     const nextNum = (state.revenueItems || []).length + 1;
+    const isBatchLots = selectedModelSet === 'batch-lots';
+    const isFamilyRestaurant = selectedModelSet === 'family-restaurant';
+
+    const defaultBatchConfig = isBatchLots ? createDefaultBatchLotsConfig() : undefined;
+    const batchDerived = defaultBatchConfig
+      ? calculateBatchLotsFull(defaultBatchConfig, setupProductionDaysPerMonth, setupProductionDaysPerAnnum)
+      : null;
+
+    const defaultRestaurantConfig = isFamilyRestaurant
+      ? createDefaultFamilyRestaurantConfig()
+      : undefined;
+    const restaurantDerived = defaultRestaurantConfig
+      ? calculateFamilyRestaurantFull(
+          defaultRestaurantConfig,
+          setupProductionDaysPerMonth,
+          setupProductionDaysPerAnnum
+        )
+      : null;
+
+    const initialUnitCost = batchDerived
+      ? Number(batchDerived.dynamics.modeledUnitCost.toFixed(4))
+      : restaurantDerived
+      ? Number(restaurantDerived.dynamics.modeledUnitCost.toFixed(4))
+      : 10.0;
+    const initialDailyCap = batchDerived
+      ? batchDerived.dynamics.dailyCapacity
+      : restaurantDerived
+      ? restaurantDerived.dynamics.dailyCapacity
+      : 1500;
+    const initialDailySales = batchDerived
+      ? Math.min(1000, initialDailyCap || 1000)
+      : restaurantDerived
+      ? Math.max(1, restaurantDerived.restaurant.expectedDailyGuests || initialDailyCap)
+      : 1000;
+
+    const restaurantCategoryNames = [
+      'meals',
+      'hot beverages',
+      'cold beverages',
+      'alcohol beverages',
+    ];
+    const defaultName = isFamilyRestaurant
+      ? restaurantCategoryNames[nextNum - 1] || `menu stream SKU-${String.fromCharCode(64 + nextNum)}`
+      : `revenue generator SKU-${String.fromCharCode(64 + nextNum)}`;
+
     const newItem: RevenueItem = {
       id: `rev-bm-${Date.now()}`,
-      category: 'RETAIL PRODUCTS',
-      name: `revenue generator SKU-${String.fromCharCode(64 + nextNum)}`,
-      modelType: 'unit sales',
+      category: isBatchLots
+        ? 'MANUFACTURING'
+        : isFamilyRestaurant
+        ? 'HOSPITALITY'
+        : 'RETAIL PRODUCTS',
+      name: defaultName,
+      modelType: isBatchLots
+        ? 'batch lots'
+        : isFamilyRestaurant
+        ? 'family restaurant'
+        : 'unit sales',
       unitPrice: 22.22,
-      unitCost: 10.00,
+      unitCost: initialUnitCost,
       costOfSalesPct: 50.00,
       startMonth: 1,
-      dailyCapacity: 1500,
-      monthlyUnits: new Array(60).fill(28000),
-      dailyUnitSalesMonthly: new Array(60).fill(1000),
-      productionUnitCostMonthly: new Array(60).fill(-10.00),
+      dailyCapacity: initialDailyCap,
+      monthlyUnits: new Array(60).fill(Math.round(initialDailySales * setupProductionDaysPerMonth)),
+      dailyUnitSalesMonthly: new Array(60).fill(initialDailySales),
+      productionUnitCostMonthly: new Array(60).fill(-Math.abs(initialUnitCost)),
       manufacturingMarginPctMonthly: new Array(60).fill(10.00),
       grossProfitMarginPctMonthly: new Array(60).fill(50.00),
       salesCommissionPctMonthly: new Array(60).fill(1.00),
       inventoryAdjustmentPctMonthly: new Array(60).fill(1.00),
       otherIncomeMonthly: new Array(60).fill(0),
+      batchLotsConfig: defaultBatchConfig,
+      familyRestaurantConfig: defaultRestaurantConfig,
     };
     onUpdateState((prev) => ({
       ...prev,
@@ -322,6 +391,143 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
   const monthlyCalendar60 = useMemo(() => {
     return calculate60MonthWorkingCalendar(state.businessDetails);
   }, [state.businessDetails]);
+
+  // Year 1 production days summary from Setup calendar (fed to Batch Lots calculators)
+  const setupProductionDaysPerAnnum = useMemo(() => {
+    return monthlyCalendar60.slice(0, 12).reduce((sum, m) => sum + m.daysWorked, 0) || 252;
+  }, [monthlyCalendar60]);
+
+  const setupProductionDaysPerMonth = useMemo(() => {
+    return Math.round(setupProductionDaysPerAnnum / 12) || 21;
+  }, [setupProductionDaysPerAnnum]);
+
+  // Switch active model-set and sync derived unit cost & daily capacity to Results tab
+  const handleSelectModelSet = (nextModelSetId: string) => {
+    if (
+      nextModelSetId !== 'unit-sales' &&
+      nextModelSetId !== 'batch-lots' &&
+      nextModelSetId !== 'family-restaurant'
+    ) {
+      return;
+    }
+    if (nextModelSetId !== 'unit-sales' && mode !== 'bizzmodel') return;
+
+    onUpdateState((prev) => {
+      if (nextModelSetId === 'batch-lots') {
+        const syncedItems = (prev.revenueItems || []).map((item) => {
+          const cfg = item.batchLotsConfig || createDefaultBatchLotsConfig();
+          const full = calculateBatchLotsFull(
+            cfg,
+            setupProductionDaysPerMonth,
+            setupProductionDaysPerAnnum
+          );
+          const derivedCost = Number(full.dynamics.modeledUnitCost.toFixed(4));
+          const derivedCap = full.dynamics.dailyCapacity;
+          const isUntouchedDefaultSales =
+            !item.batchLotsConfig &&
+            Array.isArray(item.dailyUnitSalesMonthly) &&
+            item.dailyUnitSalesMonthly.every((v) => v === 1000);
+          const nextDailySales =
+            isUntouchedDefaultSales && derivedCap > 0
+              ? new Array(60).fill(Math.min(1000, derivedCap))
+              : item.dailyUnitSalesMonthly;
+
+          return {
+            ...item,
+            modelType: 'batch lots',
+            batchLotsConfig: cfg,
+            unitCost: derivedCost,
+            dailyCapacity: derivedCap,
+            productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedCost)),
+            dailyUnitSalesMonthly: nextDailySales,
+          };
+        });
+
+        return {
+          ...prev,
+          activeModelSet: 'batch-lots',
+          revenueItems: syncedItems,
+        };
+      }
+
+      if (nextModelSetId === 'family-restaurant') {
+        const syncedItems = (prev.revenueItems || []).map((item) => {
+          const cfg =
+            item.familyRestaurantConfig || createDefaultFamilyRestaurantConfig();
+          const full = calculateFamilyRestaurantFull(
+            cfg,
+            setupProductionDaysPerMonth,
+            setupProductionDaysPerAnnum
+          );
+          const derivedCost = Number(full.dynamics.modeledUnitCost.toFixed(4));
+          const derivedCap = full.dynamics.dailyCapacity;
+          const isUntouchedDefaultSales =
+            !item.familyRestaurantConfig &&
+            Array.isArray(item.dailyUnitSalesMonthly) &&
+            item.dailyUnitSalesMonthly.every((v) => v === 1000 || v === 800);
+          const nextDailySales =
+            isUntouchedDefaultSales && full.restaurant.expectedDailyGuests > 0
+              ? new Array(60).fill(full.restaurant.expectedDailyGuests)
+              : item.dailyUnitSalesMonthly;
+
+          return {
+            ...item,
+            modelType: 'family restaurant',
+            familyRestaurantConfig: cfg,
+            unitCost: derivedCost,
+            dailyCapacity: derivedCap,
+            productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedCost)),
+            dailyUnitSalesMonthly: nextDailySales,
+          };
+        });
+
+        return {
+          ...prev,
+          activeModelSet: 'family-restaurant',
+          revenueItems: syncedItems,
+        };
+      }
+
+      return {
+        ...prev,
+        activeModelSet: 'unit-sales',
+        revenueItems: (prev.revenueItems || []).map((item) => ({
+          ...item,
+          modelType: 'unit sales',
+        })),
+      };
+    });
+  };
+
+  // Update a product's Batch Lots configuration and transfer unitCost + dailyCapacity immediately to Results tab
+  const handleUpdateBatchLotsConfig = (
+    idx: number,
+    updatedConfig: BatchLotsProductConfig,
+    derivedDynamics: { unitCost: number; dailyCapacity: number }
+  ) => {
+    handleUpdateProduct(idx, {
+      modelType: 'batch lots',
+      batchLotsConfig: updatedConfig,
+      unitCost: derivedDynamics.unitCost,
+      dailyCapacity: derivedDynamics.dailyCapacity,
+      productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedDynamics.unitCost)),
+    });
+  };
+
+  // Update a product's Family Restaurant configuration and transfer unitCost + dailyCapacity immediately to Results tab
+  const handleUpdateFamilyRestaurantConfig = (
+    idx: number,
+    updatedConfig: FamilyRestaurantProductConfig,
+    derivedDynamics: { unitCost: number; dailyCapacity: number; expectedDailyGuests: number }
+  ) => {
+    handleUpdateProduct(idx, {
+      modelType: 'family restaurant',
+      familyRestaurantConfig: updatedConfig,
+      unitCost: derivedDynamics.unitCost,
+      dailyCapacity: derivedDynamics.dailyCapacity,
+      productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedDynamics.unitCost)),
+    });
+  };
 
   // Days worked per month for active year (12 months slice transferred from Setup)
   const daysWorkedArray = useMemo(() => {
@@ -662,44 +868,61 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                 <div className="relative">
                   <select
                     value={selectedModelSet}
-                    onChange={(e) => {
-                      if (e.target.value === 'unit-sales') {
-                        setSelectedModelSet('unit-sales');
-                      }
-                    }}
+                    onChange={(e) => handleSelectModelSet(e.target.value)}
                     className={`w-full p-2.5 rounded-xl border text-xs font-bold capitalize cursor-pointer ${
                       isDark ? 'bg-[#0E1322] border-[#222F4C] text-white' : 'bg-white border-[#D8CEBC] text-slate-900'
                     }`}
                   >
                     {ALL_MODEL_SETS.map((cat) => (
                       <optgroup key={cat.type} label={`TYPE: ${cat.type.toUpperCase()}`}>
-                        {cat.modelSets.map((ms) => (
-                          <option
-                            key={ms.id}
-                            value={ms.id}
-                            disabled={!ms.isAvailable}
-                            className={ms.isAvailable ? 'font-bold text-emerald-600' : 'text-slate-400'}
-                          >
-                            {ms.name} {ms.isAvailable ? '✓ (AVAILABLE)' : '— coming soon'}
-                          </option>
-                        ))}
+                        {cat.modelSets.map((ms) => {
+                          const canUse = ms.isAvailable && (ms.id === 'unit-sales' || mode === 'bizzmodel');
+                          return (
+                            <option
+                              key={ms.id}
+                              value={ms.id}
+                              disabled={!canUse}
+                              className={canUse ? 'font-bold text-emerald-600' : 'text-slate-400'}
+                            >
+                              {ms.name} {canUse ? '✓ (AVAILABLE)' : '— coming soon'}
+                            </option>
+                          );
+                        })}
                       </optgroup>
                     ))}
                   </select>
                 </div>
                 <p className="text-[11px] text-slate-500 lowercase mt-1">
-                  * for the apps we are developing now, <strong>UNIT SALES</strong> is the only active model-set. all other model-sets are marked as <em>coming soon</em>.
+                  {mode === 'bizzmodel' ? (
+                    <>
+                      * active model-sets: <strong>unit sales</strong>, <strong>manufacturing — batch lots</strong> &amp; <strong>hospitality — family restaurant</strong>. select any available model-set above; others are marked as <em>coming soon</em>.
+                    </>
+                  ) : (
+                    <>
+                      * for this simulator mode, <strong>unit sales</strong> is the active model-set. launch <strong>bizzmodel</strong> to access manufacturing batch lots &amp; hospitality family restaurant.
+                    </>
+                  )}
                 </p>
               </div>
 
-              {/* Active Badge Card */}
+              {/* Active Model-Set Summary Card */}
               <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-1">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  <span>UNIT SALES MODEL-SET</span>
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                  <span>
+                    {selectedModelSet === 'batch-lots'
+                      ? 'MANUFACTURING: BATCH LOTS'
+                      : selectedModelSet === 'family-restaurant'
+                      ? 'HOSPITALITY: FAMILY RESTAURANT'
+                      : 'UNIT SALES MODEL-SET'}
+                  </span>
                 </div>
-                <p className="text-[10px] text-emerald-600 dark:text-emerald-300 leading-snug">
-                  Calculates item unit cost and production volumes constraining volume sales.
+                <p className="text-[10px] text-emerald-700 dark:text-emerald-300 leading-snug">
+                  {selectedModelSet === 'batch-lots'
+                    ? 'Multi-process bottleneck capacity, advisory staffing, BOM, multi-level packaging & variable unit cost dynamics.'
+                    : selectedModelSet === 'family-restaurant'
+                    ? 'Table & seat turnover capacity, kitchen BOM, multi-level packaging & variable utility unit cost dynamics.'
+                    : 'Calculates item unit cost and production volumes constraining volume sales.'}
                 </p>
               </div>
             </div>
@@ -709,7 +932,10 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
               <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2 animate-in fade-in duration-150">
                 <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase px-1">
                   <span>Authentic Model-Sets Taxonomy (model-sets.PNG)</span>
-                  <span className="text-emerald-600 dark:text-emerald-400">1 Available · 24 Coming Soon</span>
+                  <span className="text-emerald-600 dark:text-emerald-400">
+                    {ALL_MODEL_SETS.flatMap((c) => c.modelSets).filter((m) => m.isAvailable && (m.id === 'unit-sales' || mode === 'bizzmodel')).length} Available ·{' '}
+                    {ALL_MODEL_SETS.flatMap((c) => c.modelSets).filter((m) => !(m.isAvailable && (m.id === 'unit-sales' || mode === 'bizzmodel'))).length} Coming Soon
+                  </span>
                 </div>
 
                 <div className="max-h-60 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800">
@@ -723,32 +949,45 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                     </thead>
                     <tbody>
                       {ALL_MODEL_SETS.flatMap((cat) =>
-                        cat.modelSets.map((ms, idx) => (
-                          <tr
-                            key={ms.id}
-                            className={`border-b border-slate-100 dark:border-slate-800/60 ${
-                              ms.isAvailable ? 'bg-emerald-500/10 font-bold' : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'
-                            }`}
-                          >
-                            <td className="py-1.5 px-3 capitalize text-slate-700 dark:text-slate-300">
-                              {idx === 0 ? cat.type : ''}
-                            </td>
-                            <td className="py-1.5 px-3 lowercase text-slate-900 dark:text-slate-200">
-                              {ms.name}
-                            </td>
-                            <td className="py-1.5 px-3 text-right">
-                              {ms.isAvailable ? (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-                                  available
-                                </span>
-                              ) : (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] text-slate-400 bg-slate-200 dark:bg-slate-800">
-                                  coming soon
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        ))
+                        cat.modelSets.map((ms, idx) => {
+                          const canUse = ms.isAvailable && (ms.id === 'unit-sales' || mode === 'bizzmodel');
+                          const isSelected = selectedModelSet === ms.id;
+                          return (
+                            <tr
+                              key={ms.id}
+                              onClick={() => canUse && handleSelectModelSet(ms.id)}
+                              className={`border-b border-slate-100 dark:border-slate-800/60 ${
+                                isSelected
+                                  ? 'bg-[#2E5E88]/15 font-bold cursor-pointer'
+                                  : canUse
+                                  ? 'bg-emerald-500/10 font-bold cursor-pointer hover:bg-emerald-500/15'
+                                  : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'
+                              }`}
+                            >
+                              <td className="py-1.5 px-3 capitalize text-slate-700 dark:text-slate-300">
+                                {idx === 0 ? cat.type : ''}
+                              </td>
+                              <td className="py-1.5 px-3 lowercase text-slate-900 dark:text-slate-200">
+                                {ms.name}
+                              </td>
+                              <td className="py-1.5 px-3 text-right">
+                                {isSelected ? (
+                                  <span className="text-[10px] font-bold uppercase text-[#2E5E88] dark:text-[#6BA3D6]">
+                                    active
+                                  </span>
+                                ) : canUse ? (
+                                  <span className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400">
+                                    available
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400">
+                                    coming soon
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -757,7 +996,7 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
             )}
           </div>
 
-          {/* SECTION B: ADD PRODUCTS (START MONTH & DIRECT UNIT COST - SELLING PRICE REMOVED AS REQUESTED) */}
+          {/* SECTION B: PRODUCTS CONFIGURATION (UNIT SALES OR MANUFACTURING BATCH LOTS) */}
           <div
             className={`p-5 rounded-2xl border space-y-4 ${
               isDark ? 'bg-[#101626] border-[#222F4C]' : 'bg-white border-[#D8CEBC] shadow-xs'
@@ -766,10 +1005,18 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-800">
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white block">
-                  PRODUCTS CONFIGURATION (UNIT SALES)
+                  {selectedModelSet === 'batch-lots'
+                    ? 'PRODUCTS CONFIGURATION (MANUFACTURING — BATCH LOTS)'
+                    : selectedModelSet === 'family-restaurant'
+                    ? 'PRODUCTS CONFIGURATION (HOSPITALITY — FAMILY RESTAURANT)'
+                    : 'PRODUCTS CONFIGURATION (UNIT SALES)'}
                 </span>
                 <span className="text-[11px] text-slate-400 lowercase">
-                  insert start month, unit cost, and daily capacity below (selling price is derived dynamically on the results tab)
+                  {selectedModelSet === 'batch-lots'
+                    ? 'configure production processes, advisory staffing, BOM, packaging levels & variable costs — unit cost & daily capacity transfer automatically to results'
+                    : selectedModelSet === 'family-restaurant'
+                    ? 'configure tables, seats, turnover cycles, kitchen BOM, packaging & variable costs — unit cost & guest capacity transfer automatically to results'
+                    : 'insert start month, unit cost, and daily capacity below (selling price is derived dynamically on the results tab)'}
                 </span>
               </div>
 
@@ -791,13 +1038,77 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#2E5E88] hover:bg-[#234E73] text-white text-xs font-bold lowercase shadow-xs transition-colors cursor-pointer"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    <span>add product</span>
+                    <span>{selectedModelSet === 'family-restaurant' ? 'add menu stream' : 'add product'}</span>
                   </button>
                 )}
               </div>
             </div>
 
             {/* Product Cards List */}
+            {selectedModelSet === 'batch-lots' ? (
+              <div className="space-y-4">
+                {state.revenueItems.map((prod, idx) => {
+                  const batchConfig = prod.batchLotsConfig || createDefaultBatchLotsConfig();
+                  return (
+                    <ManufacturingBatchLotsWorkbench
+                      key={prod.id}
+                      theme={theme}
+                      productId={prod.id}
+                      productName={prod.name}
+                      startMonth={prod.startMonth || 1}
+                      isPredetermined={!!predeterminedNames}
+                      canRemove={state.revenueItems.length > 1}
+                      defaultExpanded={idx === 0 || idx === activeProductIdx}
+                      config={batchConfig}
+                      productionDaysPerMonth={setupProductionDaysPerMonth}
+                      productionDaysPerAnnum={setupProductionDaysPerAnnum}
+                      onChangeName={(name) => handleUpdateProduct(idx, { name })}
+                      onChangeStartMonth={(startMonth) => handleUpdateProduct(idx, { startMonth })}
+                      onChangeConfig={(updatedConfig, derivedDynamics) =>
+                        handleUpdateBatchLotsConfig(idx, updatedConfig, derivedDynamics)
+                      }
+                      onRemove={() => handleRemoveProduct(idx)}
+                      onOpenResultsTab={() => {
+                        setActiveProductIdx(idx);
+                        setActiveSubTab('results');
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            ) : selectedModelSet === 'family-restaurant' ? (
+              <div className="space-y-4">
+                {state.revenueItems.map((prod, idx) => {
+                  const restaurantConfig =
+                    prod.familyRestaurantConfig || createDefaultFamilyRestaurantConfig();
+                  return (
+                    <FamilyRestaurantWorkbench
+                      key={prod.id}
+                      theme={theme}
+                      productId={prod.id}
+                      productName={prod.name}
+                      startMonth={prod.startMonth || 1}
+                      isPredetermined={!!predeterminedNames}
+                      canRemove={state.revenueItems.length > 1}
+                      defaultExpanded={idx === 0 || idx === activeProductIdx}
+                      config={restaurantConfig}
+                      productionDaysPerMonth={setupProductionDaysPerMonth}
+                      productionDaysPerAnnum={setupProductionDaysPerAnnum}
+                      onChangeName={(name) => handleUpdateProduct(idx, { name })}
+                      onChangeStartMonth={(startMonth) => handleUpdateProduct(idx, { startMonth })}
+                      onChangeConfig={(updatedConfig, derivedDynamics) =>
+                        handleUpdateFamilyRestaurantConfig(idx, updatedConfig, derivedDynamics)
+                      }
+                      onRemove={() => handleRemoveProduct(idx)}
+                      onOpenResultsTab={() => {
+                        setActiveProductIdx(idx);
+                        setActiveSubTab('results');
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
             <div className="space-y-4">
               {state.revenueItems.map((prod, idx) => {
                 const isPredetermined = !!predeterminedNames;
@@ -939,6 +1250,7 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                 );
               })}
             </div>
+            )}
           </div>
         </div>
       )}
