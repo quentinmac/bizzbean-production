@@ -1979,7 +1979,7 @@ export default function App() {
   const isStandaloneApp = false;
 
   return (
-    <div className="fixed inset-0 h-screen h-[100dvh] w-full max-w-full overflow-hidden bg-[#FAF8F5] text-slate-800 font-sans flex flex-col">
+    <div className="fixed inset-0 w-full max-w-full overflow-hidden bg-[#FAF8F5] text-slate-800 font-sans flex flex-col">
       {/* ========================================================================= */}
       {/* VIEW 1: TINTED GLASS SLIDING DOORS & OFFICE ENVIRONMENT SPLASH PAGE       */}
       {/* ========================================================================= */}
@@ -1997,7 +1997,7 @@ export default function App() {
         /* VIEW 2: THE bizz-DESK 3-PANEL WORKSTATION (ZERO VERTICAL SCROLL ON DESK)  */
         /* ========================================================================= */
         <div
-          className={`h-full w-full max-w-full min-w-0 flex flex-col overflow-hidden transition-colors ${
+          className={`flex-1 min-h-0 h-full w-full max-w-full min-w-0 flex flex-col overflow-hidden transition-colors ${
             theme === 'dark' ? 'bg-[#0A0D14] text-[#E2E8F0]' : 'bg-architectural-grid text-slate-800'
           }`}
         >
@@ -2108,13 +2108,13 @@ export default function App() {
 
             {/* Panel 2: Center Work Area - Expands to full screen width when isMaximized */}
             <main
-              className={`flex-grow min-h-0 flex-col min-w-0 max-w-full overflow-hidden relative ${
+              className={`flex-1 min-h-0 flex-col min-w-0 max-w-full overflow-hidden relative ${
                 mobileActivePanel === 'workarea'
                   ? activeView === 'active-app'
-                    ? 'flex w-full h-full pb-0'
-                    : 'flex w-full h-full pb-14 md:pb-0'
-                  : 'hidden md:flex'
-              } md:my-2 lg:my-3 md:h-[calc(100%-1rem)] lg:h-[calc(100%-1.5rem)] border md:rounded-2xl shadow-xs ${
+                    ? 'flex w-full pb-0 border-0 md:border'
+                    : 'flex w-full pb-14 md:pb-0 border'
+                  : 'hidden md:flex border'
+              } md:my-2 lg:my-3 md:h-[calc(100%-1rem)] lg:h-[calc(100%-1.5rem)] md:rounded-2xl shadow-xs ${
                 isMaximized ? 'md:mx-3 lg:mx-6' : ''
               } ${
                 theme === 'dark' ? 'bg-[#101424] border-[#252E4A]' : 'bg-[#FAF8F5] border-[#E8E2D8]'

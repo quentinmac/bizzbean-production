@@ -275,7 +275,7 @@ export const BizzCalculators: React.FC<BizzCalculatorsProps> = ({
           embedded ? '' : 'h-full'
         } transition-all overflow-hidden ${
           isPhoneFrame
-            ? 'max-w-[480px] my-auto max-h-[96vh] rounded-3xl border border-[#D8CEBC] dark:border-[#252E4A] shadow-2xl'
+            ? 'max-w-[480px] my-auto max-h-[96dvh] rounded-3xl border border-[#D8CEBC] dark:border-[#252E4A] shadow-2xl'
             : 'max-w-6xl border-x border-transparent sm:border-[#E8E2D8] dark:sm:border-[#1B2238]'
         } ${frameBg}`}
       >
