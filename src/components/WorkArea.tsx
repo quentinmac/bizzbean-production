@@ -20,6 +20,7 @@ import { AboutPanelTextEditor } from './AboutPanelTextEditor';
 import { BizzbeanLogoIcon } from './BizzbeanLogoIcon';
 import { ErrorBoundary } from './ErrorBoundary';
 import { GeminiSearchDock } from './GeminiSearchDock';
+import { StageJourneyGallery } from './StageJourneyGallery';
 import {
   DEFAULT_WHO_ARE_WE,
   DEFAULT_WHAT_WE_DO,
@@ -77,6 +78,7 @@ interface WorkAreaProps {
   onSyncPromotionsToWebsite?: (promotions: CmsPromotionSection[]) => void;
   onOpenStandaloneCmsModal?: () => void;
   onBackToWorkstation?: () => void;
+  onEnterWorkstation?: () => void;
   adminInitialTab?: 'transactions' | 'dialogue-centre' | 'bulk-imports' | 'promo-emails' | 'cms-console' | 'about-bizzbean';
   onOpenTalkToUs?: () => void;
   userPurchases?: string[];
@@ -123,6 +125,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
   onSyncPromotionsToWebsite,
   onOpenStandaloneCmsModal,
   onBackToWorkstation,
+  onEnterWorkstation,
   adminInitialTab,
   onOpenTalkToUs,
 }) => {
@@ -1647,21 +1650,15 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
     : 0;
   const activePromoNum = currentPromoIndex >= 0 ? currentPromoIndex + 1 : 1;
   const totalPromosCount = availablePromos.length;
-  const isHeroSplashMode = Boolean(
-    showPromotion &&
-    activePromotion &&
-    activePromotion.isActive !== false &&
-    activePromotion.imageUrl &&
-    !activePromotion.imageUrl.includes('1553877522-43269d4ea984')
-  );
+  const isHeroSplashMode = Boolean(showPromotion);
 
   return (
     <div
-      className={`flex-grow p-3 sm:p-8 overflow-y-auto overflow-x-hidden min-w-0 max-w-full flex flex-col justify-between transition-colors ${
+      className={`flex-1 min-h-0 h-full w-full p-3 sm:p-6 md:p-7 pb-10 sm:pb-12 overflow-y-auto overflow-x-hidden touch-pan-y min-w-0 max-w-full flex flex-col transition-colors ${
         isDark ? 'bg-[#0A0D14]' : 'bg-architectural-grid'
       }`}
     >
-      <div className={`${isHeroSplashMode ? 'max-w-2xl' : 'max-w-4xl'} mx-auto w-full min-w-0 space-y-5`}>
+      <div className={`${isHeroSplashMode ? 'max-w-6xl' : 'max-w-4xl'} mx-auto w-full min-w-0 space-y-5 shrink-0`}>
         
         {/* PANEL A: TOP STAGE NAVIGATION PANEL (Stage name, Previous & Next solution buttons, clean panel styling) */}
         {!isHeroSplashMode && (
@@ -1751,101 +1748,27 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
         )}
 
         {/* CENTER DISPLAY AREA */}
-        {isHeroSplashMode && activePromotion ? (
-          /* CLEAN CENTERED LANDING HERO: Framed Image Above + Stage Dialogue Box Below */
-          <div className="w-full max-w-2xl mx-auto animate-fade-in select-none">
-            <div className="rounded-3xl border border-[#D8CEBC] dark:border-[#252E4A] bg-white dark:bg-[#141A2E] shadow-md overflow-hidden p-4 sm:p-6 space-y-4 sm:space-y-5">
-              {/* Inset Pristine Hero Image (does not span full page width) */}
-              <div className="w-full max-w-[460px] sm:max-w-[520px] mx-auto rounded-2xl overflow-hidden border border-[#E8E2D8] dark:border-[#252E4A] bg-black/5 dark:bg-[#0A0D14] shadow-sm">
-                {activePromotion.imageUrl &&
-                activePromotion.imageUrl.trim() !== '' &&
-                !activePromotion.imageUrl.includes('1553877522-43269d4ea984') ? (
-                  <img
-                    src={activePromotion.imageUrl}
-                    alt={activePromotion.displayName}
-                    referrerPolicy="no-referrer"
-                    className="w-full h-[230px] sm:h-[290px] object-cover block"
-                  />
-                ) : (
-                  <div className="w-full h-[230px] sm:h-[290px] flex items-center justify-center bg-[#F4EFE6] dark:bg-[#0E1220] p-6">
-                    <BizzbeanLogoIcon className="w-12 h-12" />
-                  </div>
-                )}
-              </div>
-
-              {/* Dialogue Box Underneath Image */}
-              <div className="rounded-2xl border border-[#E8E2D8] dark:border-[#252E4A] bg-[#FAF8F5]/90 dark:bg-[#0E1220]/80 p-4 sm:p-5 flex flex-col justify-between gap-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-2 text-[11px] font-mono text-[#5584B4] font-semibold">
-                    <span className="flex items-center gap-1.5 min-w-0">
-                      <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                      <span className="truncate">THE STAGE STORY · {activePromotion.displayName}</span>
-                    </span>
-                    <span className="text-slate-400 tabular-nums shrink-0">
-                      {activePromoNum} of {totalPromosCount}
-                    </span>
-                  </div>
-
-                  <h2 className="text-lg sm:text-2xl font-bold font-sans text-slate-900 dark:text-white tracking-tight text-balance">
-                    {activePromotion.displayName}
-                  </h2>
-
-                  <p className="text-xs sm:text-sm font-sans text-slate-600 dark:text-slate-300 leading-relaxed">
-                    {activePromotion.stageStory?.narrative || activePromotion.tagline}
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-2.5 pt-3 border-t border-[#E8E2D8] dark:border-[#252E4A]">
-                  <div className="flex items-center gap-2">
-                    {onCyclePromotion && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => onCyclePromotion('prev')}
-                          className="px-3 py-2 rounded-xl border border-[#D8CEBC] dark:border-[#252E4A] bg-white dark:bg-[#141A2E] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] text-xs font-mono text-slate-700 dark:text-slate-200 flex items-center gap-1 cursor-pointer transition-colors"
-                          aria-label="Previous story"
-                        >
-                          <ChevronLeft className="h-3.5 w-3.5 text-[#5584B4]" />
-                          <span>prev</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onCyclePromotion('next')}
-                          className="px-3 py-2 rounded-xl border border-[#D8CEBC] dark:border-[#252E4A] bg-white dark:bg-[#141A2E] hover:bg-[#F4EFE6] dark:hover:bg-[#1E2548] text-xs font-mono text-slate-700 dark:text-slate-200 flex items-center gap-1 cursor-pointer transition-colors"
-                          aria-label="Next story"
-                        >
-                          <span>next</span>
-                          <ChevronRight className="h-3.5 w-3.5 text-[#5584B4]" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {onClosePromotion && (
-                      <button
-                        type="button"
-                        onClick={onClosePromotion}
-                        className="px-3.5 py-2 rounded-xl border border-[#D8CEBC] dark:border-[#252E4A] bg-white dark:bg-[#141A2E] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-mono lowercase cursor-pointer transition-colors"
-                      >
-                        enter workspace
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (onNavigateToSection) onNavigateToSection(activePromotion);
-                      }}
-                      className="px-4 sm:px-5 py-2 rounded-xl bg-[#5584B4] hover:bg-[#4773A0] text-white font-sans font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition-all"
-                    >
-                      <span>{activePromotion.buttonText || `explore ${activePromotion.name}`}</span>
-                      <ArrowRight className="h-3.5 w-3.5 text-[#C59B63]" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        {isHeroSplashMode ? (
+          /* 5-STAGE ILLUMINATED JOURNEY GALLERY: All 4 Core Stages + Personal Sandbox + Workstation Fast Lane */
+          <StageJourneyGallery
+            cmsPromotions={cmsPromotions}
+            cmsProducts={cmsProducts}
+            isMember={isMember}
+            userName={userProfile?.founderName}
+            userPurchases={userPurchases}
+            theme={theme}
+            onSelectStage={(stageId) => {
+              if (onClosePromotion) onClosePromotion();
+              if (onSelectSolutionById) onSelectSolutionById(stageId);
+            }}
+            onEnterWorkstation={() => {
+              if (onEnterWorkstation) {
+                onEnterWorkstation();
+              } else if (onClosePromotion) {
+                onClosePromotion();
+              }
+            }}
+          />
         ) : isVideoMode ? (
           /* EXPANDED VIDEO DISPLAY AREA (per educational video.PNG & video cleanup.PNG) */
           <div className="w-full space-y-4">

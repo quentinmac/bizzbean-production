@@ -257,48 +257,50 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
                     </div>
                   </div>
 
-                  {/* OPERATIONS (Clean, uncluttered list — Growth Engine hidden until content is ready) */}
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() => onSelectSolution('operations')}
-                      className={`w-full text-left text-[11px] font-mono font-bold tracking-wider uppercase px-2 mb-1 rounded-lg py-1 transition-colors cursor-pointer ${
-                        !isSpecialView && activeStageId === 'operations'
-                          ? 'text-[#5584B4]'
-                          : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
-                      }`}
-                    >
-                      OPERATIONS
-                    </button>
-                    {operationsSolutions.length > 0 && (
-                      <div className="space-y-0.5">
-                        {operationsSolutions.map((sol) => {
-                          const isActive =
-                            !isSpecialView &&
-                            activeStageId === 'operations' &&
-                            (activeSolutionId === sol.id ||
-                              (activeSolutionId === 'budget' && sol.id === 'bizzbudget') ||
-                              (activeSolutionId === 'bizzbudget' && sol.id === 'bizzbudget'));
-                          return (
-                            <button
-                              key={sol.id}
-                              onClick={() => onSelectSolution(sol.id)}
-                              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase cursor-pointer ${getSubtleActiveBtnClass(
-                                isActive
-                              )}`}
-                            >
-                              <span className={isActive ? 'font-bold' : 'font-normal'}>
-                                {sol.name.toLowerCase()}
-                              </span>
-                              {isActive && (
-                                <ChevronRight className="h-3.5 w-3.5 opacity-75 shrink-0" />
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  {/* OPERATIONS section hidden until meaningful content is introduced (re-enable by toggling SHOW_OPERATIONS_NAV) */}
+                  {false && (
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => onSelectSolution('operations')}
+                        className={`w-full text-left text-[11px] font-mono font-bold tracking-wider uppercase px-2 mb-1 rounded-lg py-1 transition-colors cursor-pointer ${
+                          !isSpecialView && activeStageId === 'operations'
+                            ? 'text-[#5584B4]'
+                            : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+                        }`}
+                      >
+                        OPERATIONS
+                      </button>
+                      {operationsSolutions.length > 0 && (
+                        <div className="space-y-0.5">
+                          {operationsSolutions.map((sol) => {
+                            const isActive =
+                              !isSpecialView &&
+                              activeStageId === 'operations' &&
+                              (activeSolutionId === sol.id ||
+                                (activeSolutionId === 'budget' && sol.id === 'bizzbudget') ||
+                                (activeSolutionId === 'bizzbudget' && sol.id === 'bizzbudget'));
+                            return (
+                              <button
+                                key={sol.id}
+                                onClick={() => onSelectSolution(sol.id)}
+                                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase cursor-pointer ${getSubtleActiveBtnClass(
+                                  isActive
+                                )}`}
+                              >
+                                <span className={isActive ? 'font-bold' : 'font-normal'}>
+                                  {sol.name.toLowerCase()}
+                                </span>
+                                {isActive && (
+                                  <ChevronRight className="h-3.5 w-3.5 opacity-75 shrink-0" />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* MEDIA & ARTICLES (Videos, followed cleanly by Articles) */}
                   <div>

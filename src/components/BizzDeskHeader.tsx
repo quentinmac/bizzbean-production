@@ -268,7 +268,7 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
 
   return (
     <header
-      className={`h-14 border-b flex items-center justify-between gap-1.5 px-2.5 sm:px-6 select-none shrink-0 z-30 min-w-0 max-w-full overflow-hidden transition-colors ${
+      className={`h-14 border-b flex items-center justify-between gap-1.5 sm:gap-2 px-2.5 sm:px-4 lg:px-6 select-none shrink-0 z-30 min-w-0 max-w-full transition-colors ${
         isDark
           ? 'bg-[#101424] border-[#252E4A] text-[#E2E8F0]'
           : 'bg-[#FAF8F5] border-[#E8E2D8] text-slate-800'
@@ -305,7 +305,7 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
                 slips
               </span>
             </div>
-            <span className="font-mono text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[92px] sm:max-w-[220px] group-hover:text-[#5584B4] dark:group-hover:text-[#90CDF4] transition-colors">
+            <span className="font-mono text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[92px] sm:max-w-[136px] lg:max-w-[180px] xl:max-w-[220px] group-hover:text-[#5584B4] dark:group-hover:text-[#90CDF4] transition-colors">
               {welcomeName}
             </span>
           </div>
@@ -722,38 +722,40 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
       </div>
 
       {/* Zone 3: Member Tokenomics, BUY TOKENS, Theme Toggle, Layout & Close Doors */}
-      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+      <div className="flex items-center gap-1.5 lg:gap-2.5 shrink-0">
         {/* Token Balance */}
         <div
-          className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg border text-xs font-mono ${
+          className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg border text-xs font-mono whitespace-nowrap ${
             isDark
               ? 'bg-[#161C30] border-[#252E4A] text-slate-200'
               : 'bg-white border-[#E8E2D8] text-slate-700'
           }`}
         >
-          <Coins className="h-3.5 w-3.5 text-[#5584B4]" />
+          <Coins className="h-3.5 w-3.5 text-[#5584B4] shrink-0" />
           <span className="font-bold tabular-nums text-slate-900 dark:text-white">{tokenBalance}</span>
-          <span className="text-slate-400 text-[10px] hidden sm:inline lowercase">tokens</span>
+          <span className="text-slate-400 text-[10px] hidden xl:inline lowercase">tokens</span>
         </div>
 
-        {/* BUY TOKENS Button next to Token Balance (Hidden on mobile per Proposal 3) */}
+        {/* BUY TOKENS Button next to Token Balance */}
         <button
           type="button"
           onClick={onBuyTokens}
           title="Buy Tokens & Runway Credits"
-          className="hidden md:flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg bg-[#E02475] hover:bg-[#C2185B] text-white text-xs font-mono font-bold uppercase tracking-wider transition-all shadow-xs active:scale-[0.98] border border-[#E02475]"
+          className="hidden md:flex items-center gap-1.5 px-2 lg:px-3 py-1 rounded-lg bg-[#E02475] hover:bg-[#C2185B] text-white text-xs font-mono font-bold uppercase tracking-wider transition-all shadow-xs active:scale-[0.98] border border-[#E02475] whitespace-nowrap cursor-pointer"
         >
-          <Coins className="h-3.5 w-3.5" />
-          <span>BUY TOKENS</span>
+          <Coins className="h-3.5 w-3.5 shrink-0" />
+          <span className="hidden lg:inline">BUY TOKENS</span>
+          <span className="lg:hidden">BUY</span>
         </button>
 
-        {/* TALK TO US Button (Direct access to Talk To Us Dialogue Centre in Administration Centre) */}
+        {/* TALK TO US Button */}
         {onOpenTalkToUs && (
           <button
             type="button"
             onClick={onOpenTalkToUs}
-            title="Open Talk To Us Dialogue Centre in Administration Centre"
-            className={`hidden md:flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-mono font-bold uppercase tracking-wider transition-all border ${
+            title="Open Talk To Us Dialogue Centre"
+            aria-label="Talk to us"
+            className={`hidden md:flex items-center gap-1.5 px-2 lg:px-3 py-1 rounded-lg text-xs font-mono font-bold uppercase tracking-wider transition-all border whitespace-nowrap cursor-pointer ${
               activeSolutionId === 'administration-centre'
                 ? isDark
                   ? 'bg-[#1E2548]/30 text-[#D4A373] border-[#5584B4]/40 shadow-xs'
@@ -763,17 +765,18 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
                 : 'bg-white hover:bg-[#F4EFE6] border-[#E8E2D8] text-slate-700 hover:text-slate-950'
             }`}
           >
-            <Mail className="h-3.5 w-3.5 text-[#5584B4]" />
-            <span>TALK TO US</span>
+            <Mail className="h-3.5 w-3.5 text-[#5584B4] shrink-0" />
+            <span className="hidden lg:inline">TALK TO US</span>
           </button>
         )}
 
-        {/* CMS CONSOLE (Direct access to Administration Centre & CMS Master Matrix) */}
+        {/* CMS CONSOLE */}
         <button
           type="button"
           onClick={() => onSelectSolution('cms-console')}
           title="Open CMS Console & Administration Centre"
-          className={`hidden md:flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-mono font-bold uppercase tracking-wider transition-all border ${
+          aria-label="Open CMS Console"
+          className={`hidden md:flex items-center gap-1.5 px-2 lg:px-3 py-1 rounded-lg text-xs font-mono font-bold uppercase tracking-wider transition-all border whitespace-nowrap cursor-pointer ${
             activeSolutionId === 'administration-centre'
               ? isDark
                 ? 'bg-[#1E2548]/30 text-[#D4A373] border-[#5584B4]/40 shadow-xs'
@@ -783,15 +786,16 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
               : 'bg-white hover:bg-[#F4EFE6] border-[#E8E2D8] text-slate-700 hover:text-slate-950'
           }`}
         >
-          <Database className="h-3.5 w-3.5 text-[#5584B4]" />
-          <span>CMS</span>
+          <Database className="h-3.5 w-3.5 text-[#5584B4] shrink-0" />
+          <span className="hidden lg:inline">CMS</span>
         </button>
 
         {/* Theme Toggle (Light / Dark) */}
         <button
           onClick={onToggleTheme}
           title={isDark ? 'Switch to The Illuminated Sandbox Light Theme' : 'Switch to Dark Theme'}
-          className={`p-1.5 rounded-lg border transition-colors ${
+          aria-label="Toggle color theme"
+          className={`p-1.5 rounded-lg border transition-colors cursor-pointer shrink-0 ${
             isDark
               ? 'bg-[#161C30] hover:bg-[#1E2548] border-[#252E4A] text-[#D4A373]'
               : 'bg-white hover:bg-[#F4EFE6] border-[#E8E2D8] text-slate-700'
@@ -800,24 +804,24 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
           {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
 
-        {/* Expand / Calm View Toggle (Desktop only — hides/shows Left & Right Panels) */}
+        {/* Focus / Workstation Toggle (Desktop xl+ only — hides/shows Left & Right Panels) */}
         <button
           type="button"
           onClick={onToggleMaximize}
           title={
             isMaximized
-              ? 'Open 3-Panel Desk (Show Solutions Panel & Knowledge Base)'
-              : 'Return to Calm Focus View (Hide Side Panels)'
+              ? 'Switch to Workstation (Show Solutions Panel, Work Area & Knowledge Base)'
+              : 'Switch to Focus View (Hide Side Panels)'
           }
-          className={`hidden md:flex px-2.5 py-1.5 rounded-lg border text-xs font-mono font-bold items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+          className={`hidden xl:flex px-2.5 py-1.5 rounded-lg border text-xs font-mono font-bold items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
             !isMaximized
               ? 'bg-[#2E5E88] hover:bg-[#234E73] border-[#2E5E88] text-white shadow-xs'
               : 'bg-[#5584B4]/10 hover:bg-[#5584B4]/20 border-[#5584B4]/50 text-[#2E5E88] dark:text-[#7EB2E2]'
           }`}
         >
           {!isMaximized ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-          <span className="hidden lg:inline lowercase">
-            {!isMaximized ? 'calm view' : '3-panel desk'}
+          <span className="lowercase">
+            {!isMaximized ? 'focus' : 'workstation'}
           </span>
         </button>
 
@@ -825,10 +829,11 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
         <button
           onClick={onSignOut}
           title="Close Shop for the Day"
-          className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg bg-[#12172A] hover:bg-[#1E2548] text-white text-xs font-mono transition-colors border border-[#2B3452]"
+          aria-label="Close doors"
+          className="flex items-center gap-1 px-2 lg:px-2.5 py-1.5 rounded-lg bg-[#12172A] hover:bg-[#1E2548] text-white text-xs font-mono transition-colors border border-[#2B3452] whitespace-nowrap cursor-pointer shrink-0"
         >
-          <LogOut className="h-3.5 w-3.5 text-[#DDEBF7]" />
-          <span className="hidden sm:inline lowercase">close doors</span>
+          <LogOut className="h-3.5 w-3.5 text-[#DDEBF7] shrink-0" />
+          <span className="hidden lg:inline lowercase">close doors</span>
         </button>
       </div>
 

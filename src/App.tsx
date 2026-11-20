@@ -802,7 +802,6 @@ export default function App() {
       );
       if (withImages.length === 0) {
         if (activePromotion !== null) setActivePromotion(null);
-        if (showPromotion) setShowPromotion(false);
         return;
       }
       if (!activePromotion || !activePromotion.imageUrl || activePromotion.isActive === false) {
@@ -1196,14 +1195,12 @@ export default function App() {
     const randomPromo = validPreSelected || getRandomActivePromotion(currentPromos);
     if (randomPromo && randomPromo.isActive !== false && randomPromo.imageUrl && randomPromo.imageUrl.trim() !== '') {
       setActivePromotion(randomPromo);
-      setShowPromotion(true);
     } else {
-      setShowPromotion(false);
       setActivePromotion(null);
-      setActiveView('flashcard');
-      setActiveStageId('vi-ability');
-      setActiveSolutionId('learn-earn-capital');
     }
+    // Always open the 5-Stage Illuminated Journey Gallery on door entry (Google Ads deep-links bypass handleEnterWorkspace)
+    setActiveView('flashcard');
+    setShowPromotion(true);
     setInSplashDoors(false);
     trackWorkspaceEnter(asMember ? 'member' : 'guest', {
       has_promo: Boolean(randomPromo),
@@ -1258,13 +1255,14 @@ export default function App() {
     }
   };
 
-  // Trigger random promotion billboard
+  // Re-open the 5-Stage Illuminated Journey Gallery
   const handleOpenPromotionBillboard = () => {
     const nextPromo = getRandomActivePromotion(cmsPromotions);
     if (nextPromo) {
       setActivePromotion(nextPromo);
-      setShowPromotion(true);
     }
+    setActiveView('flashcard');
+    setShowPromotion(true);
   };
 
   // Cycle through active promotions that have images
@@ -2085,15 +2083,19 @@ export default function App() {
             </div>
           )}
 
-          {/* The Workstation Area (Responsive 3-Panel on Desktop / Single Full-Width Panel on Mobile) */}
-          <div className="flex-grow min-h-0 flex flex-col md:flex-row min-w-0 max-w-full overflow-hidden relative">
-            {/* Panel 1: Solutions Navigation (Left) - Hidden when isMaximized for calm work focus */}
+          {/* The Workstation Area (3-Panel on Desktop >= xl / Full-Width + Sticky Footer Dock on Mobile & Tablet) */}
+          <div
+            className={`flex-1 min-h-0 flex flex-col xl:flex-row min-w-0 max-w-full overflow-hidden relative ${
+              !isStandaloneApp ? (isMaximized ? 'md:pb-12' : 'md:pb-12 xl:pb-0') : ''
+            }`}
+          >
+            {/* Panel 1: Solutions Navigation (Left) - Side-by-side on xl+ desktop when not in Focus mode */}
             {!isMaximized && (
               <div
                 className={`shrink-0 ${
                   mobileActivePanel === 'solutions'
-                    ? 'h-full flex w-full min-w-0 pb-14 md:pb-0'
-                    : 'hidden md:flex md:w-72 lg:w-76 md:ml-3 lg:ml-6 md:my-2 lg:my-3 mr-2 md:h-[calc(100%-1rem)] lg:h-[calc(100%-1.5rem)]'
+                    ? 'h-full flex w-full min-w-0 pb-14 md:hidden xl:flex xl:w-72 2xl:w-76 xl:ml-4 2xl:ml-6 xl:my-3 xl:mr-2 xl:pb-0 xl:h-[calc(100%-1.5rem)]'
+                    : 'hidden xl:flex xl:w-72 2xl:w-76 xl:ml-4 2xl:ml-6 xl:my-3 mr-2 xl:h-[calc(100%-1.5rem)]'
                 }`}
               >
                 <SolutionsPanel
@@ -2147,16 +2149,16 @@ export default function App() {
               </div>
             )}
 
-            {/* Panel 2: Center Work Area - Expands to full screen width when isMaximized */}
+            {/* Panel 2: Center Work Area - Full width on tablet (< xl) and in desktop Focus mode */}
             <main
-              className={`flex-1 min-h-0 flex-col min-w-0 max-w-full overflow-hidden relative ${
+              className={`flex-1 min-h-0 flex-col min-w-0 max-w-full self-stretch overflow-hidden relative ${
                 mobileActivePanel === 'workarea'
                   ? activeView === 'active-app'
-                    ? 'flex w-full pb-0 border-0 md:border'
-                    : 'flex w-full pb-14 md:pb-0 border'
-                  : 'hidden md:flex border'
-              } md:my-2 lg:my-3 md:h-[calc(100%-1rem)] lg:h-[calc(100%-1.5rem)] md:rounded-2xl shadow-xs ${
-                isMaximized ? 'md:mx-3 lg:mx-6' : ''
+                    ? 'flex w-full md:w-auto pb-0 border-0 md:border'
+                    : 'flex w-full md:w-auto pb-14 md:pb-0 border'
+                  : 'hidden md:flex md:w-auto border'
+              } md:my-2 xl:my-3 xl:h-[calc(100%-1.5rem)] md:rounded-2xl shadow-xs ${
+                isMaximized ? 'md:mx-3 lg:mx-5 xl:mx-6' : 'md:mx-3 lg:mx-5 xl:mx-0'
               } ${
                 theme === 'dark' ? 'bg-[#101424] border-[#252E4A]' : 'bg-[#FAF8F5] border-[#E8E2D8]'
               }`}
@@ -2215,18 +2217,23 @@ export default function App() {
                     setShowPromotion(false);
                     setActiveView('flashcard');
                   }}
+                  onEnterWorkstation={() => {
+                    setShowPromotion(false);
+                    setIsMaximized(false);
+                    setActiveView('flashcard');
+                  }}
                   onOpenTalkToUs={handleOpenTalkToUs}
                 />
               </ErrorBoundary>
             </main>
 
-            {/* Panel 3: Knowledge Base & Library (Right) - Symmetrically aligned with Left-Hand Solutions Panel */}
+            {/* Panel 3: Knowledge Base & Library (Right) - Side-by-side on xl+ desktop when not in Focus mode */}
             {!isMaximized && (
               <div
                 className={`shrink-0 ${
                   mobileActivePanel === 'knowledge'
-                    ? 'h-full flex w-full pb-14 md:pb-0'
-                    : 'hidden md:flex md:w-72 lg:w-80 md:mr-3 lg:mr-6 md:my-2 lg:my-3 ml-2 md:h-[calc(100%-1rem)] lg:h-[calc(100%-1.5rem)]'
+                    ? 'h-full flex w-full pb-14 md:hidden xl:flex xl:w-72 2xl:w-80 xl:mr-4 2xl:mr-6 xl:my-3 xl:ml-2 xl:pb-0 xl:h-[calc(100%-1.5rem)]'
+                    : 'hidden xl:flex xl:w-72 2xl:w-80 xl:mr-4 2xl:mr-6 xl:my-3 ml-2 xl:h-[calc(100%-1.5rem)]'
                 }`}
               >
                 <KnowledgeBasePanel
@@ -2263,12 +2270,11 @@ export default function App() {
             )}
 
             {/* ===================================================================== */}
-            {/* CONTEXTUAL CALM SOLUTIONS EXPLORER DRAWER (Operative in Calm View)    */}
-            {/* Keeps users inside Calm Mode rather than forcing 3-panel expansion    */}
+            {/* CONTEXTUAL CALM SOLUTIONS EXPLORER DRAWER (Tablet & Desktop Focus)    */}
             {/* ===================================================================== */}
-            {isMaximized && isCalmSolutionsOpen && (
+            {isCalmSolutionsOpen && (
               <div
-                className="hidden md:flex fixed inset-0 z-30 bg-slate-950/35 backdrop-blur-[2px] items-end justify-center p-6 pb-20 animate-in fade-in duration-150"
+                className={`hidden md:flex ${isMaximized ? '' : 'xl:hidden'} fixed inset-0 z-30 bg-slate-950/35 backdrop-blur-[2px] items-end justify-center p-6 pb-20 animate-in fade-in duration-150`}
                 onClick={() => setIsCalmSolutionsOpen(false)}
               >
                 <div
@@ -2331,24 +2337,26 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Column 2: Operations, Media & Academy */}
+                    {/* Column 2: Media & Academy */}
                     <div className="space-y-2">
                       <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-1">
-                        Operations & Media
+                        Media & Academy
                       </div>
                       <div className="space-y-1">
-                        <button
-                          type="button"
-                          onClick={() => handleSelectSolution('operations')}
-                          className={`w-full text-left px-3 py-2 rounded-xl border transition-colors lowercase cursor-pointer flex items-center justify-between ${
-                            theme === 'dark'
-                              ? 'bg-[#141A2E] border-[#252E4A] hover:border-[#5584B4]/50 text-slate-300'
-                              : 'bg-white border-[#E8E2D8] hover:border-[#5584B4]/50 text-slate-700'
-                          }`}
-                        >
-                          <span>operations suite</span>
-                          <ChevronRight className="h-3.5 w-3.5 opacity-60 shrink-0" />
-                        </button>
+                        {false && (
+                          <button
+                            type="button"
+                            onClick={() => handleSelectSolution('operations')}
+                            className={`w-full text-left px-3 py-2 rounded-xl border transition-colors lowercase cursor-pointer flex items-center justify-between ${
+                              theme === 'dark'
+                                ? 'bg-[#141A2E] border-[#252E4A] hover:border-[#5584B4]/50 text-slate-300'
+                                : 'bg-white border-[#E8E2D8] hover:border-[#5584B4]/50 text-slate-700'
+                            }`}
+                          >
+                            <span>operations suite</span>
+                            <ChevronRight className="h-3.5 w-3.5 opacity-60 shrink-0" />
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => handleSelectSolution('videos')}
@@ -2494,22 +2502,22 @@ export default function App() {
           </div>
 
           {/* ===================================================================== */}
-          {/* DESKTOP CALM QUICK-LINK FOOTER (Shown ONLY in Calm View on >= md)     */}
-          {/* Auto-hides when 3-panel mode is active so nothing duplicates sidebars */}
+          {/* STICKY TABLET & DESKTOP FOCUS QUICK-LINK FOOTER                       */}
+          {/* Fixed to bottom on tablets (md..xl) & xl+ Focus mode (matches mobile) */}
           {/* ===================================================================== */}
-          {!isStandaloneApp && isMaximized && (
+          {!isStandaloneApp && (
             <footer
-              aria-label="Desktop calm workspace navigation"
-              className={`hidden md:flex shrink-0 border-t px-4 lg:px-8 py-2 items-center justify-around gap-2 backdrop-blur-md transition-colors ${
+              aria-label="Workspace navigation dock"
+              className={`fixed bottom-0 left-0 right-0 z-40 hidden md:flex ${isMaximized ? '' : 'xl:hidden'} border-t px-3 lg:px-8 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] items-center justify-around gap-1.5 lg:gap-2 backdrop-blur-md transition-colors ${
                 theme === 'dark'
-                  ? 'bg-[#101424]/95 border-[#252E4A] text-slate-200'
-                  : 'bg-white/95 border-[#D8CEBC] text-slate-800 shadow-[0_-4px_16px_rgba(0,0,0,0.04)]'
+                  ? 'bg-[#101424]/95 border-[#252E4A] text-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.45)]'
+                  : 'bg-white/95 border-[#D8CEBC] text-slate-800 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]'
               }`}
             >
               <button
                 type="button"
                 onClick={() => setIsCalmSolutionsOpen((prev) => !prev)}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-mono font-bold tracking-wide whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-4 py-1.5 rounded-xl text-[11px] lg:text-xs font-mono font-bold tracking-wide whitespace-nowrap shrink-0 transition-all cursor-pointer ${
                   isCalmSolutionsOpen
                     ? 'text-[#2E5E88] dark:text-[#7EB2E2] bg-[#5584B4]/15 ring-1 ring-[#5584B4]/35'
                     : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-[#1A213B]'
@@ -2526,7 +2534,7 @@ export default function App() {
                   setShowPromotion(false);
                   setActiveView('flashcard');
                 }}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-mono font-bold tracking-wide whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-4 py-1.5 rounded-xl text-[11px] lg:text-xs font-mono font-bold tracking-wide whitespace-nowrap shrink-0 transition-all cursor-pointer ${
                   !isCalmSolutionsOpen && (activeView === 'flashcard' || activeView === 'active-app')
                     ? 'text-[#2E5E88] dark:text-[#7EB2E2] bg-[#5584B4]/15 ring-1 ring-[#5584B4]/35'
                     : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-[#1A213B]'
@@ -2539,7 +2547,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => handleSelectSolution('library')}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-mono font-bold tracking-wide whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-4 py-1.5 rounded-xl text-[11px] lg:text-xs font-mono font-bold tracking-wide whitespace-nowrap shrink-0 transition-all cursor-pointer ${
                   !isCalmSolutionsOpen && activeView === 'library'
                     ? 'text-[#2E5E88] dark:text-[#7EB2E2] bg-[#5584B4]/15 ring-1 ring-[#5584B4]/35'
                     : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-[#1A213B]'
@@ -2552,7 +2560,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => handleSelectSolution('ask-gemini')}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-mono font-bold tracking-wide whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-4 py-1.5 rounded-xl text-[11px] lg:text-xs font-mono font-bold tracking-wide whitespace-nowrap shrink-0 transition-all cursor-pointer ${
                   !isCalmSolutionsOpen && activeView === 'ask-gemini'
                     ? 'text-[#2E5E88] dark:text-[#7EB2E2] bg-[#5584B4]/15 ring-1 ring-[#5584B4]/35'
                     : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-[#1A213B]'
@@ -2565,7 +2573,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => handleSelectSolution('bizzclass')}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-mono font-bold tracking-wide whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-4 py-1.5 rounded-xl text-[11px] lg:text-xs font-mono font-bold tracking-wide whitespace-nowrap shrink-0 transition-all cursor-pointer ${
                   !isCalmSolutionsOpen && activeView === 'bizzclass'
                     ? 'text-[#2E5E88] dark:text-[#7EB2E2] bg-[#5584B4]/15 ring-1 ring-[#5584B4]/35'
                     : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-[#1A213B]'
@@ -2578,7 +2586,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => handleSelectSolution('platform-apps')}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-mono font-bold tracking-wide whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-4 py-1.5 rounded-xl text-[11px] lg:text-xs font-mono font-bold tracking-wide whitespace-nowrap shrink-0 transition-all cursor-pointer ${
                   !isCalmSolutionsOpen && activeView === 'platform-apps'
                     ? 'text-[#2E5E88] dark:text-[#7EB2E2] bg-[#5584B4]/15 ring-1 ring-[#5584B4]/35'
                     : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-[#1A213B]'
