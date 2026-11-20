@@ -295,8 +295,8 @@ export async function upsertClientProfile(
     role: profileInput.role || existingMatch?.role,
     associate: profileInput.associate || existingMatch?.associate,
     registeredAt:
-      profileInput.registeredAt ||
       existingMatch?.registeredAt ||
+      profileInput.registeredAt ||
       new Date().toISOString(),
     uid: profileInput.uid || existingMatch?.uid,
     purchasedApps: Array.from(

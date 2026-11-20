@@ -98,6 +98,7 @@ import {
 } from '../data/cmsConsoleData';
 import { safeSaveStorage } from '../utils/imageStorage';
 import { BizzbeanLogoIcon } from './BizzbeanLogoIcon';
+import { OnboardingAuditSimulator } from './OnboardingAuditSimulator';
 import { BizzSolution } from '../types';
 import {
   subscribeToEnquiries,
@@ -145,7 +146,14 @@ interface AdministrationCentreProps {
   onBuySolution?: (solution: BizzSolution) => void;
   onSelectSolutionById?: (id: string) => void;
   onLaunchApp?: (appId: string) => void;
-  initialTab?: 'transactions' | 'dialogue-centre' | 'bulk-imports' | 'promo-emails' | 'cms-console' | 'about-bizzbean';
+  initialTab?:
+    | 'transactions'
+    | 'dialogue-centre'
+    | 'bulk-imports'
+    | 'promo-emails'
+    | 'onboarding-audit'
+    | 'cms-console'
+    | 'about-bizzbean';
 }
 
 export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
@@ -172,7 +180,13 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
 
   // Active Admin Section Tab
   const [activeTab, setActiveTab] = useState<
-    'transactions' | 'dialogue-centre' | 'bulk-imports' | 'promo-emails' | 'cms-console' | 'about-bizzbean'
+    | 'transactions'
+    | 'dialogue-centre'
+    | 'bulk-imports'
+    | 'promo-emails'
+    | 'onboarding-audit'
+    | 'cms-console'
+    | 'about-bizzbean'
   >(initialTab);
 
   useEffect(() => {
@@ -972,6 +986,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
     { id: 'dialogue-centre', label: 'Talk To Us Dialogue (#3)', icon: Mail, badge: inquiries.length },
     { id: 'bulk-imports', label: 'Associate Bulk Imports (#9)', icon: Users, badge: associateBatches.length },
     { id: 'promo-emails', label: 'Personal Promotion Emails (#10)', icon: Send, badge: promoEmails.length },
+    { id: 'onboarding-audit', label: 'Onboarding Audit & Test Lab', icon: ShieldCheck, badge: 'Test' },
     { id: 'cms-console', label: 'CMS Console (Master Matrix)', icon: Database, badge: 'Live' },
     { id: 'about-bizzbean', label: 'About Bizzbean Content', icon: Info, badge: 'Official' },
   ] as const;
@@ -3601,6 +3616,19 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                 </table>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* =================================================================== */}
+        {/* TAB 5B: ONBOARDING AUDIT & SIGN-UP / SIGN-IN SIMULATOR              */}
+        {/* =================================================================== */}
+        {activeTab === 'onboarding-audit' && (
+          <div className="max-w-7xl mx-auto">
+            <OnboardingAuditSimulator
+              theme={theme}
+              defaultTestEmail={userProfile?.email || 'thebizzbeanchannel@gmail.com'}
+              onNotify={showToast}
+            />
           </div>
         )}
 

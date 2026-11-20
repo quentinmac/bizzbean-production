@@ -826,6 +826,25 @@ Strict Quality Rules:
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
+  // Public runtime analytics configuration (resolves Measurement ID injected at runtime via Secrets/Cloud Run)
+  app.get('/api/config/analytics', (_req, res) => {
+    const candidates = [
+      process.env.VITE_GA_MEASUREMENT_ID,
+      process.env.VITE_GA_MEASUREMENT,
+      process.env.GA_MEASUREMENT_ID,
+    ];
+    const validRegex = /^(G|AW)-[A-Z0-9]{4,}$/i;
+    const resolved =
+      candidates
+        .map((v) => (v || '').trim().replace(/^["']|["']$/g, ''))
+        .find((v) => v && v.toUpperCase() !== 'G-XXXXXXXXXX' && validRegex.test(v)) || '';
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+      configured: Boolean(resolved),
+      measurementId: resolved || null,
+    });
+  });
+
   // Explicit Sitemap Handler: Guarantees text/xml response to Googlebot and web crawlers
   app.get('/sitemap.xml', (_req, res) => {
     res.setHeader('Content-Type', 'text/xml; charset=UTF-8');

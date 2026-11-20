@@ -33,9 +33,23 @@ import { validateCouponCode, redeemCouponCode } from '../services/promotionServi
 import { PromotionCoupon } from '../types';
 import { sendWelcomeEmail } from '../services/emailService';
 import { upsertClientProfile } from '../services/transactionJournalService';
+import {
+  checkClientExists,
+  evaluateOnboardingDecision,
+  markWelcomeEmailDispatched,
+} from '../services/onboardingAuditService';
+
+export interface AuthCompletionMeta {
+  mode: 'signin' | 'signup' | 'guest';
+  welcomeEmailAlreadySent?: boolean;
+}
 
 interface AuthGatewayProps {
-  onAuthenticated: (destination: 'splash' | 'dashboard' | 'bizzbot', userProfile?: any) => void;
+  onAuthenticated: (
+    destination: 'splash' | 'dashboard' | 'bizzbot',
+    userProfile?: any,
+    authMeta?: AuthCompletionMeta
+  ) => void;
   onClose?: () => void;
 }
 
@@ -276,11 +290,22 @@ Welcome to the bizzbean Sandbox environment!
         } : undefined
       };
 
+      // Check whether this email already belongs to a registered client BEFORE upserting or sending welcome email
+      const cleanRegEmail = email.trim();
+      const preCheck = await checkClientExists(cleanRegEmail);
+      const decision = evaluateOnboardingDecision({
+        action: 'signup',
+        email: cleanRegEmail,
+        displayName: fullName,
+        companyName: newProfile.companyName,
+        clientLookup: preCheck,
+      });
+
       try {
         localStorage.setItem('bizzbean_sandbox_registered', 'true');
         localStorage.setItem('bizzbean_sandbox_name', fullName);
-        localStorage.setItem('bizzbean_sandbox_email', email.trim());
-        localStorage.setItem(`bizzbean_registered_name_${email.trim().toLowerCase()}`, fullName);
+        localStorage.setItem('bizzbean_sandbox_email', cleanRegEmail);
+        localStorage.setItem(`bizzbean_registered_name_${cleanRegEmail.toLowerCase()}`, fullName);
 
         await upsertClientProfile({
           id: newProfile.id,
@@ -292,8 +317,8 @@ Welcome to the bizzbean Sandbox environment!
           city: newProfile.city,
           country: newProfile.country,
           associate: newProfile.associate,
-          registeredAt: newProfile.registeredAt,
-          notes: newProfile.notes,
+          registeredAt: preCheck.existingProfile?.registeredAt || newProfile.registeredAt,
+          notes: preCheck.existingProfile?.notes || newProfile.notes,
           role: newProfile.role,
           purchasedApps: newProfile.purchasedApps,
           purchasedCourses: newProfile.purchasedCourses,
@@ -303,24 +328,40 @@ Welcome to the bizzbean Sandbox environment!
       }
 
       try {
-        await registerUser(email.trim(), password, fullName, newProfile);
+        await registerUser(cleanRegEmail, password, fullName, newProfile);
       } catch (fbRegErr) {
         console.info('Firebase auth registration notice:', fbRegErr);
       }
 
-      // Dispatch official "your SANDBOX is ready" welcome email via SMTP
-      sendWelcomeEmail({
-        recipientEmail: email.trim(),
-        recipientName: fullName,
-        firstName: firstName.trim() || undefined,
-        companyName: newProfile.companyName,
-      }).catch((e) => {
-        console.warn('Welcome email error:', e);
-      });
+      // Dispatch official "your SANDBOX is ready" welcome email ONLY for genuine brand-new clients (never duplicates/existing users)
+      if (decision.shouldDispatchWelcomeEmail) {
+        sendWelcomeEmail({
+          recipientEmail: cleanRegEmail,
+          recipientName: fullName,
+          firstName: firstName.trim() || undefined,
+          companyName: newProfile.companyName,
+          isNewClientSignup: true,
+        })
+          .then((res) => {
+            if (res.success && !res.suppressed) {
+              markWelcomeEmailDispatched(cleanRegEmail).catch(() => {});
+            }
+          })
+          .catch((e) => {
+            console.warn('Welcome email error:', e);
+          });
+      }
 
       setTimeout(() => {
         setIsSimulating(false);
-        setRegisteredProfileForWelcome(newProfile);
+        if (decision.shouldShowWelcomeLetterModal) {
+          setRegisteredProfileForWelcome(newProfile);
+        } else {
+          onAuthenticated(destination, newProfile, {
+            mode: 'signin',
+            welcomeEmailAlreadySent: true,
+          });
+        }
       }, 1000);
     }, 1500);
   };
@@ -345,7 +386,11 @@ Welcome to the bizzbean Sandbox environment!
 
       setTimeout(() => {
         setIsSimulating(false);
-        onAuthenticated(destination, profile);
+        // Existing client sign-in: explicitly mark mode='signin' so welcome email is NEVER dispatched
+        onAuthenticated(destination, profile, {
+          mode: 'signin',
+          welcomeEmailAlreadySent: true,
+        });
       }, 700);
     } catch (err: any) {
       console.info('Authentication note:', err?.message || err);
@@ -375,7 +420,10 @@ Welcome to the bizzbean Sandbox environment!
       companyName: role === 'admin' ? 'BizzBean Admin Headquarters' : 'Apex Cloud Dynamics',
       city: role === 'admin' ? 'Cape Town' : 'Johannesburg',
     };
-    onAuthenticated(destination, profile);
+    onAuthenticated(destination, profile, {
+      mode: 'signin',
+      welcomeEmailAlreadySent: true,
+    });
   };
 
   const handleQuickRegister = async () => {
@@ -392,9 +440,18 @@ Welcome to the bizzbean Sandbox environment!
     setIsSimulating(true);
 
     try {
-      const defaultName = resolveDisplayName(loginEmail);
-      const { user: fbUser, profile } = await registerUser(loginEmail.trim(), loginPassword, defaultName);
-      localStorage.setItem('bizzbean_last_login_email', loginEmail.trim());
+      const cleanEmail = loginEmail.trim();
+      const defaultName = resolveDisplayName(cleanEmail);
+      const preCheck = await checkClientExists(cleanEmail);
+      const decision = evaluateOnboardingDecision({
+        action: 'signup',
+        email: cleanEmail,
+        displayName: defaultName,
+        clientLookup: preCheck,
+      });
+
+      const { user: fbUser, profile } = await registerUser(cleanEmail, loginPassword, defaultName);
+      localStorage.setItem('bizzbean_last_login_email', cleanEmail);
       await upsertClientProfile({
         uid: fbUser.uid,
         name: profile.name,
@@ -403,15 +460,34 @@ Welcome to the bizzbean Sandbox environment!
         country: profile.country || 'South Africa',
         city: profile.city || 'Johannesburg',
         role: profile.role === 'admin' ? 'admin' : 'member',
-        registeredAt: new Date().toISOString(),
-        notes: 'Registered via Quick Registration.',
+        registeredAt: preCheck.existingProfile?.registeredAt || new Date().toISOString(),
+        notes: preCheck.existingProfile?.notes || 'Registered via Quick Registration.',
       }).catch(() => {});
+
+      if (decision.shouldDispatchWelcomeEmail) {
+        sendWelcomeEmail({
+          recipientEmail: cleanEmail,
+          recipientName: profile.name,
+          firstName: profile.name.split(' ')[0] || undefined,
+          companyName: profile.companyName || 'Bizzbean Member Enterprise',
+          isNewClientSignup: true,
+        })
+          .then((res) => {
+            if (res.success && !res.suppressed) {
+              markWelcomeEmailDispatched(cleanEmail).catch(() => {});
+            }
+          })
+          .catch(() => {});
+      }
 
       setAuthSuccess(`Account created successfully! Signed in as ${fbUser.email}`);
 
       setTimeout(() => {
         setIsSimulating(false);
-        onAuthenticated(destination, profile);
+        onAuthenticated(destination, profile, {
+          mode: 'signup',
+          welcomeEmailAlreadySent: true,
+        });
       }, 700);
     } catch (regErr: any) {
       console.warn('Registration notice:', regErr?.code || regErr);
@@ -490,15 +566,19 @@ Welcome to the bizzbean Sandbox environment!
                 <button
                   type="button"
                   onClick={() => {
-                    onAuthenticated('splash', {
-                      name: '',
-                      role: 'public',
-                      isPro: false,
-                      purchasedApps: [],
-                      purchasedCourses: [],
-                      googleWalletAllocation: 15,
-                      googleWalletBalance: 0
-                    });
+                    onAuthenticated(
+                      'splash',
+                      {
+                        name: '',
+                        role: 'public',
+                        isPro: false,
+                        purchasedApps: [],
+                        purchasedCourses: [],
+                        googleWalletAllocation: 15,
+                        googleWalletBalance: 0
+                      },
+                      { mode: 'guest', welcomeEmailAlreadySent: true }
+                    );
                   }}
                   className="shrink-0 w-full sm:w-auto px-4 py-2.5 bg-[#12172A] hover:bg-[#1E2548] text-white rounded-lg text-xs font-bold tracking-wider uppercase transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
                 >
@@ -704,15 +784,19 @@ Welcome to the bizzbean Sandbox environment!
                   <button 
                     type="button"
                     onClick={() => {
-                      onAuthenticated('splash', {
-                        name: '',
-                        role: 'public',
-                        isPro: false,
-                        purchasedApps: [],
-                        purchasedCourses: [],
-                        googleWalletAllocation: 15,
-                        googleWalletBalance: 0
-                      });
+                      onAuthenticated(
+                        'splash',
+                        {
+                          name: '',
+                          role: 'public',
+                          isPro: false,
+                          purchasedApps: [],
+                          purchasedCourses: [],
+                          googleWalletAllocation: 15,
+                          googleWalletBalance: 0
+                        },
+                        { mode: 'guest', welcomeEmailAlreadySent: true }
+                      );
                     }}
                     className="w-full bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-300 hover:border-[#5085b6] py-3.5 px-6 font-bold tracking-wider uppercase text-xs rounded-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
@@ -1091,13 +1175,19 @@ Welcome to the bizzbean Sandbox environment!
               onClose={() => {
                 const profile = registeredProfileForWelcome;
                 setRegisteredProfileForWelcome(null);
-                onAuthenticated(destination, profile);
+                onAuthenticated(destination, profile, {
+                  mode: 'signup',
+                  welcomeEmailAlreadySent: true,
+                });
               }}
               onDownloadBook={handleDownloadBookBundle}
               onSignIn={() => {
                 const profile = registeredProfileForWelcome;
                 setRegisteredProfileForWelcome(null);
-                onAuthenticated(destination, profile);
+                onAuthenticated(destination, profile, {
+                  mode: 'signup',
+                  welcomeEmailAlreadySent: true,
+                });
               }}
             />
           </div>

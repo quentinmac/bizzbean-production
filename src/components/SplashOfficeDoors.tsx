@@ -6,6 +6,7 @@ import { CMS_STORAGE_KEYS } from '../utils/imageStorage';
 import AuthGateway from './AuthGateway';
 import { sendWelcomeEmail } from '../services/emailService';
 import { resolveDisplayName } from '../services/firebaseAuthService';
+import { checkClientExists, markWelcomeEmailDispatched } from '../services/onboardingAuditService';
 
 interface SplashOfficeDoorsProps {
   onEnterWorkspace: (isMember: boolean, userEmail?: string, chosenPromotion?: CmsPromotionSection | null, userName?: string) => void;
@@ -13,7 +14,12 @@ interface SplashOfficeDoorsProps {
   activePromotion?: CmsPromotionSection | null;
   cmsPromotions?: CmsPromotionSection[];
   onTriggerDoorOpening?: () => CmsPromotionSection | null;
-  onConfirmSignUp?: (name: string, email: string, company: string) => void;
+  onConfirmSignUp?: (
+    name: string,
+    email: string,
+    company: string,
+    options?: { skipWelcomeEmail?: boolean }
+  ) => void;
 }
 
 export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
@@ -101,31 +107,39 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
     handleTriggerEnter(true, emailInput.trim(), resolved);
   };
 
-  const handleSignUpSubmit = (e: React.FormEvent) => {
+  const handleSignUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!emailInput.trim()) return;
     const cleanName = fullNameInput.trim() || 'Venture Founder';
     const cleanEmail = emailInput.trim();
     const cleanCompany = companyInput.trim() || 'My Venture';
 
-    // Dispatch welcome email via Xneelo SMTP
-    sendWelcomeEmail({
-      recipientEmail: cleanEmail,
-      recipientName: cleanName,
-      firstName: cleanName.split(' ')[0] || undefined,
-      companyName: cleanCompany,
-    }).then((res) => {
-      if (res.success) {
-        console.log('✓ Welcome email sent to:', cleanEmail);
-      } else {
-        console.warn('Welcome email dispatch note:', res.error);
-      }
-    }).catch((err) => console.warn('Welcome email error:', err));
+    const existingCheck = await checkClientExists(cleanEmail);
+    const shouldSendWelcome = !existingCheck.exists && !existingCheck.welcomeEmailAlreadySent;
+
+    if (shouldSendWelcome) {
+      sendWelcomeEmail({
+        recipientEmail: cleanEmail,
+        recipientName: cleanName,
+        firstName: cleanName.split(' ')[0] || undefined,
+        companyName: cleanCompany,
+        isNewClientSignup: true,
+      })
+        .then((res) => {
+          if (res.success && !res.suppressed) {
+            markWelcomeEmailDispatched(cleanEmail).catch(() => {});
+            console.log('✓ Welcome email sent to new client:', cleanEmail);
+          } else {
+            console.warn('Welcome email dispatch note:', res.error || res.reason);
+          }
+        })
+        .catch((err) => console.warn('Welcome email error:', err));
+    }
 
     if (onConfirmSignUp) {
-      onConfirmSignUp(cleanName, cleanEmail, cleanCompany);
+      onConfirmSignUp(cleanName, cleanEmail, cleanCompany, { skipWelcomeEmail: true });
     }
-    handleTriggerEnter(true, cleanEmail);
+    handleTriggerEnter(true, cleanEmail, cleanName);
   };
 
   return (
@@ -455,15 +469,26 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
       {authMode !== 'none' && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
           <AuthGateway
-            onAuthenticated={(_destination, profile) => {
+            onAuthenticated={(_destination, profile, authMeta) => {
+              // 1. Public guest preview ("Enter Sandbox — No Account")
+              if (authMeta?.mode === 'guest' || profile?.role === 'public') {
+                handleTriggerEnter(false);
+                return;
+              }
+
               const resolvedName = resolveDisplayName(profile?.email, profile?.name || profile?.displayName);
-              if (onConfirmSignUp && profile) {
+
+              // 2. Brand-new client sign-up ONLY: register member state (skipWelcomeEmail if AuthGateway already dispatched it)
+              if (authMeta?.mode === 'signup' && onConfirmSignUp && profile) {
                 onConfirmSignUp(
                   resolvedName,
                   profile.email || '',
-                  profile.companyName || ''
+                  profile.companyName || '',
+                  { skipWelcomeEmail: Boolean(authMeta.welcomeEmailAlreadySent) }
                 );
               }
+
+              // 3. Existing client sign-in (authMeta.mode === 'signin'): enter workspace directly with ZERO welcome email
               handleTriggerEnter(true, profile?.email, resolvedName);
             }}
             onClose={() => setAuthMode('none')}

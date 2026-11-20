@@ -28,6 +28,9 @@ import {
   Trash2,
   RotateCcw,
   Check,
+  Calculator,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 import { CmsProduct, CmsCourseLesson } from '../data/cmsConsoleData';
 import { CMS_STORAGE_KEYS, safeSaveStorage } from '../utils/imageStorage';
@@ -97,6 +100,113 @@ const DEFAULT_APP_ENGINE_STEPS = [
   },
 ];
 
+const DEFAULT_BIZZCALCULATORS_ITEMS = [
+  {
+    step: 1,
+    title: 'Breakeven Point',
+    desc: 'Calculate the exact unit sales volume required to cover fixed expenses and variable unit costs.',
+    inputs: ['Fixed cost of sales & overheads', 'Unit selling price', 'Unit material, production & variable overhead costs'],
+    outputs: ['Total fixed expenses', 'Unit contribution & GP margin %', 'Exact breakeven sales units'],
+  },
+  {
+    step: 2,
+    title: 'Buy vs Lease',
+    desc: 'Compare buying an asset outright versus leasing across VAT, deposits, depreciation, and lifetime cashflow.',
+    inputs: ['Purchase price, accessories, VAT & deposit', 'Asset lifespan (years) & residual value', 'Lease interest rate %, term & annual payments'],
+    outputs: ['Amount financed & lease base', 'Monthly depreciation & lease cashflow', 'Lifetime buy vs. lease cash outlay'],
+  },
+  {
+    step: 3,
+    title: 'Cost Benefit Analysis',
+    desc: 'Test project or capital investment viability using discounted cash flow (NPV), payback period, and SRI.',
+    inputs: ['Initial investment, recovery & scrap value', 'Annual savings & evaluation horizon (up to 10 years)', 'Discount rate %'],
+    outputs: ['Year-by-year cashflow schedule', 'Discounted cash flow (NPV) & PV ratios', 'Payback period (PB) & Savings Return Index (SRI)'],
+  },
+  {
+    step: 4,
+    title: 'Depreciation',
+    desc: 'Calculate straight-line monthly, period, and annual asset depreciation and net balance sheet value.',
+    inputs: ['Asset purchase cost', 'Annual depreciation rate % & depreciation months', 'Evaluation period (months)'],
+    outputs: ['Monthly & annual depreciation charge', 'Cumulative period depreciation', 'Remaining balance sheet book value'],
+  },
+  {
+    step: 5,
+    title: 'Funding Calculator',
+    desc: 'Optimize Net Operating Assets (NOA) funding across equity, non-interest-bearing debt, and target debt/equity ratios.',
+    inputs: ['Total assets, NIBD & equity', 'Target NIBD % of total assets', 'Target Debt-to-Equity (DE) ratio'],
+    outputs: ['Net Operating Assets (NOA) & current DE ratio', 'Current vs. target asset funding mix %', 'Revised balance sheet capital structure'],
+  },
+  {
+    step: 6,
+    title: 'Margin vs Markup',
+    desc: 'Set an item selling price accurately by comparing Gross Profit Margin against a Markup factor (excl. & incl. VAT).',
+    inputs: ['Unit item cost (or import directly from BOM)', 'Target margin / markup % factor', 'Statutory VAT rate %'],
+    outputs: ['Selling price excl. & incl. VAT (Margin vs. Markup)', 'Gross profit per unit & effective GP %', 'Revenue factor multiplier'],
+  },
+  {
+    step: 7,
+    title: 'Revenue Factor',
+    desc: 'Calculate the additional sales revenue required to recover a new expense while protecting target profit margins.',
+    inputs: ['Revenue & cost of sales', 'Variable expenses & fixed overheads'],
+    outputs: ['Gross profit, net margin & net operating profit', 'Full margin % breakdown', 'Revenue factor multiplier'],
+  },
+  {
+    step: 8,
+    title: 'ROA Dynamics',
+    desc: 'Model the profit, margin, and working capital adjustments required to achieve a target Return on Net Operating Assets.',
+    inputs: ['Trading account & balance sheet figures', 'Target ROS % & target ROA %', 'Percentage adjustments & target working capital days'],
+    outputs: ['Current vs. required NOP & NOA', 'Adjusted trading account & balance sheet', 'Adjusted ROS, Asset Turn (AT) & ROA %'],
+  },
+  {
+    step: 9,
+    title: 'ROS x AT = ROA',
+    desc: 'Optimize business efficiency by linking Return on Sales (ROS) and Asset Turn (AT) to Return on Net Operating Assets.',
+    inputs: ['Annual revenue, cost of sales & operating expenses', 'Fixed assets, inventory, receivables & payables'],
+    outputs: ['Net Operating Profit (NOP) & Net Operating Assets (NOA)', 'ROS %, Asset Turn & ROA %', 'Verified ROS × AT = ROA check formula'],
+  },
+  {
+    step: 10,
+    title: 'Term Loan',
+    desc: 'Calculate fixed-term loan repayments, total interest cost, and total value repaid over the life of a loan.',
+    inputs: ['Loan advance amount', 'Annual interest rate %', 'Loan term (years) & annual payment frequency'],
+    outputs: ['Total number of payments', 'Monthly / periodic repayment amount', 'Total interest paid & total value repaid'],
+  },
+  {
+    step: 11,
+    title: 'Working Capital Dynamics',
+    desc: 'Measure the cash released or absorbed when adjusting inventory, receivables, and payables turnaround days.',
+    inputs: ['Revenue, variable/fixed cost of sales & VAT %', 'Current inventory, receivables & payables', 'Forecast target days for inventory, receivables & payables'],
+    outputs: ['Current calculated working capital days', 'Adjusted working capital balances', 'Net cash change in working capital'],
+  },
+  {
+    step: 12,
+    title: 'Bill of Materials (BOM)',
+    desc: 'Maintain multi-product recipes and unit costs right on your phone — covering ingredients, multi-level packaging, variable costs, and unit cost dynamics.',
+    inputs: ['Product cost book (units/batch & batches/day)', 'Ingredients: qty/batch, pack size, pack cost, consumables & waste toggle', 'Multi-level packaging & per-batch / per-unit variable costs'],
+    outputs: ['Packs/day & surplus tracking per ingredient', 'Materials, packaging & variable unit cost breakdown', 'One-tap transfer to Margin vs Markup & Breakeven Point'],
+  },
+];
+
+const AVAILABLE_STAGE_OPTIONS: Array<{ value: CmsProduct['stage']; label: string }> = [
+  { value: 'vi-ability', label: 'vi-ability' },
+  { value: 'fund-ability', label: 'fund-ability' },
+  { value: 'sustain-ability', label: 'sustain-ability' },
+  { value: 'invest-ability', label: 'invest-ability' },
+  { value: 'operations-sandbox', label: 'operations-sandbox' },
+  { value: 'personal-sandbox', label: 'personal-sandbox' },
+  { value: 'operations', label: 'operations' },
+  { value: 'growth', label: 'growth' },
+  { value: 'education', label: 'education' },
+];
+
+const padStep = (n: number): string => String(n).padStart(2, '0');
+
+const isLegacySevenStepTemplate = (steps: any[]): boolean =>
+  Array.isArray(steps) &&
+  steps.length === 7 &&
+  steps[0]?.title === 'Business Details & Operating Calendar' &&
+  steps[6]?.title === 'Authentic 3-Statement & Break-Even Reports';
+
 export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps> = ({
   isOpen,
   onClose,
@@ -141,12 +251,31 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
   );
   const effectiveProd: any = matchingCms || safeSolution;
 
-  // Determine if course or platform application
+  // Determine if course or platform application (and detect bizzcalculators suite)
   const isCourse =
     effectiveProd.type === 'course' ||
     safeSolution.type === 'course' ||
     ['learn-earn-capital', 'how-to-bizzcalc', 'cost-recovery-calculator', 'follow-the-money', 'financial-reports', 'your-first-hire', 'profit-optimizer', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(solId) ||
     solName.toLowerCase().includes('course');
+
+  const isBizzCalculators =
+    !isCourse &&
+    (solId === 'bizzcalculators' ||
+      solName.toLowerCase().includes('bizzcalculators') ||
+      String(effectiveProd.sku || '').toUpperCase() === 'BA-CALC');
+
+  const getDefaultStepsForSolution = (forCalculators: boolean) =>
+    forCalculators ? DEFAULT_BIZZCALCULATORS_ITEMS : DEFAULT_APP_ENGINE_STEPS;
+
+  const resolveInitialSteps = (prod: any, forCalculators: boolean) => {
+    if (Array.isArray(prod?.engineSteps) && prod.engineSteps.length > 0) {
+      if (forCalculators && isLegacySevenStepTemplate(prod.engineSteps)) {
+        return DEFAULT_BIZZCALCULATORS_ITEMS;
+      }
+      return prod.engineSteps;
+    }
+    return getDefaultStepsForSolution(forCalculators);
+  };
 
   const coverImage =
     effectiveProd.canonicalCoverUrl ||
@@ -173,26 +302,46 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
           { id: 'l-3', name: 'Module 03: Executive Defense & Stress Testing', duration: '15 min', youtubeUrl: '' },
         ];
 
+  const defaultChallengeText = isBizzCalculators
+    ? 'Operators and small business owners frequently guess prices, under-cost ingredients or packaging, and commit to loans or leases without checking cashflow impact. They need instant, mobile-ready financial dials in their pocket.'
+    : 'Building in premature scale without unit economics clarity leads to unrecoverable burn. Founders need clear visibility before committing capital.';
+
+  const defaultTargetProfile = isBizzCalculators
+    ? 'Small Business Owners, Food Truck & Hospitality Operators, Makers, Retailers & Operational Managers'
+    : 'Pre-Seed to Series A Founders, Financial Directors, Advisory Teams';
+
+  const defaultWhatYouGet = isBizzCalculators
+    ? [
+        '12 specialized mobile-ready business & costing calculators',
+        'Multi-product Bill of Materials (BOM) recipe & packaging cost book',
+        'One-tap unit cost transfer into Margin vs Markup & Breakeven Point',
+        'Once-off lifetime browser access on mobile & desktop — zero monthly fees',
+      ]
+    : [
+        'Interactive financial models with live scenario sliders',
+        'Downloadable audit-proof reports & export formats',
+        'Macro-free Google Workspace spreadsheet connectors',
+        'Pre-configured chart of accounts and runway schedules',
+      ];
+
   // Editable form state
   const [formName, setFormName] = useState<string>(effectiveProd.name || safeSolution.name || 'bizzcalc');
+  const [formSku, setFormSku] = useState<string>(effectiveProd.sku || 'BA-001');
+  const [formStage, setFormStage] = useState<CmsProduct['stage']>(
+    (effectiveProd.stage || safeSolution.stage || 'vi-ability') as CmsProduct['stage']
+  );
   const [formSubtitle, setFormSubtitle] = useState<string>(effectiveProd.subtitle || safeSolution.subtitle || '');
   const [formPurpose, setFormPurpose] = useState<string>(effectiveProd.purpose || safeSolution.purpose || safeSolution.description || '');
   const [formChallenge, setFormChallenge] = useState<string>(
-    effectiveProd.challengeText ||
-    'Building in premature scale without unit economics clarity leads to unrecoverable burn. Founders need clear visibility before committing capital.'
+    effectiveProd.challengeText || defaultChallengeText
   );
   const [formTargetProfile, setFormTargetProfile] = useState<string>(
-    effectiveProd.targetProfile || 'Pre-Seed to Series A Founders, Financial Directors, Advisory Teams'
+    effectiveProd.targetProfile || defaultTargetProfile
   );
   const [formWhatYouGet, setFormWhatYouGet] = useState<string[]>(
     Array.isArray(effectiveProd.whatYouGet) && effectiveProd.whatYouGet.length > 0
       ? effectiveProd.whatYouGet
-      : [
-          'Interactive financial models with live scenario sliders',
-          'Downloadable audit-proof reports & export formats',
-          'Macro-free Google Workspace spreadsheet connectors',
-          'Pre-configured chart of accounts and runway schedules',
-        ]
+      : defaultWhatYouGet
   );
   const [formCapabilities, setFormCapabilities] = useState<string[]>(
     Array.isArray(effectiveProd.modules) && effectiveProd.modules.length > 0
@@ -211,10 +360,8 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
     effectiveProd.companionMaterialFilename || 'Framework_Templates.zip'
   );
   const [formLessons, setFormLessons] = useState<CmsCourseLesson[]>(initialLessons);
-  const [formSteps, setFormSteps] = useState(
-    Array.isArray(effectiveProd.engineSteps) && effectiveProd.engineSteps.length > 0
-      ? effectiveProd.engineSteps
-      : DEFAULT_APP_ENGINE_STEPS
+  const [formSteps, setFormSteps] = useState(() =>
+    resolveInitialSteps(effectiveProd, isBizzCalculators)
   );
   const [formSellingPrice, setFormSellingPrice] = useState<number>(initialSellingPrice);
   const [formTokens, setFormTokens] = useState<number>(initialTokens);
@@ -222,24 +369,58 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
   // Synchronize state whenever the selected solution changes or the modal opens
   useEffect(() => {
     const curProd: any = (cmsProducts || []).find((p) => p.id === solId) || safeSolution;
+    const curIsCalc =
+      !isCourse &&
+      (solId === 'bizzcalculators' ||
+        String(curProd.name || safeSolution.name || '').toLowerCase().includes('bizzcalculators') ||
+        String(curProd.sku || '').toUpperCase() === 'BA-CALC');
+
     setFormName(curProd.name || safeSolution.name || 'bizzcalc');
+    setFormSku(curProd.sku || (curIsCalc ? 'BA-CALC' : 'BA-001'));
+    setFormStage((curProd.stage || safeSolution.stage || 'vi-ability') as CmsProduct['stage']);
     setFormSubtitle(curProd.subtitle || safeSolution.subtitle || '');
     setFormPurpose(curProd.purpose || safeSolution.purpose || safeSolution.description || '');
-    if (curProd.challengeText) setFormChallenge(curProd.challengeText);
-    if (curProd.targetProfile) setFormTargetProfile(curProd.targetProfile);
-    if (Array.isArray(curProd.whatYouGet) && curProd.whatYouGet.length > 0) {
-      setFormWhatYouGet(curProd.whatYouGet);
-    }
+    setFormChallenge(
+      curProd.challengeText ||
+        (curIsCalc
+          ? 'Operators and small business owners frequently guess prices, under-cost ingredients or packaging, and commit to loans or leases without checking cashflow impact. They need instant, mobile-ready financial dials in their pocket.'
+          : 'Building in premature scale without unit economics clarity leads to unrecoverable burn. Founders need clear visibility before committing capital.')
+    );
+    setFormTargetProfile(
+      curProd.targetProfile ||
+        (curIsCalc
+          ? 'Small Business Owners, Food Truck & Hospitality Operators, Makers, Retailers & Operational Managers'
+          : 'Pre-Seed to Series A Founders, Financial Directors, Advisory Teams')
+    );
+    setFormWhatYouGet(
+      Array.isArray(curProd.whatYouGet) && curProd.whatYouGet.length > 0
+        ? curProd.whatYouGet
+        : curIsCalc
+        ? [
+            '12 specialized mobile-ready business & costing calculators',
+            'Multi-product Bill of Materials (BOM) recipe & packaging cost book',
+            'One-tap unit cost transfer into Margin vs Markup & Breakeven Point',
+            'Once-off lifetime browser access on mobile & desktop — zero monthly fees',
+          ]
+        : [
+            'Interactive financial models with live scenario sliders',
+            'Downloadable audit-proof reports & export formats',
+            'Macro-free Google Workspace spreadsheet connectors',
+            'Pre-configured chart of accounts and runway schedules',
+          ]
+    );
     if (Array.isArray(curProd.modules) && curProd.modules.length > 0) {
       setFormCapabilities(curProd.modules);
+    } else if (curIsCalc) {
+      setFormCapabilities(DEFAULT_BIZZCALCULATORS_ITEMS.map((c) => c.title));
     }
     if (curProd.companionMaterialFilename) setFormCompanionFile(curProd.companionMaterialFilename);
     if (Array.isArray(curProd.courseLessons) && curProd.courseLessons.length > 0) {
       setFormLessons(curProd.courseLessons);
     }
-    if (Array.isArray(curProd.engineSteps) && curProd.engineSteps.length > 0) {
-      setFormSteps(curProd.engineSteps);
-    }
+    const nextSteps = resolveInitialSteps(curProd, curIsCalc);
+    setFormSteps(nextSteps);
+    setActiveAppStep(nextSteps[0]?.step || 1);
     const currentPrice = curProd.sellingPriceZAR ?? (safeSolution.priceZAR || 0);
     setFormSellingPrice(currentPrice);
     setFormTokens(curProd.tokensAllocated ?? (safeSolution.tokensAllocated || Math.round(currentPrice * 0.2)));
@@ -254,13 +435,29 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
 
   // Handle Save
   const handleSaveViewScreen = () => {
+    const cleanedSteps = formSteps.map((st: any, idx: number) => ({
+      ...st,
+      step: idx + 1,
+      title: String(st.title || '').trim() || (isBizzCalculators ? `Calculator ${idx + 1}` : `Step ${idx + 1}`),
+      desc: String(st.desc || '').trim(),
+      inputs: Array.isArray(st.inputs)
+        ? st.inputs.map((x: string) => x.trim()).filter((x: string) => x.length > 0)
+        : [],
+      outputs: Array.isArray(st.outputs)
+        ? st.outputs.map((x: string) => x.trim()).filter((x: string) => x.length > 0)
+        : [],
+    }));
+    setFormSteps(cleanedSteps);
+
     const updatedProd: CmsProduct = {
       ...effectiveProd,
       id: effectiveProd.id || solution.id,
       seq: effectiveProd.seq || 1,
       type: isCourse ? 'course' : 'app',
-      stage: ['profit-optimizer', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(effectiveProd.id || solution.id) ? 'sustain-ability' : (effectiveProd.stage || (solution.stage as any) || 'vi-ability'),
-      sku: effectiveProd.sku || 'BA-001',
+      stage: ['profit-optimizer', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(effectiveProd.id || solution.id)
+        ? 'sustain-ability'
+        : formStage || effectiveProd.stage || (solution.stage as any) || 'vi-ability',
+      sku: formSku.trim() || effectiveProd.sku || 'BA-001',
       name: formName.trim() || effectiveProd.name || solution.name,
       subtitle: formSubtitle.trim() || effectiveProd.subtitle || solution.subtitle,
       purpose: formPurpose.trim() || effectiveProd.purpose || solution.purpose,
@@ -273,7 +470,7 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
       courseLessons: isCourse ? formLessons : effectiveProd.courseLessons,
       lessonTitles: isCourse ? formLessons.map((l) => l.name) : effectiveProd.lessonTitles,
       syllabusLessonsCount: isCourse ? formLessons.length : (effectiveProd.syllabusLessonsCount || 0),
-      engineSteps: !isCourse ? formSteps : effectiveProd.engineSteps,
+      engineSteps: !isCourse ? cleanedSteps : effectiveProd.engineSteps,
       sellingPriceZAR: Number(formSellingPrice) || 0,
       exclusivePriceZAR: exclusivePrice,
       vatZAR: vat,
@@ -363,14 +560,65 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
     setFormLessons(formLessons.filter((_, idx) => idx !== index));
   };
 
-  // Helper for 7 engine steps
+  // Helpers for dynamic engine steps / bizzcalculators list (add, edit, reorder, delete, reset)
   const handleUpdateStep = (stepNumber: number, field: string, val: any) => {
     setFormSteps(
       formSteps.map((st: any) => (st.step === stepNumber ? { ...st, [field]: val } : st))
     );
   };
 
-  const currentStepData = formSteps.find((s: any) => s.step === activeAppStep) || formSteps[0] || DEFAULT_APP_ENGINE_STEPS[0];
+  const handleAddStepOrCalculator = () => {
+    const nextStepNum = formSteps.length + 1;
+    const newItem = isBizzCalculators
+      ? {
+          step: nextStepNum,
+          title: `New Calculator ${padStep(nextStepNum)}`,
+          desc: 'Describe what this calculator solves and who benefits from it.',
+          inputs: ['Primary operational or cost assumption'],
+          outputs: ['Key financial decision metric or unit cost'],
+        }
+      : {
+          step: nextStepNum,
+          title: `Step ${padStep(nextStepNum)} Module`,
+          desc: 'Describe what this step models inside the application.',
+          inputs: ['Core step assumption'],
+          outputs: ['Calculated step deliverable'],
+        };
+    setFormSteps([...formSteps, newItem]);
+    setActiveAppStep(nextStepNum);
+  };
+
+  const handleDeleteStepOrCalculator = (stepNumber: number) => {
+    if (formSteps.length <= 1) return;
+    const renumbered = formSteps
+      .filter((st: any) => st.step !== stepNumber)
+      .map((st: any, idx: number) => ({ ...st, step: idx + 1 }));
+    setFormSteps(renumbered);
+    setActiveAppStep(Math.min(stepNumber, renumbered.length));
+  };
+
+  const handleMoveStepOrCalculator = (stepNumber: number, direction: -1 | 1) => {
+    const idx = formSteps.findIndex((st: any) => st.step === stepNumber);
+    const targetIdx = idx + direction;
+    if (idx < 0 || targetIdx < 0 || targetIdx >= formSteps.length) return;
+    const copy = [...formSteps];
+    const [moved] = copy.splice(idx, 1);
+    copy.splice(targetIdx, 0, moved);
+    const renumbered = copy.map((st: any, i: number) => ({ ...st, step: i + 1 }));
+    setFormSteps(renumbered);
+    setActiveAppStep(targetIdx + 1);
+  };
+
+  const handleResetCalculatorsToDefaults = () => {
+    const defaults = getDefaultStepsForSolution(isBizzCalculators);
+    setFormSteps(defaults);
+    setActiveAppStep(defaults[0]?.step || 1);
+  };
+
+  const currentStepData =
+    formSteps.find((s: any) => s.step === activeAppStep) ||
+    formSteps[0] ||
+    getDefaultStepsForSolution(isBizzCalculators)[0];
 
   if (!isOpen) return null;
 
@@ -407,17 +655,59 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-2 mt-0.5 text-[11px] font-mono text-slate-500 dark:text-slate-400">
-                <span>SKU: {effectiveProd.sku || 'BZ-001'}</span>
-                <span>•</span>
-                <span className="text-[#2E5E88] dark:text-[#5584B4] font-medium lowercase">
-                  stage: {solution.stage || 'vi-ability'}
-                </span>
-                <span>•</span>
-                <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-semibold">
-                  <Cpu className="h-3 w-3" />
-                  <span>zero compute consumed</span>
-                </span>
+              <div className="flex flex-wrap items-center gap-2 mt-0.5 text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                {!isEditing ? (
+                  <>
+                    <span>SKU: {formSku || 'BZ-001'}</span>
+                    <span aria-hidden="true">·</span>
+                    <span className="text-[#2E5E88] dark:text-[#5584B4] font-medium lowercase">
+                      stage: {formStage || 'vi-ability'}
+                    </span>
+                    {isBizzCalculators && (
+                      <>
+                        <span aria-hidden="true">·</span>
+                        <span className="font-semibold text-slate-700 dark:text-slate-300 tabular-nums">
+                          {formSteps.length} calculators
+                        </span>
+                      </>
+                    )}
+                    <span aria-hidden="true">·</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-semibold">
+                      <Cpu className="h-3 w-3" />
+                      <span>zero compute consumed</span>
+                    </span>
+                  </>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                    <label className="inline-flex items-center gap-1">
+                      <span className="text-[10px] uppercase opacity-75">SKU:</span>
+                      <input
+                        type="text"
+                        value={formSku}
+                        onChange={(e) => setFormSku(e.target.value)}
+                        className={`w-24 px-2 py-0.5 rounded-md border text-[11px] font-mono font-bold ${
+                          isDark ? 'bg-[#0E1322] border-[#252E4A] text-white' : 'bg-white border-[#D8CEBC] text-slate-900'
+                        }`}
+                      />
+                    </label>
+                    <label className="inline-flex items-center gap-1">
+                      <span className="text-[10px] uppercase opacity-75">stage:</span>
+                      <select
+                        value={formStage}
+                        onChange={(e) => setFormStage(e.target.value as CmsProduct['stage'])}
+                        className={`px-2 py-0.5 rounded-md border text-[11px] font-mono ${
+                          isDark ? 'bg-[#0E1322] border-[#252E4A] text-white' : 'bg-white border-[#D8CEBC] text-slate-900'
+                        }`}
+                      >
+                        {AVAILABLE_STAGE_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -487,8 +777,18 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
         >
           {[
             { id: 'overview', label: '1. OVERVIEW & MISSION' },
-            { id: 'curriculum', label: isCourse ? '2. SYLLABUS & LESSONS' : '2. 7-STEP ENGINE ARCHITECTURE' },
-            { id: 'deliverables', label: '3. DELIVERABLES & EXPORTS' },
+            {
+              id: 'curriculum',
+              label: isCourse
+                ? '2. SYLLABUS & LESSONS'
+                : isBizzCalculators
+                ? `2. CALCULATOR SUITE (${formSteps.length})`
+                : '2. 7-STEP ENGINE ARCHITECTURE',
+            },
+            {
+              id: 'deliverables',
+              label: isBizzCalculators ? '3. INCLUDED & ACCESS' : '3. DELIVERABLES & EXPORTS',
+            },
             { id: 'pricing', label: '4. TRANSPARENT PRICING' },
           ].map((tab) => (
             <button
@@ -862,70 +1162,180 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
                   </div>
                 </div>
               ) : (
-                /* Platform Application 7-Step Engine Architecture */
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between pb-1">
+                /* Platform Application: Calculator Suite (bizzcalculators) OR 7-Step Engine Architecture */
+                <div className="space-y-3.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
                     <div className="text-xs font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                      <Cpu className="h-4 w-4 text-[#2E5E88]" />
-                      <span>7-Step Financial & Operational Engine Architecture</span>
+                      {isBizzCalculators ? (
+                        <Calculator className="h-4 w-4 text-[#2E5E88]" />
+                      ) : (
+                        <Cpu className="h-4 w-4 text-[#2E5E88]" />
+                      )}
+                      <span>
+                        {isBizzCalculators
+                          ? `Included Business & Costing Calculators (${formSteps.length})`
+                          : '7-Step Financial & Operational Engine Architecture'}
+                      </span>
                     </div>
-                    <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
-                      {isEditing ? 'Live Engine Editor' : 'Read-Only Inspection (Zero Compute)'}
-                    </span>
+
+                    <div className="flex items-center gap-2">
+                      {isEditing ? (
+                        <>
+                          {isBizzCalculators && (
+                            <button
+                              type="button"
+                              onClick={handleResetCalculatorsToDefaults}
+                              className="px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-[#2E5E88] hover:text-[#2E5E88] flex items-center gap-1 cursor-pointer"
+                              title="Load all 12 default bizzcalculators descriptions"
+                            >
+                              <RotateCcw className="h-3 w-3" />
+                              <span>Load 12 Defaults</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={handleAddStepOrCalculator}
+                            className="px-3 py-1 rounded-lg text-xs font-mono font-bold bg-[#2E5E88] hover:bg-[#23496B] text-white flex items-center gap-1 cursor-pointer"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            <span>{isBizzCalculators ? 'Add Calculator' : 'Add Step'}</span>
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+                          Read-Only Inspection (Zero Compute)
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Step Selector Pills */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1.5">
-                    {formSteps.map((st: any) => {
-                      const isSelected = activeAppStep === st.step;
-                      return (
-                        <button
-                          key={st.step}
-                          type="button"
-                          onClick={() => setActiveAppStep(st.step)}
-                          className={`p-2 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1 ${
-                            isSelected
-                              ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-xs'
-                              : isDark
-                              ? 'bg-[#141B2D] border-[#222F4C] text-slate-300 hover:bg-[#1E2548]'
-                              : 'bg-white border-[#D8CEBC] text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          <Layers className="h-4 w-4" />
-                          <span className="text-[10px] font-mono font-bold uppercase truncate w-full">
-                            Step 0{st.step}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {/* Selector Grid: Named Calculator Tiles for bizzcalculators, Step Tiles for 7-step apps */}
+                  {isBizzCalculators ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                      {formSteps.map((st: any) => {
+                        const isSelected = activeAppStep === st.step;
+                        return (
+                          <button
+                            key={st.step}
+                            type="button"
+                            onClick={() => setActiveAppStep(st.step)}
+                            className={`px-3 py-2.5 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
+                              isSelected
+                                ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-xs'
+                                : isDark
+                                ? 'bg-[#141B2D] border-[#222F4C] text-slate-300 hover:bg-[#1E2548]'
+                                : 'bg-white border-[#D8CEBC] text-slate-700 hover:bg-[#F4EFE6]'
+                            }`}
+                          >
+                            <span
+                              className={`text-[10px] font-mono font-bold tabular-nums shrink-0 ${
+                                isSelected ? 'text-white/80' : 'text-[#2E5E88] dark:text-[#7FB0DF]'
+                              }`}
+                            >
+                              {padStep(st.step)}
+                            </span>
+                            <span className="text-[11px] font-mono font-bold truncate">
+                              {st.title}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1.5">
+                      {formSteps.map((st: any) => {
+                        const isSelected = activeAppStep === st.step;
+                        return (
+                          <button
+                            key={st.step}
+                            type="button"
+                            onClick={() => setActiveAppStep(st.step)}
+                            className={`p-2 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                              isSelected
+                                ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-xs'
+                                : isDark
+                                ? 'bg-[#141B2D] border-[#222F4C] text-slate-300 hover:bg-[#1E2548]'
+                                : 'bg-white border-[#D8CEBC] text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            <Layers className="h-4 w-4" />
+                            <span className="text-[10px] font-mono font-bold uppercase truncate w-full tabular-nums">
+                              Step {padStep(st.step)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
 
-                  {/* Selected Step Detailed Breakdown */}
+                  {/* Selected Calculator / Step Detailed Breakdown */}
                   <div
                     className={`p-4 rounded-2xl border space-y-4 ${
                       isDark ? 'bg-[#141B2D] border-[#222F4C]' : 'bg-white border-[#D8CEBC]'
                     }`}
                   >
-                    <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
-                      <div className="flex items-center gap-2 flex-1">
-                        <div className="h-8 w-8 rounded-lg bg-[#2E5E88] text-white flex items-center justify-center shrink-0">
-                          <Cpu className="h-4 w-4" />
+                    <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+                      <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                        <div className="h-8 w-8 rounded-lg bg-[#2E5E88] text-white flex items-center justify-center shrink-0 mt-0.5">
+                          {isBizzCalculators ? (
+                            <Calculator className="h-4 w-4" />
+                          ) : (
+                            <Cpu className="h-4 w-4" />
+                          )}
                         </div>
                         {!isEditing ? (
-                          <div>
-                            <div className="text-xs font-mono font-bold uppercase text-slate-900 dark:text-white">
-                              Step 0{currentStepData.step}: {currentStepData.title}
+                          <div className="min-w-0">
+                            <div className="text-xs sm:text-sm font-mono font-bold uppercase text-slate-900 dark:text-white">
+                              {isBizzCalculators ? 'Calc' : 'Step'} {padStep(currentStepData.step)}: {currentStepData.title}
                             </div>
-                            <div className="text-[11px] text-slate-500 font-sans">{currentStepData.desc}</div>
+                            <div className="text-xs text-slate-600 dark:text-slate-300 font-sans mt-0.5 leading-relaxed">
+                              {currentStepData.desc}
+                            </div>
                           </div>
                         ) : (
-                          <div className="flex-1 space-y-1.5">
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] font-mono font-bold uppercase text-[#2E5E88] dark:text-[#7FB0DF]">
+                                Editing {isBizzCalculators ? 'Calculator' : 'Step'} {padStep(currentStepData.step)} of {padStep(formSteps.length)}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveStepOrCalculator(currentStepData.step, -1)}
+                                  disabled={currentStepData.step <= 1}
+                                  className="p-1 rounded-md border border-slate-300 dark:border-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 cursor-pointer"
+                                  title="Move earlier"
+                                >
+                                  <ChevronUp className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveStepOrCalculator(currentStepData.step, 1)}
+                                  disabled={currentStepData.step >= formSteps.length}
+                                  className="p-1 rounded-md border border-slate-300 dark:border-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 cursor-pointer"
+                                  title="Move later"
+                                >
+                                  <ChevronDown className="h-3.5 w-3.5" />
+                                </button>
+                                {formSteps.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteStepOrCalculator(currentStepData.step)}
+                                    className="px-2 py-1 rounded-md border border-rose-300 dark:border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-[10px] font-mono font-bold inline-flex items-center gap-1 cursor-pointer"
+                                    title={isBizzCalculators ? 'Remove calculator' : 'Remove step'}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                    <span>Delete</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                             <input
                               type="text"
                               value={currentStepData.title}
                               onChange={(e) => handleUpdateStep(currentStepData.step, 'title', e.target.value)}
-                              placeholder="Step Title..."
-                              className={`w-full px-2.5 py-1 rounded-lg border text-xs font-mono font-bold ${
+                              placeholder={isBizzCalculators ? 'Calculator Name (e.g. Bill of Materials)...' : 'Step Title...'}
+                              className={`w-full px-2.5 py-1.5 rounded-lg border text-xs font-mono font-bold ${
                                 isDark ? 'bg-[#0E1322] border-[#252E4A] text-white' : 'bg-white border-[#D8CEBC] text-slate-900'
                               }`}
                             />
@@ -933,8 +1343,8 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
                               rows={2}
                               value={currentStepData.desc}
                               onChange={(e) => handleUpdateStep(currentStepData.step, 'desc', e.target.value)}
-                              placeholder="Step Description..."
-                              className={`w-full px-2.5 py-1 rounded-lg border text-xs font-sans ${
+                              placeholder={isBizzCalculators ? 'Describe what this calculator helps the operator calculate...' : 'Step Description...'}
+                              className={`w-full px-2.5 py-1.5 rounded-lg border text-xs font-sans ${
                                 isDark ? 'bg-[#0E1322] border-[#252E4A] text-white' : 'bg-white border-[#D8CEBC] text-slate-900'
                               }`}
                             />
@@ -951,7 +1361,7 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
                         }`}
                       >
                         <div className="text-[10px] font-mono font-bold uppercase text-slate-500 mb-2">
-                          Inputs & Assumptions Handled:
+                          {isBizzCalculators ? 'User Inputs Handled:' : 'Inputs & Assumptions Handled:'}
                         </div>
                         {!isEditing ? (
                           <ul className="space-y-1.5 text-xs text-slate-700 dark:text-slate-300 font-mono">
@@ -970,7 +1380,7 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
                               handleUpdateStep(
                                 currentStepData.step,
                                 'inputs',
-                                e.target.value.split('\n').filter((x) => x.trim().length > 0)
+                                e.target.value.split('\n')
                               )
                             }
                             placeholder="Enter inputs (one per line)..."
@@ -988,7 +1398,7 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
                         }`}
                       >
                         <div className="text-[10px] font-mono font-bold uppercase text-[#2E5E88] dark:text-[#5584B4] mb-2">
-                          Quantitative Outputs & Deliverables:
+                          {isBizzCalculators ? 'Live Outputs & Insights:' : 'Quantitative Outputs & Deliverables:'}
                         </div>
                         {!isEditing ? (
                           <ul className="space-y-1.5 text-xs text-slate-700 dark:text-slate-300 font-mono">
@@ -1007,7 +1417,7 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
                               handleUpdateStep(
                                 currentStepData.step,
                                 'outputs',
-                                e.target.value.split('\n').filter((x) => x.trim().length > 0)
+                                e.target.value.split('\n')
                               )
                             }
                             placeholder="Enter outputs (one per line)..."
@@ -1028,67 +1438,131 @@ export const SolutionTransparencyModal: React.FC<SolutionTransparencyModalProps>
           {activeTab === 'deliverables' && (
             <div className="space-y-3">
               <div className="text-xs font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                <FileSpreadsheet className="h-4 w-4 text-[#2E5E88]" />
+                {isBizzCalculators ? (
+                  <Calculator className="h-4 w-4 text-[#2E5E88]" />
+                ) : (
+                  <FileSpreadsheet className="h-4 w-4 text-[#2E5E88]" />
+                )}
                 <span>What Is Included With This License</span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div
-                  className={`p-4 rounded-2xl border ${
-                    isDark ? 'bg-[#141B2D] border-[#222F4C]' : 'bg-white border-[#D8CEBC]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-900 dark:text-white uppercase mb-1">
-                    <Download className="h-4 w-4 text-emerald-500" />
-                    <span>Unlocked Financial Models</span>
+              {isBizzCalculators ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div
+                    className={`p-4 rounded-2xl border ${
+                      isDark ? 'bg-[#141B2D] border-[#222F4C]' : 'bg-white border-[#D8CEBC]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-900 dark:text-white uppercase mb-1">
+                      <Calculator className="h-4 w-4 text-emerald-500" />
+                      <span>All {formSteps.length} Mobile-Ready Calculators</span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
+                      Instant browser-based tools designed for touchscreens and desktops: Breakeven, Margin vs Markup, Bill of Materials (BOM), Working Capital, ROA, Buy vs Lease, and Term Loans.
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
-                    100% unlocked .xlsx and .gsheet financial forecasting sheets with transparent formulas, zero password locks, and audit-ready structure.
-                  </p>
-                </div>
 
-                <div
-                  className={`p-4 rounded-2xl border ${
-                    isDark ? 'bg-[#141B2D] border-[#222F4C]' : 'bg-white border-[#D8CEBC]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-900 dark:text-white uppercase mb-1">
-                    <BarChart3 className="h-4 w-4 text-[#2E5E88]" />
-                    <span>A4 Investor PDF Export Pack</span>
+                  <div
+                    className={`p-4 rounded-2xl border ${
+                      isDark ? 'bg-[#141B2D] border-[#222F4C]' : 'bg-white border-[#D8CEBC]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-900 dark:text-white uppercase mb-1">
+                      <Layers className="h-4 w-4 text-[#2E5E88]" />
+                      <span>Multi-Product BOM Cost Book</span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
+                      Maintain recipes, pack rounding, multi-level packaging, and variable costs directly on your phone with automatic local save and one-tap handoff to Margin vs Markup and Breakeven.
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
-                    Executive 5-page PDF board report generation including break-even charts, liquidity vs debt, and GAAP 3-statement reconciliation.
-                  </p>
-                </div>
 
-                <div
-                  className={`p-4 rounded-2xl border ${
-                    isDark ? 'bg-[#141B2D] border-[#222F4C]' : 'bg-white border-[#D8CEBC]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-900 dark:text-white uppercase mb-1">
-                    <Coins className="h-4 w-4 text-amber-500" />
-                    <span>20% Token Reinvestment</span>
+                  <div
+                    className={`p-4 rounded-2xl border ${
+                      isDark ? 'bg-[#141B2D] border-[#222F4C]' : 'bg-white border-[#D8CEBC]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-900 dark:text-white uppercase mb-1">
+                      <Coins className="h-4 w-4 text-amber-500" />
+                      <span>20% Token Reinvestment</span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
+                      Instantly earn +{tokensCredited} tokens deposited into your verified bizz-DESK wallet to unlock companion templates, courses, and modeling apps.
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
-                    Instantly earn +{tokensCredited} tokens deposited into your verified bizz-DESK wallet to unlock companion templates and services.
-                  </p>
-                </div>
 
-                <div
-                  className={`p-4 rounded-2xl border ${
-                    isDark ? 'bg-[#141B2D] border-[#222F4C]' : 'bg-white border-[#D8CEBC]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-900 dark:text-white uppercase mb-1">
-                    <Cpu className="h-4 w-4 text-[#84CC16]" />
-                    <span>Unlimited Personal Computations</span>
+                  <div
+                    className={`p-4 rounded-2xl border ${
+                      isDark ? 'bg-[#141B2D] border-[#222F4C]' : 'bg-white border-[#D8CEBC]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-900 dark:text-white uppercase mb-1">
+                      <Cpu className="h-4 w-4 text-[#84CC16]" />
+                      <span>Once-Off Lifetime Access</span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
+                      Pay once with zero monthly subscription fees. Run unlimited daily pricing, costing, and financing recalculations anywhere from your phone or laptop.
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
-                    Once unlocked, run infinite scenario recalculations, rate changes, and break-even simulations in your workstation.
-                  </p>
                 </div>
-              </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div
+                    className={`p-4 rounded-2xl border ${
+                      isDark ? 'bg-[#141B2D] border-[#222F4C]' : 'bg-white border-[#D8CEBC]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-900 dark:text-white uppercase mb-1">
+                      <Download className="h-4 w-4 text-emerald-500" />
+                      <span>Unlocked Financial Models</span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
+                      100% unlocked .xlsx and .gsheet financial forecasting sheets with transparent formulas, zero password locks, and audit-ready structure.
+                    </p>
+                  </div>
+
+                  <div
+                    className={`p-4 rounded-2xl border ${
+                      isDark ? 'bg-[#141B2D] border-[#222F4C]' : 'bg-white border-[#D8CEBC]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-900 dark:text-white uppercase mb-1">
+                      <BarChart3 className="h-4 w-4 text-[#2E5E88]" />
+                      <span>A4 Investor PDF Export Pack</span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
+                      Executive 5-page PDF board report generation including break-even charts, liquidity vs debt, and GAAP 3-statement reconciliation.
+                    </p>
+                  </div>
+
+                  <div
+                    className={`p-4 rounded-2xl border ${
+                      isDark ? 'bg-[#141B2D] border-[#222F4C]' : 'bg-white border-[#D8CEBC]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-900 dark:text-white uppercase mb-1">
+                      <Coins className="h-4 w-4 text-amber-500" />
+                      <span>20% Token Reinvestment</span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
+                      Instantly earn +{tokensCredited} tokens deposited into your verified bizz-DESK wallet to unlock companion templates and services.
+                    </p>
+                  </div>
+
+                  <div
+                    className={`p-4 rounded-2xl border ${
+                      isDark ? 'bg-[#141B2D] border-[#222F4C]' : 'bg-white border-[#D8CEBC]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-900 dark:text-white uppercase mb-1">
+                      <Cpu className="h-4 w-4 text-[#84CC16]" />
+                      <span>Unlimited Personal Computations</span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
+                      Once unlocked, run infinite scenario recalculations, rate changes, and break-even simulations in your workstation.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

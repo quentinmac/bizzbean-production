@@ -134,7 +134,8 @@ import {
   fetchCmsPromotionsFromFirestore,
 } from '../services/cmsFirestoreService';
 import { getPayfastConfig, setPayfastMode } from '../services/payfastService';
-import { testSmtpConnection } from '../services/emailService';
+import { sendWelcomeEmail } from '../services/emailService';
+import { OnboardingAuditSimulator } from './OnboardingAuditSimulator';
 import {
   TRANSACTIONS_UPDATED_EVENT,
   getCachedTransactions,
@@ -493,7 +494,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
 
   // Admin Centre state
   const [adminSubTab, setAdminSubTab] = useState<
-    'inquiries' | 'associates' | 'sponsors' | 'transactions' | 'policies' | 'tooltips'
+    'inquiries' | 'associates' | 'sponsors' | 'transactions' | 'onboarding' | 'policies' | 'tooltips'
   >('inquiries');
   const [inquiries, setInquiries] = useState<CmsInquiry[]>(INITIAL_CMS_INQUIRIES);
   const [associateBatches] = useState<CmsAssociateImport[]>(INITIAL_CMS_ASSOCIATE_BATCHES);
@@ -548,16 +549,23 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     }
   };
 
-  // SMTP Test Email state & handler
+  // SMTP Test Welcome Email state & handler (sends real "your SANDBOX is ready" letter with inline bizzbean-favicon.jpg)
   const [isTestingEmail, setIsTestingEmail] = useState<boolean>(false);
   const handleTestEmailDispatch = async () => {
     setIsTestingEmail(true);
     try {
-      const res = await testSmtpConnection('thebizzbeanchannel@gmail.com');
-      if (res.success) {
-        triggerSaveNotification('Test email dispatched successfully to thebizzbeanchannel@gmail.com via Xneelo SMTP.');
+      const res = await sendWelcomeEmail({
+        recipientEmail: 'thebizzbeanchannel@gmail.com',
+        recipientName: 'Quentin McCullough',
+        firstName: 'Quentin',
+        companyName: 'BizzBean',
+        isNewClientSignup: true,
+        isSimulationTest: true,
+      });
+      if (res.success && !res.suppressed) {
+        triggerSaveNotification('Test "your SANDBOX is ready" email (with bizzbean-favicon.jpg logo) sent to thebizzbeanchannel@gmail.com.');
       } else {
-        triggerSaveNotification(`Email test notice: ${res.error || 'Check SMTP status'}`);
+        triggerSaveNotification(`Email test notice: ${res.error || res.reason || 'Check SMTP status'}`);
       }
     } catch (e: any) {
       triggerSaveNotification(`Email error: ${e?.message || 'Failed to dispatch test email'}`);
@@ -5383,6 +5391,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                   { id: 'associates', label: 'Associate Bulk Import & Sandboxes', icon: Users, count: associateBatches.length },
                   { id: 'sponsors', label: 'Corporate Sponsorship Accounts', icon: DollarSign, count: sponsors.length },
                   { id: 'transactions', label: 'Transactions Journal', icon: FileText, count: transactions.length },
+                  { id: 'onboarding', label: 'Onboarding Audit & Test Lab', icon: ShieldCheck, count: 'Test' },
                   { id: 'policies', label: 'Regulatory Policies Registry', icon: ShieldCheck, count: policies.length },
                   { id: 'tooltips', label: "Bizzy's App Learning Guides", icon: HelpCircle, count: tooltips.length },
                 ].map((sub) => {
@@ -5699,6 +5708,15 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                     </table>
                   </div>
                 </div>
+              )}
+
+              {/* Sub-tab 4B: Onboarding Audit & Sign-Up / Sign-In Simulator */}
+              {adminSubTab === 'onboarding' && (
+                <OnboardingAuditSimulator
+                  theme="dark"
+                  defaultTestEmail="thebizzbeanchannel@gmail.com"
+                  onNotify={triggerSaveNotification}
+                />
               )}
 
               {/* Sub-tab 5: Policies Registry */}

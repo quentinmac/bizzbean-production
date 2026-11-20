@@ -19,23 +19,35 @@ export interface UtmAttribution {
 
 const UTM_STORAGE_KEY = 'bizzbean_utm_attribution_v1';
 const GA_OVERRIDE_STORAGE_KEY = 'bizzbean_ga_measurement_id';
+const GA_DEBUG_SESSION_KEY = 'bizzbean_ga_debug_session';
 const GA_ID_REGEX = /^(G|AW)-[A-Z0-9]{4,}$/i;
 
+let runtimeMeasurementId: string | null = null;
+let runtimeFetchAttempted = false;
+let runtimeFetchInFlight: Promise<string | null> | null = null;
 let initializedMeasurementId: string | null = null;
 let lastTrackedPageKey: string | null = null;
 let lastTrackedItemKey: string | null = null;
+const pendingEvents: Array<{ eventName: string; payload: Record<string, any> }> = [];
+
+function normalizeMeasurementId(raw: unknown): string | null {
+  const cleaned = String(raw ?? '')
+    .trim()
+    .replace(/^["']|["']$/g, '');
+  if (!cleaned || cleaned.toUpperCase() === 'G-XXXXXXXXXX') return null;
+  return GA_ID_REGEX.test(cleaned) ? cleaned : null;
+}
 
 export function getActiveMeasurementId(): string | null {
   try {
-    const envId = (import.meta.env?.VITE_GA_MEASUREMENT_ID || '').trim();
-    if (envId && envId !== 'G-XXXXXXXXXX' && GA_ID_REGEX.test(envId)) {
-      return envId;
-    }
+    const envId = normalizeMeasurementId(import.meta.env?.VITE_GA_MEASUREMENT_ID);
+    if (envId) return envId;
+
+    if (runtimeMeasurementId) return runtimeMeasurementId;
+
     if (typeof window !== 'undefined') {
-      const localId = (localStorage.getItem(GA_OVERRIDE_STORAGE_KEY) || '').trim();
-      if (localId && localId !== 'G-XXXXXXXXXX' && GA_ID_REGEX.test(localId)) {
-        return localId;
-      }
+      const localId = normalizeMeasurementId(localStorage.getItem(GA_OVERRIDE_STORAGE_KEY));
+      if (localId) return localId;
     }
   } catch {
     // ignore storage access issues
@@ -44,8 +56,8 @@ export function getActiveMeasurementId(): string | null {
 }
 
 export function setAnalyticsMeasurementId(measurementId: string): boolean {
-  const clean = (measurementId || '').trim();
-  if (!GA_ID_REGEX.test(clean) || clean === 'G-XXXXXXXXXX') return false;
+  const clean = normalizeMeasurementId(measurementId);
+  if (!clean) return false;
   try {
     localStorage.setItem(GA_OVERRIDE_STORAGE_KEY, clean);
   } catch {}
@@ -107,9 +119,17 @@ function isDebugModeEnabled(): boolean {
   if (typeof window === 'undefined') return false;
   try {
     const params = new URLSearchParams(window.location.search);
+    const debugParam = params.get('debug_mode');
+    if (debugParam === 'false' || params.get('ga_debug') === '0') {
+      sessionStorage.removeItem(GA_DEBUG_SESSION_KEY);
+      return false;
+    }
+    if (debugParam === 'true' || params.get('ga_debug') === '1') {
+      sessionStorage.setItem(GA_DEBUG_SESSION_KEY, 'true');
+      return true;
+    }
     return (
-      params.get('debug_mode') === 'true' ||
-      params.get('ga_debug') === '1' ||
+      sessionStorage.getItem(GA_DEBUG_SESSION_KEY) === 'true' ||
       localStorage.getItem('bizzbean_ga_debug') === 'true'
     );
   } catch {
@@ -128,18 +148,8 @@ function ensureGtagQueue(): void {
   }
 }
 
-export function initAnalytics(): string | null {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return null;
-
-  // Always preserve UTM / gclid attribution on initial arrival even before GA ID is set
-  captureAttributionParams();
+function bootstrapGtagWithId(measurementId: string): string {
   ensureGtagQueue();
-
-  const measurementId = getActiveMeasurementId();
-  if (!measurementId) {
-    return null;
-  }
-
   if (initializedMeasurementId === measurementId) {
     return measurementId;
   }
@@ -153,24 +163,77 @@ export function initAnalytics(): string | null {
     document.head.appendChild(script);
   }
 
+  const debugEnabled = isDebugModeEnabled();
   window.gtag('js', new Date());
   window.gtag('config', measurementId, {
     send_page_view: false,
-    ...(isDebugModeEnabled() ? { debug_mode: true } : {}),
+    ...(debugEnabled ? { debug_mode: true } : {}),
   });
 
   initializedMeasurementId = measurementId;
+
+  // Flush any events emitted before runtime config resolved
+  if (pendingEvents.length > 0) {
+    const queued = pendingEvents.splice(0, pendingEvents.length);
+    for (const item of queued) {
+      try {
+        window.gtag('event', item.eventName, {
+          ...item.payload,
+          ...(debugEnabled ? { debug_mode: true } : {}),
+        });
+      } catch (err) {
+        console.warn('[GA4] Queued event tracking warning:', err);
+      }
+    }
+  }
+
   return measurementId;
+}
+
+function resolveRuntimeMeasurementId(): Promise<string | null> {
+  if (runtimeFetchInFlight) return runtimeFetchInFlight;
+  if (runtimeFetchAttempted) return Promise.resolve(runtimeMeasurementId);
+
+  runtimeFetchInFlight = fetch('/api/config/analytics', { cache: 'no-store' })
+    .then(async (res) => {
+      if (!res.ok) return null;
+      const data = await res.json();
+      const id = normalizeMeasurementId(data?.measurementId);
+      if (id) {
+        runtimeMeasurementId = id;
+        bootstrapGtagWithId(id);
+      }
+      return id;
+    })
+    .catch(() => null)
+    .finally(() => {
+      runtimeFetchAttempted = true;
+      runtimeFetchInFlight = null;
+    });
+
+  return runtimeFetchInFlight;
+}
+
+export function initAnalytics(): string | null {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return null;
+
+  // Always preserve UTM / gclid / debug_mode flags on initial arrival
+  captureAttributionParams();
+  isDebugModeEnabled();
+  ensureGtagQueue();
+
+  const measurementId = getActiveMeasurementId();
+  if (measurementId) {
+    return bootstrapGtagWithId(measurementId);
+  }
+
+  // Fallback to server-side runtime env var (Secrets / Cloud Run runtime injection)
+  void resolveRuntimeMeasurementId();
+  return null;
 }
 
 export function trackEvent(eventName: string, params: Record<string, any> = {}): void {
   if (typeof window === 'undefined') return;
-  const measurementId = getActiveMeasurementId();
-  if (!measurementId) return;
-
-  if (!initializedMeasurementId) {
-    initAnalytics();
-  }
 
   const attribution = getCapturedAttribution();
   const payload: Record<string, any> = {
@@ -181,6 +244,21 @@ export function trackEvent(eventName: string, params: Record<string, any> = {}):
     ...(attribution.utm_term ? { campaign_term: attribution.utm_term } : {}),
     ...(isDebugModeEnabled() ? { debug_mode: true } : {}),
   };
+
+  const measurementId = getActiveMeasurementId();
+  if (!measurementId) {
+    if (!runtimeFetchAttempted) {
+      if (pendingEvents.length < 30) {
+        pendingEvents.push({ eventName, payload });
+      }
+      void resolveRuntimeMeasurementId();
+    }
+    return;
+  }
+
+  if (!initializedMeasurementId) {
+    bootstrapGtagWithId(measurementId);
+  }
 
   try {
     ensureGtagQueue();

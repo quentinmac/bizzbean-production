@@ -56,6 +56,11 @@ import { ProductCheckoutModal } from './components/ProductCheckoutModal';
 import { ClientProfileJournalModal } from './components/ClientProfileJournalModal';
 import { downloadGettingToValueBook } from './utils/bookDownload';
 import { sendWelcomeEmail } from './services/emailService';
+import {
+  checkClientExists,
+  evaluateOnboardingDecision,
+  markWelcomeEmailDispatched,
+} from './services/onboardingAuditService';
 import { recordTransactionToJournal, upsertClientProfile } from './services/transactionJournalService';
 import { parseDeepLinkFromSearch, buildDeepLinkSearch, inferStageForSolution } from './utils/deepLink';
 import {
@@ -1900,62 +1905,98 @@ export default function App() {
     setTimeout(() => setBookNotice(null), 5000);
   }, [userProfile.founderName]);
 
-  // Unified Sign-Up handler: updates profile, persists member status, dispatches welcome email & displays Sandbox letter
-  const handleConfirmSignUp = useCallback((name: string, email: string, company: string) => {
-    const cleanName = (name || '').trim() || 'Entrepreneur';
-    const cleanEmail = (email || '').trim();
-    const cleanCompany = (company || '').trim();
-    const firstName = cleanName.split(' ')[0] || 'Entrepreneur';
+  // Unified Sign-Up handler: updates profile, persists member status, and dispatches welcome email ONLY for genuine brand-new clients
+  const handleConfirmSignUp = useCallback(
+    async (
+      name: string,
+      email: string,
+      company: string,
+      options?: { skipWelcomeEmail?: boolean }
+    ) => {
+      const cleanName = (name || '').trim() || 'Entrepreneur';
+      const cleanEmail = (email || '').trim();
+      const cleanCompany = (company || '').trim();
+      const firstName = cleanName.split(' ')[0] || 'Entrepreneur';
 
-    setUserProfile((prev) => ({
-      ...prev,
-      founderName: cleanName,
-      companyName: cleanCompany || (prev.companyName && prev.companyName !== 'Apex Cloud Dynamics' ? prev.companyName : 'BizzBean Holdings (Pty) Ltd'),
-      email: cleanEmail || prev.email,
-    }));
-    if (cleanEmail) {
-      setUserEmail(cleanEmail);
+      // Authoritative check against Firestore client_profiles + local Client Directory BEFORE upserting
+      const existingCheck = cleanEmail ? await checkClientExists(cleanEmail) : null;
+      const decision = existingCheck
+        ? evaluateOnboardingDecision({
+            action: 'signup',
+            email: cleanEmail,
+            displayName: cleanName,
+            companyName: cleanCompany,
+            clientLookup: existingCheck,
+            welcomeEmailAlreadyDispatchedInFlow: Boolean(options?.skipWelcomeEmail),
+          })
+        : null;
+
+      setUserProfile((prev) => ({
+        ...prev,
+        founderName: cleanName,
+        companyName:
+          cleanCompany ||
+          (prev.companyName && prev.companyName !== 'Apex Cloud Dynamics'
+            ? prev.companyName
+            : 'BizzBean Holdings (Pty) Ltd'),
+        email: cleanEmail || prev.email,
+      }));
+
+      if (cleanEmail) {
+        setUserEmail(cleanEmail);
+        try {
+          localStorage.setItem('bizzbean_sandbox_email', cleanEmail);
+          localStorage.setItem('bizzbean_sandbox_name', cleanName);
+          localStorage.setItem(`bizzbean_registered_name_${cleanEmail.toLowerCase()}`, cleanName);
+        } catch (e) {}
+
+        upsertClientProfile({
+          name: cleanName,
+          email: cleanEmail,
+          companyName: cleanCompany || existingCheck?.existingProfile?.companyName || 'Bizzbean Member Enterprise',
+          country: existingCheck?.existingProfile?.country || 'South Africa',
+          role: determineUserRole(cleanEmail),
+          registeredAt: existingCheck?.existingProfile?.registeredAt || new Date().toISOString(),
+          notes: existingCheck?.existingProfile?.notes || 'Registered via Sandbox Sign-Up modal.',
+        }).catch(() => {});
+      }
+
+      setIsMember(true);
       try {
-        localStorage.setItem('bizzbean_sandbox_email', cleanEmail);
-        localStorage.setItem('bizzbean_sandbox_name', cleanName);
-        localStorage.setItem(`bizzbean_registered_name_${cleanEmail.toLowerCase()}`, cleanName);
+        localStorage.setItem('bizz_is_member', 'true');
       } catch (e) {}
 
-      upsertClientProfile({
-        name: cleanName,
-        email: cleanEmail,
-        companyName: cleanCompany || 'Bizzbean Member Enterprise',
-        country: 'South Africa',
-        role: determineUserRole(cleanEmail),
-        registeredAt: new Date().toISOString(),
-        notes: 'Registered via Sandbox Sign-Up modal.',
-      }).catch(() => {});
-    }
-    setIsMember(true);
-    try {
-      localStorage.setItem('bizz_is_member', 'true');
-    } catch (e) {}
-    trackSignUp('bizzdesk_signup', {
-      has_company: Boolean(cleanCompany),
-    });
+      // Only fire GA4 sign_up for genuine new client registrations (never existing clients)
+      if (!existingCheck?.exists) {
+        trackSignUp('bizzdesk_signup', {
+          has_company: Boolean(cleanCompany),
+        });
+      }
 
-    if (cleanEmail) {
-      sendWelcomeEmail({
-        recipientEmail: cleanEmail,
-        recipientName: cleanName,
-        firstName,
-        companyName: cleanCompany,
-      }).then((res) => {
-        if (res.success) {
-          console.log(`[BizzBean] Welcome email successfully sent to ${cleanEmail}`);
-        } else {
-          console.warn(`[BizzBean] Welcome email warning: ${res.error}`);
-        }
-      }).catch((err) => {
-        console.warn('[BizzBean] Welcome email error:', err);
-      });
-    }
-  }, []);
+      // Strictly dispatch "your SANDBOX is ready" email ONLY for brand-new clients who haven't already received it
+      if (cleanEmail && !options?.skipWelcomeEmail && decision?.shouldDispatchWelcomeEmail) {
+        sendWelcomeEmail({
+          recipientEmail: cleanEmail,
+          recipientName: cleanName,
+          firstName,
+          companyName: cleanCompany,
+          isNewClientSignup: true,
+        })
+          .then((res) => {
+            if (res.success && !res.suppressed) {
+              markWelcomeEmailDispatched(cleanEmail).catch(() => {});
+              console.log(`[BizzBean] Welcome email successfully sent to new client ${cleanEmail}`);
+            } else {
+              console.info(`[BizzBean] Welcome email notice: ${res.reason || res.error}`);
+            }
+          })
+          .catch((err) => {
+            console.warn('[BizzBean] Welcome email error:', err);
+          });
+      }
+    },
+    []
+  );
 
   // Open 'About the Book' YouTube walkthrough review from CMS Console
   const handleOpenAboutBook = useCallback(() => {
