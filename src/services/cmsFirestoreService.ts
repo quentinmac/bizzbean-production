@@ -9,13 +9,20 @@ import {
 } from '../data/cmsConsoleData';
 
 export const CMS_CONFIG_COLLECTION = 'cms_config';
-const FIRESTORE_SAFE_CHUNK_BYTES = 450_000;
+const FIRESTORE_SAFE_CHUNK_BYTES = 650_000;
 
-// Serialize CMS Firestore writes so large chunked payloads and rapid edits never overwhelm one WriteStream
-let cmsWriteQueue: Promise<unknown> = Promise.resolve();
-function enqueueCmsWrite<T>(task: () => Promise<T>): Promise<T> {
-  const run = cmsWriteQueue.then(task, task);
-  cmsWriteQueue = run.catch(() => undefined);
+// Serialize Firestore writes per collection (not globally) and deduplicate identical rapid saves
+const cmsWriteQueuesByDoc = new Map<string, Promise<unknown>>();
+const inFlightPayloads = new Map<string, { signature: string; promise: Promise<boolean> }>();
+const recentCompletedPayloads = new Map<string, { signature: string; at: number }>();
+
+function enqueueCmsWrite<T>(docName: string, task: () => Promise<T>): Promise<T> {
+  const prev = cmsWriteQueuesByDoc.get(docName) || Promise.resolve();
+  const run = prev.then(task, task);
+  cmsWriteQueuesByDoc.set(
+    docName,
+    run.catch(() => undefined)
+  );
   return run;
 }
 
@@ -120,10 +127,18 @@ async function extractItemsFromDocData<T>(
     return null;
   }
   if (data.chunked === true && typeof data.chunkCount === 'number' && data.chunkCount > 0) {
+    const chunkIndices = Array.from({ length: data.chunkCount }, (_, i) => i);
+    const chunkSnaps = await Promise.all(
+      chunkIndices.map((i) =>
+        withFirestoreTimeout(
+          getDoc(doc(db, CMS_CONFIG_COLLECTION, `${docName}_chunk_${i}`)),
+          8000,
+          null
+        )
+      )
+    );
     const combined: T[] = [];
-    for (let i = 0; i < data.chunkCount; i++) {
-      const chunkRef = doc(db, CMS_CONFIG_COLLECTION, `${docName}_chunk_${i}`);
-      const chunkSnap = await withFirestoreTimeout(getDoc(chunkRef), 8000, null);
+    for (const chunkSnap of chunkSnaps) {
       if (!chunkSnap || !chunkSnap.exists()) {
         return null;
       }
@@ -142,23 +157,38 @@ async function extractItemsFromDocData<T>(
 
 /**
  * Saves an array CMS collection doc to Firestore, automatically splitting into
- * <450 KB chunks when total serialized size approaches Firestore's 1 MiB limit.
+ * <650 KB parallel chunks when total serialized size approaches Firestore's 1 MiB limit.
  */
 async function writeCmsItemsDoc<T>(
   docName: string,
   items: T[],
   operation: string
 ): Promise<boolean> {
-  return enqueueCmsWrite(async () => {
+  const sanitized = sanitizeForFirestore(items);
+  const signature = JSON.stringify(sanitized) || '';
+
+  // Deduplicate identical concurrent or immediate back-to-back writes for the same collection
+  const inFlight = inFlightPayloads.get(docName);
+  if (inFlight && inFlight.signature === signature) {
+    return inFlight.promise;
+  }
+  const recent = recentCompletedPayloads.get(docName);
+  if (recent && recent.signature === signature && Date.now() - recent.at < 3500) {
+    return true;
+  }
+
+  const writePromise = enqueueCmsWrite(docName, async () => {
     if (isFirestoreQuotaExceeded()) return false;
     try {
-      const sanitized = sanitizeForFirestore(items);
       const updatedAt = new Date().toISOString();
-      const totalBytes = estimateUtf8Bytes(sanitized);
+      const totalBytes =
+        typeof TextEncoder !== 'undefined'
+          ? new TextEncoder().encode(signature).length
+          : signature.length * 2;
 
       if (totalBytes <= FIRESTORE_SAFE_CHUNK_BYTES) {
         const docRef = doc(db, CMS_CONFIG_COLLECTION, docName);
-        return await withFirestoreTimeout(
+        const ok = await withFirestoreTimeout(
           setDoc(docRef, {
             items: sanitized,
             chunked: false,
@@ -173,9 +203,11 @@ async function writeCmsItemsDoc<T>(
           15000,
           false
         );
+        if (ok) recentCompletedPayloads.set(docName, { signature, at: Date.now() });
+        return ok;
       }
 
-      // Split into safe chunks under 450 KB each (handles large article libraries / base64 covers)
+      // Split into safe chunks under 650 KB each (handles large article libraries / base64 covers)
       const chunks: T[][] = [];
       let currentChunk: T[] = [];
       let currentBytes = 32;
@@ -195,27 +227,30 @@ async function writeCmsItemsDoc<T>(
         chunks.push(currentChunk);
       }
 
-      for (let i = 0; i < chunks.length; i++) {
-        const chunkRef = doc(db, CMS_CONFIG_COLLECTION, `${docName}_chunk_${i}`);
-        const chunkOk = await withFirestoreTimeout(
-          setDoc(chunkRef, {
-            items: chunks[i],
-            chunkIndex: i,
-            updatedAt,
-          })
-            .then(() => true)
-            .catch((err) => {
-              handleFirestoreError(`${operation} chunk ${i}`, err);
-              return false;
-            }),
-          15000,
-          false
-        );
-        if (!chunkOk) return false;
-      }
+      // Write all chunks in parallel, then atomically flip the manifest once all chunks succeed
+      const chunkResults = await Promise.all(
+        chunks.map((chunkItems, i) => {
+          const chunkRef = doc(db, CMS_CONFIG_COLLECTION, `${docName}_chunk_${i}`);
+          return withFirestoreTimeout(
+            setDoc(chunkRef, {
+              items: chunkItems,
+              chunkIndex: i,
+              updatedAt,
+            })
+              .then(() => true)
+              .catch((err) => {
+                handleFirestoreError(`${operation} chunk ${i}`, err);
+                return false;
+              }),
+            15000,
+            false
+          );
+        })
+      );
+      if (chunkResults.some((ok) => !ok)) return false;
 
       const manifestRef = doc(db, CMS_CONFIG_COLLECTION, docName);
-      return await withFirestoreTimeout(
+      const manifestOk = await withFirestoreTimeout(
         setDoc(manifestRef, {
           chunked: true,
           chunkCount: chunks.length,
@@ -230,11 +265,21 @@ async function writeCmsItemsDoc<T>(
         15000,
         false
       );
+      if (manifestOk) recentCompletedPayloads.set(docName, { signature, at: Date.now() });
+      return manifestOk;
     } catch (err) {
       handleFirestoreError(operation, err);
       return false;
+    } finally {
+      const current = inFlightPayloads.get(docName);
+      if (current && current.signature === signature) {
+        inFlightPayloads.delete(docName);
+      }
     }
   });
+
+  inFlightPayloads.set(docName, { signature, promise: writePromise });
+  return writePromise;
 }
 
 /**

@@ -599,6 +599,7 @@ export default function App() {
   // Hydration state tracking to prevent overwriting IndexedDB with defaults on initial mount
   const isHydrated = useRef<boolean>(false);
   const lastLocalPromoSyncRef = useRef<number>(0);
+  const lastLocalProductSyncRef = useRef<number>(0);
 
   // Hydration on mount across all modular sections: IndexedDB + Authoritative Cloud Firestore
   useEffect(() => {
@@ -672,6 +673,7 @@ export default function App() {
 
     // 3. Real-time Firestore synchronization for multi-tab / CMS console updates
     const unsubscribeProducts = subscribeToCmsProducts((updated) => {
+      if (Date.now() - lastLocalProductSyncRef.current < 5000) return;
       if (updated && Array.isArray(updated) && updated.length > 0) {
         const cleaned = cleanLegacyProducts(updated);
         setCmsProducts((prev) => {
@@ -1096,7 +1098,9 @@ export default function App() {
   }, []);
 
   const handleSyncProductsFromCms = useCallback((updated: CmsProduct[]) => {
+    lastLocalProductSyncRef.current = Date.now();
     setTimeout(() => {
+      lastLocalProductSyncRef.current = Date.now();
       const cleaned = cleanLegacyProducts(updated);
       setCmsProducts(cleaned);
       safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, cleaned);

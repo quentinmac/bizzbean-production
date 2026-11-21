@@ -111,7 +111,7 @@ const SOLUTION_TO_STAGE: Record<string, string> = {
   bizzforecasta: 'operations-sandbox',
   'rolling-forecast': 'operations-sandbox',
   bizzbudget: 'operations-sandbox',
-  bizzcalculators: 'operations-sandbox',
+  bizzcalculators: 'personal-sandbox',
   bizzmoney: 'operations',
   bizzoptimizer: 'operations',
   bizzplan: 'fund-ability',

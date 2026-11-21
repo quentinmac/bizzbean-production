@@ -168,7 +168,13 @@ export function compressDataUrl(
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, width, height);
 
-        const compressed = canvas.toDataURL('image/jpeg', quality);
+        let compressed = canvas.toDataURL('image/jpeg', quality);
+        if (compressed.length > 140_000 && quality > 0.5) {
+          compressed = canvas.toDataURL('image/jpeg', 0.5);
+        }
+        if (compressed.length > 140_000) {
+          compressed = canvas.toDataURL('image/jpeg', 0.42);
+        }
         resolve(compressed);
       } catch (e) {
         console.warn('Canvas compression error, using original', e);
@@ -1166,13 +1172,13 @@ export function mergeLoadedPromotions(
     const secImg = (sec.imageUrl || '').trim();
     const initial = INITIAL_CMS_PROMOTIONS.find((ip) => ip.id === p.id);
 
-    // If secondary has a user-uploaded base64 image, preserve it; otherwise prefer authoritative primary
+    // Authoritative primary valid image ALWAYS wins over stale secondary cache (so new stage image uploads never revert)
     const chosenImage =
-      secImg.startsWith('data:image')
-        ? secImg
-        : (pImg !== '' && !pImg.includes('1553877522-43269d4ea984')
-            ? pImg
-            : (initial?.imageUrl || (secImg !== '' && !secImg.includes('1553877522-43269d4ea984') ? secImg : '')));
+      pImg !== '' && !pImg.includes('1553877522-43269d4ea984')
+        ? pImg
+        : (secImg !== '' && !secImg.includes('1553877522-43269d4ea984')
+            ? secImg
+            : (initial?.imageUrl || ''));
 
     const mergedStory = {
       narrative:
@@ -1275,13 +1281,13 @@ export function mergeLoadedProducts(
     );
     const fallbackCover = initialProd?.canonicalCoverUrl || '';
 
-    // If sec has a base64 user upload, preserve it; otherwise prefer primCover
+    // Authoritative primary valid cover ALWAYS wins over stale secondary cache (so new product image uploads never revert)
     const chosenCover =
-      secCover.startsWith('data:image')
-        ? secCover
-        : (pCover !== '' && !pCover.includes('1553877522-43269d4ea984')
-            ? pCover
-            : (secCover !== '' && !secCover.includes('1553877522-43269d4ea984') ? secCover : fallbackCover));
+      pCover !== '' && !pCover.includes('1553877522-43269d4ea984')
+        ? pCover
+        : (secCover !== '' && !secCover.includes('1553877522-43269d4ea984')
+            ? secCover
+            : fallbackCover);
 
     const secLessons = sec.courseLessons || [];
     const primLessons = prim.courseLessons || [];

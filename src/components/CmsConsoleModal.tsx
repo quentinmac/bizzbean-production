@@ -276,12 +276,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     fetchCmsProductsFromFirestore().then((remote) => {
       if (remote && Array.isArray(remote) && remote.length > 0) {
         const cleaned = cleanLegacyProducts(remote);
-        setProducts((prev) => {
-          // Local edits take precedence over remote to prevent accidental loss
-          const merged = mergeLoadedProducts(prev, cleaned);
-          dispatchSync(onSyncProductsToWebsite, merged);
-          return merged;
-        });
+        setProducts((prev) => mergeLoadedProducts(prev, cleaned));
       }
     });
 
@@ -289,11 +284,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       if (remoteVideos && Array.isArray(remoteVideos) && remoteVideos.length > 0) {
         const deleted = getDeletedVideoIds();
         const filtered = remoteVideos.filter((v) => v && v.id && !deleted.has(v.id));
-        setVideos((prev) => {
-          const merged = mergeLoadedVideos(prev, filtered);
-          dispatchSync(onSyncVideosToWebsite, merged);
-          return merged;
-        });
+        setVideos((prev) => mergeLoadedVideos(prev, filtered));
       }
     });
 
@@ -301,11 +292,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       if (remoteArticles && Array.isArray(remoteArticles) && remoteArticles.length > 0) {
         const deleted = getDeletedArticleIds();
         const cleaned = cleanFallbackImagesFromArticles(remoteArticles).filter((a) => a && a.id && !deleted.has(a.id));
-        setArticles((prev) => {
-          const merged = mergeLoadedArticles(prev, cleaned);
-          dispatchSync(onSyncArticlesToWebsite, merged);
-          return merged;
-        });
+        setArticles((prev) => mergeLoadedArticles(prev, cleaned));
       }
     });
 
@@ -640,13 +627,14 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       // Allow explicit user Publish to retry Cloud Firestore even if an earlier session hit quota
       await clearFirestoreQuotaExceeded();
 
-      // 3. Sync to Cloud Firestore sequentially (fast collections first) and Server Disk in parallel
-      const diskPromise = withTimeout(syncCmsDataToServer(tsContent), 8000, false);
-      const fsVidOk = await withTimeout(saveCmsVideosToFirestore(videos), 10000, false);
-      const fsProdOk = await withTimeout(saveCmsProductsToFirestore(latestProducts), 15000, false);
-      const fsPromoOk = await withTimeout(saveCmsPromotionsToFirestore(promotions), 20000, false);
-      const fsArtOk = await withTimeout(saveCmsArticlesToFirestore(articles), 30000, false);
-      const diskOk = await diskPromise;
+      // 3. Sync all 4 Firestore collections + Server Disk concurrently (deduplicated per collection)
+      const [diskOk, fsVidOk, fsProdOk, fsPromoOk, fsArtOk] = await Promise.all([
+        withTimeout(syncCmsDataToServer(tsContent), 8000, false),
+        withTimeout(saveCmsVideosToFirestore(videos), 10000, false),
+        withTimeout(saveCmsProductsToFirestore(latestProducts), 15000, false),
+        withTimeout(saveCmsPromotionsToFirestore(promotions), 15000, false),
+        withTimeout(saveCmsArticlesToFirestore(articles), 20000, false),
+      ]);
       const allFirestoreOk = fsProdOk && fsVidOk && fsArtOk && fsPromoOk;
 
       const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -706,14 +694,15 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       // 1. Immediately trigger download of cmsConsoleData.ts to the user's computer
       downloadCmsDataFile(tsContent, 'cmsConsoleData.ts');
 
-      // 2. Sync server disk file and retry Cloud Firestore sequentially (fast collections first)
+      // 2. Sync server disk file and Cloud Firestore collections concurrently (deduplicated per collection)
       await clearFirestoreQuotaExceeded();
-      const diskPromise = withTimeout(syncCmsDataToServer(tsContent, payload), 8000, false);
-      const fsVidOk = await withTimeout(saveCmsVideosToFirestore(videos), 10000, false);
-      const fsProdOk = await withTimeout(saveCmsProductsToFirestore(latestProducts), 15000, false);
-      const fsPromoOk = await withTimeout(saveCmsPromotionsToFirestore(promotions), 20000, false);
-      const fsArtOk = await withTimeout(saveCmsArticlesToFirestore(articles), 30000, false);
-      const diskOk = await diskPromise;
+      const [diskOk, fsVidOk, fsProdOk, fsPromoOk, fsArtOk] = await Promise.all([
+        withTimeout(syncCmsDataToServer(tsContent, payload), 8000, false),
+        withTimeout(saveCmsVideosToFirestore(videos), 10000, false),
+        withTimeout(saveCmsProductsToFirestore(latestProducts), 15000, false),
+        withTimeout(saveCmsPromotionsToFirestore(promotions), 15000, false),
+        withTimeout(saveCmsArticlesToFirestore(articles), 20000, false),
+      ]);
 
       const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       setLastExportedTimestamp(nowStr);
@@ -3623,29 +3612,27 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                                   if (!file) return;
                                   try {
                                     const compressed = await compressImageFile(file, 800, 500, 0.65);
-                                    setEditingProduct({
-                                      ...editingProduct,
-                                      canonicalCoverUrl: compressed,
-                                    });
+                                    setEditingProduct((prev) =>
+                                      prev ? { ...prev, canonicalCoverUrl: compressed } : prev
+                                    );
                                     const updatedList = products.map((p) =>
                                       p.id === editingProduct.id ? { ...p, canonicalCoverUrl: compressed } : p
                                     );
-                                    persistProducts(updatedList);
-                                    triggerSaveNotification(`Uploaded & saved cover image for "${editingProduct.name}".`);
+                                    persistProducts(updatedList, { immediate: false });
+                                    triggerSaveNotification(`Uploaded & compressed cover image for "${editingProduct.name}".`);
                                   } catch {
                                     const reader = new FileReader();
                                     reader.onload = (ev) => {
                                       if (ev.target?.result) {
                                         const res = ev.target.result as string;
-                                        setEditingProduct({
-                                          ...editingProduct,
-                                          canonicalCoverUrl: res,
-                                        });
+                                        setEditingProduct((prev) =>
+                                          prev ? { ...prev, canonicalCoverUrl: res } : prev
+                                        );
                                         const updatedList = products.map((p) =>
                                           p.id === editingProduct.id ? { ...p, canonicalCoverUrl: res } : p
                                         );
-                                        persistProducts(updatedList);
-                                        triggerSaveNotification(`Uploaded & saved cover image for "${editingProduct.name}".`);
+                                        persistProducts(updatedList, { immediate: false });
+                                        triggerSaveNotification(`Uploaded cover image for "${editingProduct.name}".`);
                                       }
                                     };
                                     reader.readAsDataURL(file);
