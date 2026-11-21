@@ -1,6 +1,6 @@
 // =============================================================================
 // BIZZBEAN CMS MASTER REPOSITORY DATA (AUTO-GENERATED VIA CMS CONSOLE EXPORT)
-// Generated at: 2026-11-21T05:52:04.021Z
+// Generated at: 2026-11-21T05:58:52.837Z
 //
 // INSTRUCTIONS FOR GITHUB DEPLOYMENT:
 // 1. Commit/upload this file directly to: src/data/cmsConsoleData.ts
@@ -11,7 +11,7 @@
 
 import { TransactionRecord, ClientProfile, ClientNotification } from '../types';
 
-export const CMS_BUNDLE_GENERATED_AT = '2026-11-21T05:52:04.021Z';
+export const CMS_BUNDLE_GENERATED_AT = '2026-11-21T05:58:52.837Z';
 
 export interface CmsCourseLesson {
   id: string;
