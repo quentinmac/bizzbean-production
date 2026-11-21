@@ -9,7 +9,14 @@ import {
 } from '../data/cmsConsoleData';
 
 export const CMS_CONFIG_COLLECTION = 'cms_config';
-const FIRESTORE_SAFE_CHUNK_BYTES = 650_000;
+// Keep each Firestore document well under 50% of the 1 MiB Protobuf wire limit
+// (JSON base64 strings + field-name metadata inflate in wire encoding); parallel chunk writes keep sync fast.
+const FIRESTORE_SAFE_CHUNK_BYTES = 350_000;
+
+let lastFirestoreError: string | null = null;
+export function getLastFirestoreError(): string | null {
+  return lastFirestoreError;
+}
 
 // Serialize Firestore writes per collection (not globally) and deduplicate identical rapid saves
 const cmsWriteQueuesByDoc = new Map<string, Promise<unknown>>();
@@ -32,6 +39,7 @@ function enqueueCmsWrite<T>(docName: string, task: () => Promise<T>): Promise<T>
 function handleFirestoreError(operation: string, err: any): void {
   const errMsg = String(err?.message || err || '');
   const errCode = String(err?.code || '');
+  lastFirestoreError = errCode ? `${errCode}: ${errMsg}`.slice(0, 180) : errMsg.slice(0, 180);
   if (
     errCode === 'resource-exhausted' ||
     errCode.includes('resource-exhausted') ||
@@ -178,7 +186,10 @@ async function writeCmsItemsDoc<T>(
   }
 
   const writePromise = enqueueCmsWrite(docName, async () => {
-    if (isFirestoreQuotaExceeded()) return false;
+    if (isFirestoreQuotaExceeded()) {
+      lastFirestoreError = 'Cloud Firestore write quota flag active';
+      return false;
+    }
     try {
       const updatedAt = new Date().toISOString();
       const totalBytes =
@@ -195,7 +206,10 @@ async function writeCmsItemsDoc<T>(
             updatedAt,
             count: sanitized.length,
           })
-            .then(() => true)
+            .then(() => {
+              lastFirestoreError = null;
+              return true;
+            })
             .catch((err) => {
               handleFirestoreError(operation, err);
               return false;
@@ -203,11 +217,14 @@ async function writeCmsItemsDoc<T>(
           15000,
           false
         );
+        if (!ok && !lastFirestoreError) {
+          lastFirestoreError = `Firestore ${operation} timed out`;
+        }
         if (ok) recentCompletedPayloads.set(docName, { signature, at: Date.now() });
         return ok;
       }
 
-      // Split into safe chunks under 650 KB each (handles large article libraries / base64 covers)
+      // Split into safe chunks under 350 KB each (handles large article libraries / base64 covers)
       const chunks: T[][] = [];
       let currentChunk: T[] = [];
       let currentBytes = 32;
@@ -247,7 +264,12 @@ async function writeCmsItemsDoc<T>(
           );
         })
       );
-      if (chunkResults.some((ok) => !ok)) return false;
+      if (chunkResults.some((ok) => !ok)) {
+        if (!lastFirestoreError) {
+          lastFirestoreError = `Firestore ${operation} chunk write timed out`;
+        }
+        return false;
+      }
 
       const manifestRef = doc(db, CMS_CONFIG_COLLECTION, docName);
       const manifestOk = await withFirestoreTimeout(
@@ -257,7 +279,10 @@ async function writeCmsItemsDoc<T>(
           updatedAt,
           count: sanitized.length,
         })
-          .then(() => true)
+          .then(() => {
+            lastFirestoreError = null;
+            return true;
+          })
           .catch((err) => {
             handleFirestoreError(`${operation} manifest`, err);
             return false;
@@ -265,6 +290,9 @@ async function writeCmsItemsDoc<T>(
         15000,
         false
       );
+      if (!manifestOk && !lastFirestoreError) {
+        lastFirestoreError = `Firestore ${operation} manifest timed out`;
+      }
       if (manifestOk) recentCompletedPayloads.set(docName, { signature, at: Date.now() });
       return manifestOk;
     } catch (err) {

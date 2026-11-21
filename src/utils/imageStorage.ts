@@ -4,6 +4,7 @@ import {
   CmsProduct,
   CmsPromotionSection,
   CmsVideo,
+  CMS_BUNDLE_GENERATED_AT,
   INITIAL_CMS_PRODUCTS,
   INITIAL_CMS_PROMOTIONS,
   INITIAL_CMS_VIDEOS,
@@ -282,6 +283,27 @@ export function ensureFreshCmsCache(): void {
           }
         } catch (_) {}
       }
+    }
+
+    // Evict stale browser caches whenever a newer cmsConsoleData.ts bundle is deployed
+    const storedBundleTs = localStorage.getItem('bizzdesk_cms_bundle_ts');
+    const deployedBundleTs = typeof CMS_BUNDLE_GENERATED_AT === 'string' ? CMS_BUNDLE_GENERATED_AT.trim() : '';
+    if (deployedBundleTs && storedBundleTs !== deployedBundleTs) {
+      if (storedBundleTs) {
+        const bundleKeys = [
+          CMS_STORAGE_KEYS.PRODUCTS,
+          CMS_STORAGE_KEYS.PROMOTIONS,
+          CMS_STORAGE_KEYS.VIDEOS,
+          CMS_STORAGE_KEYS.ARTICLES,
+        ];
+        bundleKeys.forEach((k) => {
+          try {
+            localStorage.removeItem(k);
+          } catch (_) {}
+          idbDelete(k).catch(() => {});
+        });
+      }
+      localStorage.setItem('bizzdesk_cms_bundle_ts', deployedBundleTs);
     }
   } catch (e) {
     console.warn('Cache migration notice:', e);

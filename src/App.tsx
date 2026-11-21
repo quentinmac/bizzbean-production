@@ -685,7 +685,7 @@ export default function App() {
     });
 
     const unsubscribePromos = subscribeToCmsPromotions((updated) => {
-      if (Date.now() - lastLocalPromoSyncRef.current < 4000) return;
+      if (Date.now() - lastLocalPromoSyncRef.current < 6000) return;
       if (updated && Array.isArray(updated) && updated.length > 0) {
         const cleaned = cleanLegacyViabilityPromotions(updated);
         setCmsPromotions((prev) => {

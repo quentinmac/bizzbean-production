@@ -132,6 +132,7 @@ import {
   fetchCmsVideosFromFirestore,
   fetchCmsArticlesFromFirestore,
   fetchCmsPromotionsFromFirestore,
+  getLastFirestoreError,
 } from '../services/cmsFirestoreService';
 import { getPayfastConfig, setPayfastMode } from '../services/payfastService';
 import { sendWelcomeEmail } from '../services/emailService';
@@ -369,9 +370,9 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
   }, [promotions]);
 
   useEffect(() => {
-    if (Date.now() - lastLocalPromoEditRef.current < 4000) return;
+    if (Date.now() - lastLocalPromoEditRef.current < 6000) return;
     if (cmsPromotions && cmsPromotions.length > 0) {
-      setPromotions((prev) => mergeLoadedPromotions(prev, cleanLegacyViabilityPromotions(cmsPromotions)));
+      setPromotions((prev) => mergeLoadedPromotions(cleanLegacyViabilityPromotions(cmsPromotions), prev));
     }
   }, [cmsPromotions]);
   const [bookBundle, setBookBundle] = useState<CmsBookBundle>(() => {
@@ -596,22 +597,26 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     setPublishSuccessBanner(null);
     try {
       const latestProducts = flushPendingProductDrafts();
+      const latestPromotions = promotionsRef.current;
+
+      // Allow explicit user Publish to retry Cloud Firestore BEFORE dispatching parent/cloud syncs
+      await clearFirestoreQuotaExceeded();
 
       // 1. Dual-storage local persistence (immediate - zero latency)
       safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, latestProducts);
       safeSaveStorage(CMS_STORAGE_KEYS.VIDEOS, videos);
       safeSaveStorage(CMS_STORAGE_KEYS.ARTICLES, articles);
-      safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, promotions);
+      safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, latestPromotions);
 
       // 2. Update parent React state (immediate - zero latency)
       dispatchSync(onSyncProductsToWebsite, latestProducts);
       if (onSyncVideosToWebsite) dispatchSync(onSyncVideosToWebsite, videos);
       if (onSyncArticlesToWebsite) dispatchSync(onSyncArticlesToWebsite, articles);
-      if (onSyncPromotionsToWebsite) dispatchSync(onSyncPromotionsToWebsite, promotions);
+      if (onSyncPromotionsToWebsite) dispatchSync(onSyncPromotionsToWebsite, latestPromotions);
 
       const tsContent = generateCmsConsoleDataTs({
         products: latestProducts,
-        promotions,
+        promotions: latestPromotions,
         videos,
         articles,
         bookBundle,
@@ -624,15 +629,12 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
         tooltips,
       });
 
-      // Allow explicit user Publish to retry Cloud Firestore even if an earlier session hit quota
-      await clearFirestoreQuotaExceeded();
-
       // 3. Sync all 4 Firestore collections + Server Disk concurrently (deduplicated per collection)
       const [diskOk, fsVidOk, fsProdOk, fsPromoOk, fsArtOk] = await Promise.all([
         withTimeout(syncCmsDataToServer(tsContent), 8000, false),
-        withTimeout(saveCmsVideosToFirestore(videos), 10000, false),
-        withTimeout(saveCmsProductsToFirestore(latestProducts), 15000, false),
-        withTimeout(saveCmsPromotionsToFirestore(promotions), 15000, false),
+        withTimeout(saveCmsVideosToFirestore(videos), 15000, false),
+        withTimeout(saveCmsProductsToFirestore(latestProducts), 20000, false),
+        withTimeout(saveCmsPromotionsToFirestore(latestPromotions), 20000, false),
         withTimeout(saveCmsArticlesToFirestore(articles), 20000, false),
       ]);
       const allFirestoreOk = fsProdOk && fsVidOk && fsArtOk && fsPromoOk;
@@ -640,21 +642,28 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       if (allFirestoreOk) {
         setPublishSuccessBanner(
-          `Site Published Successfully at ${nowStr}! All updates have been synced to Cloud Firestore${diskOk ? ', the server bundle,' : ''} and the live website.`
+          `Site Published Successfully at ${nowStr}! All updates are live on bizzbean.com via Cloud Firestore${diskOk ? ' and server bundle' : ''}.`
         );
-        triggerSaveNotification(`Site published successfully! All content synced to Cloud Firestore and live website.`);
+        triggerSaveNotification(`Site published! All updates synced to Cloud Firestore and live on bizzbean.com.`);
       } else {
+        const failedParts = [
+          !fsProdOk ? 'Products' : null,
+          !fsPromoOk ? 'Promotions' : null,
+          !fsVidOk ? 'Videos' : null,
+          !fsArtOk ? 'Articles' : null,
+        ].filter(Boolean).join(', ');
+        const detail = getLastFirestoreError();
         const reason = isFirestoreQuotaExceeded()
           ? 'Cloud Firestore write quota reached'
-          : 'Cloud Firestore write did not complete for all collections';
+          : `Cloud Firestore sync failed for ${failedParts || 'some collections'}${detail ? ` (${detail})` : ''}`;
         setPublishSuccessBanner(
-          `Saved locally at ${nowStr}, but ${reason}. To update Incognito/external visitors permanently, click "Export for GitHub" and commit src/data/cmsConsoleData.ts to main.`
+          `Saved locally at ${nowStr}, but ${reason}. Click "Publish to Live Site" to retry or use "Export for GitHub" as backup.`
         );
-        triggerSaveNotification(`Saved locally (${reason}). Use "Export for GitHub" to commit changes to live site.`);
+        triggerSaveNotification(`Saved locally — ${reason}.`);
       }
     } catch (err: any) {
       console.warn('Publish notice:', err);
-      triggerSaveNotification('Saved locally, but Cloud Firestore sync encountered an issue. Use Export for GitHub to commit.');
+      triggerSaveNotification('Saved locally, but Cloud Firestore sync encountered an issue. Click Publish to retry.');
     } finally {
       setIsPublishing(false);
     }
@@ -664,20 +673,24 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     setIsExporting(true);
     try {
       const latestProducts = flushPendingProductDrafts();
+      const latestPromotions = promotionsRef.current;
+
+      // Clear any stale quota flag BEFORE dispatching parent/cloud syncs
+      await clearFirestoreQuotaExceeded();
 
       safeSaveStorage(CMS_STORAGE_KEYS.PRODUCTS, latestProducts);
       safeSaveStorage(CMS_STORAGE_KEYS.VIDEOS, videos);
       safeSaveStorage(CMS_STORAGE_KEYS.ARTICLES, articles);
-      safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, promotions);
+      safeSaveStorage(CMS_STORAGE_KEYS.PROMOTIONS, latestPromotions);
 
       dispatchSync(onSyncProductsToWebsite, latestProducts);
       if (onSyncVideosToWebsite) dispatchSync(onSyncVideosToWebsite, videos);
       if (onSyncArticlesToWebsite) dispatchSync(onSyncArticlesToWebsite, articles);
-      if (onSyncPromotionsToWebsite) dispatchSync(onSyncPromotionsToWebsite, promotions);
+      if (onSyncPromotionsToWebsite) dispatchSync(onSyncPromotionsToWebsite, latestPromotions);
 
       const payload = {
         products: latestProducts,
-        promotions,
+        promotions: latestPromotions,
         videos,
         articles,
         bookBundle,
@@ -695,12 +708,11 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       downloadCmsDataFile(tsContent, 'cmsConsoleData.ts');
 
       // 2. Sync server disk file and Cloud Firestore collections concurrently (deduplicated per collection)
-      await clearFirestoreQuotaExceeded();
       const [diskOk, fsVidOk, fsProdOk, fsPromoOk, fsArtOk] = await Promise.all([
         withTimeout(syncCmsDataToServer(tsContent, payload), 8000, false),
-        withTimeout(saveCmsVideosToFirestore(videos), 10000, false),
-        withTimeout(saveCmsProductsToFirestore(latestProducts), 15000, false),
-        withTimeout(saveCmsPromotionsToFirestore(promotions), 15000, false),
+        withTimeout(saveCmsVideosToFirestore(videos), 15000, false),
+        withTimeout(saveCmsProductsToFirestore(latestProducts), 20000, false),
+        withTimeout(saveCmsPromotionsToFirestore(latestPromotions), 20000, false),
         withTimeout(saveCmsArticlesToFirestore(articles), 20000, false),
       ]);
 
@@ -708,10 +720,11 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       setLastExportedTimestamp(nowStr);
       setShowGitHubModal(true);
       const fsAllOk = fsProdOk && fsVidOk && fsArtOk && fsPromoOk;
+      const detail = getLastFirestoreError();
       triggerSaveNotification(
         fsAllOk
-          ? `Exported cmsConsoleData.ts & synced to Cloud Firestore${diskOk ? ' + server disk' : ''}! Commit to main on GitHub to deploy.`
-          : `Exported cmsConsoleData.ts! Commit to main on GitHub to deploy (Cloud Firestore sync skipped or partial).`
+          ? `Exported cmsConsoleData.ts & synced live to Cloud Firestore${diskOk ? ' + server disk' : ''}!`
+          : `Exported cmsConsoleData.ts, but Cloud Firestore sync failed${detail ? ` (${detail})` : ''}. Click "Publish to Live Site" to retry cloud sync.`
       );
     } catch (err: any) {
       console.error('Export failed:', err);
@@ -1143,29 +1156,32 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       clearFirestoreQuotaExceeded()
         .then(() => saveCmsPromotionsToFirestore(updatedList))
         .then((ok) => {
+          lastLocalPromoEditRef.current = Date.now();
           if (ok) {
             if (options.onSuccessMsg) triggerSaveNotification(options.onSuccessMsg);
           } else {
+            const detail = getLastFirestoreError();
             triggerSaveNotification(
               options.onFailureMsg ||
-                'Saved locally, but Cloud Firestore did not sync. Click "Publish to Live Site" or "Export for GitHub".'
+                `Saved locally, but Cloud Firestore did not sync${detail ? ` (${detail})` : ''}. Click "Publish to Live Site" to retry.`
             );
           }
         })
         .catch((err) => {
           console.warn('Firestore CMS promotion immediate sync note:', err);
+          const detail = getLastFirestoreError();
           triggerSaveNotification(
             options.onFailureMsg ||
-              'Saved locally, but Cloud Firestore sync failed. Use "Export for GitHub" to commit permanently.'
+              `Saved locally, but Cloud Firestore sync failed${detail ? ` (${detail})` : ''}. Click "Publish to Live Site" to retry.`
           );
         });
     } else {
       // Debounce auto-save to cloud so typing isn't interrupted and network isn't flooded
       promoFirestoreTimerRef.current = setTimeout(() => {
         promoFirestoreTimerRef.current = null;
-        saveCmsPromotionsToFirestore(promotionsRef.current).catch((err) =>
-          console.warn('Firestore CMS promotion debounced sync note:', err)
-        );
+        clearFirestoreQuotaExceeded()
+          .then(() => saveCmsPromotionsToFirestore(promotionsRef.current))
+          .catch((err) => console.warn('Firestore CMS promotion debounced sync note:', err));
       }, 1000);
     }
   };
@@ -1818,13 +1834,26 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     tokenDraftsRef.current = nextTokenDrafts;
     setTokenDrafts(nextTokenDrafts);
 
+    // Clear any stale quota lock on an explicit user save, persist locally & to App, and verify Cloud Firestore write
+    clearFirestoreQuotaExceeded().catch(() => {});
     persistProducts(updatedList, { immediate: true });
     setEditingProduct(null);
-    triggerSaveNotification(
-      isNew
-        ? `Added ${updatedObj.type === 'course' ? 'Masterclass Course' : 'Solution App'} "${updatedObj.name}" to live site (Stage: ${updatedObj.stage}, #${updatedObj.seq}).`
-        : `Synced "${updatedObj.name}" to live website & Firestore.`
-    );
+    triggerSaveNotification(`Saving "${updatedObj.name}" to Cloud Firestore...`);
+
+    saveCmsProductsToFirestore(cleanLegacyProducts(updatedList)).then((ok) => {
+      if (ok) {
+        triggerSaveNotification(
+          isNew
+            ? `Added "${updatedObj.name}" & synced live to Cloud Firestore (Stage: ${updatedObj.stage}, #${updatedObj.seq}).`
+            : `Synced "${updatedObj.name}" to Cloud Firestore — live on bizzbean.com now.`
+        );
+      } else {
+        const detail = getLastFirestoreError();
+        triggerSaveNotification(
+          `Saved "${updatedObj.name}" locally, but Cloud Firestore sync failed${detail ? ` (${detail})` : ''}. Click "Publish to Live Site" to retry.`
+        );
+      }
+    });
   };
 
   // Direct image upload & immediate auto-save for products
@@ -6178,11 +6207,11 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                 <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-500/40 space-y-2">
                   <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
                     <GitBranch className="h-4 w-4 shrink-0 text-emerald-400" />
-                    <span>CRITICAL STEP: Commit this file to GitHub</span>
+                    <span>Live Cloud Sync + GitHub Backup</span>
                   </div>
                   <p className="text-slate-300 leading-relaxed">
-                    Because your live website is deployed from your GitHub repository, browser CMS changes are stored locally until committed.
-                    The downloaded <strong className="text-emerald-300 font-mono">cmsConsoleData.ts</strong> file contains all your latest changes. Uploading it to GitHub is what applies them permanently to the live site.
+                    Your live website (<strong className="text-emerald-300 font-mono">bizzbean.com</strong>) reads CMS updates directly from <strong className="text-white">Cloud Firestore</strong> as soon as you click <strong className="text-emerald-300">Save &amp; Sync into Live Site</strong> or <strong className="text-emerald-300">Publish to Live Site</strong> — no GitHub commit is required for instant live updates.
+                    Commit the downloaded <strong className="text-emerald-300 font-mono">cmsConsoleData.ts</strong> to GitHub whenever you want to keep your source repository backup in sync.
                   </p>
                 </div>
 
