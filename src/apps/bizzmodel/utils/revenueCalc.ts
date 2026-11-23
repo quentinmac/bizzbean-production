@@ -1,7 +1,14 @@
-import { BizzModelState, EmploymentCategory, DEFAULT_EMPLOYMENT_CATEGORIES, PlatformForecastAppId, TermLoanEntry } from '../constants';
+import {
+  BizzModelState,
+  EmploymentCategory,
+  DEFAULT_EMPLOYMENT_CATEGORIES,
+  PlatformForecastAppId,
+  EMPTY_HILEVEL_YTD_ACTUALS,
+  HiLevelYtdActuals,
+} from '../constants';
 import { AssumptionRateItem } from '../../bizzdynamics/types';
 import { calculate60MonthWorkingCalendar } from './calendarCalc';
-import { calculateTermLoanMetrics, TermLoan } from './loanCalc';
+import { calculateTermLoanMetrics } from './loanCalc';
 
 /**
  * Excel PMT Formula for lease calculations:
@@ -247,6 +254,356 @@ export function calculateVatMonth(
   };
 }
 
+export interface HiLevelDerivedMetrics {
+  updateMonth: number;
+  updateMonthLabel: string;
+  remainingForecastMonths: number;
+  elapsedWorkingDays: number;
+  elapsedCalendarDays: number;
+  dailyRevenue: number;
+  vatRate: number;
+  taxRate: number;
+
+  // Dynamic Fixed Assets (from Step 3)
+  ytdCosDepreciation: number;
+  ytdCosLeases: number;
+  ytdOpexDepreciation: number;
+  ytdOpexLeases: number;
+  fixedAssetsNetAtUpdateMonth: number;
+
+  // Dynamic Funding (from Step 4)
+  shareCapitalAtUpdateMonth: number;
+  equityLoansAtUpdateMonth: number;
+  termLoansAtUpdateMonth: number;
+  ytdTermLoanInterest: number;
+
+  // Trading Account Totals & Distribution (% of YTD Revenue)
+  ytdTotalCos: number;
+  ytdGrossProfit: number;
+  ytdGrossMarginPct: number;
+  ytdGpAdjustments: number;
+  ytdTotalIncome: number;
+  ytdTotalOpex: number;
+  ytdNetOperatingProfit: number;
+  ytdOperatingMarginPct: number;
+  ytdNpbt: number;
+  ytdTax: number;
+  ytdNpat: number;
+
+  distributionPct: {
+    cosVariable: number;
+    cosEmployment: number;
+    cosOverheads: number;
+    cosDepreciation: number;
+    cosLeases: number;
+    totalCos: number;
+    grossProfit: number;
+    gpAdjustments: number;
+    otherIncome: number;
+    opexEmployment: number;
+    opexVariable: number;
+    opexOverheads: number;
+    opexDepreciation: number;
+    opexLeases: number;
+    totalOpex: number;
+    nop: number;
+  };
+
+  // Working Capital Days Derived from Balance Sheet
+  derivedInventoryDays: number;
+  derivedReceivableDays: number;
+  derivedPayableDays: number;
+  derivedCashConversionCycle: number;
+
+  // Balance Sheet Summary as at Update Month
+  otherAssetsTotal: number;
+  closingRetainedEarningsAtUpdateMonth: number;
+  totalAssets: number;
+  totalEquityAndLiabilities: number;
+  balanceDifference: number;
+}
+
+/**
+ * Pure derivation engine for the Hi-Level Forecast (YTD Management Accounts -> 60-Month Forecast).
+ * Shared by both the Actuals YTD UI forms and the 60-month projection loop so figures always reconcile.
+ */
+export function deriveHiLevelForecastMetrics(state: BizzModelState): HiLevelDerivedMetrics {
+  const actuals: HiLevelYtdActuals = state.hiLevelActuals || EMPTY_HILEVEL_YTD_ACTUALS;
+  const updateMonth = Math.max(1, Math.min(12, Math.round(actuals.updateMonth || 3)));
+  const calendar60 = calculate60MonthWorkingCalendar(state.businessDetails);
+
+  const ytdCalendarSlice = calendar60.slice(0, updateMonth);
+  const elapsedWorkingDays =
+    ytdCalendarSlice.reduce((s, m) => s + (m.daysWorked || 0), 0) || updateMonth * 21;
+  const elapsedCalendarDays =
+    ytdCalendarSlice.reduce((s, m) => s + (m.calendarDays || 0), 0) || updateMonth * 30;
+  const updateMonthLabel = calendar60[updateMonth - 1]?.monthLabel || `Month ${updateMonth}`;
+
+  const setupAssumps = (state.businessDetails as any)?.setupAssumptions as AssumptionRateItem[] | undefined;
+  const vatRate =
+    setupAssumps?.find((a) => a.id === 'vat-rate')?.baseRate ??
+    (state.businessDetails as any)?.vatRate ??
+    15;
+  const taxRate =
+    setupAssumps?.find((a) => a.id === 'tax-rate')?.baseRate ??
+    (state.businessDetails as any)?.taxRate ??
+    27;
+
+  // Fixed Assets YTD depreciation, leases & Net Book Value at end of updateMonth
+  let ytdCosDepreciation = 0;
+  let ytdCosLeases = 0;
+  let ytdOpexDepreciation = 0;
+  let ytdOpexLeases = 0;
+  let fixedAssetsNetAtUpdateMonth = 0;
+
+  (state.fixedAssets || []).forEach((asset) => {
+    const isLease = asset.financeOption === 'lease';
+    const isCos = asset.allocation === 'cost_of_sales';
+    const isPrior = asset.purchaseTiming === 'prior';
+    const pMonth = asset.purchaseMonth || 1;
+    const pValue = asset.purchaseValue ?? ((asset.unitCost || asset.purchaseCost || 0) * (asset.quantity || 1));
+    const depRate = asset.depreciationRate || 20;
+
+    if (isLease) {
+      const totalTermMonths = Math.min(60, (asset.leaseTermYears || 5) * 12);
+      const leaseRate = asset.leaseRatePct ?? 10.0;
+      const leaseYears = asset.leaseTermYears || 5;
+      for (let m = 1; m <= updateMonth; m++) {
+        let monthlyLease = 0;
+        if (isPrior) {
+          const priorElapsed = asset.monthsInSystem || 0;
+          const remainingMonths = Math.max(0, totalTermMonths - priorElapsed);
+          if (m <= remainingMonths) {
+            monthlyLease = calculateLeasePMT(pValue, leaseRate, leaseYears);
+          }
+        } else if (m >= pMonth && m < pMonth + totalTermMonths) {
+          monthlyLease = calculateLeasePMT(pValue, leaseRate, leaseYears);
+        }
+        if (isCos) ytdCosLeases += monthlyLease;
+        else ytdOpexLeases += monthlyLease;
+      }
+    } else {
+      const baseMonthlyDep = (pValue * (depRate / 100)) / 12;
+      for (let m = 1; m <= updateMonth; m++) {
+        let monthlyDep = 0;
+        if (isPrior) {
+          const priorElapsed = (asset.monthsInSystem || 0) + (m - 1);
+          const priorCumDep = Math.min(pValue, baseMonthlyDep * priorElapsed);
+          const remainingNet = Math.max(0, pValue - priorCumDep);
+          monthlyDep = Math.min(baseMonthlyDep, remainingNet);
+        } else if (m >= pMonth) {
+          const monthsElapsed = m - pMonth;
+          const priorCumDep = Math.min(pValue, baseMonthlyDep * monthsElapsed);
+          const remainingNet = Math.max(0, pValue - priorCumDep);
+          monthlyDep = Math.min(baseMonthlyDep, remainingNet);
+        }
+        if (isCos) ytdCosDepreciation += monthlyDep;
+        else ytdOpexDepreciation += monthlyDep;
+      }
+
+      // Closing Net Book Value at end of updateMonth
+      if (isPrior) {
+        const totalElapsed = (asset.monthsInSystem || 0) + updateMonth;
+        const cumDep = Math.min(pValue, baseMonthlyDep * totalElapsed);
+        fixedAssetsNetAtUpdateMonth += Math.max(0, pValue - cumDep);
+      } else if (pMonth <= updateMonth) {
+        const monthsElapsed = updateMonth - pMonth + 1;
+        const cumDep = Math.min(pValue, baseMonthlyDep * monthsElapsed);
+        fixedAssetsNetAtUpdateMonth += Math.max(0, pValue - cumDep);
+      }
+    }
+  });
+
+  ytdCosDepreciation = Math.round(ytdCosDepreciation);
+  ytdCosLeases = Math.round(ytdCosLeases);
+  ytdOpexDepreciation = Math.round(ytdOpexDepreciation);
+  ytdOpexLeases = Math.round(ytdOpexLeases);
+  fixedAssetsNetAtUpdateMonth = Math.round(fixedAssetsNetAtUpdateMonth);
+
+  // Funding Calculator dynamic balances at end of updateMonth
+  const initialSharesCount = state.funding.initialSharesCount ?? 0;
+  const initialSharePrice = state.funding.initialSharePrice ?? 0;
+  let shareCapitalAtUpdateMonth = initialSharesCount * initialSharePrice;
+  for (let mo = 0; mo < updateMonth; mo++) {
+    const addSh = state.funding.additionalSharesMonthly?.[mo] ?? 0;
+    const addPr = state.funding.additionalSharePriceMonthly?.[mo] ?? 0;
+    shareCapitalAtUpdateMonth += addSh * addPr;
+  }
+  shareCapitalAtUpdateMonth = Math.round(shareCapitalAtUpdateMonth);
+
+  const equityLoanOpenAbs = Math.abs(state.funding.equityLoanOpening ?? state.funding.equityLoan ?? 0);
+  let equityLoansAtUpdateMonth = equityLoanOpenAbs;
+  for (let mo = 0; mo < updateMonth; mo++) {
+    equityLoansAtUpdateMonth += state.funding.equityLoanAdditionalMonthly?.[mo] ?? 0;
+    equityLoansAtUpdateMonth -= state.funding.equityLoanRepaymentsMonthly?.[mo] ?? 0;
+  }
+  equityLoansAtUpdateMonth = Math.round(Math.max(0, equityLoansAtUpdateMonth));
+
+  let termLoansAtUpdateMonth = 0;
+  let ytdTermLoanInterest = 0;
+  if (state.funding.termLoans && state.funding.termLoans.length > 0) {
+    state.funding.termLoans.forEach((tl) => {
+      const endMetrics = calculateTermLoanMetrics(
+        {
+          advanceMonth: tl.advanceMonth || 1,
+          advanceValue: tl.advanceValue,
+          advanceRate: tl.advanceRatePct,
+          termYears: tl.termYears,
+        },
+        updateMonth
+      );
+      termLoansAtUpdateMonth += endMetrics.balance;
+      for (let m = 1; m <= updateMonth; m++) {
+        const moM = calculateTermLoanMetrics(
+          {
+            advanceMonth: tl.advanceMonth || 1,
+            advanceValue: tl.advanceValue,
+            advanceRate: tl.advanceRatePct,
+            termYears: tl.termYears,
+          },
+          m
+        );
+        ytdTermLoanInterest += moM.interest;
+      }
+    });
+  } else if (state.funding.bankLoanAmount > 0) {
+    termLoansAtUpdateMonth = state.funding.bankLoanAmount;
+  }
+  termLoansAtUpdateMonth = Math.round(termLoansAtUpdateMonth);
+  ytdTermLoanInterest = Math.round(ytdTermLoanInterest);
+
+  // Trading Account Totals & Distribution
+  const ytdRev = Number(actuals.ytdRevenue) || 0;
+  const dailyRevenue = elapsedWorkingDays > 0 ? ytdRev / elapsedWorkingDays : 0;
+
+  const ytdTotalCos =
+    (actuals.ytdCosVariable || 0) +
+    (actuals.ytdCosEmployment || 0) +
+    (actuals.ytdCosOverheads || 0) +
+    ytdCosDepreciation +
+    ytdCosLeases;
+  const ytdGrossProfit = ytdRev - ytdTotalCos;
+  const ytdGpAdjustments =
+    (actuals.ytdGpAdjCommission || 0) +
+    (actuals.ytdGpAdjInventory || 0) +
+    (actuals.ytdGpAdjVariance || 0);
+  const ytdTotalIncome = ytdGrossProfit - ytdGpAdjustments + (actuals.ytdOtherIncome || 0);
+  const ytdTotalOpex =
+    (actuals.ytdOpexEmployment || 0) +
+    (actuals.ytdOpexVariable || 0) +
+    (actuals.ytdOpexOverheads || 0) +
+    ytdOpexDepreciation +
+    ytdOpexLeases;
+  const ytdNetOperatingProfit = ytdTotalIncome - ytdTotalOpex;
+  const ytdNpbt = ytdNetOperatingProfit - ytdTermLoanInterest;
+  const ytdTax = ytdNpbt > 0 ? Math.round(ytdNpbt * (taxRate / 100)) : 0;
+  const ytdNpat = ytdNpbt - ytdTax;
+
+  const pct = (val: number) => (ytdRev > 0 ? Number(((val / ytdRev) * 100).toFixed(2)) : 0);
+
+  // Working Capital Days Derived from Balance Sheet
+  const derivedInventoryDays =
+    ytdTotalCos > 0 ? Number((((actuals.bsInventory || 0) / ytdTotalCos) * elapsedCalendarDays).toFixed(1)) : 0;
+  const revInclVat = ytdRev * (1 + vatRate / 100);
+  const derivedReceivableDays =
+    revInclVat > 0 ? Number((((actuals.bsReceivables || 0) / revInclVat) * elapsedCalendarDays).toFixed(1)) : 0;
+  const cosInclVat = ytdTotalCos * (1 + vatRate / 100);
+  const derivedPayableDays =
+    cosInclVat > 0 ? Number((((actuals.bsPayables || 0) / cosInclVat) * elapsedCalendarDays).toFixed(1)) : 0;
+  const derivedCashConversionCycle = Number(
+    (derivedInventoryDays + derivedReceivableDays - derivedPayableDays).toFixed(1)
+  );
+
+  // Balance Sheet Totals at Update Month
+  const otherAssetsTotal =
+    (actuals.bsDeposits || 0) + (actuals.bsFloats || 0) + (actuals.bsPettyCash || 0);
+  const bankVal = actuals.bsBankBalance || 0;
+  const bankAsset = bankVal > 0 ? bankVal : 0;
+  const bankOverdraft = bankVal < 0 ? Math.abs(bankVal) : 0;
+
+  const totalAssets = Math.round(
+    fixedAssetsNetAtUpdateMonth +
+      (actuals.bsInventory || 0) +
+      (actuals.bsReceivables || 0) +
+      otherAssetsTotal +
+      (actuals.bsVatReceivable || 0) +
+      bankAsset
+  );
+
+  const closingRetainedEarningsAtUpdateMonth = Math.round(
+    (actuals.bsOpeningRetainedEarnings || 0) + ytdNpat - (actuals.ytdDividends || 0)
+  );
+
+  const totalEquityAndLiabilities = Math.round(
+    shareCapitalAtUpdateMonth +
+      equityLoansAtUpdateMonth +
+      closingRetainedEarningsAtUpdateMonth +
+      termLoansAtUpdateMonth +
+      (actuals.bsPayables || 0) +
+      (actuals.bsVatPayable || 0) +
+      (actuals.bsTaxLiability || 0) +
+      bankOverdraft
+  );
+
+  return {
+    updateMonth,
+    updateMonthLabel,
+    remainingForecastMonths: 60 - updateMonth,
+    elapsedWorkingDays,
+    elapsedCalendarDays,
+    dailyRevenue,
+    vatRate,
+    taxRate,
+    ytdCosDepreciation,
+    ytdCosLeases,
+    ytdOpexDepreciation,
+    ytdOpexLeases,
+    fixedAssetsNetAtUpdateMonth,
+    shareCapitalAtUpdateMonth,
+    equityLoansAtUpdateMonth,
+    termLoansAtUpdateMonth,
+    ytdTermLoanInterest,
+    ytdTotalCos,
+    ytdGrossProfit,
+    ytdGrossMarginPct: pct(ytdGrossProfit),
+    ytdGpAdjustments,
+    ytdTotalIncome,
+    ytdTotalOpex,
+    ytdNetOperatingProfit,
+    ytdOperatingMarginPct: pct(ytdNetOperatingProfit),
+    ytdNpbt,
+    ytdTax,
+    ytdNpat,
+    distributionPct: {
+      cosVariable: pct(actuals.ytdCosVariable || 0),
+      cosEmployment: pct(actuals.ytdCosEmployment || 0),
+      cosOverheads: pct(actuals.ytdCosOverheads || 0),
+      cosDepreciation: pct(ytdCosDepreciation),
+      cosLeases: pct(ytdCosLeases),
+      totalCos: pct(ytdTotalCos),
+      grossProfit: pct(ytdGrossProfit),
+      gpAdjustments: pct(ytdGpAdjustments),
+      otherIncome: pct(actuals.ytdOtherIncome || 0),
+      opexEmployment: pct(actuals.ytdOpexEmployment || 0),
+      opexVariable: pct(actuals.ytdOpexVariable || 0),
+      opexOverheads: pct(actuals.ytdOpexOverheads || 0),
+      opexDepreciation: pct(ytdOpexDepreciation),
+      opexLeases: pct(ytdOpexLeases),
+      totalOpex: pct(ytdTotalOpex),
+      nop: pct(ytdNetOperatingProfit),
+    },
+    derivedInventoryDays,
+    derivedReceivableDays,
+    derivedPayableDays,
+    derivedCashConversionCycle,
+    otherAssetsTotal,
+    closingRetainedEarningsAtUpdateMonth,
+    totalAssets,
+    totalEquityAndLiabilities,
+    balanceDifference: totalAssets - totalEquityAndLiabilities,
+  };
+}
+
 export function calculateFinancialModelProjections(
   state: BizzModelState,
   horizonMonths: number = 36,
@@ -254,11 +611,19 @@ export function calculateFinancialModelProjections(
   appModeOverride?: PlatformForecastAppId
 ): MonthlyFinancialSummary[] {
   const results: MonthlyFinancialSummary[] = [];
-  const initialOpeningCash =
-    (state.funding.founderEquity || 0) +
-    (state.funding.investorEquity || 0) +
-    ((state.funding as any).equityLoan || 0) +
-    (state.funding.bankLoanAmount || 0);
+  const effectiveAppMode = appModeOverride || state.appMode || 'bizzdynamics';
+  const isHiLevelActualsActive =
+    (effectiveAppMode === 'rolling-forecast' || effectiveAppMode === 'hi-level-forecast') &&
+    Boolean(state.hiLevelActuals);
+  const hlActuals = state.hiLevelActuals || EMPTY_HILEVEL_YTD_ACTUALS;
+  const hlUpdateMonth = Math.max(1, Math.min(12, Math.round(hlActuals.updateMonth || 3)));
+
+  const initialOpeningCash = isHiLevelActualsActive
+    ? hlActuals.bsBankBalance || 0
+    : (state.funding.founderEquity || 0) +
+      (state.funding.investorEquity || 0) +
+      ((state.funding as any).equityLoan || 0) +
+      (state.funding.bankLoanAmount || 0);
   let cash = initialOpeningCash;
   let debtBalance = state.funding.bankLoanAmount || 0;
   const setupAssumps = (state.businessDetails as any)?.setupAssumptions as AssumptionRateItem[] | undefined;
@@ -289,13 +654,17 @@ export function calculateFinancialModelProjections(
   let taxCarriedForwardLoss = (state.funding as any).initialTaxLoss ?? 0;
   let taxationCumulativePrev = 0;
   let taxLiabilityBalance = 0;
-  let totalCumulativeRetainedEarnings = 0;
+  let totalCumulativeRetainedEarnings = isHiLevelActualsActive
+    ? hlActuals.bsOpeningRetainedEarnings || 0
+    : 0;
 
   // Working capital trackers
-  let prevInventory = 0;
-  let prevReceivables = 0;
-  let prevPayables = 0;
-  let prevOtherAssets = 0;
+  let prevInventory = isHiLevelActualsActive ? hlActuals.bsInventory || 0 : 0;
+  let prevReceivables = isHiLevelActualsActive ? hlActuals.bsReceivables || 0 : 0;
+  let prevPayables = isHiLevelActualsActive ? hlActuals.bsPayables || 0 : 0;
+  let prevOtherAssets = isHiLevelActualsActive
+    ? (hlActuals.bsDeposits || 0) + (hlActuals.bsFloats || 0) + (hlActuals.bsPettyCash || 0)
+    : 0;
 
   // Share capital trackers
   const initialSharesCount = state.funding.initialSharesCount ?? 1000;
@@ -310,6 +679,23 @@ export function calculateFinancialModelProjections(
   let cumEquityLoanRepayments = 0;
 
   const calendar60 = calculate60MonthWorkingCalendar(state.businessDetails);
+  const hlElapsedWorkingDays = isHiLevelActualsActive
+    ? calendar60.slice(0, hlUpdateMonth).reduce((s, c) => s + (c.daysWorked || 0), 0) || hlUpdateMonth * 21
+    : 1;
+  const hlDailyRevenue = isHiLevelActualsActive
+    ? (hlActuals.ytdRevenue || 0) / hlElapsedWorkingDays
+    : 0;
+  const hlRevBase = hlActuals.ytdRevenue || 0;
+  const hlCosVarRatio = hlRevBase > 0 ? (hlActuals.ytdCosVariable || 0) / hlRevBase : 0;
+  const hlCosEmpRatio = hlRevBase > 0 ? (hlActuals.ytdCosEmployment || 0) / hlRevBase : 0;
+  const hlCosOvhRatio = hlRevBase > 0 ? (hlActuals.ytdCosOverheads || 0) / hlRevBase : 0;
+  const hlGpCommRatio = hlRevBase > 0 ? (hlActuals.ytdGpAdjCommission || 0) / hlRevBase : 0;
+  const hlGpInvRatio = hlRevBase > 0 ? (hlActuals.ytdGpAdjInventory || 0) / hlRevBase : 0;
+  const hlGpVarRatio = hlRevBase > 0 ? (hlActuals.ytdGpAdjVariance || 0) / hlRevBase : 0;
+  const hlOtherIncRatio = hlRevBase > 0 ? (hlActuals.ytdOtherIncome || 0) / hlRevBase : 0;
+  const hlOpexEmpRatio = hlRevBase > 0 ? (hlActuals.ytdOpexEmployment || 0) / hlRevBase : 0;
+  const hlOpexVarRatio = hlRevBase > 0 ? (hlActuals.ytdOpexVariable || 0) / hlRevBase : 0;
+  const hlOpexOvhRatio = hlRevBase > 0 ? (hlActuals.ytdOpexOverheads || 0) / hlRevBase : 0;
 
   const categoriesList = state.employmentCategories && state.employmentCategories.length > 0
     ? state.employmentCategories
@@ -327,7 +713,7 @@ export function calculateFinancialModelProjections(
       taxationCumulativePrev = 0;
     }
 
-    // 1. Revenue
+    // 1. Revenue, 2. Employment, 3. Operating Expenses
     let revenue = 0;
     let cogs = 0;
     let unitSales = 0;
@@ -335,185 +721,220 @@ export function calculateFinancialModelProjections(
     let gpAdjustmentsCommission = 0;
     let gpAdjustmentsInventory = 0;
     let otherIncomeTotal = 0;
-
-    state.revenueItems.forEach((item) => {
-      const launchMonth = item.startMonth || 1;
-      if (m < launchMonth) return;
-
-      if (item.dailyUnitSalesMonthly && item.dailyUnitSalesMonthly.length > 0) {
-        const absIdx = mo < 60 ? mo : 59;
-        const daysWorked = calendar60[absIdx]?.daysWorked ?? 21;
-        const dailyUnits = item.dailyUnitSalesMonthly[absIdx] ?? 1000;
-        const prodCost = item.productionUnitCostMonthly?.[absIdx] ?? -Math.abs(item.unitCost !== undefined ? item.unitCost : 10);
-        const mfgMargin = item.manufacturingMarginPctMonthly?.[absIdx] ?? 10.00;
-        const gpMargin = item.grossProfitMarginPctMonthly?.[absIdx] ?? 50.00;
-        const commPct = item.salesCommissionPctMonthly?.[absIdx] ?? 1.00;
-        const invPct = item.inventoryAdjustmentPctMonthly?.[absIdx] ?? 1.00;
-        const otherInc = item.otherIncomeMonthly?.[absIdx] ?? 0;
-
-        const denom6 = 1 - mfgMargin / 100;
-        const unitCostPrice = denom6 !== 0 ? prodCost / denom6 : prodCost;
-        const mfgVariancePerUnit = prodCost - unitCostPrice;
-
-        const denom7 = 1 - gpMargin / 100;
-        const unitSellingPrice = denom7 !== 0 ? -unitCostPrice / denom7 : Math.abs(unitCostPrice);
-
-        const itemUnits = Math.round(daysWorked * dailyUnits);
-        const itemRev = Math.round(daysWorked * dailyUnits * unitSellingPrice);
-        const itemCogs = Math.round(daysWorked * dailyUnits * Math.abs(unitCostPrice));
-
-        unitSales += itemUnits;
-        revenue += itemRev;
-        cogs += itemCogs;
-
-        gpAdjustmentsCommission += Math.round(itemRev * (commPct / 100));
-        gpAdjustmentsInventory += Math.round(itemCogs * (invPct / 100));
-        gpAdjustmentsVariance += Math.round(daysWorked * dailyUnits * mfgVariancePerUnit);
-        otherIncomeTotal += otherInc;
-      } else {
-        const unitCount =
-          item.monthlyUnits && item.monthlyUnits.length > 0
-            ? item.monthlyUnits[m - 1] ??
-              Math.round((item.monthlyUnits[item.monthlyUnits.length - 1] || 0) * Math.pow(1.05, m - item.monthlyUnits.length))
-            : 0;
-        unitSales += unitCount;
-        const itemRev = unitCount * (item.unitPrice || 0);
-        const itemCogs =
-          item.unitCost !== undefined && item.unitCost > 0
-            ? unitCount * item.unitCost
-            : itemRev * ((item.costOfSalesPct || 0) / 100);
-        revenue += itemRev;
-        cogs += itemCogs;
-        gpAdjustmentsCommission += Math.round(itemRev * 0.01);
-        gpAdjustmentsInventory += Math.round(itemCogs * 0.01);
-      }
-    });
-
-    // Direct materials from revenue engine
-    const cosMaterials = Math.round(cogs);
+    let cosMaterials = 0;
     const cosPackaging = 0;
-
-    // 2. Employment allocations (Cost of Sales - Fixed vs Expenses - Fixed)
     let cosEmployment = 0;
     let opexEmployment = 0;
+    let cosOverheads = 0;
+    let exVariable = 0;
+    let exOverheads = 0;
 
     const yearIdx = Math.floor(mo / 12); // 0..4 for Years 1..5
     const calMonth = (mo % 12) + 1; // 1..12
 
-    (state.employmentItems || []).forEach((emp) => {
-      const cat = categoriesMap.get(emp.categoryId);
-      const onCostPct = cat ? cat.onCostPct : (emp.onCostPct ?? 0);
-
-      let isActive = false;
-      if (emp.employmentType === 'seasonal') {
-        const sStart = emp.seasonalStartMonth ?? 1;
-        const sEnd = emp.seasonalEndMonth ?? 12;
-        if (sStart <= sEnd) {
-          isActive = calMonth >= sStart && calMonth <= sEnd;
-        } else {
-          isActive = calMonth >= sStart || calMonth <= sEnd;
-        }
-        if (m < (emp.startMonth || 1)) {
-          isActive = false;
-        }
+    if (isHiLevelActualsActive) {
+      const daysWorked = calendar60[mo]?.daysWorked ?? 21;
+      if (m <= hlUpdateMonth) {
+        // YTD Actuals Period (Months 1..U): distribute exact management-account totals by working days
+        // so sum(M1..MU) reconciles to the user's YTD Trading Account to the rand.
+        const weight = hlElapsedWorkingDays > 0 ? daysWorked / hlElapsedWorkingDays : 1 / hlUpdateMonth;
+        revenue = Math.round(hlDailyRevenue * daysWorked);
+        cosMaterials = Math.round((hlActuals.ytdCosVariable || 0) * weight);
+        cogs = cosMaterials;
+        cosEmployment = Math.round((hlActuals.ytdCosEmployment || 0) * weight);
+        cosOverheads = Math.round((hlActuals.ytdCosOverheads || 0) * weight);
+        gpAdjustmentsCommission = Math.round((hlActuals.ytdGpAdjCommission || 0) * weight);
+        gpAdjustmentsInventory = Math.round((hlActuals.ytdGpAdjInventory || 0) * weight);
+        gpAdjustmentsVariance = Math.round((hlActuals.ytdGpAdjVariance || 0) * weight);
+        otherIncomeTotal = Math.round((hlActuals.ytdOtherIncome || 0) * weight);
+        opexEmployment = Math.round((hlActuals.ytdOpexEmployment || 0) * weight);
+        exVariable = Math.round((hlActuals.ytdOpexVariable || 0) * weight);
+        exOverheads = Math.round((hlActuals.ytdOpexOverheads || 0) * weight);
       } else {
-        isActive = m >= (emp.startMonth || 1);
+        // Forecast Horizon (Months U+1..60): project from Daily Revenue x Working Days x Trading Account Distribution
+        const growthRate = (hlActuals.annualRevenueGrowthPct || 0) / 100;
+        const growthFactor = growthRate !== 0 ? Math.pow(1 + growthRate, (m - hlUpdateMonth) / 12) : 1;
+        revenue = Math.round(hlDailyRevenue * daysWorked * growthFactor);
+        cosMaterials = Math.round(revenue * hlCosVarRatio);
+        cogs = cosMaterials;
+
+        const useFixedRunRate = hlActuals.projectionBasis === 'fixed-run-rate';
+        cosEmployment = useFixedRunRate
+          ? Math.round((hlActuals.ytdCosEmployment || 0) / hlUpdateMonth)
+          : Math.round(revenue * hlCosEmpRatio);
+        cosOverheads = useFixedRunRate
+          ? Math.round((hlActuals.ytdCosOverheads || 0) / hlUpdateMonth)
+          : Math.round(revenue * hlCosOvhRatio);
+        gpAdjustmentsCommission = Math.round(revenue * hlGpCommRatio);
+        gpAdjustmentsInventory = Math.round(revenue * hlGpInvRatio);
+        gpAdjustmentsVariance = Math.round(revenue * hlGpVarRatio);
+        otherIncomeTotal = Math.round(revenue * hlOtherIncRatio);
+        opexEmployment = useFixedRunRate
+          ? Math.round((hlActuals.ytdOpexEmployment || 0) / hlUpdateMonth)
+          : Math.round(revenue * hlOpexEmpRatio);
+        exVariable = Math.round(revenue * hlOpexVarRatio);
+        exOverheads = useFixedRunRate
+          ? Math.round((hlActuals.ytdOpexOverheads || 0) / hlUpdateMonth)
+          : Math.round(revenue * hlOpexOvhRatio);
       }
-
-      if (isActive) {
-        // Base monthly cost * (1 + on-cost %) * headcount
-        let cost = emp.baseRateMonthly * (emp.numEmployees || 1) * (1 + onCostPct / 100);
-
-        // Category slider monthly adjustment (delta % from BaseRateAdjustmentTool)
-        if (cat?.monthlyAdjustmentPct && cat.monthlyAdjustmentPct[mo] !== undefined) {
-          const deltaPct = cat.monthlyAdjustmentPct[mo];
-          cost = cost * (1 + deltaPct / 100);
-        }
-
-        if (emp.allocation === 'cost_of_sales') {
-          cosEmployment += cost;
-        } else {
-          opexEmployment += cost;
-        }
-      }
-    });
-
-    // 3. Operating Expenses Engine
-    const effectiveAppMode = appModeOverride || state.appMode || 'bizzdynamics';
-    const isPresetMode = effectiveAppMode === 'rolling-forecast' || effectiveAppMode === 'hi-level-forecast';
-    const isBizzModel = effectiveAppMode === 'bizzmodel';
-
-    let rawCosShareOfFixed = 0;
-    let rawOpexFixed = 0;
-    let rawOpexVariable = 0;
-    let rawFixedExpenses = 0;
-    let rawVariableExpenses = 0;
-
-    const allocationToCostOfSalesPct = state.opexSettings?.allocationToCostOfSalesPct ?? 1.00;
-    const catAdjustments = state.opexSettings?.categoryAdjustments;
-    const cosShareDeltaPct = catAdjustments?.cosShareOfFixed?.[mo] ?? 0;
-    const opexVarDeltaPct = catAdjustments?.opexVariable?.[mo] ?? 0;
-    const opexFixedDeltaPct = catAdjustments?.opexFixed?.[mo] ?? 0;
-
-    if (isPresetMode) {
-      // Rolling Forecast & Hi-Level Forecast:
-      // Exactly 3 lines, calculated as % of revenue:
-      // • cost of sales – fixed (allocated to: cost of sales - share of fixed overheads)
-      // • overheads – fixed (allocated to: operating expenses – fixed)
-      // • overheads – variable (allocated to: operating expenses – variable)
-      const cosFixedPct = state.opexSettings?.hiLevelPreset?.cosFixedPct ?? 1.00;
-      const opexFixedPct = state.opexSettings?.hiLevelPreset?.opexFixedPct ?? 1.00;
-      const opexVarPct = state.opexSettings?.hiLevelPreset?.opexVarPct ?? 1.00;
-
-      rawCosShareOfFixed = revenue * (cosFixedPct / 100);
-      rawOpexFixed = revenue * (opexFixedPct / 100);
-      rawOpexVariable = revenue * (opexVarPct / 100);
-      rawFixedExpenses = rawCosShareOfFixed + rawOpexFixed;
-      rawVariableExpenses = rawOpexVariable;
     } else {
-      // Standard Detailed Expenses (BizzModel: all selected expenses from COA; BizzDynamics: up to 5 expenses):
-      (state.expenses || []).forEach((exp) => {
-        if (m < (exp.startMonth || 1)) return;
-        if (exp.isAnnuity || (exp.annuityMonth !== undefined && exp.annuityMonth > 0)) {
-          const targetAnnuityMonth = exp.annuityMonth ?? 1;
-          if (calMonth !== targetAnnuityMonth) return;
-        }
+      state.revenueItems.forEach((item) => {
+        const launchMonth = item.startMonth || 1;
+        if (m < launchMonth) return;
 
-        let cost = 0;
-        if (exp.type === 'variable') {
-          if (exp.pctOfRevenue !== undefined && exp.pctOfRevenue > 0) {
-            cost = revenue * (exp.pctOfRevenue / 100);
-          } else {
-            cost = exp.baseRateMonthly ?? exp.monthlyAmount ?? 0;
-          }
+        if (item.dailyUnitSalesMonthly && item.dailyUnitSalesMonthly.length > 0) {
+          const absIdx = mo < 60 ? mo : 59;
+          const daysWorked = calendar60[absIdx]?.daysWorked ?? 21;
+          const dailyUnits = item.dailyUnitSalesMonthly[absIdx] ?? 1000;
+          const prodCost = item.productionUnitCostMonthly?.[absIdx] ?? -Math.abs(item.unitCost !== undefined ? item.unitCost : 10);
+          const mfgMargin = item.manufacturingMarginPctMonthly?.[absIdx] ?? 10.00;
+          const gpMargin = item.grossProfitMarginPctMonthly?.[absIdx] ?? 50.00;
+          const commPct = item.salesCommissionPctMonthly?.[absIdx] ?? 1.00;
+          const invPct = item.inventoryAdjustmentPctMonthly?.[absIdx] ?? 1.00;
+          const otherInc = item.otherIncomeMonthly?.[absIdx] ?? 0;
+
+          const denom6 = 1 - mfgMargin / 100;
+          const unitCostPrice = denom6 !== 0 ? prodCost / denom6 : prodCost;
+          const mfgVariancePerUnit = prodCost - unitCostPrice;
+
+          const denom7 = 1 - gpMargin / 100;
+          const unitSellingPrice = denom7 !== 0 ? -unitCostPrice / denom7 : Math.abs(unitCostPrice);
+
+          const itemUnits = Math.round(daysWorked * dailyUnits);
+          const itemRev = Math.round(daysWorked * dailyUnits * unitSellingPrice);
+          const itemCogs = Math.round(daysWorked * dailyUnits * Math.abs(unitCostPrice));
+
+          unitSales += itemUnits;
+          revenue += itemRev;
+          cogs += itemCogs;
+
+          gpAdjustmentsCommission += Math.round(itemRev * (commPct / 100));
+          gpAdjustmentsInventory += Math.round(itemCogs * (invPct / 100));
+          gpAdjustmentsVariance += Math.round(daysWorked * dailyUnits * mfgVariancePerUnit);
+          otherIncomeTotal += otherInc;
         } else {
-          cost = exp.baseRateMonthly ?? exp.monthlyAmount ?? 0;
-        }
-
-        if (exp.growthRatePct && exp.growthRatePct > 0) {
-          cost = cost * Math.pow(1 + exp.growthRatePct / 100, (m - exp.startMonth) / 12);
-        }
-
-        if (exp.monthlyAdjustmentPct && exp.monthlyAdjustmentPct[mo] !== undefined) {
-          cost = cost * (1 + exp.monthlyAdjustmentPct[mo] / 100);
-        }
-
-        if (exp.type === 'variable') {
-          rawVariableExpenses += cost;
-        } else {
-          rawFixedExpenses += cost;
+          const unitCount =
+            item.monthlyUnits && item.monthlyUnits.length > 0
+              ? item.monthlyUnits[m - 1] ??
+                Math.round((item.monthlyUnits[item.monthlyUnits.length - 1] || 0) * Math.pow(1.05, m - item.monthlyUnits.length))
+              : 0;
+          unitSales += unitCount;
+          const itemRev = unitCount * (item.unitPrice || 0);
+          const itemCogs =
+            item.unitCost !== undefined && item.unitCost > 0
+              ? unitCount * item.unitCost
+              : itemRev * ((item.costOfSalesPct || 0) / 100);
+          revenue += itemRev;
+          cogs += itemCogs;
+          gpAdjustmentsCommission += Math.round(itemRev * 0.01);
+          gpAdjustmentsInventory += Math.round(itemCogs * 0.01);
         }
       });
 
-      rawCosShareOfFixed = rawFixedExpenses * (allocationToCostOfSalesPct / 100);
-      rawOpexFixed = rawFixedExpenses - rawCosShareOfFixed;
-      rawOpexVariable = rawVariableExpenses;
-    }
+      cosMaterials = Math.round(cogs);
 
-    // Category adjustments from ADJUSTMENT SLIDER (Results tab)
-    const cosOverheads = Math.round(rawCosShareOfFixed * (1 + cosShareDeltaPct / 100));
-    const exVariable = Math.round(rawOpexVariable * (1 + opexVarDeltaPct / 100));
-    const exOverheads = Math.round(rawOpexFixed * (1 + opexFixedDeltaPct / 100));
+      (state.employmentItems || []).forEach((emp) => {
+        const cat = categoriesMap.get(emp.categoryId);
+        const onCostPct = cat ? cat.onCostPct : (emp.onCostPct ?? 0);
+
+        let isActive = false;
+        if (emp.employmentType === 'seasonal') {
+          const sStart = emp.seasonalStartMonth ?? 1;
+          const sEnd = emp.seasonalEndMonth ?? 12;
+          if (sStart <= sEnd) {
+            isActive = calMonth >= sStart && calMonth <= sEnd;
+          } else {
+            isActive = calMonth >= sStart || calMonth <= sEnd;
+          }
+          if (m < (emp.startMonth || 1)) {
+            isActive = false;
+          }
+        } else {
+          isActive = m >= (emp.startMonth || 1);
+        }
+
+        if (isActive) {
+          let cost = emp.baseRateMonthly * (emp.numEmployees || 1) * (1 + onCostPct / 100);
+          if (cat?.monthlyAdjustmentPct && cat.monthlyAdjustmentPct[mo] !== undefined) {
+            const deltaPct = cat.monthlyAdjustmentPct[mo];
+            cost = cost * (1 + deltaPct / 100);
+          }
+
+          if (emp.allocation === 'cost_of_sales') {
+            cosEmployment += cost;
+          } else {
+            opexEmployment += cost;
+          }
+        }
+      });
+
+      const isPresetMode = effectiveAppMode === 'rolling-forecast' || effectiveAppMode === 'hi-level-forecast';
+
+      let rawCosShareOfFixed = 0;
+      let rawOpexFixed = 0;
+      let rawOpexVariable = 0;
+      let rawFixedExpenses = 0;
+      let rawVariableExpenses = 0;
+
+      const allocationToCostOfSalesPct = state.opexSettings?.allocationToCostOfSalesPct ?? 1.00;
+      const catAdjustments = state.opexSettings?.categoryAdjustments;
+      const cosShareDeltaPct = catAdjustments?.cosShareOfFixed?.[mo] ?? 0;
+      const opexVarDeltaPct = catAdjustments?.opexVariable?.[mo] ?? 0;
+      const opexFixedDeltaPct = catAdjustments?.opexFixed?.[mo] ?? 0;
+
+      if (isPresetMode) {
+        const cosFixedPct = state.opexSettings?.hiLevelPreset?.cosFixedPct ?? 1.00;
+        const opexFixedPct = state.opexSettings?.hiLevelPreset?.opexFixedPct ?? 1.00;
+        const opexVarPct = state.opexSettings?.hiLevelPreset?.opexVarPct ?? 1.00;
+
+        rawCosShareOfFixed = revenue * (cosFixedPct / 100);
+        rawOpexFixed = revenue * (opexFixedPct / 100);
+        rawOpexVariable = revenue * (opexVarPct / 100);
+        rawFixedExpenses = rawCosShareOfFixed + rawOpexFixed;
+        rawVariableExpenses = rawOpexVariable;
+      } else {
+        (state.expenses || []).forEach((exp) => {
+          if (m < (exp.startMonth || 1)) return;
+          if (exp.isAnnuity || (exp.annuityMonth !== undefined && exp.annuityMonth > 0)) {
+            const targetAnnuityMonth = exp.annuityMonth ?? 1;
+            if (calMonth !== targetAnnuityMonth) return;
+          }
+
+          let cost = 0;
+          if (exp.type === 'variable') {
+            if (exp.pctOfRevenue !== undefined && exp.pctOfRevenue > 0) {
+              cost = revenue * (exp.pctOfRevenue / 100);
+            } else {
+              cost = exp.baseRateMonthly ?? exp.monthlyAmount ?? 0;
+            }
+          } else {
+            cost = exp.baseRateMonthly ?? exp.monthlyAmount ?? 0;
+          }
+
+          if (exp.growthRatePct && exp.growthRatePct > 0) {
+            cost = cost * Math.pow(1 + exp.growthRatePct / 100, (m - exp.startMonth) / 12);
+          }
+
+          if (exp.monthlyAdjustmentPct && exp.monthlyAdjustmentPct[mo] !== undefined) {
+            cost = cost * (1 + exp.monthlyAdjustmentPct[mo] / 100);
+          }
+
+          if (exp.type === 'variable') {
+            rawVariableExpenses += cost;
+          } else {
+            rawFixedExpenses += cost;
+          }
+        });
+
+        rawCosShareOfFixed = rawFixedExpenses * (allocationToCostOfSalesPct / 100);
+        rawOpexFixed = rawFixedExpenses - rawCosShareOfFixed;
+        rawOpexVariable = rawVariableExpenses;
+      }
+
+      cosOverheads = Math.round(rawCosShareOfFixed * (1 + cosShareDeltaPct / 100));
+      exVariable = Math.round(rawOpexVariable * (1 + opexVarDeltaPct / 100));
+      exOverheads = Math.round(rawOpexFixed * (1 + opexFixedDeltaPct / 100));
+    }
 
     // 3. Fixed Assets & Leases Engine
     // Supports Buy vs Lease, Cost of Sales vs Overheads allocation, and Year 0 opening assets
@@ -681,9 +1102,18 @@ export function calculateFinancialModelProjections(
     const recDays = state.funding.debtorDaysMonthly?.[mo] ?? state.funding.debtorDays ?? 0;
     const payDays = state.funding.creditorDaysMonthly?.[mo] ?? state.funding.creditorDays ?? 0;
 
-    const curInventory = Math.round((total_cogs / 30) * invDays);
-    const curReceivables = Math.round((revenue * (1 + currentVatRate / 100) / 30) * recDays);
-    const curPayables = Math.round((total_cogs * (1 + currentVatRate / 100) / 30) * payDays);
+    const isActualCutoffMonth = isHiLevelActualsActive && m === hlUpdateMonth;
+    const isWithinActualWindow = isHiLevelActualsActive && m <= hlUpdateMonth;
+
+    const curInventory = isWithinActualWindow
+      ? Math.round(hlActuals.bsInventory || 0)
+      : Math.round((total_cogs / 30) * invDays);
+    const curReceivables = isWithinActualWindow
+      ? Math.round(hlActuals.bsReceivables || 0)
+      : Math.round((revenue * (1 + currentVatRate / 100) / 30) * recDays);
+    const curPayables = isWithinActualWindow
+      ? Math.round(hlActuals.bsPayables || 0)
+      : Math.round((total_cogs * (1 + currentVatRate / 100) / 30) * payDays);
 
     const deltaInventory = curInventory - prevInventory;
     const deltaReceivables = curReceivables - prevReceivables;
@@ -693,9 +1123,15 @@ export function calculateFinancialModelProjections(
     prevPayables = curPayables;
 
     // Other Assets (deposits, floats, petty cash)
-    const curDeposits = state.funding.depositsMonthly?.[mo] ?? state.funding.depositsBase ?? 0;
-    const curFloats = state.funding.floatsMonthly?.[mo] ?? state.funding.floatsBase ?? 0;
-    const curPettyCash = state.funding.pettyCashMonthly?.[mo] ?? state.funding.pettyCashBase ?? 0;
+    const curDeposits = isWithinActualWindow
+      ? (hlActuals.bsDeposits || 0)
+      : (state.funding.depositsMonthly?.[mo] ?? state.funding.depositsBase ?? 0);
+    const curFloats = isWithinActualWindow
+      ? (hlActuals.bsFloats || 0)
+      : (state.funding.floatsMonthly?.[mo] ?? state.funding.floatsBase ?? 0);
+    const curPettyCash = isWithinActualWindow
+      ? (hlActuals.bsPettyCash || 0)
+      : (state.funding.pettyCashMonthly?.[mo] ?? state.funding.pettyCashBase ?? 0);
     const curOtherAssets = curDeposits + curFloats + curPettyCash;
     const deltaOtherAssets = curOtherAssets - prevOtherAssets;
     prevOtherAssets = curOtherAssets;
@@ -824,7 +1260,19 @@ export function calculateFinancialModelProjections(
     // Cashflow & Closing Bank Balance:
     // Closing bank balance = opening bank balance + add cashflow
     const cashflow = cash_from_operations + change_in_working_capital + application_to_capital_assets + change_in_funding;
-    cash = closing_bank_pre + cashflow;
+    if (isActualCutoffMonth) {
+      // Anchor exact Balance Sheet bank, VAT & tax closing balances at the management-accounts cutoff month
+      cash = Math.round(hlActuals.bsBankBalance || 0);
+      prevVatClosingBalance = Math.round((hlActuals.bsVatReceivable || 0) - (hlActuals.bsVatPayable || 0));
+      prevVatReceivable = Math.round(hlActuals.bsVatReceivable || 0);
+      prevVatPayable = Math.round(hlActuals.bsVatPayable || 0);
+    } else {
+      cash = closing_bank_pre + cashflow;
+    }
+
+    const effectiveTaxLiabilityClosing = isActualCutoffMonth
+      ? -Math.abs(Math.round(hlActuals.bsTaxLiability || 0))
+      : tax_closing_liability;
 
     // Per Share & Balance Sheet valuation metrics
     const eps = currentSharesInIssue > 0 ? Number((taxed_profits / currentSharesInIssue).toFixed(2)) : 0;
@@ -938,7 +1386,7 @@ export function calculateFinancialModelProjections(
       taxOpeningBalance: Math.round(tax_opening_balance),
       taxClosingBalance: Math.round(tax_closing_balance),
       taxPayment: Math.round(tax_payment),
-      taxLiability: Math.round(tax_closing_liability),
+      taxLiability: Math.round(effectiveTaxLiabilityClosing),
       // Working Capital Velocity & Other Assets
       inventory: curInventory,
       inventoryDaysUsed: invDays,

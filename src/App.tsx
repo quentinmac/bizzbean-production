@@ -887,12 +887,22 @@ export default function App() {
     else if (effectiveSolId === 'growth') effectiveSolId = resolveStageProduct('growth', 'growth-strategy');
     else if (effectiveSolId === 'operations') effectiveSolId = resolveStageProduct('operations', 'bizzmoney');
 
-    const matchingCms = (cmsProducts || []).find(
-      (p) =>
-        p.id === effectiveSolId ||
-        (effectiveSolId === 'bizzbudget' && p.id === 'budget') ||
-        (effectiveSolId === 'budget' && p.id === 'bizzbudget')
-    );
+    const matchingCms =
+      (cmsProducts || []).find(
+        (p) =>
+          p.id === effectiveSolId ||
+          (effectiveSolId === 'bizzbudget' && p.id === 'budget') ||
+          (effectiveSolId === 'budget' && p.id === 'bizzbudget')
+      ) ||
+      (cmsProducts || []).find((p) => {
+        const pName = (p.name || '').toLowerCase();
+        if (effectiveSolId === 'rolling-forecast') return pName.includes('rolling');
+        if (effectiveSolId === 'bizzdynamics') return pName.includes('dynamics');
+        if (effectiveSolId === 'bizzcalculators') return pName.includes('calculators');
+        if (effectiveSolId === 'bizzmodel') return pName.includes('bizzmodel');
+        if (effectiveSolId === 'bizzplan') return pName.includes('bizzplan');
+        return false;
+      });
     if (matchingCms) {
       const isViabilityCourse = matchingCms.id === 'learn-earn-capital';
       const initialMatch = INITIAL_CMS_PRODUCTS.find(
@@ -1544,7 +1554,18 @@ export default function App() {
     setShowPromotion(false);
     setIsCalmSolutionsOpen(false);
 
-    const matchingProd = (cmsProducts || []).find((p) => p.id === effectiveId || (effectiveId === 'bizzbudget' && p.id === 'budget'));
+    const matchingProd =
+      (cmsProducts || []).find(
+        (p) => p.id === effectiveId || (effectiveId === 'bizzbudget' && p.id === 'budget')
+      ) ||
+      (cmsProducts || []).find((p) => {
+        const pName = (p.name || '').toLowerCase();
+        if (effectiveId === 'rolling-forecast') return pName.includes('rolling');
+        if (effectiveId === 'bizzdynamics') return pName.includes('dynamics');
+        if (effectiveId === 'bizzcalculators') return pName.includes('calculators');
+        if (effectiveId === 'bizzmodel') return pName.includes('bizzmodel');
+        return false;
+      });
     const nameLower = (matchingProd?.name || effectiveId || '').toLowerCase();
     const isAppProduct =
       matchingProd?.type === 'app' ||

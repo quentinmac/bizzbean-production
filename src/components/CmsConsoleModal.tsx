@@ -2866,7 +2866,9 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                                         const pName = (prod.name || '').toLowerCase();
                                         const pId = (prod.id || '').toLowerCase();
                                         const targetId =
-                                          pName.includes('dynamics') || pId.includes('dynamics')
+                                          pName.includes('calculators') || pId.includes('calculators')
+                                            ? 'bizzcalculators'
+                                            : pName.includes('dynamics') || pId.includes('dynamics')
                                             ? 'bizzdynamics'
                                             : pName.includes('rolling') || pId.includes('rolling')
                                             ? 'rolling-forecast'
@@ -3158,9 +3160,19 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                                           onClick={() => {
                                             if (onLaunchSolution) {
                                               onClose();
+                                              const pName = (prod.name || '').toLowerCase();
+                                              const pId = (prod.id || '').toLowerCase();
                                               const targetId =
-                                                (prod.name || '').toLowerCase().includes('dynamics') || (prod.id || '').toLowerCase().includes('dynamics')
+                                                pName.includes('calculators') || pId.includes('calculators')
+                                                  ? 'bizzcalculators'
+                                                  : pName.includes('dynamics') || pId.includes('dynamics')
                                                   ? 'bizzdynamics'
+                                                  : pName.includes('rolling') || pId.includes('rolling')
+                                                  ? 'rolling-forecast'
+                                                  : pName.includes('hi-level') || pId.includes('hi-level')
+                                                  ? 'hi-level-forecast'
+                                                  : pName.includes('model') || pId.includes('model')
+                                                  ? 'bizzmodel'
                                                   : prod.id;
                                               onLaunchSolution(targetId);
                                             }

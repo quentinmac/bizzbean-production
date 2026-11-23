@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BizzModelLayout } from './BizzModelLayout';
-import { DEFAULT_BUSINESS_STATE, BizzModelState } from './constants';
+import {
+  DEFAULT_BUSINESS_STATE,
+  BizzModelState,
+  createDefaultRollingForecastState,
+} from './constants';
 import { SetupStep } from './steps/SetupStep';
+import { HiLevelActualsStep } from './steps/HiLevelActualsStep';
 import { RevenueStep } from './steps/RevenueStep';
 import { EmploymentStep } from './steps/EmploymentStep';
 import { OperatingExpensesStep } from './steps/OperatingExpensesStep';
@@ -341,6 +346,39 @@ export const BizzModel: React.FC<BizzModelProps> = ({
       : 'bizzmodel_platform_data';
 
   const [state, setState] = useState<BizzModelState>(() => {
+    if (currentMode === 'rolling-forecast') {
+      try {
+        const saved = localStorage.getItem('rolling_forecast_platform_data');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          const fallback = createDefaultRollingForecastState();
+          return {
+            ...fallback,
+            ...parsed,
+            appMode: 'rolling-forecast',
+            businessDetails: {
+              ...fallback.businessDetails,
+              ...(parsed.businessDetails || {}),
+              setupAssumptions:
+                parsed.businessDetails?.setupAssumptions?.length > 0
+                  ? parsed.businessDetails.setupAssumptions
+                  : fallback.businessDetails.setupAssumptions,
+            },
+            fixedAssets: Array.isArray(parsed.fixedAssets) ? parsed.fixedAssets : fallback.fixedAssets,
+            funding: parsed.funding
+              ? { ...fallback.funding, ...parsed.funding }
+              : fallback.funding,
+            hiLevelActuals: parsed.hiLevelActuals
+              ? { ...fallback.hiLevelActuals, ...parsed.hiLevelActuals }
+              : fallback.hiLevelActuals,
+          };
+        }
+      } catch (e) {
+        // ignore
+      }
+      return createDefaultRollingForecastState();
+    }
+
     try {
       const saved =
         localStorage.getItem(storageKey) ||
@@ -368,6 +406,15 @@ export const BizzModel: React.FC<BizzModelProps> = ({
     }
     return DEFAULT_BUSINESS_STATE;
   });
+
+  // Guard excluded steps when operating in Hi-Level Forecast (rolling-forecast) mode
+  useEffect(() => {
+    if (currentMode === 'rolling-forecast' && ['revenue', 'employment', 'opex'].includes(activeStep)) {
+      setActiveStep('ytd-actuals');
+    } else if (currentMode !== 'rolling-forecast' && activeStep === 'ytd-actuals') {
+      setActiveStep('setup');
+    }
+  }, [currentMode, activeStep]);
 
   // Save to localStorage on state changes and notify live integrated views (e.g. BizzPlan)
   useEffect(() => {
@@ -481,6 +528,23 @@ export const BizzModel: React.FC<BizzModelProps> = ({
               onUpdateState={setState}
               activeTab={setupTab}
               onSelectTab={setSetupTab}
+            />
+          )}
+
+          {activeStep === 'ytd-actuals' && (
+            <HiLevelActualsStep
+              theme={theme}
+              mode={currentMode}
+              state={state}
+              onUpdateState={setState}
+              subTab={stepSubTab}
+              onSelectSubTab={setStepSubTab}
+              onNavigateStep={(step, fTab) => {
+                setActiveStep(step);
+                if (fTab) {
+                  setFundingTab(fTab);
+                }
+              }}
             />
           )}
 

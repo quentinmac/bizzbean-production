@@ -371,6 +371,31 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     integrationNote: 'Connects with bizzoptimizer and live accounts.',
   },
   {
+    id: 'rolling-forecast',
+    category: 'startup',
+    stage: 'sustain-ability',
+    name: 'rolling forecast',
+    subtitle: 'Management Accounts YTD Actuals, 60-Month Forecast & What-If Simulator',
+    stageCode: 'STAGE 03',
+    description:
+      'Know where your business is heading with a streamlined 5-step rolling forecast powered by your YTD Trading Account and Balance Sheet actuals, auto-derived daily revenue & working capital days, and an interactive What-If simulator.',
+    purpose:
+      'Turn monthly management accounts into a rolling 60-month 3-statement forecast and live What-If decision cockpit in minutes.',
+    priceUSD: 25,
+    priceZAR: 499.17,
+    vatRate: 0.15,
+    tokensAllocated: 99.8,
+    imageUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80',
+    explainerDuration: '3:15',
+    isPurchased: false,
+    features: [
+      'YTD Trading Account & Balance Sheet Management Accounts Input',
+      'Automatic Daily Revenue & Working Capital Days (DIO / DSO / DPO) Derivation',
+      'Live 60-Month 3-Statement Engine & What-If Sensitivity Simulator',
+    ],
+    integrationNote: 'Shares the full 60-month financial engine with bizzmodel.',
+  },
+  {
     id: 'profit-optimizer',
     category: 'startup',
     stage: 'sustain-ability',

@@ -6,6 +6,7 @@ export type PlatformHelpAppId = 'bizzcalc' | 'bizzdynamics' | 'bizzmodel' | 'rol
 
 export type PlatformHelpStepId =
   | 'setup'
+  | 'ytd-actuals'
   | 'revenue'
   | 'employment'
   | 'opex'
@@ -32,7 +33,7 @@ export const PLATFORM_HELP_APPS: Array<{
   { id: 'bizzcalc', label: 'bizzcalc', description: '12-month scenario & mobile financial calculator' },
   { id: 'bizzdynamics', label: 'bizzdynamics', description: '5-year dynamic base rate simulation & educational model' },
   { id: 'bizzmodel', label: 'bizzmodel', description: '5-year 3-statement integrated financial model' },
-  { id: 'rolling-forecast', label: 'rolling forecast', description: 'stand-alone rolling forecast & prior year-end baseline' },
+  { id: 'rolling-forecast', label: 'rolling forecast', description: 'management accounts YTD actuals, 60-month forecast & what-if simulator' },
 ];
 
 export const PLATFORM_HELP_STEPS: Array<{
@@ -42,6 +43,7 @@ export const PLATFORM_HELP_STEPS: Array<{
   icon: string;
 }> = [
   { id: 'setup', num: 1, name: 'business details', icon: '/business details.jpg' },
+  { id: 'ytd-actuals', num: 2, name: 'actuals ytd', icon: '/reports.jpg' },
   { id: 'revenue', num: 2, name: 'revenue calculator', icon: '/revenue calculator.jpg' },
   { id: 'employment', num: 3, name: 'employment', icon: '/employment.jpg' },
   { id: 'opex', num: 4, name: 'operating expenses', icon: '/operating expenses.jpg' },
@@ -138,6 +140,13 @@ export const DEFAULT_PLATFORM_HELP: PlatformHelpMap = {
         'download your complete financial scenario in printable pdf format.',
       ],
     },
+    'ytd-actuals': {
+      title: 'actuals ytd assistance',
+      purposeLabel: 'BizzCalc Purpose',
+      purpose: 'YTD management accounts input is available in Rolling Forecast.',
+      sectionHeading: 'key steps & rules',
+      bullets: ['Use Rolling Forecast to enter YTD Trading Account and Balance Sheet actuals.'],
+    },
   },
   bizzdynamics: {
     setup: {
@@ -223,6 +232,13 @@ export const DEFAULT_PLATFORM_HELP: PlatformHelpMap = {
         'Verify that Assets equal Liabilities + Equity across all 5 forecast years.',
         'Return to earlier steps to tweak base rates and immediately observe ripple effects here.',
       ],
+    },
+    'ytd-actuals': {
+      title: 'actuals ytd assistance',
+      purposeLabel: 'BizzDynamics Educational Purpose',
+      purpose: 'YTD management accounts input is available in Rolling Forecast.',
+      sectionHeading: 'How to Use This Page',
+      bullets: ['Switch to Rolling Forecast to enter YTD Trading Account and Balance Sheet actuals.'],
     },
   },
   bizzmodel: {
@@ -310,90 +326,94 @@ export const DEFAULT_PLATFORM_HELP: PlatformHelpMap = {
         'Switch to bizzplan or pitch deck in the top bar once numbers are finalized.',
       ],
     },
+    'ytd-actuals': {
+      title: 'actuals ytd assistance',
+      purposeLabel: 'BIZZMODEL Purpose',
+      purpose: 'YTD management accounts input is available in Rolling Forecast.',
+      sectionHeading: 'How to Navigate Steps',
+      bullets: ['Switch to Rolling Forecast for streamlined YTD management accounts forecasting.'],
+    },
   },
   'rolling-forecast': {
     setup: {
       title: 'business details assistance',
       purposeLabel: 'ROLLING FORECAST Purpose',
       purpose:
-        'Stand-alone rolling forecast engine with 1-product unit sales model-set, cost-as-a-percentage-of-revenue calculations, and prior year-end balance sheet baseline inputs.',
-      sectionHeading: 'How to Navigate Steps',
+        'Streamlined 5-step rolling forecast powered by your YTD management accounts (Trading Account & Balance Sheet) and the full 60-month 3-statement engine.',
+      sectionHeading: 'How to Configure Business Details',
       bullets: [
-        'Use the 7 bottom icon buttons to move across steps (Setup, Revenue, Employment, OPEX, Assets, Funding, Reports).',
-        'In Setup, confirm your active entity details and rolling forecast commencement month.',
-        'Enter prior year-end closing balances accurately so Year 1 opening Cash, AR, Inventory, AP, and Equity roll forward seamlessly.',
+        'Use the 5 streamlined bottom dock icons: Business Details, Actuals YTD, Fixed Assets, Funding & What-If, and Reports.',
+        'Select your Update Month (1–12) to define how many months of YTD actuals you are entering — elapsed working days are computed automatically.',
+        'Set VAT %, Corporate Tax %, Bank Interest %, and Overdraft Interest % directly inside the Assumptions tab.',
+      ],
+    },
+    'ytd-actuals': {
+      title: 'actuals ytd assistance',
+      purposeLabel: 'ROLLING FORECAST Purpose',
+      purpose:
+        'Capture your year-to-date Trading Account and Balance Sheet from management accounts to anchor Daily Revenue, cost distribution, and Working Capital days across the remaining 60-month forecast.',
+      sectionHeading: 'How Management Accounts Drive the Forecast',
+      bullets: [
+        'Daily Revenue is calculated as YTD Revenue divided by elapsed working days through your selected Update Month.',
+        'Your YTD Trading Account ratios (or fixed monthly run-rate mode) automatically project the balance of the 60-month forecast.',
+        'Inventory, Receivables, and Payables closing balances derive DIO, DSO, and DPO days and sync directly to Funding & What-If.',
+        'Fixed Assets NBV, Share Capital, Equity Loans, and Term Loans update dynamically from the Fixed Assets and Funding steps.',
       ],
     },
     revenue: {
-      title: 'revenue calculator assistance',
+      title: 'revenue calculator (streamlined)',
       purposeLabel: 'ROLLING FORECAST Purpose',
-      purpose:
-        'Stand-alone rolling forecast engine with 1-product unit sales model-set, cost-as-a-percentage-of-revenue calculations, and prior year-end balance sheet baseline inputs.',
-      sectionHeading: 'How to Model Rolling Revenue',
-      bullets: [
-        'Model your primary 1-product / blended unit selling price and monthly unit volume trajectory.',
-        'Use the dynamic base rate adjustment tool to scrub years 1 to 5 and dial price or volume growth rates.',
-        'Compare projected rolling revenue and gross margin in results and charts.',
-      ],
+      purpose: 'Revenue is derived directly from your YTD Trading Account inside Step 02 (Actuals YTD).',
+      sectionHeading: 'Streamlined Workflow',
+      bullets: ['Enter YTD Revenue in Actuals YTD to compute Daily Revenue and project Months U+1 to 60 automatically.'],
     },
     employment: {
-      title: 'employment assistance',
+      title: 'employment (streamlined)',
       purposeLabel: 'ROLLING FORECAST Purpose',
-      purpose:
-        'Stand-alone rolling forecast engine with 1-product unit sales model-set, cost-as-a-percentage-of-revenue calculations, and prior year-end balance sheet baseline inputs.',
-      sectionHeading: 'How to Navigate Steps',
-      bullets: [
-        'Configure payroll as a percentage of revenue or fixed base salaries aligned with your prior-period run rate.',
-        'Adjust annual salary escalation assumptions using the dynamic rate controls.',
-        'Verify payroll ratio stability across all forecast quarters in results.',
-      ],
+      purpose: 'Direct COS and Opex employment costs are captured in your YTD Trading Account inside Step 02 (Actuals YTD).',
+      sectionHeading: 'Streamlined Workflow',
+      bullets: ['Update YTD COS Employment and Opex Employment in Actuals YTD to project staffing costs across the 60-month forecast.'],
     },
     opex: {
-      title: 'operating expenses assistance',
+      title: 'operating expenses (streamlined)',
       purposeLabel: 'ROLLING FORECAST Purpose',
-      purpose:
-        'Stand-alone rolling forecast engine with 1-product unit sales model-set, cost-as-a-percentage-of-revenue calculations, and prior year-end balance sheet baseline inputs.',
-      sectionHeading: 'How to Navigate Steps',
-      bullets: [
-        'Review operating overhead drivers expressed as percentages of revenue or monthly fixed run-rates.',
-        'Adjust variable and semi-fixed expense percentages across Years 1 to 5.',
-        'Inspect EBITDA margin resilience inside the results and charts views.',
-      ],
+      purpose: 'Variable and fixed operating overheads are captured in your YTD Trading Account inside Step 02 (Actuals YTD).',
+      sectionHeading: 'Streamlined Workflow',
+      bullets: ['Update YTD Opex Variable and Overheads in Actuals YTD to project operating expenses across the 60-month forecast.'],
     },
     'fixed-assets': {
       title: 'fixed assets assistance',
       purposeLabel: 'ROLLING FORECAST Purpose',
       purpose:
-        'Stand-alone rolling forecast engine with 1-product unit sales model-set, cost-as-a-percentage-of-revenue calculations, and prior year-end balance sheet baseline inputs.',
-      sectionHeading: 'How to Navigate Steps',
+        'Capture opening fixed assets (purchased prior to the financial year) plus any planned replacement or expansion CAPEX over the 60-month horizon.',
+      sectionHeading: 'How Fixed Assets Link to Actuals YTD',
       bullets: [
-        'Record opening Net Book Value from your prior year-end Balance Sheet alongside planned replacement CAPEX.',
-        'Monitor ongoing depreciation charges and closing carrying values by year.',
-        'Verify CAPEX impact on free cash flow in the Reports step.',
+        'Opening Net Book Value and YTD depreciation / asset leases automatically populate your Actuals YTD Balance Sheet and Trading Account.',
+        'Add future CAPEX purchases or leases to see their impact on depreciation, cash flow, and bank balances across Years 1–5.',
       ],
     },
     funding: {
-      title: 'funding calculator assistance',
+      title: 'funding & what-if assistance',
       purposeLabel: 'ROLLING FORECAST Purpose',
       purpose:
-        'Stand-alone rolling forecast engine with 1-product unit sales model-set, cost-as-a-percentage-of-revenue calculations, and prior year-end balance sheet baseline inputs.',
-      sectionHeading: 'How to Navigate Steps',
+        'Configure opening Share Capital, Equity Loans, Term Loans, and Other Assets — then launch the What-If simulator to stress-test revenue, margins, overheads, and working capital days.',
+      sectionHeading: 'Using Dynamics & What-If',
       bullets: [
-        'Use the 7 bottom icon buttons to move across steps (Setup, Revenue, Employment, OPEX, Assets, Funding, Reports).',
-        'Verify opening working capital, debt balances, and loan repayment profiles carried from prior year-end.',
-        'Test covenant headroom and working capital cash buffers inside dynamics and what if.',
+        'In Dynamics, capture shares in issue & issue price, equity loans in operation, term loans, and future Other Assets adjustments.',
+        'Switch to What If to run live sensitivity scenarios on top of your management-accounts-based 60-month forecast.',
+        'Derived DIO, DSO, and DPO days from your Balance Sheet automatically pre-load into Working Capital and What-If controls.',
       ],
     },
     reports: {
       title: 'reports assistance',
       purposeLabel: 'ROLLING FORECAST Purpose',
       purpose:
-        'Stand-alone rolling forecast engine with 1-product unit sales model-set, cost-as-a-percentage-of-revenue calculations, and prior year-end balance sheet baseline inputs.',
-      sectionHeading: 'How to Review Rolling Statements',
+        'Full 60-month 3-statement financial reports (Trading Account, Distribution, Income Statement, Balance Sheet, Cash Flow, and VAT Ledger) reconciling YTD actuals with projected months.',
+      sectionHeading: 'How to Review Forecast Statements',
       bullets: [
-        'Examine rolling Income Statement, Balance Sheet, and Cash Flow statements anchored to your opening trial balances.',
-        'Check variance against liquidity buffers and debt service coverage.',
-        'Update prior-year closing inputs anytime to re-baseline your entire 5-year trajectory.',
+        'Inspect blended Year 1 (YTD actuals + remaining forecast months) alongside Years 2 through 5.',
+        'Verify closing cash, working capital velocity, and debt coverage across all 60 months.',
+        'Update your Actuals YTD each month to roll the forecast forward seamlessly.',
       ],
     },
   },
@@ -454,8 +474,8 @@ function mergeHelpWithDefaults(raw: unknown): PlatformHelpMap {
     if (!appData || typeof appData !== 'object') continue;
     for (const step of PLATFORM_HELP_STEPS) {
       const entry = appData[step.id];
-      if (!entry || typeof entry !== 'object') continue;
-      const fallback = merged[app.id][step.id];
+      const fallback = merged[app.id]?.[step.id];
+      if (!entry || typeof entry !== 'object' || !fallback) continue;
       merged[app.id][step.id] = {
         title: typeof entry.title === 'string' && entry.title.trim() ? entry.title : fallback.title,
         purposeLabel:
@@ -498,7 +518,12 @@ export function getPlatformHelpEntry(
 ): PlatformHelpEntry {
   const source = map || getCachedPlatformHelp();
   const appEntries = source[appId] || DEFAULT_PLATFORM_HELP[appId];
-  return appEntries[stepId] || DEFAULT_PLATFORM_HELP[appId][stepId];
+  return (
+    appEntries[stepId] ||
+    DEFAULT_PLATFORM_HELP[appId]?.[stepId] ||
+    DEFAULT_PLATFORM_HELP[appId]?.setup ||
+    DEFAULT_PLATFORM_HELP.bizzmodel.setup!
+  );
 }
 
 export function checkIsHelpAdmin(): boolean {

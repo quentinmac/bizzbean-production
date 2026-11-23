@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import { FileSpreadsheet, X } from 'lucide-react';
 import { ModellingSuiteModal } from '../bizzdynamics/components/ModellingSuiteModal';
 import { PlatformHelpModal } from '../../components/PlatformHelpModal';
 import { PlatformHelpStepId } from '../../services/platformHelpService';
@@ -96,20 +96,7 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
   const [showAssistanceModal, setShowAssistanceModal] = useState<boolean>(false);
   const [showSuiteModal, setShowSuiteModal] = useState<boolean>(false);
 
-  // 7 Core Platform Steps (Bottom dock navigation matching BizzDynamics & BizzCalc design standard)
-  const STEPS = [
-    { id: 'setup', num: 1, name: 'business details', icon: '/business details.jpg', description: 'business details & operating rhythms' },
-    { id: 'revenue', num: 2, name: 'revenue calculator', icon: '/revenue calculator.jpg', description: 'revenue calculator & pricing dynamics' },
-    { id: 'employment', num: 3, name: 'employment', icon: '/employment.jpg', description: 'key organizational team' },
-    { id: 'opex', num: 4, name: 'operating expenses', icon: '/operating expenses.jpg', description: 'operating overheads & distribution' },
-    { id: 'fixed-assets', num: 5, name: 'fixed assets', icon: '/fixed assets.jpg', description: 'capital expenditure & depreciation' },
-    { id: 'funding', num: 6, name: 'funding calculator', icon: '/funding calculator.jpg', description: 'capital structure & working capital' },
-    { id: 'reports', num: 7, name: 'reports', icon: '/reports.jpg', description: 'authentic v1 financial reports' },
-  ];
-
-  const currentStepDef = STEPS.find((s) => s.id === activeStep) || STEPS[0];
-
-  // Resolve lowercase display name of the current app
+  // Resolve lowercase display name & mode
   const isRollingForecast = mode === 'rolling-forecast' || activeAppTab === 'rolling-forecast';
   const showBizzPlanTab = Boolean(onSelectBizzPlanTab) && !isRollingForecast;
   const appDisplayName = isRollingForecast
@@ -117,6 +104,35 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
     : mode === 'bizzdynamics' || activeAppTab === 'bizzdynamics'
     ? 'bizzdynamics'
     : 'bizzmodel';
+
+  // Streamlined 5-Step dock for Hi-Level Forecast (excludes Revenue Calculator, Employment, Operating Expenses)
+  // Full 7-Step dock preserved intact for BizzModel & BizzDynamics
+  const STEPS: Array<{
+    id: string;
+    num: number;
+    name: string;
+    icon: string;
+    useSpreadsheetIcon?: boolean;
+    description: string;
+  }> = isRollingForecast
+    ? [
+        { id: 'setup', num: 1, name: 'business details', icon: '/business details.jpg', description: 'business details, update month & macro rates' },
+        { id: 'ytd-actuals', num: 2, name: 'actuals ytd', icon: '/reports.jpg', useSpreadsheetIcon: true, description: 'ytd trading account & balance sheet actuals' },
+        { id: 'fixed-assets', num: 3, name: 'fixed assets', icon: '/fixed assets.jpg', description: 'opening fixed assets & planned capex' },
+        { id: 'funding', num: 4, name: 'funding & what-if', icon: '/funding calculator.jpg', description: 'capital structure, loans & what-if simulator' },
+        { id: 'reports', num: 5, name: 'reports', icon: '/reports.jpg', description: '60-month 3-statement financial reports' },
+      ]
+    : [
+        { id: 'setup', num: 1, name: 'business details', icon: '/business details.jpg', description: 'business details & operating rhythms' },
+        { id: 'revenue', num: 2, name: 'revenue calculator', icon: '/revenue calculator.jpg', description: 'revenue calculator & pricing dynamics' },
+        { id: 'employment', num: 3, name: 'employment', icon: '/employment.jpg', description: 'key organizational team' },
+        { id: 'opex', num: 4, name: 'operating expenses', icon: '/operating expenses.jpg', description: 'operating overheads & distribution' },
+        { id: 'fixed-assets', num: 5, name: 'fixed assets', icon: '/fixed assets.jpg', description: 'capital expenditure & depreciation' },
+        { id: 'funding', num: 6, name: 'funding calculator', icon: '/funding calculator.jpg', description: 'capital structure & working capital' },
+        { id: 'reports', num: 7, name: 'reports', icon: '/reports.jpg', description: 'authentic v1 financial reports' },
+      ];
+
+  const currentStepDef = STEPS.find((s) => s.id === activeStep) || STEPS[0];
 
   return (
     <div
@@ -404,11 +420,21 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                 aria-label={st.name}
               >
                 <div className="w-5 h-5 sm:w-5.5 sm:h-5.5 flex items-center justify-center">
-                  <img
-                    src={encodeURI(st.icon)}
-                    alt={st.name}
-                    className="w-full h-full object-contain mix-blend-multiply dark:bg-white dark:rounded dark:p-0.5"
-                  />
+                  {st.useSpreadsheetIcon ? (
+                    <FileSpreadsheet
+                      className={`w-4.5 h-4.5 ${
+                        isActive
+                          ? 'text-[#2E5E88] dark:text-[#7BB1E3]'
+                          : 'text-slate-700 dark:text-slate-300'
+                      }`}
+                    />
+                  ) : (
+                    <img
+                      src={encodeURI(st.icon)}
+                      alt={st.name}
+                      className="w-full h-full object-contain mix-blend-multiply dark:bg-white dark:rounded dark:p-0.5"
+                    />
+                  )}
                 </div>
               </button>
 

@@ -31,6 +31,7 @@ import {
   DEFAULT_EMPLOYMENT_CATEGORIES,
   DEFAULT_EMPLOYMENT_ITEMS,
   DEFAULT_EXPENSE_ITEMS,
+  EMPTY_HILEVEL_YTD_ACTUALS,
 } from '../constants';
 import { calculate60MonthWorkingCalendar } from '../utils/calendarCalc';
 import { AssumptionRateItem } from '../../bizzdynamics/types';
@@ -478,6 +479,29 @@ export const SetupStep: React.FC<SetupStepProps> = ({
     0
   );
 
+  const isHiLevelForecast = mode === 'rolling-forecast' || mode === 'hi-level-forecast';
+  const hlUpdateMonth = Math.max(1, Math.min(12, Math.round(state.hiLevelActuals?.updateMonth || 3)));
+  const hlElapsedWorkingDays = useMemo(
+    () => monthlyCalendar60.slice(0, hlUpdateMonth).reduce((s, m) => s + (m.daysWorked || 0), 0),
+    [monthlyCalendar60, hlUpdateMonth]
+  );
+  const hlElapsedCalendarDays = useMemo(
+    () => monthlyCalendar60.slice(0, hlUpdateMonth).reduce((s, m) => s + (m.calendarDays || 0), 0),
+    [monthlyCalendar60, hlUpdateMonth]
+  );
+  const hlUpdateMonthLabel = monthlyCalendar60[hlUpdateMonth - 1]?.monthLabel || `Month ${hlUpdateMonth}`;
+
+  const handleUpdateHiLevelMonth = (newMonth: number) => {
+    const clamped = Math.max(1, Math.min(12, Math.round(newMonth || 3)));
+    onUpdateState((prev) => ({
+      ...prev,
+      hiLevelActuals: {
+        ...(prev.hiLevelActuals || EMPTY_HILEVEL_YTD_ACTUALS),
+        updateMonth: clamped,
+      },
+    }));
+  };
+
   return (
     <div className={`space-y-6 font-mono select-none ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
       {/* =================================================================== */}
@@ -490,11 +514,13 @@ export const SetupStep: React.FC<SetupStepProps> = ({
               BUSINESS DETAILS & SETUP
             </h1>
             <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-[#2E5E88]/10 text-[#2E5E88] dark:text-[#5584B4]">
-              {mode}
+              {isHiLevelForecast ? 'rolling forecast' : mode}
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Define operating calendar, holiday rhythms, VAT, and corporate tax rates.
+            {isHiLevelForecast
+              ? 'Define operating calendar, YTD update month for management accounts, and VAT, tax & interest rate assumptions.'
+              : 'Define operating calendar, holiday rhythms, VAT, and corporate tax rates.'}
           </p>
         </div>
 
@@ -653,6 +679,88 @@ export const SetupStep: React.FC<SetupStepProps> = ({
                 </div>
               </div>
 
+              {/* Box 2B (Hi-Level Forecast Only): UPDATE MONTH FOR DATA INPUT */}
+              {isHiLevelForecast && (
+                <div
+                  className={`p-5 rounded-2xl border space-y-4 ${
+                    isDark ? 'bg-[#101626] border-[#222F4C]' : 'bg-white border-[#D8CEBC]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <Sliders className="h-4 w-4 text-[#2E5E88] dark:text-[#5584B4]" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+                        UPDATE MONTH FOR DATA INPUT (YTD CUTOFF)
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase text-[#2E5E88] dark:text-[#5584B4]">
+                      M1–M{hlUpdateMonth} actuals
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    <div className="space-y-1">
+                      <label className="text-slate-500 lowercase block">
+                        management accounts cutoff month (1–12):
+                      </label>
+                      <select
+                        value={hlUpdateMonth}
+                        onChange={(e) => handleUpdateHiLevelMonth(parseInt(e.target.value, 10))}
+                        className={`w-full p-2.5 rounded-xl border text-xs font-bold cursor-pointer ${
+                          isDark
+                            ? 'bg-[#0E1322] border-[#222F4C] text-white'
+                            : 'bg-white border-[#D8CEBC] text-slate-900'
+                        }`}
+                      >
+                        {Array.from({ length: 12 }, (_, idx) => {
+                          const mNum = idx + 1;
+                          const mLabel = monthlyCalendar60[idx]?.monthLabel || `Month ${mNum}`;
+                          const cumDays = monthlyCalendar60
+                            .slice(0, mNum)
+                            .reduce((s, m) => s + m.daysWorked, 0);
+                          return (
+                            <option key={mNum} value={mNum}>
+                              Month {mNum} · {mLabel} ({cumDays} working days elapsed)
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+
+                    <div
+                      className={`p-3 rounded-xl border grid grid-cols-3 gap-3 text-center tabular-nums ${
+                        isDark
+                          ? 'bg-[#0C111E] border-[#1E2A45]'
+                          : 'bg-[#FAF8F5] border-[#E5DEC9]'
+                      }`}
+                    >
+                      <div>
+                        <div className="text-[10px] text-slate-500 uppercase">working days</div>
+                        <div className="text-sm font-bold text-slate-900 dark:text-white">
+                          {hlElapsedWorkingDays}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-slate-500 uppercase">calendar days</div>
+                        <div className="text-sm font-bold text-slate-900 dark:text-white">
+                          {hlElapsedCalendarDays}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-slate-500 uppercase">forecast mos</div>
+                        <div className="text-sm font-bold text-[#2E5E88] dark:text-[#5584B4]">
+                          {60 - hlUpdateMonth}
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                      Daily Revenue is computed as <span className="font-bold text-slate-700 dark:text-slate-200">YTD Revenue ÷ {hlElapsedWorkingDays} working days</span> through {hlUpdateMonthLabel}, and your YTD Trading Account distribution projects Months {hlUpdateMonth + 1}–60.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Box 3: Select Working Days (The way programmed in BizzCalc extended for 5 years) */}
               <div
                 className={`p-5 rounded-2xl border space-y-4 ${
@@ -800,8 +908,91 @@ export const SetupStep: React.FC<SetupStepProps> = ({
               </div>
             </div>
 
-            {/* RIGHT COLUMN: Annual Shutdown & Departments */}
+            {/* RIGHT COLUMN: Streamlined Rates (Hi-Level), Annual Shutdown & Departments */}
             <div className="space-y-6">
+              {/* Hi-Level Forecast Streamlined VAT, Corporate Tax & Interest Rate Assumptions */}
+              {isHiLevelForecast && (
+                <div
+                  className={`p-5 rounded-2xl border space-y-4 ${
+                    isDark ? 'bg-[#101626] border-[#222F4C]' : 'bg-white border-[#D8CEBC]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-[#2E5E88] dark:text-[#5584B4]" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+                        VAT, TAX & INTEREST RATE ASSUMPTIONS
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase text-slate-400">
+                      applied across 60 mos
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
+                    {[
+                      {
+                        id: 'vat-rate',
+                        label: 'vat rate (%)',
+                        hint: 'used for VAT ledger & AR/AP days',
+                        value: vatRateItem?.baseRate ?? 15,
+                      },
+                      {
+                        id: 'tax-rate',
+                        label: 'corporate tax rate (%)',
+                        hint: 'CIT applied to taxable profit',
+                        value: taxRateItem?.baseRate ?? 27,
+                      },
+                      {
+                        id: 'interest-pos',
+                        label: 'bank interest rate (% p.a.)',
+                        hint: 'earned on positive cash reserves',
+                        value: interestPosItem?.baseRate ?? 4.5,
+                      },
+                      {
+                        id: 'interest-neg',
+                        label: 'overdraft interest rate (% p.a.)',
+                        hint: 'charged on deficit bank balances',
+                        value: interestNegItem?.baseRate ?? 11.75,
+                      },
+                    ].map((rate) => (
+                      <div
+                        key={rate.id}
+                        className={`p-3 rounded-xl border space-y-1.5 ${
+                          isDark
+                            ? 'bg-[#0C111E] border-[#1E2A45]'
+                            : 'bg-[#FAF8F5] border-[#E5DEC9]'
+                        }`}
+                      >
+                        <label className="text-[11px] font-bold lowercase text-slate-700 dark:text-slate-200 block">
+                          {rate.label}
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            step="0.25"
+                            min={0}
+                            max={100}
+                            value={rate.value}
+                            onChange={(e) => {
+                              const parsed = parseFloat(e.target.value);
+                              handleUpdateBaseRate(rate.id, Number.isFinite(parsed) ? parsed : 0);
+                            }}
+                            className={`w-full px-2.5 py-1.5 rounded-lg border text-right text-xs font-bold tabular-nums ${
+                              isDark
+                                ? 'bg-[#0A0E1A] border-[#253352] text-white focus:border-[#5584B4]'
+                                : 'bg-white border-[#D8CEBC] text-slate-900 focus:border-[#2E5E88]'
+                            }`}
+                          />
+                          <span className="text-xs font-bold text-slate-400">%</span>
+                        </div>
+                        <div className="text-[10px] text-slate-500">{rate.hint}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Box 4: NEW Annual Shutdown Option (count number of non-working days) */}
               <div
                 className={`p-5 rounded-2xl border space-y-4 ${

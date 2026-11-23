@@ -645,6 +645,100 @@ export interface FundingSettings {
   dividendsPerShareMonthly?: number[];
 }
 
+export interface HiLevelYtdActuals {
+  /** Update month for YTD management accounts data input (1 = Month 1 .. 12 = Full Year 1) */
+  updateMonth: number;
+  /** How fixed costs project after updateMonth: 'distribution' (% of rev) or 'fixed-run-rate' (ytd / updateMonth) */
+  projectionBasis: 'distribution' | 'fixed-run-rate';
+  /** Optional annual revenue growth rate % applied to Months (updateMonth+1 .. 60) */
+  annualRevenueGrowthPct: number;
+
+  // --- YTD Trading Account (Months 1 .. updateMonth) ---
+  ytdRevenue: number;
+  ytdCosVariable: number;      // Direct materials / purchases
+  ytdCosEmployment: number;    // Direct production payroll
+  ytdCosOverheads: number;     // Production / direct fixed overheads
+  ytdGpAdjCommission: number;  // Sales commission
+  ytdGpAdjInventory: number;   // Stock shrinkage / inventory adjustment
+  ytdGpAdjVariance: number;    // Manufacturing / cost variance
+  ytdOtherIncome: number;      // Non-trading / sundry income
+  ytdOpexEmployment: number;   // Admin / commercial salaries
+  ytdOpexVariable: number;     // Variable selling & marketing opex
+  ytdOpexOverheads: number;    // Fixed operating overheads (rent, utilities, admin)
+  ytdDividends: number;        // Dividends declared YTD
+
+  // --- Balance Sheet as at end of updateMonth ---
+  bsInventory: number;              // Closing stock -> derives Inventory Days (DIO)
+  bsReceivables: number;            // Closing debtors -> derives Receivable Days (DSO)
+  bsPayables: number;               // Closing creditors -> derives Payable Days (DPO)
+  bsBankBalance: number;            // Closing cash (+ positive / - overdraft)
+  bsVatReceivable: number;          // Input VAT refundable at updateMonth
+  bsVatPayable: number;             // Output VAT payable at updateMonth
+  bsTaxLiability: number;           // Corporate tax payable at updateMonth
+  bsOpeningRetainedEarnings: number; // Retained earnings brought forward at start of financial year
+  bsDeposits: number;               // Other assets: deposits
+  bsFloats: number;                 // Other assets: floats
+  bsPettyCash: number;              // Other assets: petty cash
+}
+
+export const EMPTY_HILEVEL_YTD_ACTUALS: HiLevelYtdActuals = {
+  updateMonth: 3,
+  projectionBasis: 'distribution',
+  annualRevenueGrowthPct: 0,
+  ytdRevenue: 0,
+  ytdCosVariable: 0,
+  ytdCosEmployment: 0,
+  ytdCosOverheads: 0,
+  ytdGpAdjCommission: 0,
+  ytdGpAdjInventory: 0,
+  ytdGpAdjVariance: 0,
+  ytdOtherIncome: 0,
+  ytdOpexEmployment: 0,
+  ytdOpexVariable: 0,
+  ytdOpexOverheads: 0,
+  ytdDividends: 0,
+  bsInventory: 0,
+  bsReceivables: 0,
+  bsPayables: 0,
+  bsBankBalance: 0,
+  bsVatReceivable: 0,
+  bsVatPayable: 0,
+  bsTaxLiability: 0,
+  bsOpeningRetainedEarnings: 0,
+  bsDeposits: 0,
+  bsFloats: 0,
+  bsPettyCash: 0,
+};
+
+export const SAMPLE_HILEVEL_YTD_ACTUALS: HiLevelYtdActuals = {
+  updateMonth: 3,
+  projectionBasis: 'distribution',
+  annualRevenueGrowthPct: 5,
+  ytdRevenue: 2400000,
+  ytdCosVariable: 1140000,
+  ytdCosEmployment: 210000,
+  ytdCosOverheads: 96000,
+  ytdGpAdjCommission: 24000,
+  ytdGpAdjInventory: 12000,
+  ytdGpAdjVariance: 0,
+  ytdOtherIncome: 18000,
+  ytdOpexEmployment: 330000,
+  ytdOpexVariable: 72000,
+  ytdOpexOverheads: 195000,
+  ytdDividends: 0,
+  bsInventory: 420000,
+  bsReceivables: 760000,
+  bsPayables: 510000,
+  bsBankBalance: 385000,
+  bsVatReceivable: 0,
+  bsVatPayable: 48000,
+  bsTaxLiability: 62000,
+  bsOpeningRetainedEarnings: 594000,
+  bsDeposits: 45000,
+  bsFloats: 12000,
+  bsPettyCash: 8000,
+};
+
 export interface HighLevelForecastData {
   dailyRevenue: number;
   dailyGrowthPct: number;
@@ -671,6 +765,7 @@ export interface BizzModelState {
   fixedAssets: FixedAssetItem[];
   funding: FundingSettings;
   highLevelForecast: HighLevelForecastData;
+  hiLevelActuals?: HiLevelYtdActuals;
 }
 
 export const DEFAULT_BUSINESS_STATE: BizzModelState = {
@@ -819,3 +914,92 @@ export const DEFAULT_SETUP_ASSUMPTIONS: AssumptionRateItem[] = [
     monthlyValues: new Array(60).fill(0),
   },
 ];
+
+export function createDefaultRollingForecastState(): BizzModelState {
+  const rollingAssumptions: AssumptionRateItem[] = DEFAULT_SETUP_ASSUMPTIONS.map((a) => {
+    if (a.id === 'vat-rate') return { ...a, baseRate: 15, monthlyValues: new Array(60).fill(15) };
+    if (a.id === 'tax-rate') return { ...a, baseRate: 27, monthlyValues: new Array(60).fill(27) };
+    return { ...a, monthlyValues: [...a.monthlyValues] };
+  });
+
+  return {
+    ...DEFAULT_BUSINESS_STATE,
+    appMode: 'rolling-forecast',
+    businessDetails: {
+      ...DEFAULT_BUSINESS_STATE.businessDetails,
+      businessName: 'Rolling Forecast Enterprise',
+      scenario: 'YTD Actuals + 60-Month Rolling Forecast',
+      setupAssumptions: rollingAssumptions,
+    },
+    revenueItems: [],
+    employmentItems: [],
+    expenses: [],
+    fixedAssets: [
+      {
+        id: 'hl-fa-1',
+        name: 'Operating Plant & Equipment (Opening)',
+        category: 'Plat and equipment',
+        allocation: 'cost_of_sales',
+        department: 'operations',
+        purchaseTiming: 'prior',
+        monthsInSystem: 12,
+        purchaseMonth: 1,
+        quantity: 1,
+        unitCost: 480000,
+        purchaseCost: 480000,
+        purchaseValue: 480000,
+        depreciationRate: 16.67,
+        usefulLifeMonths: 72,
+        scrapValue: 0,
+        financeOption: 'buy',
+      },
+      {
+        id: 'hl-fa-2',
+        name: 'Office IT & Furniture (Opening)',
+        category: 'Furniture and fittings',
+        allocation: 'overheads',
+        department: 'administration',
+        purchaseTiming: 'prior',
+        monthsInSystem: 6,
+        purchaseMonth: 1,
+        quantity: 1,
+        unitCost: 180000,
+        purchaseCost: 180000,
+        purchaseValue: 180000,
+        depreciationRate: 20.0,
+        usefulLifeMonths: 60,
+        scrapValue: 0,
+        financeOption: 'buy',
+      },
+    ],
+    funding: {
+      ...DEFAULT_BUSINESS_STATE.funding,
+      inventoryDays: 25,
+      debtorDays: 25,
+      creditorDays: 28,
+      inventoryDaysMonthly: new Array(60).fill(25),
+      debtorDaysMonthly: new Array(60).fill(25),
+      creditorDaysMonthly: new Array(60).fill(28),
+      depositsBase: SAMPLE_HILEVEL_YTD_ACTUALS.bsDeposits,
+      floatsBase: SAMPLE_HILEVEL_YTD_ACTUALS.bsFloats,
+      pettyCashBase: SAMPLE_HILEVEL_YTD_ACTUALS.bsPettyCash,
+      depositsMonthly: new Array(60).fill(SAMPLE_HILEVEL_YTD_ACTUALS.bsDeposits),
+      floatsMonthly: new Array(60).fill(SAMPLE_HILEVEL_YTD_ACTUALS.bsFloats),
+      pettyCashMonthly: new Array(60).fill(SAMPLE_HILEVEL_YTD_ACTUALS.bsPettyCash),
+      initialSharesCount: 100000,
+      initialSharePrice: 2.5,
+      equityLoanOpening: -150000,
+      termLoans: [
+        {
+          id: 'hl-tl-1',
+          name: 'Operating Commercial Term Loan',
+          advanceMonth: 1,
+          advanceValue: 400000,
+          advanceRatePct: 10.5,
+          termYears: 5,
+        },
+      ],
+    },
+    hiLevelActuals: { ...SAMPLE_HILEVEL_YTD_ACTUALS },
+  };
+}

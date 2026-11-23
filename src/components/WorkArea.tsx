@@ -1224,6 +1224,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
       ['learn-earn-capital', 'how-to-bizzcalc', 'follow-the-money', 'vi-ability'].includes(effectiveAppId) ||
       ['learn-earn-capital', 'how-to-bizzcalc', 'follow-the-money', 'vi-ability'].includes(canon);
 
+    const rawSolId = activeSolution?.id || '';
     const isOwned =
       isAdmin ||
       activeStageId === 'operations-sandbox' ||
@@ -1231,11 +1232,19 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
       isFree ||
       userPurchases.includes(effectiveAppId) ||
       userPurchases.includes(canon) ||
+      (rawSolId !== '' && userPurchases.includes(rawSolId)) ||
       (effectiveAppId === 'budget' && userPurchases.includes('bizzbudget')) ||
       (effectiveAppId === 'bizzbudget' && userPurchases.includes('budget'));
 
     if (!isOwned) {
-      const matchingCms = (cmsProducts || []).find((p) => p.id === effectiveAppId || p.id === canon);
+      const matchingCms =
+        (cmsProducts || []).find(
+          (p) => p.id === effectiveAppId || p.id === canon || (rawSolId !== '' && p.id === rawSolId)
+        ) ||
+        (cmsProducts || []).find((p) => {
+          const n = (p.name || '').toLowerCase();
+          return effectiveAppId === 'rolling-forecast' && n.includes('rolling');
+        });
       const appPrice = matchingCms?.sellingPriceZAR ?? 229;
       const appName = matchingCms?.name || effectiveAppId;
       const appSubtitle =

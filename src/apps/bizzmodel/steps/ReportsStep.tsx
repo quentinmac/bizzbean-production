@@ -136,9 +136,10 @@ export const ReportsStep: React.FC<ReportsStepProps> = ({
         ((state.funding as any)?.equityLoan || 0) +
         (state.funding?.bankLoanAmount || 0);
 
+      const isHiLevelMode = mode === 'rolling-forecast' || mode === 'hi-level-forecast';
       const bank_balance_opening =
         yr === 1
-          ? initialOpeningCash
+          ? (isHiLevelMode ? (projections[0]?.bank_balance_opening ?? initialOpeningCash) : initialOpeningCash)
           : (prevYearLastMonth?.bank_balance_closing ?? prevYearLastMonth?.closingCash ?? 0);
 
       const cash_from_operations = net_operating_profit - interest_total - taxation - dividends;
@@ -170,8 +171,12 @@ export const ReportsStep: React.FC<ReportsStepProps> = ({
         (lastMonth?.term_loan_balance ?? 0) - (prevYearLastMonth?.term_loan_balance ?? (yr === 1 ? (state.funding?.bankLoanAmount || 0) : 0));
       const change_in_funding = share_capital_change + equity_loan_change + loan_change;
 
-      const cashflow = cash_from_operations + change_in_working_capital + application_to_capital_assets + change_in_funding;
-      const bank_balance_closing = bank_balance_opening + cashflow;
+      const cashflow = isHiLevelMode
+        ? slice.reduce((s, p) => s + (p.cashflow || 0), 0)
+        : cash_from_operations + change_in_working_capital + application_to_capital_assets + change_in_funding;
+      const bank_balance_closing = isHiLevelMode
+        ? (lastMonth?.bank_balance_closing ?? (bank_balance_opening + cashflow))
+        : bank_balance_opening + cashflow;
 
       // Balance Sheet metrics (V1 reports parity)
       const fixed_assets_net =

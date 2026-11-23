@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   DollarSign,
   TrendingUp,
@@ -78,20 +78,36 @@ export const FundingStep: React.FC<FundingStepProps> = ({
   // =========================================================================
   // WHAT-IF SCENARIO STATE & SENSITIVITY DYNAMICS
   // =========================================================================
-  const [whatIfRevPct, setWhatIfRevPct] = useState<number>(1.0); // e.g. +1.00%
+  const isHiLevelForecastMode = mode === 'rolling-forecast' || mode === 'hi-level-forecast';
+  const [whatIfRevPct, setWhatIfRevPct] = useState<number>(isHiLevelForecastMode ? 0.0 : 1.0); // e.g. +1.00%
   const [whatIfGpMarginDeltaPct, setWhatIfGpMarginDeltaPct] = useState<number>(0.0); // e.g. +0.00%
   const [whatIfGpAdjDeltaPct, setWhatIfGpAdjDeltaPct] = useState<number>(0.0); // e.g. +0.00%
   const [whatIfOtherIncDeltaPct, setWhatIfOtherIncDeltaPct] = useState<number>(0.0); // e.g. +0.00%
-  const [whatIfOpexPct, setWhatIfOpexPct] = useState<number>(2.0); // e.g. +2.00%
-  const [whatIfInvDays, setWhatIfInvDays] = useState<number>(25); // e.g. 25 days
-  const [whatIfRecDays, setWhatIfRecDays] = useState<number>(25); // e.g. 25 days
-  const [whatIfPayDays, setWhatIfPayDays] = useState<number>(40); // e.g. 40 days
+  const [whatIfOpexPct, setWhatIfOpexPct] = useState<number>(isHiLevelForecastMode ? 0.0 : 2.0); // e.g. +2.00%
+  const [whatIfInvDays, setWhatIfInvDays] = useState<number>(() =>
+    isHiLevelForecastMode ? (state.funding.inventoryDays ?? 25) : 25
+  );
+  const [whatIfRecDays, setWhatIfRecDays] = useState<number>(() =>
+    isHiLevelForecastMode ? (state.funding.debtorDays ?? 25) : 25
+  );
+  const [whatIfPayDays, setWhatIfPayDays] = useState<number>(() =>
+    isHiLevelForecastMode ? (state.funding.creditorDays ?? 28) : 40
+  );
   const [whatIfChartHorizon, setWhatIfChartHorizon] = useState<number | 'summary'>(1);
-  const [whatIfPeriod, setWhatIfPeriod] = useState<string>('m1'); // 'm1'..'m12', 'y1'..'y5', 'ref'
+  const [whatIfPeriod, setWhatIfPeriod] = useState<string>(isHiLevelForecastMode ? 'y1' : 'm1'); // 'm1'..'m12', 'y1'..'y5', 'ref'
   const [snapshotTimestamp, setSnapshotTimestamp] = useState<string>(() => new Date().toLocaleTimeString());
   const [snapshotCount, setSnapshotCount] = useState<number>(1);
 
   const funding = state.funding;
+
+  // Keep What-If base WC days aligned when Hi-Level Forecast Balance Sheet updates derived days
+  useEffect(() => {
+    if (isHiLevelForecastMode) {
+      setWhatIfInvDays(funding.inventoryDays ?? 0);
+      setWhatIfRecDays(funding.debtorDays ?? 0);
+      setWhatIfPayDays(funding.creditorDays ?? 0);
+    }
+  }, [isHiLevelForecastMode, funding.inventoryDays, funding.debtorDays, funding.creditorDays]);
 
   const handleUpdateFunding = (patch: Partial<FundingSettings>) => {
     onUpdateState((prev) => ({
@@ -159,8 +175,8 @@ export const FundingStep: React.FC<FundingStepProps> = ({
 
   // Run full 60-month financial projections
   const projections = useMemo(() => {
-    return calculateFinancialModelProjections(state, 60);
-  }, [state]);
+    return calculateFinancialModelProjections(state, 60, undefined, mode);
+  }, [state, mode]);
 
   // Compute dual-axis data points for LiquidityVsDebtChart
   const chartData: LiquidityDataPoint[] = useMemo(() => {

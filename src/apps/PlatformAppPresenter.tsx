@@ -167,7 +167,7 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
       sku: 'BA-ROLL',
       stage: 'operations',
       stageCode: 'Stage 05',
-      subtitle: 'Hi-Level Rolling Forecast & Prior Year Balance Sheet Engine',
+      subtitle: 'Management Accounts YTD Actuals, 60-Month Forecast & What-If Simulator',
       badge: 'stand alone',
       icon: TrendingUp,
       desktopOnly: true,
@@ -333,6 +333,7 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
     return (
       <div className="w-full max-w-full min-w-0 h-full min-h-0 flex-1 flex flex-col overflow-hidden">
         <BizzModel
+          key={activeApp}
           theme={theme}
           mode={activeApp as any}
           initialAppTab={activeApp as any}
@@ -606,7 +607,7 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
             )}
 
             {/* 4. BIZZMODEL (Shared Engine Architecture mode="bizzmodel" + Hi-Level Forecast) */}
-            {activeApp === 'bizzmodel' && (
+            {(activeApp === 'bizzmodel' || activeApp === 'hi-level-forecast') && (
               engineMode === 'v1-suite' ? (
                 <BizzModel
                   theme={theme}
@@ -623,7 +624,7 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
               )
             )}
 
-            {/* 4C. ROLLING FORECAST (Stand Alone Hi-Level Forecast with Prior Year Balance Sheet Engine) */}
+            {/* 4C. ROLLING FORECAST (Management Accounts YTD + 60-Month Forecast & What-If Engine) */}
             {activeApp === 'rolling-forecast' && (
               <BizzModel
                 theme={theme}
