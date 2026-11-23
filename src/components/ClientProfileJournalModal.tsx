@@ -57,8 +57,6 @@ export const ClientProfileJournalModal: React.FC<ClientProfileJournalModalProps>
   userEmail,
   onUpdateProfile,
 }) => {
-  if (!isOpen) return null;
-
   const isDark = theme === 'dark';
   const [activeTab, setActiveTab] = useState<'transactions' | 'profile'>('transactions');
 
@@ -164,6 +162,8 @@ export const ClientProfileJournalModal: React.FC<ClientProfileJournalModalProps>
         (t.country || '').toLowerCase().includes(q)
     );
   }, [scopeFilter, myTransactions, transactions, txSearch]);
+
+  if (!isOpen) return null;
 
   // Handle Profile Update Submission (Called on form submit OR when clicking Done)
   const handleSaveProfile = (e?: React.FormEvent) => {

@@ -36,8 +36,6 @@ export const ProductCheckoutModal: React.FC<ProductCheckoutModalProps> = ({
   onClose,
   onInstantGrant,
 }) => {
-  if (!isOpen || !product) return null;
-
   const isDark = theme === 'dark';
 
   // Extract names and email
@@ -59,6 +57,7 @@ export const ProductCheckoutModal: React.FC<ProductCheckoutModalProps> = ({
 
   // Fetch current server config on open
   useEffect(() => {
+    if (!isOpen) return;
     let isMounted = true;
     getPayfastConfig()
       .then((cfg) => {
@@ -77,6 +76,8 @@ export const ProductCheckoutModal: React.FC<ProductCheckoutModalProps> = ({
       isMounted = false;
     };
   }, [isOpen]);
+
+  if (!isOpen || !product) return null;
 
   // Ensure we always reflect the live price from CMS products cache if available
   let matchedCmsPrice: number | undefined;
