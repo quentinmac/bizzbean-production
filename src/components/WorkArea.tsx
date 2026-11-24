@@ -1213,7 +1213,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
         ? 'bizzcalculators'
         : solName.includes('dynamics') || solId.includes('dynamics')
         ? 'bizzdynamics'
-        : solName.includes('rolling') || solId.includes('rolling')
+        : solName.includes('rolling') || solId.includes('rolling') || solName.includes('optimizer') || solId.includes('optimizer')
         ? 'rolling-forecast'
         : solName.includes('model') || solId.includes('model') || solName.includes('hi-level') || solId.includes('hi-level')
         ? 'bizzmodel'
@@ -1243,7 +1243,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
         ) ||
         (cmsProducts || []).find((p) => {
           const n = (p.name || '').toLowerCase();
-          return effectiveAppId === 'rolling-forecast' && n.includes('rolling');
+          return effectiveAppId === 'rolling-forecast' && (n.includes('rolling') || n.includes('optimizer'));
         });
       const appPrice = matchingCms?.sellingPriceZAR ?? 229;
       const appName = matchingCms?.name || effectiveAppId;
@@ -2277,7 +2277,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                           ? 'bizzcalculators'
                           : nameCheck.includes('dynamics')
                           ? 'bizzdynamics'
-                          : nameCheck.includes('rolling')
+                          : nameCheck.includes('rolling') || nameCheck.includes('optimizer')
                           ? 'rolling-forecast'
                           : nameCheck.includes('model') || nameCheck.includes('hi-level')
                           ? 'bizzmodel'

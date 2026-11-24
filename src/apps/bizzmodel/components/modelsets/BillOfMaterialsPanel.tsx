@@ -5,11 +5,14 @@ import {
   BomSummaryResult,
   ProductionSummaryResult,
 } from './modelSetTypes';
+import { formatUnitCostValue } from './continuousProductionEngine';
 
 interface BillOfMaterialsPanelProps {
   theme?: 'light' | 'dark';
   stepNumber?: number;
   unitLabel?: string;
+  mode?: 'daily' | 'per_batch';
+  subtitle?: string;
   components: BomComponent[];
   summary: BomSummaryResult;
   production: ProductionSummaryResult;
@@ -20,12 +23,15 @@ export const BillOfMaterialsPanel: React.FC<BillOfMaterialsPanelProps> = ({
   theme = 'light',
   stepNumber = 3,
   unitLabel = 'units',
+  mode = 'daily',
+  subtitle,
   components,
   summary,
   production,
   onChange,
 }) => {
   const isDark = theme === 'dark';
+  const isPerBatch = mode === 'per_batch';
 
   const handleFieldChange = <K extends keyof BomComponent>(
     id: string,
@@ -77,7 +83,8 @@ export const BillOfMaterialsPanel: React.FC<BillOfMaterialsPanelProps> = ({
             {stepNumber}. Bill of Materials (BOM)
           </h3>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-            Dynamic product costing calculator. Linked to {production.bottleneckCyclesPerDay.toFixed(2)} daily batches and {production.bottleneckDailyCapacity.toLocaleString()} {unitLabel}/day.
+            {subtitle ||
+              `Dynamic product costing calculator. Linked to ${production.bottleneckCyclesPerDay.toFixed(2)} daily batches and ${production.bottleneckDailyCapacity.toLocaleString()} ${unitLabel}/day.`}
           </p>
         </div>
 
@@ -268,14 +275,14 @@ export const BillOfMaterialsPanel: React.FC<BillOfMaterialsPanelProps> = ({
                     </td>
                     <td className="py-2 px-2 text-right tabular-nums text-slate-600 dark:text-slate-400">
                       <span className="block font-bold text-slate-800 dark:text-slate-200">
-                        {res?.packsRequiredPerDay ?? 0} pk/d
+                        {res?.packsRequiredPerDay ?? 0} {isPerBatch ? 'pk/batch' : 'pk/d'}
                       </span>
                       <span className="text-[10px]">
                         +{Math.round(res?.surplusQuantity ?? 0)} {comp.unitOfMeasure}
                       </span>
                     </td>
                     <td className="py-2 px-3 text-right font-bold tabular-nums text-[#2E5E88] dark:text-[#6BA3D6]">
-                      {(res?.unitCost ?? 0).toFixed(2)}
+                      {formatUnitCostValue(res?.unitCost ?? 0)}
                     </td>
                     <td className="py-2 px-2 text-center">
                       <button
@@ -307,7 +314,7 @@ export const BillOfMaterialsPanel: React.FC<BillOfMaterialsPanelProps> = ({
                   materials unit cost
                 </td>
                 <td className="py-2.5 px-3 text-right tabular-nums text-sm text-[#2E5E88] dark:text-[#6BA3D6]">
-                  {summary.totalMaterialsUnitCost.toFixed(2)}
+                  {formatUnitCostValue(summary.totalMaterialsUnitCost)}
                 </td>
                 <td></td>
               </tr>
@@ -317,7 +324,7 @@ export const BillOfMaterialsPanel: React.FC<BillOfMaterialsPanelProps> = ({
       )}
 
       <p className="text-[10px] text-slate-500 dark:text-slate-400">
-        * When <strong>Surplus Wasted = Yes</strong>, full rounded purchase packs are absorbed into daily product unit cost. When <strong>No</strong>, unused partial-pack surplus carries forward into stock.
+        * When <strong>Surplus Wasted = Yes</strong>, full rounded purchase packs are absorbed into {isPerBatch ? 'batch' : 'daily'} product unit cost. When <strong>No</strong>, unused partial-pack surplus carries forward into stock.
       </p>
     </div>
   );

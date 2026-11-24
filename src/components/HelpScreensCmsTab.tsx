@@ -166,7 +166,7 @@ export const HelpScreensCmsTab: React.FC = () => {
             </h3>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Edit the ? assistance modal for every page across bizzcalc, bizzdynamics, bizzmodel, and rolling forecast. You can also edit inline inside any app&apos;s ? dialog.
+            Edit the ? assistance modal for every page across bizzcalc, bizzdynamics, bizzmodel, and bizzoptimizer. You can also edit inline inside any app&apos;s ? dialog.
           </p>
         </div>
 

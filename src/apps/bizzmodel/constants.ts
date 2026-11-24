@@ -1,8 +1,11 @@
 import { AssumptionRateItem } from '../bizzdynamics/types';
 import {
   BatchLotsProductConfig,
+  ContinuousProductionProductConfig,
+  FabricationProductConfig,
   FamilyRestaurantProductConfig,
 } from './components/modelsets/modelSetTypes';
+import { BizzOptimizerState, DEFAULT_BIZZOPTIMIZER_STATE } from './data/bizzoptimizerDefaults';
 
 export const BUSINESS_TYPES = [
   'trading', 'manufacturing', 'services', 'mobility',
@@ -99,8 +102,8 @@ export const ALL_MODEL_SETS: ModelSetCategory[] = [
     type: 'manufacturing',
     modelSets: [
       { id: 'batch-lots', name: 'batch lots', isAvailable: true, statusLabel: 'Available' },
-      { id: 'continuous-production', name: 'continuous production', isAvailable: false, statusLabel: 'coming soon' },
-      { id: 'fabrication', name: 'fabrication', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'continuous-production', name: 'continuous production', isAvailable: true, statusLabel: 'Available' },
+      { id: 'fabrication', name: 'fabrication', isAvailable: true, statusLabel: 'Available' },
     ],
   },
   {
@@ -246,6 +249,8 @@ export interface RevenueItem {
   inventoryAdjustmentPctMonthly?: number[];
   otherIncomeMonthly?: number[];
   batchLotsConfig?: BatchLotsProductConfig;
+  continuousProductionConfig?: ContinuousProductionProductConfig;
+  fabricationConfig?: FabricationProductConfig;
   familyRestaurantConfig?: FamilyRestaurantProductConfig;
 }
 
@@ -754,7 +759,7 @@ export interface HighLevelForecastData {
 
 export interface BizzModelState {
   appMode?: PlatformForecastAppId;
-  activeModelSet?: 'unit-sales' | 'batch-lots' | 'family-restaurant';
+  activeModelSet?: 'unit-sales' | 'batch-lots' | 'continuous-production' | 'fabrication' | 'family-restaurant';
   businessDetails: BusinessDetails;
   revenueItems: RevenueItem[];
   employmentCategories?: EmploymentCategory[];
@@ -766,6 +771,7 @@ export interface BizzModelState {
   funding: FundingSettings;
   highLevelForecast: HighLevelForecastData;
   hiLevelActuals?: HiLevelYtdActuals;
+  bizzOptimizer?: BizzOptimizerState;
 }
 
 export const DEFAULT_BUSINESS_STATE: BizzModelState = {
@@ -927,8 +933,8 @@ export function createDefaultRollingForecastState(): BizzModelState {
     appMode: 'rolling-forecast',
     businessDetails: {
       ...DEFAULT_BUSINESS_STATE.businessDetails,
-      businessName: 'Rolling Forecast Enterprise',
-      scenario: 'YTD Actuals + 60-Month Rolling Forecast',
+      businessName: 'BizzOptimizer Enterprise',
+      scenario: 'YTD Actuals + 60-Month BizzOptimizer Forecast',
       setupAssumptions: rollingAssumptions,
     },
     revenueItems: [],
@@ -1001,5 +1007,9 @@ export function createDefaultRollingForecastState(): BizzModelState {
       ],
     },
     hiLevelActuals: { ...SAMPLE_HILEVEL_YTD_ACTUALS },
+    bizzOptimizer: {
+      targets: { ...DEFAULT_BIZZOPTIMIZER_STATE.targets },
+      actions: [],
+    },
   };
 }

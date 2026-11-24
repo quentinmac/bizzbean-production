@@ -15,12 +15,14 @@ interface BizzModelLayoutProps {
   onSelectSetupTab?: (tab: 'assumptions' | 'results' | 'charts') => void;
   stepSubTab?: 'assumptions' | 'results' | 'charts';
   onSelectStepSubTab?: (tab: 'assumptions' | 'results' | 'charts') => void;
-  fundingTab?: 'dynamics' | 'what-if';
-  onSelectFundingTab?: (tab: 'dynamics' | 'what-if') => void;
+  fundingTab?: 'dynamics' | 'what-if' | 'actions-to-improve';
+  onSelectFundingTab?: (tab: 'dynamics' | 'what-if' | 'actions-to-improve') => void;
   isBizzPlanTabActive?: boolean;
   onSelectBizzPlanTab?: (active: boolean) => void;
   isPitchDeckTabActive?: boolean;
   onSelectPitchDeckTab?: (active: boolean) => void;
+  isBizzBoxTabActive?: boolean;
+  onSelectBizzBoxTab?: (active: boolean) => void;
   onClose: () => void;
   children: React.ReactNode;
 }
@@ -42,6 +44,8 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
   onSelectBizzPlanTab,
   isPitchDeckTabActive = false,
   onSelectPitchDeckTab,
+  isBizzBoxTabActive = false,
+  onSelectBizzBoxTab,
   onClose,
   children,
 }) => {
@@ -65,29 +69,31 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
     } catch {}
     if (onSelectBizzPlanTab) onSelectBizzPlanTab(false);
     if (onSelectPitchDeckTab) onSelectPitchDeckTab(false);
+    if (onSelectBizzBoxTab) onSelectBizzBoxTab(false);
     if (onSelectStepSubTab) onSelectStepSubTab(tab);
     if (onSelectSetupTab) onSelectSetupTab(tab);
     setInternalSubTab(tab);
   };
 
-  // Funding specific tabs (dynamics | what if)
-  const [internalFundingTab, setInternalFundingTab] = useState<'dynamics' | 'what-if'>(() => {
+  // Funding specific tabs (dynamics | what if | actions to improve)
+  const [internalFundingTab, setInternalFundingTab] = useState<'dynamics' | 'what-if' | 'actions-to-improve'>(() => {
     try {
       const saved = localStorage.getItem('bizz_funding_subtab');
-      if (saved === 'dynamics' || saved === 'what-if') return saved;
+      if (saved === 'dynamics' || saved === 'what-if' || saved === 'actions-to-improve') return saved;
     } catch {}
     return 'dynamics';
   });
 
   const currentFundingTab = fundingTabProp ?? internalFundingTab;
 
-  const handleSelectFundingTab = (tab: 'dynamics' | 'what-if') => {
+  const handleSelectFundingTab = (tab: 'dynamics' | 'what-if' | 'actions-to-improve') => {
     try {
       localStorage.setItem('bizz_funding_subtab', tab);
       window.dispatchEvent(new CustomEvent('bizz_funding_tab_change', { detail: tab }));
     } catch {}
     if (onSelectBizzPlanTab) onSelectBizzPlanTab(false);
     if (onSelectPitchDeckTab) onSelectPitchDeckTab(false);
+    if (onSelectBizzBoxTab) onSelectBizzBoxTab(false);
     if (onSelectFundingTab) onSelectFundingTab(tab);
     setInternalFundingTab(tab);
   };
@@ -100,12 +106,12 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
   const isRollingForecast = mode === 'rolling-forecast' || activeAppTab === 'rolling-forecast';
   const showBizzPlanTab = Boolean(onSelectBizzPlanTab) && !isRollingForecast;
   const appDisplayName = isRollingForecast
-    ? 'rolling forecast'
+    ? 'bizzoptimizer'
     : mode === 'bizzdynamics' || activeAppTab === 'bizzdynamics'
     ? 'bizzdynamics'
     : 'bizzmodel';
 
-  // Streamlined 5-Step dock for Hi-Level Forecast (excludes Revenue Calculator, Employment, Operating Expenses)
+  // Streamlined 5-Step dock for BizzOptimizer (excludes Revenue Calculator, Employment, Operating Expenses)
   // Full 7-Step dock preserved intact for BizzModel & BizzDynamics
   const STEPS: Array<{
     id: string;
@@ -119,7 +125,7 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
         { id: 'setup', num: 1, name: 'business details', icon: '/business details.jpg', description: 'business details, update month & macro rates' },
         { id: 'ytd-actuals', num: 2, name: 'actuals ytd', icon: '/reports.jpg', useSpreadsheetIcon: true, description: 'ytd trading account & balance sheet actuals' },
         { id: 'fixed-assets', num: 3, name: 'fixed assets', icon: '/fixed assets.jpg', description: 'opening fixed assets & planned capex' },
-        { id: 'funding', num: 4, name: 'funding & what-if', icon: '/funding calculator.jpg', description: 'capital structure, loans & what-if simulator' },
+        { id: 'funding', num: 4, name: 'funding calculator', icon: '/funding calculator.jpg', description: 'capital structure, what-if & actions to improve' },
         { id: 'reports', num: 5, name: 'reports', icon: '/reports.jpg', description: '60-month 3-statement financial reports' },
       ]
     : [
@@ -149,7 +155,7 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
           isDark ? 'bg-[#161C30] border-[#222F4C]' : 'bg-[#F4EFE6]/90 border-[#D8CEBC]'
         }`}
       >
-        <div className="flex items-center gap-2.5 flex-1 max-w-2xl overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-2.5 flex-1 max-w-4xl overflow-x-auto scrollbar-none">
           {/* Help icon button (opens step assistance with /help.jpg) */}
           <button
             type="button"
@@ -233,6 +239,9 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                 {[
                   { id: 'dynamics', label: 'dynamics' },
                   { id: 'what-if', label: 'what if' },
+                  ...(isRollingForecast
+                    ? [{ id: 'actions-to-improve', label: 'actions to improve' }]
+                    : []),
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -298,7 +307,7 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                     type="button"
                     onClick={() => handleSelectSubTab(tab.id as any)}
                     className={`py-1.5 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold lowercase transition-all border cursor-pointer whitespace-nowrap ${
-                      !isBizzPlanTabActive && !isPitchDeckTabActive && currentSubTab === tab.id
+                      !isBizzPlanTabActive && !isPitchDeckTabActive && !isBizzBoxTabActive && currentSubTab === tab.id
                         ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-2xs'
                         : isDark
                         ? 'bg-[#141A2E] text-slate-400 hover:text-white border-[#252E4A]'
@@ -313,6 +322,7 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                     type="button"
                     onClick={() => {
                       onSelectPitchDeckTab?.(false);
+                      onSelectBizzBoxTab?.(false);
                       onSelectBizzPlanTab(true);
                     }}
                     className={`py-1.5 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold lowercase transition-all border cursor-pointer whitespace-nowrap ${
@@ -331,6 +341,7 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                     type="button"
                     onClick={() => {
                       onSelectBizzPlanTab?.(false);
+                      onSelectBizzBoxTab?.(false);
                       onSelectPitchDeckTab(true);
                     }}
                     className={`py-1.5 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold lowercase transition-all border cursor-pointer whitespace-nowrap ${
@@ -342,6 +353,25 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                     }`}
                   >
                     pitch deck
+                  </button>
+                )}
+                {activeStep === 'revenue' && onSelectBizzBoxTab && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectBizzPlanTab?.(false);
+                      onSelectPitchDeckTab?.(false);
+                      onSelectBizzBoxTab(true);
+                    }}
+                    className={`py-1.5 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-bold lowercase transition-all border cursor-pointer whitespace-nowrap ${
+                      isBizzBoxTabActive
+                        ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-2xs'
+                        : isDark
+                        ? 'bg-[#141A2E] text-slate-400 hover:text-white border-[#252E4A]'
+                        : 'bg-white text-[#2E5E88] hover:bg-[#2E5E88]/5 border-[#2E5E88]/40'
+                    }`}
+                  >
+                    bizzbox
                   </button>
                 )}
               </>
@@ -403,6 +433,7 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                 onClick={() => {
                   onSelectBizzPlanTab?.(false);
                   onSelectPitchDeckTab?.(false);
+                  onSelectBizzBoxTab?.(false);
                   onSelectStep(st.id);
                   if (st.id === 'reports') {
                     handleSelectSubTab('results');

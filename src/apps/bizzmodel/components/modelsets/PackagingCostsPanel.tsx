@@ -1,6 +1,7 @@
 import React from 'react';
 import { Plus, Trash2, ArrowRight } from 'lucide-react';
 import { PackagingLevel, PackagingSummaryResult } from './modelSetTypes';
+import { formatUnitCostValue } from './continuousProductionEngine';
 
 interface PackagingCostsPanelProps {
   theme?: 'light' | 'dark';
@@ -107,7 +108,7 @@ export const PackagingCostsPanel: React.FC<PackagingCostsPanelProps> = ({
               <span className="text-slate-800 dark:text-slate-200 tabular-nums">
                 <strong>L{lvl.levelNumber}</strong> {lvl.name}{' '}
                 <span className="text-slate-500 dark:text-slate-400">
-                  ({lvl.cumulativeUnitsPacked.toLocaleString()} {lvl.cumulativeUnitsPacked === 1 ? 'unit' : 'units'} · {lvl.unitCostContribution.toFixed(2)}/u)
+                  ({lvl.cumulativeUnitsPacked.toLocaleString()} {lvl.cumulativeUnitsPacked === 1 ? 'unit' : 'units'} · {formatUnitCostValue(lvl.unitCostContribution)}/u)
                 </span>
               </span>
             </React.Fragment>
@@ -236,7 +237,7 @@ export const PackagingCostsPanel: React.FC<PackagingCostsPanelProps> = ({
                       />
                     </td>
                     <td className="py-2 px-3 text-right font-bold tabular-nums text-[#2E5E88] dark:text-[#6BA3D6]">
-                      {(res?.unitCostContribution ?? 0).toFixed(2)}
+                      {formatUnitCostValue(res?.unitCostContribution ?? 0)}
                     </td>
                     <td className="py-2 px-2 text-center">
                       <button
@@ -268,7 +269,7 @@ export const PackagingCostsPanel: React.FC<PackagingCostsPanelProps> = ({
                   packaging unit cost
                 </td>
                 <td className="py-2.5 px-3 text-right tabular-nums text-sm text-[#2E5E88] dark:text-[#6BA3D6]">
-                  {summary.totalPackagingUnitCost.toFixed(2)}
+                  {formatUnitCostValue(summary.totalPackagingUnitCost)}
                 </td>
                 <td></td>
               </tr>

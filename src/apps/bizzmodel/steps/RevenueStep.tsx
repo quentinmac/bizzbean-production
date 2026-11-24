@@ -32,21 +32,30 @@ import { AssumptionRateItem } from '../../bizzdynamics/types';
 import { BaseRateAdjustmentTool } from '../../bizzdynamics/components/BaseRateAdjustmentTool';
 import {
   ManufacturingBatchLotsWorkbench,
+  ManufacturingContinuousWorkbench,
+  ManufacturingFabricationWorkbench,
   FamilyRestaurantWorkbench,
   createDefaultBatchLotsConfig,
   calculateBatchLotsFull,
+  createDefaultContinuousProductionConfig,
+  calculateContinuousProductionFull,
+  createDefaultFabricationConfig,
+  calculateFabricationFull,
   createDefaultFamilyRestaurantConfig,
   calculateFamilyRestaurantFull,
   BatchLotsProductConfig,
+  ContinuousProductionProductConfig,
+  FabricationProductConfig,
   FamilyRestaurantProductConfig,
 } from '../components/modelsets';
+import { BizzBoxPanel } from '../components/BizzBoxPanel';
 
 interface RevenueStepProps {
   theme?: 'light' | 'dark';
   mode: PlatformForecastAppId; // 'bizzdynamics' | 'rolling-forecast' | 'hi-level-forecast' | 'bizzmodel'
   state: BizzModelState;
   onUpdateState: (updater: (prev: BizzModelState) => BizzModelState) => void;
-  subTab?: 'assumptions' | 'results' | 'charts' | 'data entry' | 'data-entry';
+  subTab?: 'assumptions' | 'results' | 'charts' | 'bizzbox' | 'data entry' | 'data-entry';
   onSelectSubTab?: (tab: 'assumptions' | 'results' | 'charts') => void;
 }
 
@@ -138,20 +147,31 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
   const isDark = theme === 'dark';
 
   // Normalize subtabs ('data-entry' -> 'results')
-  const normalizedSubTab = useMemo<'assumptions' | 'results' | 'charts'>(() => {
+  const normalizedSubTab = useMemo<'assumptions' | 'results' | 'charts' | 'bizzbox'>(() => {
     if (!subTabProp) return 'results';
     if (subTabProp === 'data entry' || subTabProp === 'data-entry') return 'results';
     return subTabProp;
   }, [subTabProp]);
 
-  const [internalSubTab, setInternalSubTab] = useState<'assumptions' | 'results' | 'charts'>(normalizedSubTab);
+  const [internalSubTab, setInternalSubTab] = useState<'assumptions' | 'results' | 'charts' | 'bizzbox'>(normalizedSubTab);
   const activeSubTab = subTabProp ? normalizedSubTab : internalSubTab;
-  const setActiveSubTab = onSelectSubTab ?? setInternalSubTab;
+  const setActiveSubTab = (tab: 'assumptions' | 'results' | 'charts') => {
+    setInternalSubTab(tab);
+    onSelectSubTab?.(tab);
+  };
 
   // Selected Model-Set (persisted on state so switching tabs/steps keeps user choice)
-  const selectedModelSet: 'unit-sales' | 'batch-lots' | 'family-restaurant' =
+  const selectedModelSet:
+    | 'unit-sales'
+    | 'batch-lots'
+    | 'continuous-production'
+    | 'fabrication'
+    | 'family-restaurant' =
     mode === 'bizzmodel' &&
-    (state.activeModelSet === 'batch-lots' || state.activeModelSet === 'family-restaurant')
+    (state.activeModelSet === 'batch-lots' ||
+      state.activeModelSet === 'continuous-production' ||
+      state.activeModelSet === 'fabrication' ||
+      state.activeModelSet === 'family-restaurant')
       ? state.activeModelSet
       : 'unit-sales';
   const [showTaxonomyTable, setShowTaxonomyTable] = useState<boolean>(false);
@@ -280,11 +300,35 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
   const handleAddBizzModelProduct = () => {
     const nextNum = (state.revenueItems || []).length + 1;
     const isBatchLots = selectedModelSet === 'batch-lots';
+    const isContinuous = selectedModelSet === 'continuous-production';
+    const isFabrication = selectedModelSet === 'fabrication';
     const isFamilyRestaurant = selectedModelSet === 'family-restaurant';
 
     const defaultBatchConfig = isBatchLots ? createDefaultBatchLotsConfig() : undefined;
     const batchDerived = defaultBatchConfig
       ? calculateBatchLotsFull(defaultBatchConfig, setupProductionDaysPerMonth, setupProductionDaysPerAnnum)
+      : null;
+
+    const defaultContinuousConfig = isContinuous
+      ? createDefaultContinuousProductionConfig()
+      : undefined;
+    const continuousDerived = defaultContinuousConfig
+      ? calculateContinuousProductionFull(
+          defaultContinuousConfig,
+          setupProductionDaysPerMonth,
+          setupProductionDaysPerAnnum
+        )
+      : null;
+
+    const defaultFabricationConfig = isFabrication
+      ? createDefaultFabricationConfig()
+      : undefined;
+    const fabricationDerived = defaultFabricationConfig
+      ? calculateFabricationFull(
+          defaultFabricationConfig,
+          setupProductionDaysPerMonth,
+          setupProductionDaysPerAnnum
+        )
       : null;
 
     const defaultRestaurantConfig = isFamilyRestaurant
@@ -300,16 +344,28 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
 
     const initialUnitCost = batchDerived
       ? Number(batchDerived.dynamics.modeledUnitCost.toFixed(4))
+      : continuousDerived
+      ? Number(continuousDerived.dynamics.modeledUnitCost.toFixed(4))
+      : fabricationDerived
+      ? Number(fabricationDerived.dynamics.modeledUnitCost.toFixed(4))
       : restaurantDerived
       ? Number(restaurantDerived.dynamics.modeledUnitCost.toFixed(4))
       : 10.0;
     const initialDailyCap = batchDerived
       ? batchDerived.dynamics.dailyCapacity
+      : continuousDerived
+      ? continuousDerived.dynamics.dailyCapacity
+      : fabricationDerived
+      ? fabricationDerived.dynamics.dailyCapacity
       : restaurantDerived
       ? restaurantDerived.dynamics.dailyCapacity
       : 1500;
     const initialDailySales = batchDerived
       ? Math.min(1000, initialDailyCap || 1000)
+      : continuousDerived
+      ? Math.max(1, Math.min(initialDailyCap, Math.round(initialDailyCap * 0.8)) || initialDailyCap)
+      : fabricationDerived
+      ? initialDailyCap || 0.5
       : restaurantDerived
       ? Math.max(1, restaurantDerived.restaurant.expectedDailyGuests || initialDailyCap)
       : 1000;
@@ -326,14 +382,19 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
 
     const newItem: RevenueItem = {
       id: `rev-bm-${Date.now()}`,
-      category: isBatchLots
-        ? 'MANUFACTURING'
-        : isFamilyRestaurant
-        ? 'HOSPITALITY'
-        : 'RETAIL PRODUCTS',
+      category:
+        isBatchLots || isContinuous || isFabrication
+          ? 'MANUFACTURING'
+          : isFamilyRestaurant
+          ? 'HOSPITALITY'
+          : 'RETAIL PRODUCTS',
       name: defaultName,
       modelType: isBatchLots
         ? 'batch lots'
+        : isContinuous
+        ? 'continuous production'
+        : isFabrication
+        ? 'fabrication'
         : isFamilyRestaurant
         ? 'family restaurant'
         : 'unit sales',
@@ -342,7 +403,7 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
       costOfSalesPct: 50.00,
       startMonth: 1,
       dailyCapacity: initialDailyCap,
-      monthlyUnits: new Array(60).fill(Math.round(initialDailySales * setupProductionDaysPerMonth)),
+      monthlyUnits: new Array(60).fill(Number((initialDailySales * setupProductionDaysPerMonth).toFixed(2))),
       dailyUnitSalesMonthly: new Array(60).fill(initialDailySales),
       productionUnitCostMonthly: new Array(60).fill(-Math.abs(initialUnitCost)),
       manufacturingMarginPctMonthly: new Array(60).fill(10.00),
@@ -351,6 +412,8 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
       inventoryAdjustmentPctMonthly: new Array(60).fill(1.00),
       otherIncomeMonthly: new Array(60).fill(0),
       batchLotsConfig: defaultBatchConfig,
+      continuousProductionConfig: defaultContinuousConfig,
+      fabricationConfig: defaultFabricationConfig,
       familyRestaurantConfig: defaultRestaurantConfig,
     };
     onUpdateState((prev) => ({
@@ -378,7 +441,7 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
       case 'bizzdynamics':
         return 'Learning Simulator: Limited to 3 products (SKU-A, SKU-B, SKU-C) to demonstrate contribution mix.';
       case 'rolling-forecast':
-        return 'Rolling Forecast: Limited to 1 product (revenue generator SKU-A) with percentage-of-revenue cost ratios.';
+        return 'BizzOptimizer: Limited to 1 product (revenue generator SKU-A) with percentage-of-revenue cost ratios.';
       case 'hi-level-forecast':
         return 'Hi-Level Forecast: 1 product envelope (revenue generator SKU-A) acting as the residual balancing target in BizzModel (Formula: 1 = 3 - 2).';
       case 'bizzmodel':
@@ -406,6 +469,8 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
     if (
       nextModelSetId !== 'unit-sales' &&
       nextModelSetId !== 'batch-lots' &&
+      nextModelSetId !== 'continuous-production' &&
+      nextModelSetId !== 'fabrication' &&
       nextModelSetId !== 'family-restaurant'
     ) {
       return;
@@ -446,6 +511,85 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
         return {
           ...prev,
           activeModelSet: 'batch-lots',
+          revenueItems: syncedItems,
+        };
+      }
+
+      if (nextModelSetId === 'continuous-production') {
+        const syncedItems = (prev.revenueItems || []).map((item) => {
+          const cfg =
+            item.continuousProductionConfig ||
+            createDefaultContinuousProductionConfig();
+          const full = calculateContinuousProductionFull(
+            cfg,
+            setupProductionDaysPerMonth,
+            setupProductionDaysPerAnnum
+          );
+          const derivedCost = Number(full.dynamics.modeledUnitCost.toFixed(4));
+          const derivedCap = full.dynamics.dailyCapacity;
+          const isUntouchedDefaultSales =
+            !item.continuousProductionConfig &&
+            Array.isArray(item.dailyUnitSalesMonthly) &&
+            item.dailyUnitSalesMonthly.every((v) => v === 1000 || v === 800);
+          const nextDailySales =
+            isUntouchedDefaultSales && derivedCap > 0
+              ? new Array(60).fill(Math.max(1, Math.round(derivedCap * 0.8)))
+              : item.dailyUnitSalesMonthly;
+
+          return {
+            ...item,
+            modelType: 'continuous production',
+            continuousProductionConfig: cfg,
+            unitCost: derivedCost,
+            dailyCapacity: derivedCap,
+            productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedCost)),
+            dailyUnitSalesMonthly: nextDailySales,
+          };
+        });
+
+        return {
+          ...prev,
+          activeModelSet: 'continuous-production',
+          revenueItems: syncedItems,
+        };
+      }
+
+      if (nextModelSetId === 'fabrication') {
+        const syncedItems = (prev.revenueItems || []).map((item) => {
+          const cfg =
+            item.fabricationConfig || createDefaultFabricationConfig();
+          const full = calculateFabricationFull(
+            cfg,
+            setupProductionDaysPerMonth,
+            setupProductionDaysPerAnnum
+          );
+          const derivedCost = Number(full.dynamics.modeledUnitCost.toFixed(4));
+          const derivedCap = full.dynamics.dailyCapacity;
+          const isUntouchedDefaultSales =
+            !item.fabricationConfig &&
+            Array.isArray(item.dailyUnitSalesMonthly) &&
+            item.dailyUnitSalesMonthly.every(
+              (v) => v === 1000 || v === 800 || v === 11520
+            );
+          const nextDailySales =
+            isUntouchedDefaultSales && derivedCap > 0
+              ? new Array(60).fill(derivedCap)
+              : item.dailyUnitSalesMonthly;
+
+          return {
+            ...item,
+            modelType: 'fabrication',
+            fabricationConfig: cfg,
+            unitCost: derivedCost,
+            dailyCapacity: derivedCap,
+            productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedCost)),
+            dailyUnitSalesMonthly: nextDailySales,
+          };
+        });
+
+        return {
+          ...prev,
+          activeModelSet: 'fabrication',
           revenueItems: syncedItems,
         };
       }
@@ -508,6 +652,36 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
     handleUpdateProduct(idx, {
       modelType: 'batch lots',
       batchLotsConfig: updatedConfig,
+      unitCost: derivedDynamics.unitCost,
+      dailyCapacity: derivedDynamics.dailyCapacity,
+      productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedDynamics.unitCost)),
+    });
+  };
+
+  // Update a product's Continuous Production configuration and transfer unitCost + dailyCapacity immediately to Results tab
+  const handleUpdateContinuousProductionConfig = (
+    idx: number,
+    updatedConfig: ContinuousProductionProductConfig,
+    derivedDynamics: { unitCost: number; dailyCapacity: number }
+  ) => {
+    handleUpdateProduct(idx, {
+      modelType: 'continuous production',
+      continuousProductionConfig: updatedConfig,
+      unitCost: derivedDynamics.unitCost,
+      dailyCapacity: derivedDynamics.dailyCapacity,
+      productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedDynamics.unitCost)),
+    });
+  };
+
+  // Update a product's Fabrication configuration and transfer unitCost + dailyCapacity immediately to Results tab
+  const handleUpdateFabricationConfig = (
+    idx: number,
+    updatedConfig: FabricationProductConfig,
+    derivedDynamics: { unitCost: number; dailyCapacity: number }
+  ) => {
+    handleUpdateProduct(idx, {
+      modelType: 'fabrication',
+      fabricationConfig: updatedConfig,
       unitCost: derivedDynamics.unitCost,
       dailyCapacity: derivedDynamics.dailyCapacity,
       productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedDynamics.unitCost)),
@@ -592,8 +766,13 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
       // Line 8: unit gross profit = line 6 + line 7
       const line8 = line6 + line7;
 
-      // Line 10: unit sales = days worked x line 1
-      const line10 = isLaunched ? Math.round(daysWorked * line1) : 0;
+      // Line 10: unit sales = days worked x line 1 (preserves fractional monthly volumes for multi-day fabrication)
+      const rawLine10 = daysWorked * line1;
+      const line10 = isLaunched
+        ? rawLine10 < 100 && !Number.isInteger(rawLine10)
+          ? Number(rawLine10.toFixed(2))
+          : Math.round(rawLine10)
+        : 0;
 
       // Line 11: revenue = days worked x line 1 x line 7
       const line11 = isLaunched ? Math.round(daysWorked * line1 * line7) : 0;
@@ -653,7 +832,7 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
     });
 
     // Compute Year Totals / Averages
-    const sumLine10 = monthsData.reduce((acc, m) => acc + m.line10, 0);
+    const sumLine10 = Number(monthsData.reduce((acc, m) => acc + m.line10, 0).toFixed(2));
     const sumLine11 = monthsData.reduce((acc, m) => acc + m.line11, 0);
     const sumLine12 = monthsData.reduce((acc, m) => acc + m.line12, 0);
     const sumLine13 = sumLine11 + sumLine12;
@@ -666,7 +845,7 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
 
     const activeMonthsForAvg = monthsData.filter((m) => m.line1 > 0);
     const avgLine1 = activeMonthsForAvg.length > 0
-      ? Math.round(activeMonthsForAvg.reduce((acc, m) => acc + m.line1, 0) / activeMonthsForAvg.length)
+      ? Number((activeMonthsForAvg.reduce((acc, m) => acc + m.line1, 0) / activeMonthsForAvg.length).toFixed(2))
       : 0;
     const avgLine3 = Number((monthsData.reduce((acc, m) => acc + m.line3, 0) / 12).toFixed(2));
     const avgLine4 = Number((monthsData.reduce((acc, m) => acc + m.line4, 0) / 12).toFixed(2));
@@ -895,11 +1074,11 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                 <p className="text-[11px] text-slate-500 lowercase mt-1">
                   {mode === 'bizzmodel' ? (
                     <>
-                      * active model-sets: <strong>unit sales</strong>, <strong>manufacturing — batch lots</strong> &amp; <strong>hospitality — family restaurant</strong>. select any available model-set above; others are marked as <em>coming soon</em>.
+                      * active model-sets: <strong>unit sales</strong>, <strong>manufacturing — batch lots</strong>, <strong>continuous production</strong>, <strong>fabrication</strong> &amp; <strong>hospitality — family restaurant</strong>. select any available model-set above; others are marked as <em>coming soon</em>.
                     </>
                   ) : (
                     <>
-                      * for this simulator mode, <strong>unit sales</strong> is the active model-set. launch <strong>bizzmodel</strong> to access manufacturing batch lots &amp; hospitality family restaurant.
+                      * for this simulator mode, <strong>unit sales</strong> is the active model-set. launch <strong>bizzmodel</strong> to access manufacturing (batch lots, continuous production &amp; fabrication) and hospitality family restaurant.
                     </>
                   )}
                 </p>
@@ -912,6 +1091,10 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                   <span>
                     {selectedModelSet === 'batch-lots'
                       ? 'MANUFACTURING: BATCH LOTS'
+                      : selectedModelSet === 'continuous-production'
+                      ? 'MANUFACTURING: CONTINUOUS PRODUCTION'
+                      : selectedModelSet === 'fabrication'
+                      ? 'MANUFACTURING: FABRICATION'
                       : selectedModelSet === 'family-restaurant'
                       ? 'HOSPITALITY: FAMILY RESTAURANT'
                       : 'UNIT SALES MODEL-SET'}
@@ -919,7 +1102,11 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                 </div>
                 <p className="text-[10px] text-emerald-700 dark:text-emerald-300 leading-snug">
                   {selectedModelSet === 'batch-lots'
-                    ? 'Multi-process bottleneck capacity, advisory staffing, BOM, multi-level packaging & variable unit cost dynamics.'
+                    ? 'Multi-process bottleneck capacity (units/batch), advisory staffing, BOM, multi-level packaging & variable unit cost dynamics.'
+                    : selectedModelSet === 'continuous-production'
+                    ? 'Multi-process bottleneck capacity (units/hour), advisory staffing, per-item BOM with hourly consumables, multi-level packaging & variable unit cost dynamics.'
+                    : selectedModelSet === 'fabrication'
+                    ? 'Multi-process bottleneck capacity (units/batch & days/batch), advisory staffing, per-batch BOM, multi-level packaging & variable unit cost dynamics.'
                     : selectedModelSet === 'family-restaurant'
                     ? 'Table & seat turnover capacity, kitchen BOM, multi-level packaging & variable utility unit cost dynamics.'
                     : 'Calculates item unit cost and production volumes constraining volume sales.'}
@@ -1007,13 +1194,21 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white block">
                   {selectedModelSet === 'batch-lots'
                     ? 'PRODUCTS CONFIGURATION (MANUFACTURING — BATCH LOTS)'
+                    : selectedModelSet === 'continuous-production'
+                    ? 'PRODUCTS CONFIGURATION (MANUFACTURING — CONTINUOUS PRODUCTION)'
+                    : selectedModelSet === 'fabrication'
+                    ? 'PRODUCTS CONFIGURATION (MANUFACTURING — FABRICATION)'
                     : selectedModelSet === 'family-restaurant'
                     ? 'PRODUCTS CONFIGURATION (HOSPITALITY — FAMILY RESTAURANT)'
                     : 'PRODUCTS CONFIGURATION (UNIT SALES)'}
                 </span>
                 <span className="text-[11px] text-slate-400 lowercase">
                   {selectedModelSet === 'batch-lots'
-                    ? 'configure production processes, advisory staffing, BOM, packaging levels & variable costs — unit cost & daily capacity transfer automatically to results'
+                    ? 'configure production processes (units/batch), advisory staffing, BOM, packaging levels & variable costs — unit cost & daily capacity transfer automatically to results'
+                    : selectedModelSet === 'continuous-production'
+                    ? 'configure continuous workstreams (units/hour), advisory staffing, BOM, packaging levels & variable costs — unit cost & daily capacity transfer automatically to results'
+                    : selectedModelSet === 'fabrication'
+                    ? 'configure fabrication processes (units/batch & days/batch), advisory staffing, BOM, packaging levels & variable costs — unit cost & daily capacity transfer automatically to results'
                     : selectedModelSet === 'family-restaurant'
                     ? 'configure tables, seats, turnover cycles, kitchen BOM, packaging & variable costs — unit cost & guest capacity transfer automatically to results'
                     : 'insert start month, unit cost, and daily capacity below (selling price is derived dynamically on the results tab)'}
@@ -1066,6 +1261,71 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                       onChangeStartMonth={(startMonth) => handleUpdateProduct(idx, { startMonth })}
                       onChangeConfig={(updatedConfig, derivedDynamics) =>
                         handleUpdateBatchLotsConfig(idx, updatedConfig, derivedDynamics)
+                      }
+                      onRemove={() => handleRemoveProduct(idx)}
+                      onOpenResultsTab={() => {
+                        setActiveProductIdx(idx);
+                        setActiveSubTab('results');
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            ) : selectedModelSet === 'continuous-production' ? (
+              <div className="space-y-4">
+                {state.revenueItems.map((prod, idx) => {
+                  const continuousConfig =
+                    prod.continuousProductionConfig ||
+                    createDefaultContinuousProductionConfig();
+                  return (
+                    <ManufacturingContinuousWorkbench
+                      key={prod.id}
+                      theme={theme}
+                      productId={prod.id}
+                      productName={prod.name}
+                      startMonth={prod.startMonth || 1}
+                      isPredetermined={!!predeterminedNames}
+                      canRemove={state.revenueItems.length > 1}
+                      defaultExpanded={idx === 0 || idx === activeProductIdx}
+                      config={continuousConfig}
+                      productionDaysPerMonth={setupProductionDaysPerMonth}
+                      productionDaysPerAnnum={setupProductionDaysPerAnnum}
+                      onChangeName={(name) => handleUpdateProduct(idx, { name })}
+                      onChangeStartMonth={(startMonth) => handleUpdateProduct(idx, { startMonth })}
+                      onChangeConfig={(updatedConfig, derivedDynamics) =>
+                        handleUpdateContinuousProductionConfig(idx, updatedConfig, derivedDynamics)
+                      }
+                      onRemove={() => handleRemoveProduct(idx)}
+                      onOpenResultsTab={() => {
+                        setActiveProductIdx(idx);
+                        setActiveSubTab('results');
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            ) : selectedModelSet === 'fabrication' ? (
+              <div className="space-y-4">
+                {state.revenueItems.map((prod, idx) => {
+                  const fabricationConfig =
+                    prod.fabricationConfig || createDefaultFabricationConfig();
+                  return (
+                    <ManufacturingFabricationWorkbench
+                      key={prod.id}
+                      theme={theme}
+                      productId={prod.id}
+                      productName={prod.name}
+                      startMonth={prod.startMonth || 1}
+                      isPredetermined={!!predeterminedNames}
+                      canRemove={state.revenueItems.length > 1}
+                      defaultExpanded={idx === 0 || idx === activeProductIdx}
+                      config={fabricationConfig}
+                      productionDaysPerMonth={setupProductionDaysPerMonth}
+                      productionDaysPerAnnum={setupProductionDaysPerAnnum}
+                      onChangeName={(name) => handleUpdateProduct(idx, { name })}
+                      onChangeStartMonth={(startMonth) => handleUpdateProduct(idx, { startMonth })}
+                      onChangeConfig={(updatedConfig, derivedDynamics) =>
+                        handleUpdateFabricationConfig(idx, updatedConfig, derivedDynamics)
                       }
                       onRemove={() => handleRemoveProduct(idx)}
                       onOpenResultsTab={() => {
@@ -2177,6 +2437,21 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* TAB 4: BIZZBOX DIRECTORY TAB                                          */}
+      {/* ===================================================================== */}
+      {activeSubTab === 'bizzbox' && (
+        <BizzBoxPanel
+          theme={theme}
+          mode={mode}
+          activeModelSet={selectedModelSet}
+          onApplyModelSet={(modelSetId) => {
+            handleSelectModelSet(modelSetId);
+            setActiveSubTab('assumptions');
+          }}
+        />
       )}
     </div>
   );

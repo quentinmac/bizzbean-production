@@ -832,7 +832,7 @@ export const FixedAssetsStep: React.FC<FixedAssetsStepProps> = ({
                   CAPTURED FIXED ASSETS & LEASE CONTRACTS
                 </h2>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  No limitation on number of items across any app. Year 0 opening values active in rolling forecast.
+                  No limitation on number of items across any app. Year 0 opening values active in bizzoptimizer.
                 </p>
               </div>
 
@@ -992,7 +992,7 @@ export const FixedAssetsStep: React.FC<FixedAssetsStepProps> = ({
                     <th className="py-2 px-2.5 text-center bg-blue-50/70 dark:bg-blue-950/40 border-l border-r border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-300 uppercase">
                       Year 0
                       {!isRollingForecast && (
-                        <span className="block text-[8px] font-normal text-slate-400">(rolling forecast)</span>
+                        <span className="block text-[8px] font-normal text-slate-400">(bizzoptimizer)</span>
                       )}
                     </th>
                     {displayedScheduleMonths.map((m) => (
@@ -1811,7 +1811,7 @@ export const FixedAssetsStep: React.FC<FixedAssetsStepProps> = ({
                   <span>Acquisition Timing</span>
                   {!isRollingForecast && (
                     <span className="text-[10px] text-amber-600 dark:text-amber-400 font-normal lowercase">
-                      (prior to forecast active in rolling forecast only)
+                      (prior to forecast active in bizzoptimizer only)
                     </span>
                   )}
                 </label>

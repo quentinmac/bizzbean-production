@@ -2563,7 +2563,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                     </span>
                     {[
                       { id: 'bizzdynamics', label: 'bizzdynamics', sku: 'BA-DYN' },
-                      { id: 'rolling-forecast', label: 'rolling forecast', sku: 'BA-ROL' },
+                      { id: 'rolling-forecast', label: 'bizzoptimizer', sku: 'BA-OPT' },
                       { id: 'bizzmodel', label: 'bizzmodel', sku: 'BA-002' },
                       { id: 'hi-level-forecast', label: 'Hi Level Forecast', sku: 'BA-HLF' },
                       { id: 'bizzforecasta', label: 'bizzforecasta', sku: 'BA-BFA' },

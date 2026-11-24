@@ -80,7 +80,7 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
       const cmsSub = (matchingCms.subtitle || '').toLowerCase();
       if (cmsName.includes('dynamics') || cmsSub.includes('dynamics')) return 'bizzdynamics';
       if (cmsName.includes('calculators') || cmsSub.includes('calculators')) return 'bizzcalculators';
-      if (cmsName.includes('rolling') || cmsSub.includes('rolling')) return 'rolling-forecast';
+      if (cmsName.includes('rolling') || cmsSub.includes('rolling') || cmsName.includes('optimizer') || cmsSub.includes('optimizer')) return 'rolling-forecast';
       if (cmsName.includes('forecast') || cmsName.includes('hi-level')) return 'hi-level-forecast';
       if (cmsName.includes('model')) return 'bizzmodel';
       if (cmsName.includes('plan')) return 'bizzplan';
@@ -90,7 +90,7 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
     if (lower.includes('calculators')) return 'bizzcalculators';
     if (lower.includes('dynamics')) return 'bizzdynamics';
     if (lower.includes('calc')) return 'bizzcalc';
-    if (lower.includes('rolling')) return 'rolling-forecast';
+    if (lower.includes('rolling') || lower.includes('optimizer') || lower.includes('trim')) return 'rolling-forecast';
     if (lower.includes('hi-level') || lower === 'forecast') return 'hi-level-forecast';
     if (lower.includes('model') || lower.includes('forecast') || lower === 'fund-ability') return 'bizzmodel';
     if (lower.includes('plan')) return 'bizzplan';
@@ -98,7 +98,6 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
     if (lower.includes('vdr') || lower.includes('invest')) return 'invest-vdr';
     if (lower.includes('money') || lower.includes('ledger') || lower.includes('account')) return 'bizzmoney';
     if (lower.includes('budget')) return 'bizzbudget';
-    if (lower.includes('optimizer') || lower.includes('trim')) return 'bizzoptimizer';
     if (lower.includes('growth') || lower.includes('moat')) return 'growth-strategy';
     if (lower.includes('mall') || lower.includes('store') || lower.includes('shop')) return 'bizzmall';
     if (lower === 'vi-ability') return 'bizzcalc';
@@ -163,11 +162,11 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
     },
     {
       id: 'rolling-forecast',
-      name: 'rolling forecast',
-      sku: 'BA-ROLL',
+      name: 'bizzoptimizer',
+      sku: 'BA-OPT',
       stage: 'operations',
       stageCode: 'Stage 05',
-      subtitle: 'Management Accounts YTD Actuals, 60-Month Forecast & What-If Simulator',
+      subtitle: 'YTD Actuals, 60-Month Forecast, What-If & Actions to Improve',
       badge: 'stand alone',
       icon: TrendingUp,
       desktopOnly: true,
@@ -241,15 +240,6 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
       stageCode: 'Stage 05',
       subtitle: 'Rolling Cash Flow Allocations & Variance Reporting',
       icon: FileSpreadsheet,
-    },
-    {
-      id: 'bizzoptimizer',
-      name: 'bizzoptimizer',
-      sku: 'BA-008',
-      stage: 'operations',
-      stageCode: 'Stage 05',
-      subtitle: 'Margin Trimmer & Working Capital Optimizer',
-      icon: Zap,
     },
     {
       id: 'growth-strategy',
@@ -624,8 +614,8 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
               )
             )}
 
-            {/* 4C. ROLLING FORECAST (Management Accounts YTD + 60-Month Forecast & What-If Engine) */}
-            {activeApp === 'rolling-forecast' && (
+            {/* 4C. BIZZOPTIMIZER (Management Accounts YTD + 60-Month Forecast, What-If & Actions to Improve) */}
+            {(activeApp === 'rolling-forecast' || activeApp === 'bizzoptimizer') && (
               <BizzModel
                 theme={theme}
                 mode="rolling-forecast"

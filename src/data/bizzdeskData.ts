@@ -374,13 +374,13 @@ export const BIZZ_SOLUTIONS: BizzSolution[] = [
     id: 'rolling-forecast',
     category: 'startup',
     stage: 'sustain-ability',
-    name: 'rolling forecast',
-    subtitle: 'Management Accounts YTD Actuals, 60-Month Forecast & What-If Simulator',
+    name: 'bizzoptimizer',
+    subtitle: 'YTD Actuals, 60-Month Forecast, What-If & Actions to Improve',
     stageCode: 'STAGE 03',
     description:
-      'Know where your business is heading with a streamlined 5-step rolling forecast powered by your YTD Trading Account and Balance Sheet actuals, auto-derived daily revenue & working capital days, and an interactive What-If simulator.',
+      'Measure Return on Sales and Asset Turn on your YTD management accounts, run a 60-month rolling forecast & What-If simulation, and assign Actions to Improve across departmental Performance Leaders with editable touch-point hints.',
     purpose:
-      'Turn monthly management accounts into a rolling 60-month 3-statement forecast and live What-If decision cockpit in minutes.',
+      'Turn monthly management accounts into a 60-month 3-statement forecast, ratio target cockpit, and departmental Programme of Actions.',
     priceUSD: 25,
     priceZAR: 499.17,
     vatRate: 0.15,

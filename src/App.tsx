@@ -896,7 +896,7 @@ export default function App() {
       ) ||
       (cmsProducts || []).find((p) => {
         const pName = (p.name || '').toLowerCase();
-        if (effectiveSolId === 'rolling-forecast') return pName.includes('rolling');
+        if (effectiveSolId === 'rolling-forecast' || effectiveSolId === 'bizzoptimizer') return pName.includes('rolling') || pName.includes('optimizer');
         if (effectiveSolId === 'bizzdynamics') return pName.includes('dynamics');
         if (effectiveSolId === 'bizzcalculators') return pName.includes('calculators');
         if (effectiveSolId === 'bizzmodel') return pName.includes('bizzmodel');
@@ -1560,7 +1560,7 @@ export default function App() {
       ) ||
       (cmsProducts || []).find((p) => {
         const pName = (p.name || '').toLowerCase();
-        if (effectiveId === 'rolling-forecast') return pName.includes('rolling');
+        if (effectiveId === 'rolling-forecast' || effectiveId === 'bizzoptimizer') return pName.includes('rolling') || pName.includes('optimizer');
         if (effectiveId === 'bizzdynamics') return pName.includes('dynamics');
         if (effectiveId === 'bizzcalculators') return pName.includes('calculators');
         if (effectiveId === 'bizzmodel') return pName.includes('bizzmodel');

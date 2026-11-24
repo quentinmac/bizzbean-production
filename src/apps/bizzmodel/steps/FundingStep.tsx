@@ -31,14 +31,15 @@ import {
 import { calculateFinancialModelProjections } from '../utils/revenueCalc';
 import { LiquidityVsDebtChart, LiquidityDataPoint } from '../../bizzdynamics/components/LiquidityVsDebtChart';
 import { calculateTermLoanMetrics } from '../utils/loanCalc';
+import { ActionsToImprovePanel } from '../components/ActionsToImprovePanel';
 
 interface FundingStepProps {
   theme?: 'light' | 'dark';
   mode: PlatformForecastAppId;
   state: BizzModelState;
   onUpdateState: (updater: (prev: BizzModelState) => BizzModelState) => void;
-  subTab?: 'dynamics' | 'what-if';
-  onSelectSubTab?: (tab: 'dynamics' | 'what-if') => void;
+  subTab?: 'dynamics' | 'what-if' | 'actions-to-improve';
+  onSelectSubTab?: (tab: 'dynamics' | 'what-if' | 'actions-to-improve') => void;
 }
 
 export const FundingStep: React.FC<FundingStepProps> = ({
@@ -52,7 +53,7 @@ export const FundingStep: React.FC<FundingStepProps> = ({
   const isDark = theme === 'dark';
 
   // Internal tab state if not controlled from layout
-  const [internalTab, setInternalTab] = useState<'dynamics' | 'what-if'>('dynamics');
+  const [internalTab, setInternalTab] = useState<'dynamics' | 'what-if' | 'actions-to-improve'>('dynamics');
   const activeTab = subTabProp ?? internalTab;
 
   // Selected Year for Chart & Adjustment Sliders (1 to 5, or 'summary' for chart)
@@ -896,6 +897,26 @@ export const FundingStep: React.FC<FundingStepProps> = ({
               ROA
             </span>
           </button>
+
+          {isHiLevelForecastMode && (
+            <button
+              type="button"
+              onClick={() => {
+                if (onSelectSubTab) onSelectSubTab('actions-to-improve');
+                setInternalTab('actions-to-improve');
+              }}
+              className={`px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all flex items-center gap-2 border cursor-pointer whitespace-nowrap ${
+                activeTab === 'actions-to-improve'
+                  ? 'bg-[#2E5E88] text-white border-[#2E5E88] shadow-xs'
+                  : isDark
+                  ? 'bg-[#101626] text-slate-400 hover:text-white border-[#222F4C]'
+                  : 'bg-white text-slate-600 hover:text-slate-900 border-[#D8CEBC]'
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#00A3E0]" />
+              <span>Actions to Improve</span>
+            </button>
+          )}
         </div>
 
         {activeTab === 'what-if' && (
@@ -907,6 +928,22 @@ export const FundingStep: React.FC<FundingStepProps> = ({
           </div>
         )}
       </div>
+
+      {/* ===================================================================== */}
+      {/* ACTIONS TO IMPROVE TAB CONTENT (BIZZOPTIMIZER)                        */}
+      {/* ===================================================================== */}
+      {activeTab === 'actions-to-improve' && (
+        <ActionsToImprovePanel
+          state={state}
+          onUpdateState={onUpdateState}
+          projections={projections}
+          whatIfProjections={whatIfProjections}
+          whatIfInvDays={whatIfInvDays}
+          whatIfRecDays={whatIfRecDays}
+          whatIfPayDays={whatIfPayDays}
+          theme={theme}
+        />
+      )}
 
       {/* ===================================================================== */}
       {/* WHAT IF TAB CONTENT                                                   */}

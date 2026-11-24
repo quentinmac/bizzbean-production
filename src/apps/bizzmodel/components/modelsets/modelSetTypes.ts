@@ -38,12 +38,12 @@ export interface PackagingLevel {
   wastePct?: number;              // Optional packaging wastage % (default 0)
 }
 
-export type VariableCostBasis = 'per_batch' | 'per_unit';
+export type VariableCostBasis = 'per_batch' | 'per_day' | 'per_hour' | 'per_unit';
 
 export interface ProductionVariableCostItem {
   id: string;
   name: string;                   // e.g. 'Electricity', 'Gas', 'Fuel', 'Water', 'Maintenance'
-  basis: VariableCostBasis;       // 'per_batch' (divided by batch size) or 'per_unit' (direct)
+  basis: VariableCostBasis;       // 'per_batch' | 'per_day' | 'per_hour' | 'per_unit'
   usage: number;                  // Consumption qty (per batch or per unit)
   usageUnit: string;              // e.g. 'kWh', 'kg', 'litres', 'batch'
   unitRate: number;               // Cost per usage unit
@@ -268,3 +268,148 @@ export interface FamilyRestaurantFullResult {
   dynamics: UnitCostDynamicsResult;
 }
 
+// ============================================================================
+// MANUFACTURING: CONTINUOUS PRODUCTION MODEL-SET TYPES
+// ============================================================================
+
+export interface ContinuousProductionProcess {
+  id: string;
+  name: string;
+  numberOfWorkstreams: number;    // Excel R26: number of workstreams / production lines
+  employeesPerWorkstream: number; // Excel R28: productive employees per workstream
+  shiftHours: number;             // Excel R29: shift length in hours (e.g. 8 = 08:00)
+  shiftsPerDay: number;           // Excel R30: number of shifts per day (e.g. 2)
+  unitCapacityPerHour: number;    // Excel R33: gross unit capacity per hour
+  timeAllocationPct: number;      // Excel R34: % of line time allocated to this product (0 or 100 = 100%)
+  shrinkagePct: number;           // Excel R37: spoilage / shrinkage % deducted from daily output
+}
+
+export interface ContinuousBomComponent {
+  id: string;
+  name: string;
+  unitOfMeasure: string;          // e.g. 'kg', 'g', 'L', 'ml', 'pcs'
+  unitsRequiredPerItem: number;   // Excel R55: material units required per manufactured item
+  unitDivider: number;            // Conversion divider between item unit and pack unit (default 1)
+  packSizeUnits: number;          // Excel R57: purchase pack size (in pack units)
+  packCost: number;               // Excel R60: purchase cost per pack
+  consumablesCostPerHour: number; // Excel R63: direct consumables cost per operating hour
+  surplusWasted: boolean;         // Excel R68: if true, unused partial-pack surplus is absorbed into unit cost
+}
+
+export interface ContinuousProductionProductConfig {
+  processes: ContinuousProductionProcess[];
+  employeeAssumptions: EmployeeCalcAssumptions;
+  bomComponents: ContinuousBomComponent[];
+  packagingLevels: PackagingLevel[];
+  variableCosts: ProductionVariableCostItem[];
+  dynamicsOverrides: UnitCostDynamicsOverrides;
+}
+
+export interface ContinuousProcessResult {
+  id: string;
+  name: string;
+  hoursAvailablePerDay: number;   // Excel R32: numberOfWorkstreams * shiftHours * shiftsPerDay
+  allocatedUnitsPerHour: number;  // Excel R35: unitCapacityPerHour * (timeAllocationPct / 100)
+  grossDailyUnits: number;        // Excel R36: allocatedUnitsPerHour * hoursAvailablePerDay
+  netDailyCapacity: number;       // Excel R38: floor(grossDailyUnits * (1 - shrinkagePct/100))
+  monthlyCapacity: number;        // Excel R39: productionDaysPerMonth * netDailyCapacity
+  annualCapacity: number;
+  employeesRequiredStandard: number; // Excel R40: numberOfWorkstreams * employeesPerWorkstream * shiftsPerDay
+  isBottleneck: boolean;
+  spareDailyUnits: number;
+}
+
+export interface ContinuousProductionSummaryResult {
+  processes: ContinuousProcessResult[];
+  bottleneckDailyCapacity: number;     // MIN net daily capacity across active processes
+  bottleneckGrossDailyUnits: number;   // Gross daily units of the constraining process (Excel E36 / E56 / E80)
+  bottleneckHoursPerDay: number;       // Operating hours/day of the constraining process (Excel F32)
+  bottleneckUnitsPerHour: number;      // Allocated units/hour of the constraining process (Excel F35)
+  bottleneckProcessIds: string[];
+  bottleneckProcessNames: string[];
+  monthlyCapacity: number;
+  annualCapacity: number;
+  totalEmployeesStandard: number;
+  productionDaysPerMonth: number;
+  productionDaysPerAnnum: number;
+}
+
+export interface ContinuousProductionFullResult {
+  continuousProduction: ContinuousProductionSummaryResult;
+  productionBridge: ProductionSummaryResult; // Adapter so shared Employee / Variable / Dynamics panels work natively
+  employees: EmployeeCalcResult;
+  bom: BomSummaryResult;
+  packaging: PackagingSummaryResult;
+  variableCosts: VariableCostSummaryResult;
+  dynamics: UnitCostDynamicsResult;
+}
+
+// ============================================================================
+// MANUFACTURING: FABRICATION MODEL-SET TYPES
+// ============================================================================
+
+export interface FabricationProcess {
+  id: string;
+  name: string;
+  numberOfWorkstreams: number;    // Excel R26: number of workstreams / fabrication bays
+  employeesPerLine: number;       // Excel R28: employees per production line / bay
+  shiftHours: number;             // Excel R29: shift length in hours (e.g. 8 = 08:00)
+  shiftsPerDay: number;           // Excel R30: shifts per day (e.g. 1)
+  unitsPerBatch: number;          // Excel R33: finished units fabricated per batch
+  daysPerBatch: number;           // Excel R34: production days required per batch (e.g. 2)
+  timeAllocationPct: number;      // Optional % of bay capacity allocated to this product (default 100)
+  shrinkagePct: number;           // Optional spoilage / rework % deducted from daily output (default 0)
+}
+
+export interface FabricationProductConfig {
+  processes: FabricationProcess[];
+  employeeAssumptions: EmployeeCalcAssumptions;
+  bomComponents: BomComponent[];
+  packagingLevels: PackagingLevel[];
+  variableCosts: ProductionVariableCostItem[];
+  dynamicsOverrides: UnitCostDynamicsOverrides;
+}
+
+export interface FabricationProcessResult {
+  id: string;
+  name: string;
+  productionHoursPerDay: number;  // Excel R32: numberOfWorkstreams * shiftHours * shiftsPerDay
+  allocatedUnitsPerBatch: number; // unitsPerBatch * (timeAllocationPct / 100)
+  daysPerBatch: number;           // Excel R34
+  hoursPerBatch: number;          // Excel R35: shiftHours * daysPerBatch
+  batchesPerDay: number;          // productionHoursPerDay / hoursPerBatch (can be < 1 for multi-day jobs)
+  grossDailyUnits: number;        // batchesPerDay * allocatedUnitsPerBatch
+  netDailyCapacity: number;       // Excel R36: production per day (preserves fractional units/day e.g. 0.5)
+  monthlyCapacity: number;        // Excel R37: productionDaysPerMonth * netDailyCapacity
+  annualCapacity: number;
+  employeesRequiredStandard: number; // Excel R38: numberOfWorkstreams * employeesPerLine * shiftsPerDay
+  isBottleneck: boolean;
+  spareDailyUnits: number;
+}
+
+export interface FabricationProductionSummaryResult {
+  processes: FabricationProcessResult[];
+  bottleneckDailyCapacity: number;     // MIN net daily capacity across active processes (can be fractional)
+  bottleneckUnitsPerBatch: number;     // Allocated units per batch of constraining process (Excel E33 / E53)
+  bottleneckDaysPerBatch: number;      // Days per batch of constraining process (Excel E34)
+  bottleneckHoursPerBatch: number;     // Hours per batch of constraining process (Excel F35)
+  bottleneckBatchesPerDay: number;     // Batches completed per day on constraining process
+  bottleneckShrinkagePct: number;      // Shrinkage % of constraining process
+  bottleneckProcessIds: string[];
+  bottleneckProcessNames: string[];
+  monthlyCapacity: number;
+  annualCapacity: number;
+  totalEmployeesStandard: number;
+  productionDaysPerMonth: number;
+  productionDaysPerAnnum: number;
+}
+
+export interface FabricationFullResult {
+  fabricationProduction: FabricationProductionSummaryResult;
+  productionBridge: ProductionSummaryResult; // Adapter so shared Employee / BOM / Variable / Dynamics panels work natively
+  employees: EmployeeCalcResult;
+  bom: BomSummaryResult;
+  packaging: PackagingSummaryResult;
+  variableCosts: VariableCostSummaryResult;
+  dynamics: UnitCostDynamicsResult;
+}

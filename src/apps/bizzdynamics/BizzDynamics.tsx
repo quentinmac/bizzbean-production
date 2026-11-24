@@ -1779,7 +1779,9 @@ export const BizzDynamics: React.FC<BizzDynamicsProps> = ({
             state={modelState}
             onUpdateState={setModelState}
             subTab={fundingTab}
-            onSelectSubTab={setFundingTab}
+            onSelectSubTab={(tab) => {
+              if (tab === 'dynamics' || tab === 'what-if') setFundingTab(tab);
+            }}
           />
         )}
 

@@ -9,6 +9,7 @@ import {
   UnitCostDynamicsResult,
   VariableCostSummaryResult,
 } from './modelSetTypes';
+import { formatUnitCostValue } from './continuousProductionEngine';
 
 export interface UnitCostDynamicsSource {
   production: ProductionSummaryResult;
@@ -168,7 +169,7 @@ export const UnitCostDynamicsPanel: React.FC<UnitCostDynamicsPanelProps> = ({
                     {stream.sharePct.toFixed(1)}%
                   </td>
                   <td className="py-2.5 pl-2 text-right font-bold tabular-nums text-slate-900 dark:text-white">
-                    {stream.unitCost.toFixed(2)}
+                    {formatUnitCostValue(stream.unitCost)}
                   </td>
                 </tr>
               ))}
@@ -182,7 +183,7 @@ export const UnitCostDynamicsPanel: React.FC<UnitCostDynamicsPanelProps> = ({
                   100.0%
                 </td>
                 <td className="py-2.5 px-2 text-right font-bold tabular-nums text-slate-900 dark:text-white">
-                  {dynamics.calculatedUnitCost.toFixed(2)}
+                  {formatUnitCostValue(dynamics.calculatedUnitCost)}
                 </td>
               </tr>
 
@@ -240,10 +241,10 @@ export const UnitCostDynamicsPanel: React.FC<UnitCostDynamicsPanelProps> = ({
             </div>
             <div className="text-right">
               <span className="text-xl font-bold tabular-nums text-[#2E5E88] dark:text-white block">
-                {dynamics.modeledUnitCost.toFixed(2)}
+                {formatUnitCostValue(dynamics.modeledUnitCost)}
               </span>
               <span className="text-[10px] tabular-nums text-rose-600 dark:text-rose-400">
-                results line 3: -{dynamics.modeledUnitCost.toFixed(2)}
+                results line 3: -{formatUnitCostValue(dynamics.modeledUnitCost)}
               </span>
             </div>
           </div>
@@ -304,7 +305,7 @@ export const UnitCostDynamicsPanel: React.FC<UnitCostDynamicsPanelProps> = ({
                   </span>
                 </div>
                 <span className="text-sm font-bold tabular-nums text-rose-600 dark:text-rose-400">
-                  -{dynamics.modeledUnitCost.toFixed(2)}
+                  -{formatUnitCostValue(dynamics.modeledUnitCost)}
                 </span>
               </div>
 

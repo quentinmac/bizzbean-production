@@ -105,7 +105,7 @@ export default function BizzPlanLayout({
             {[
               { id: 'bizzcalc', label: 'bizzcalc' },
               { id: 'bizzdynamics', label: 'bizzdynamics' },
-              { id: 'rolling-forecast', label: 'rolling forecast' },
+              { id: 'rolling-forecast', label: 'bizzoptimizer' },
               { id: 'bizzmodel', label: 'bizzmodel' },
               { id: 'bizzplan', label: 'bizzplan' },
             ].map((tab) => {

@@ -7,9 +7,12 @@ import {
   VariableCostSummaryResult,
 } from './modelSetTypes';
 
+import { formatUnitCostValue } from './continuousProductionEngine';
+
 interface ProductionVariableCostsPanelProps {
   theme?: 'light' | 'dark';
   stepNumber?: number;
+  mode?: 'batch' | 'continuous';
   batchSourceLabel?: string;
   items: ProductionVariableCostItem[];
   summary: VariableCostSummaryResult;
@@ -22,6 +25,7 @@ interface ProductionVariableCostsPanelProps {
 export const ProductionVariableCostsPanel: React.FC<ProductionVariableCostsPanelProps> = ({
   theme = 'light',
   stepNumber = 5,
+  mode = 'batch',
   batchSourceLabel = 'constraining process',
   items,
   summary,
@@ -40,13 +44,15 @@ export const ProductionVariableCostsPanel: React.FC<ProductionVariableCostsPanel
     onChange(items.map((it) => (it.id === id ? { ...it, [field]: value } : it)));
   };
 
+  const isContinuous = mode === 'continuous';
+
   const handleAddItem = () => {
     const newItem: ProductionVariableCostItem = {
       id: `var-${Date.now()}`,
       name: `Variable Cost ${items.length + 1}`,
-      basis: 'per_batch',
+      basis: isContinuous ? 'per_day' : 'per_batch',
       usage: 1,
-      usageUnit: 'batch',
+      usageUnit: isContinuous ? 'day' : 'batch',
       unitRate: 10,
     };
     onChange([...items, newItem]);
@@ -79,7 +85,9 @@ export const ProductionVariableCostsPanel: React.FC<ProductionVariableCostsPanel
             {stepNumber}. Production Variable Costs
           </h3>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-            Direct utilities, energy, maintenance, and other variable costs driven by batch production or unit output.
+            {isContinuous
+              ? 'Direct utilities, energy, maintenance, and other variable costs driven by daily line runs, operating hours, or unit output.'
+              : 'Direct utilities, energy, maintenance, and other variable costs driven by batch production or unit output.'}
           </p>
         </div>
 
@@ -93,7 +101,7 @@ export const ProductionVariableCostsPanel: React.FC<ProductionVariableCostsPanel
         </button>
       </div>
 
-      {/* Reference Batch Size Bar */}
+      {/* Reference Batch / Daily Run Size Bar */}
       <div
         className={`flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl border text-xs ${
           isDark
@@ -103,11 +111,15 @@ export const ProductionVariableCostsPanel: React.FC<ProductionVariableCostsPanel
       >
         <div>
           <span className="font-bold text-slate-800 dark:text-slate-200">
-            reference batch quantity: {summary.referenceBatchUnits.toLocaleString()} units / batch
+            {isContinuous
+              ? `reference daily run quantity: ${summary.referenceBatchUnits.toLocaleString()} units / day`
+              : `reference batch quantity: ${summary.referenceBatchUnits.toLocaleString()} units / batch`}
           </span>
           <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
             {referenceBatchSizeOverride > 0
-              ? `using custom batch divisor override (set to 0 to sync automatically with ${batchSourceLabel})`
+              ? `using custom ${isContinuous ? 'daily run' : 'batch'} divisor override (set to 0 to sync automatically with ${batchSourceLabel})`
+              : isContinuous
+              ? `synced from ${batchSourceLabel} (${Math.round(production.bottleneckUnitsPerBatch).toLocaleString()} gross units/day · ${production.bottleneckCyclesPerDay.toFixed(1)} hrs/day)`
               : `synced from ${batchSourceLabel} (${production.bottleneckUnitsPerBatch.toLocaleString()} units/batch)`}
           </span>
         </div>
@@ -115,7 +127,7 @@ export const ProductionVariableCostsPanel: React.FC<ProductionVariableCostsPanel
         {onChangeReferenceBatchOverride && (
           <div className="flex items-center gap-2 shrink-0">
             <label className="text-[11px] text-slate-500 dark:text-slate-400 lowercase">
-              override batch qty:
+              {isContinuous ? 'override daily qty:' : 'override batch qty:'}
             </label>
             <input
               type="number"
@@ -171,7 +183,9 @@ export const ProductionVariableCostsPanel: React.FC<ProductionVariableCostsPanel
                 <th className="py-2.5 px-2 text-right font-bold w-24">usage</th>
                 <th className="py-2.5 px-2 text-center font-bold w-20">unit</th>
                 <th className="py-2.5 px-2 text-right font-bold w-28">cost / rate</th>
-                <th className="py-2.5 px-2 text-right font-bold w-28">batch cost</th>
+                <th className="py-2.5 px-2 text-right font-bold w-28">
+                  {isContinuous ? 'daily cost' : 'batch cost'}
+                </th>
                 <th className="py-2.5 px-3 text-right font-bold w-28 text-[#2E5E88] dark:text-[#6BA3D6]">
                   unit cost
                 </th>
@@ -207,8 +221,18 @@ export const ProductionVariableCostsPanel: React.FC<ProductionVariableCostsPanel
                             : 'bg-white border-[#D8CEBC] text-slate-900'
                         }`}
                       >
-                        <option value="per_batch">per batch</option>
-                        <option value="per_unit">per unit</option>
+                        {isContinuous ? (
+                          <>
+                            <option value="per_day">per day (run)</option>
+                            <option value="per_hour">per hour</option>
+                            <option value="per_unit">per unit</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="per_batch">per batch</option>
+                            <option value="per_unit">per unit</option>
+                          </>
+                        )}
                       </select>
                     </td>
                     <td className="py-2 px-2">
@@ -251,7 +275,7 @@ export const ProductionVariableCostsPanel: React.FC<ProductionVariableCostsPanel
                       {(res?.batchCost ?? 0).toFixed(2)}
                     </td>
                     <td className="py-2 px-3 text-right font-bold tabular-nums text-[#2E5E88] dark:text-[#6BA3D6]">
-                      {(res?.unitCost ?? 0).toFixed(2)}
+                      {formatUnitCostValue(res?.unitCost ?? 0)}
                     </td>
                     <td className="py-2 px-2 text-center">
                       <button
@@ -283,7 +307,7 @@ export const ProductionVariableCostsPanel: React.FC<ProductionVariableCostsPanel
                   {summary.totalBatchVariableCost.toFixed(2)}
                 </td>
                 <td className="py-2.5 px-3 text-right tabular-nums text-sm text-[#2E5E88] dark:text-[#6BA3D6]">
-                  {summary.totalVariableUnitCost.toFixed(2)}
+                  {formatUnitCostValue(summary.totalVariableUnitCost)}
                 </td>
                 <td></td>
               </tr>

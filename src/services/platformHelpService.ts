@@ -33,7 +33,7 @@ export const PLATFORM_HELP_APPS: Array<{
   { id: 'bizzcalc', label: 'bizzcalc', description: '12-month scenario & mobile financial calculator' },
   { id: 'bizzdynamics', label: 'bizzdynamics', description: '5-year dynamic base rate simulation & educational model' },
   { id: 'bizzmodel', label: 'bizzmodel', description: '5-year 3-statement integrated financial model' },
-  { id: 'rolling-forecast', label: 'rolling forecast', description: 'management accounts YTD actuals, 60-month forecast & what-if simulator' },
+  { id: 'rolling-forecast', label: 'bizzoptimizer', description: 'YTD actuals, 60-month forecast, what-if & actions to improve' },
 ];
 
 export const PLATFORM_HELP_STEPS: Array<{
@@ -329,61 +329,61 @@ export const DEFAULT_PLATFORM_HELP: PlatformHelpMap = {
     'ytd-actuals': {
       title: 'actuals ytd assistance',
       purposeLabel: 'BIZZMODEL Purpose',
-      purpose: 'YTD management accounts input is available in Rolling Forecast.',
+      purpose: 'YTD management accounts input is available in BizzOptimizer.',
       sectionHeading: 'How to Navigate Steps',
-      bullets: ['Switch to Rolling Forecast for streamlined YTD management accounts forecasting.'],
+      bullets: ['Switch to BizzOptimizer for streamlined YTD management accounts forecasting and performance action plans.'],
     },
   },
   'rolling-forecast': {
     setup: {
       title: 'business details assistance',
-      purposeLabel: 'ROLLING FORECAST Purpose',
+      purposeLabel: 'BIZZOPTIMIZER Purpose',
       purpose:
-        'Streamlined 5-step rolling forecast powered by your YTD management accounts (Trading Account & Balance Sheet) and the full 60-month 3-statement engine.',
+        'Streamlined 5-step performance optimizer powered by your YTD management accounts (Trading Account & Balance Sheet), 60-month forecast, What-If simulator, and Actions to Improve.',
       sectionHeading: 'How to Configure Business Details',
       bullets: [
-        'Use the 5 streamlined bottom dock icons: Business Details, Actuals YTD, Fixed Assets, Funding & What-If, and Reports.',
+        'Use the 5 streamlined bottom dock icons: Business Details, Actuals YTD, Fixed Assets, Funding Calculator, and Reports.',
         'Select your Update Month (1–12) to define how many months of YTD actuals you are entering — elapsed working days are computed automatically.',
         'Set VAT %, Corporate Tax %, Bank Interest %, and Overdraft Interest % directly inside the Assumptions tab.',
       ],
     },
     'ytd-actuals': {
       title: 'actuals ytd assistance',
-      purposeLabel: 'ROLLING FORECAST Purpose',
+      purposeLabel: 'BIZZOPTIMIZER Purpose',
       purpose:
         'Capture your year-to-date Trading Account and Balance Sheet from management accounts to anchor Daily Revenue, cost distribution, and Working Capital days across the remaining 60-month forecast.',
       sectionHeading: 'How Management Accounts Drive the Forecast',
       bullets: [
         'Daily Revenue is calculated as YTD Revenue divided by elapsed working days through your selected Update Month.',
         'Your YTD Trading Account ratios (or fixed monthly run-rate mode) automatically project the balance of the 60-month forecast.',
-        'Inventory, Receivables, and Payables closing balances derive DIO, DSO, and DPO days and sync directly to Funding & What-If.',
+        'Inventory, Receivables, and Payables closing balances derive DIO, DSO, and DPO days and sync directly to Funding Calculator & What-If.',
         'Fixed Assets NBV, Share Capital, Equity Loans, and Term Loans update dynamically from the Fixed Assets and Funding steps.',
       ],
     },
     revenue: {
       title: 'revenue calculator (streamlined)',
-      purposeLabel: 'ROLLING FORECAST Purpose',
+      purposeLabel: 'BIZZOPTIMIZER Purpose',
       purpose: 'Revenue is derived directly from your YTD Trading Account inside Step 02 (Actuals YTD).',
       sectionHeading: 'Streamlined Workflow',
       bullets: ['Enter YTD Revenue in Actuals YTD to compute Daily Revenue and project Months U+1 to 60 automatically.'],
     },
     employment: {
       title: 'employment (streamlined)',
-      purposeLabel: 'ROLLING FORECAST Purpose',
+      purposeLabel: 'BIZZOPTIMIZER Purpose',
       purpose: 'Direct COS and Opex employment costs are captured in your YTD Trading Account inside Step 02 (Actuals YTD).',
       sectionHeading: 'Streamlined Workflow',
       bullets: ['Update YTD COS Employment and Opex Employment in Actuals YTD to project staffing costs across the 60-month forecast.'],
     },
     opex: {
       title: 'operating expenses (streamlined)',
-      purposeLabel: 'ROLLING FORECAST Purpose',
+      purposeLabel: 'BIZZOPTIMIZER Purpose',
       purpose: 'Variable and fixed operating overheads are captured in your YTD Trading Account inside Step 02 (Actuals YTD).',
       sectionHeading: 'Streamlined Workflow',
       bullets: ['Update YTD Opex Variable and Overheads in Actuals YTD to project operating expenses across the 60-month forecast.'],
     },
     'fixed-assets': {
       title: 'fixed assets assistance',
-      purposeLabel: 'ROLLING FORECAST Purpose',
+      purposeLabel: 'BIZZOPTIMIZER Purpose',
       purpose:
         'Capture opening fixed assets (purchased prior to the financial year) plus any planned replacement or expansion CAPEX over the 60-month horizon.',
       sectionHeading: 'How Fixed Assets Link to Actuals YTD',
@@ -393,20 +393,20 @@ export const DEFAULT_PLATFORM_HELP: PlatformHelpMap = {
       ],
     },
     funding: {
-      title: 'funding & what-if assistance',
-      purposeLabel: 'ROLLING FORECAST Purpose',
+      title: 'funding calculator, what-if & actions to improve',
+      purposeLabel: 'BIZZOPTIMIZER Purpose',
       purpose:
-        'Configure opening Share Capital, Equity Loans, Term Loans, and Other Assets — then launch the What-If simulator to stress-test revenue, margins, overheads, and working capital days.',
-      sectionHeading: 'Using Dynamics & What-If',
+        'Configure opening funding dynamics, stress-test What-If scenarios, set Return on Sales & Asset Turn objectives, and assign improvement action plans to departmental Performance Leaders.',
+      sectionHeading: 'Using Dynamics, What-If & Actions to Improve',
       bullets: [
-        'In Dynamics, capture shares in issue & issue price, equity loans in operation, term loans, and future Other Assets adjustments.',
+        'In Dynamics, capture shares in issue, equity loans, term loans, and Other Assets adjustments.',
         'Switch to What If to run live sensitivity scenarios on top of your management-accounts-based 60-month forecast.',
-        'Derived DIO, DSO, and DPO days from your Balance Sheet automatically pre-load into Working Capital and What-If controls.',
+        'Open Actions to Improve to set desired Return on Sales and Asset Turn targets, review Performance Leader snapshots, open editable touch-point improvement hints (products, customers, suppliers, systems, infrastructure), and manage your Programme of Actions.',
       ],
     },
     reports: {
       title: 'reports assistance',
-      purposeLabel: 'ROLLING FORECAST Purpose',
+      purposeLabel: 'BIZZOPTIMIZER Purpose',
       purpose:
         'Full 60-month 3-statement financial reports (Trading Account, Distribution, Income Statement, Balance Sheet, Cash Flow, and VAT Ledger) reconciling YTD actuals with projected months.',
       sectionHeading: 'How to Review Forecast Statements',

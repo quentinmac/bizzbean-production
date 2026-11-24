@@ -72,7 +72,7 @@ const QUICK_APPS = [
   { id: 'bizzcalc', name: 'bizzcalc', desc: '12-month scenario & unit economics calculator' },
   { id: 'bizzdynamics', name: 'bizzdynamics', desc: '5-year interactive rate adjustment engine' },
   { id: 'bizzmodel', name: 'bizzmodel', desc: '3-statement financial model + bizzplan + pitch deck' },
-  { id: 'rolling-forecast', name: 'rolling forecast', desc: 'ongoing prior-year balance sheet variance engine' },
+  { id: 'rolling-forecast', name: 'bizzoptimizer', desc: 'ytd actuals, ratio objectives & actions to improve' },
 ];
 
 export const LandingWireframeModal: React.FC<LandingWireframeModalProps> = ({

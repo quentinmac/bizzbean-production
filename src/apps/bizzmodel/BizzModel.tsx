@@ -300,6 +300,7 @@ export const BizzModel: React.FC<BizzModelProps> = ({
   const [activeStep, setActiveStep] = useState<string>(initialStep);
   const [isStepBizzPlanActive, setIsStepBizzPlanActive] = useState<boolean>(false);
   const [isStepPitchDeckActive, setIsStepPitchDeckActive] = useState<boolean>(false);
+  const [isStepBizzBoxActive, setIsStepBizzBoxActive] = useState<boolean>(false);
 
   // Synchronized subtab (assumptions | results | charts) persistent across all steps and apps
   const [activeSubTab, setActiveSubTabState] = useState<'assumptions' | 'results' | 'charts'>(() => {
@@ -334,8 +335,8 @@ export const BizzModel: React.FC<BizzModelProps> = ({
   const stepSubTab = activeSubTab;
   const setStepSubTab = setActiveSubTab;
 
-  // Funding subtab ('dynamics' | 'what-if')
-  const [fundingTab, setFundingTab] = useState<'dynamics' | 'what-if'>('dynamics');
+  // Funding subtab ('dynamics' | 'what-if' | 'actions-to-improve')
+  const [fundingTab, setFundingTab] = useState<'dynamics' | 'what-if' | 'actions-to-improve'>('dynamics');
 
   // Storage key based on mode
   const storageKey =
@@ -371,6 +372,17 @@ export const BizzModel: React.FC<BizzModelProps> = ({
             hiLevelActuals: parsed.hiLevelActuals
               ? { ...fallback.hiLevelActuals, ...parsed.hiLevelActuals }
               : fallback.hiLevelActuals,
+            bizzOptimizer: parsed.bizzOptimizer
+              ? {
+                  targets: {
+                    ...(fallback.bizzOptimizer?.targets || { targetRosPct: null, targetAssetTurn: null }),
+                    ...(parsed.bizzOptimizer.targets || {}),
+                  },
+                  actions: Array.isArray(parsed.bizzOptimizer.actions)
+                    ? parsed.bizzOptimizer.actions
+                    : [],
+                }
+              : fallback.bizzOptimizer,
           };
         }
       } catch (e) {
@@ -413,6 +425,12 @@ export const BizzModel: React.FC<BizzModelProps> = ({
       setActiveStep('ytd-actuals');
     } else if (currentMode !== 'rolling-forecast' && activeStep === 'ytd-actuals') {
       setActiveStep('setup');
+    }
+    if (activeStep !== 'revenue') {
+      setIsStepBizzBoxActive(false);
+    }
+    if (currentMode !== 'rolling-forecast' && fundingTab === 'actions-to-improve') {
+      setFundingTab('dynamics');
     }
   }, [currentMode, activeStep]);
 
@@ -496,6 +514,8 @@ export const BizzModel: React.FC<BizzModelProps> = ({
       onSelectBizzPlanTab={currentMode === 'rolling-forecast' || activeAppTab === 'rolling-forecast' ? undefined : setIsStepBizzPlanActive}
       isPitchDeckTabActive={currentMode !== 'rolling-forecast' && activeAppTab !== 'rolling-forecast' && isStepPitchDeckActive}
       onSelectPitchDeckTab={currentMode === 'rolling-forecast' || activeAppTab === 'rolling-forecast' ? undefined : setIsStepPitchDeckActive}
+      isBizzBoxTabActive={activeStep === 'revenue' && isStepBizzBoxActive}
+      onSelectBizzBoxTab={activeStep === 'revenue' ? setIsStepBizzBoxActive : undefined}
       onClose={onClose}
     >
       {/* 1. PLATFORM FORECAST APP STEPS (bizzmodel, rolling-forecast) */}
@@ -554,8 +574,11 @@ export const BizzModel: React.FC<BizzModelProps> = ({
               mode={currentMode}
               state={state}
               onUpdateState={setState}
-              subTab={stepSubTab}
-              onSelectSubTab={setStepSubTab}
+              subTab={isStepBizzBoxActive ? 'bizzbox' : stepSubTab}
+              onSelectSubTab={(tab) => {
+                setIsStepBizzBoxActive(false);
+                setStepSubTab(tab);
+              }}
             />
           )}
 

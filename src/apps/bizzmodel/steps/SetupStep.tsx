@@ -514,7 +514,7 @@ export const SetupStep: React.FC<SetupStepProps> = ({
               BUSINESS DETAILS & SETUP
             </h1>
             <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-[#2E5E88]/10 text-[#2E5E88] dark:text-[#5584B4]">
-              {isHiLevelForecast ? 'rolling forecast' : mode}
+              {isHiLevelForecast ? 'bizzoptimizer' : mode}
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
