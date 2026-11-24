@@ -8,6 +8,11 @@ import emailRouter from './src/server/emailRouter.ts';
 
 import { exec } from 'child_process';
 import { GoogleGenAI, Type } from '@google/genai';
+import {
+  generateSitemapXml,
+  renderSeoHtml,
+  SITE_ORIGIN,
+} from './src/shared/seoRoutes.ts';
 
 dotenv.config();
 
@@ -845,18 +850,11 @@ Strict Quality Rules:
     });
   });
 
-  // Explicit Sitemap Handler: Guarantees text/xml response to Googlebot and web crawlers
+  // Explicit Sitemap Handler: Always serves clean multi-page public URLs
   app.get('/sitemap.xml', (_req, res) => {
     res.setHeader('Content-Type', 'text/xml; charset=UTF-8');
-    const sitemapPath = path.resolve(__dirname, 'public', 'sitemap.xml');
-    if (fs.existsSync(sitemapPath)) {
-      return res.sendFile(sitemapPath);
-    }
-    const distSitemap = path.resolve(__dirname, 'dist', 'sitemap.xml');
-    if (fs.existsSync(distSitemap)) {
-      return res.sendFile(distSitemap);
-    }
-    return res.status(404).send('Sitemap not found');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    return res.send(generateSitemapXml(SITE_ORIGIN));
   });
 
   // Explicit Robots Handler: Guarantees text/plain response
@@ -873,26 +871,69 @@ Strict Quality Rules:
     return res.status(404).send('Robots.txt not found');
   });
 
+  const toQueryRecord = (q: Record<string, unknown>): Record<string, string | undefined> => {
+    const out: Record<string, string | undefined> = {};
+    for (const [k, v] of Object.entries(q || {})) {
+      if (typeof v === 'string') out[k] = v;
+      else if (Array.isArray(v) && typeof v[0] === 'string') out[k] = v[0];
+    }
+    return out;
+  };
+
+  const isAssetOrApi = (p: string): boolean => {
+    if (p.startsWith('/api/')) return true;
+    return /\.(js|mjs|cjs|css|map|png|jpe?g|gif|svg|webp|ico|woff2?|ttf|eot|json|xml|txt|pdf|xlsx?|xlsm|mp4|webm|mp3)$/i.test(p);
+  };
+
   if (process.env.NODE_ENV === 'production') {
+    const distDir = path.resolve(__dirname, 'dist');
+    const distIndexPath = path.resolve(distDir, 'index.html');
     // Serve static files in production
-    app.use(express.static(path.resolve(__dirname, 'dist'), {
+    app.use(express.static(distDir, {
       maxAge: '1h',
       index: false,
     }));
-    app.get('*', (_req, res) => {
+    app.get('*', (req, res) => {
+      if (isAssetOrApi(req.path)) {
+        return res.status(404).end();
+      }
+      res.setHeader('Content-Type', 'text/html; charset=UTF-8');
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
-      res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+      try {
+        const template = fs.readFileSync(distIndexPath, 'utf-8');
+        const seoHtml = renderSeoHtml(template, req.path, toQueryRecord(req.query as Record<string, unknown>), SITE_ORIGIN);
+        return res.status(200).send(seoHtml);
+      } catch {
+        return res.sendFile(distIndexPath);
+      }
     });
   } else {
-    // Vite dev server middleware in development
+    // Vite dev server middleware in development with per-route SEO HTML injection
     const { createServer } = await import('vite');
     const vite = await createServer({
       server: { middlewareMode: true },
-      appType: 'spa',
+      appType: 'custom',
     });
     app.use(vite.middlewares);
+
+    app.get('*', async (req, res, next) => {
+      if (isAssetOrApi(req.path)) {
+        return res.status(404).end();
+      }
+      try {
+        const url = req.originalUrl;
+        const devIndexPath = path.resolve(__dirname, 'index.html');
+        let template = fs.readFileSync(devIndexPath, 'utf-8');
+        template = await vite.transformIndexHtml(url, template);
+        const seoHtml = renderSeoHtml(template, req.path, toQueryRecord(req.query as Record<string, unknown>), SITE_ORIGIN);
+        res.status(200).set({ 'Content-Type': 'text/html; charset=UTF-8' }).end(seoHtml);
+      } catch (err) {
+        vite.ssrFixStacktrace(err as Error);
+        next(err);
+      }
+    });
   }
 
   app.listen(PORT, '0.0.0.0', () => {

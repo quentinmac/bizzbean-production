@@ -1,3 +1,11 @@
+import {
+  isNoIndexRoute,
+  normalizePathname,
+  resolveSeoRouteByPath,
+  resolveSeoRouteFromState,
+  SITE_ORIGIN,
+} from '../shared/seoRoutes';
+
 export type DeepLinkView =
   | 'flashcard'
   | 'active-app'
@@ -145,6 +153,7 @@ export function parseDeepLinkFromSearch(search: string): ParsedDeepLink {
     });
 
     const stageParam = normalizeToken(params.get('stage'));
+    const sectionParam = normalizeToken(params.get('section'));
     const solParam = normalizeToken(
       params.get('solution') || params.get('app') || params.get('product')
     );
@@ -160,6 +169,18 @@ export function parseDeepLinkFromSearch(search: string): ParsedDeepLink {
     let resolvedView: DeepLinkView | undefined = VALID_VIEWS.has(viewParam as DeepLinkView)
       ? (viewParam as DeepLinkView)
       : undefined;
+
+    if (sectionParam === 'about') {
+      resolvedView = 'about';
+      resolvedSolution = 'about-bizzbean';
+    } else if (
+      sectionParam === 'talk-to-us' ||
+      sectionParam === 'privacy-policy' ||
+      sectionParam === 'terms-of-service'
+    ) {
+      resolvedView = 'footer';
+      resolvedSolution = 'website-footer';
+    }
     const launch = launchParam === '1' || launchParam === 'true' || launchParam === 'yes';
 
     if (courseParam) {
@@ -279,3 +300,188 @@ export function buildDeepLinkSearch(opts: {
     return '';
   }
 }
+
+/**
+ * Parses clean multi-page pathnames (e.g. /library, /vi-ability, /bizzoptimizer, /about)
+ * with automatic fallback to legacy query-string parameters (?stage=..., ?solution=..., ?view=...).
+ */
+export function parseDeepLinkFromLocation(pathname: string, search: string): ParsedDeepLink {
+  const fromSearch = parseDeepLinkFromSearch(search);
+  const cleanPath = normalizePathname(pathname);
+
+  if (!cleanPath || cleanPath === '/') {
+    return fromSearch;
+  }
+
+  // Hidden/admin internal paths that still map cleanly if navigated directly
+  if (cleanPath === '/operations' || cleanPath === '/operations-sandbox') {
+    const stageId = cleanPath.slice(1);
+    return {
+      hasDeepLink: true,
+      stageId,
+      solutionId: STAGE_DEFAULT_SOLUTION[stageId] || 'bizzmoney',
+      view: fromSearch.view || 'flashcard',
+      launch: fromSearch.launch,
+      rawParams: fromSearch.rawParams,
+    };
+  }
+  if (cleanPath === '/growth' || cleanPath === '/growth-strategy') {
+    return {
+      hasDeepLink: true,
+      stageId: 'growth',
+      solutionId: 'growth-strategy',
+      view: fromSearch.view || 'flashcard',
+      launch: fromSearch.launch,
+      rawParams: fromSearch.rawParams,
+    };
+  }
+  if (cleanPath === '/ask-gemini' || cleanPath === '/gim') {
+    return {
+      hasDeepLink: true,
+      solutionId: 'ask-gemini',
+      view: 'ask-gemini',
+      launch: fromSearch.launch,
+      rawParams: fromSearch.rawParams,
+    };
+  }
+  if (cleanPath === '/admin-centre' || cleanPath === '/administration-centre') {
+    return {
+      hasDeepLink: true,
+      solutionId: 'administration-centre',
+      view: 'admin-centre',
+      launch: fromSearch.launch,
+      rawParams: fromSearch.rawParams,
+    };
+  }
+
+  // Match against authoritative public SEO route table (including aliases like /rolling-forecast -> /bizzoptimizer)
+  const seoRoute = resolveSeoRouteByPath(cleanPath);
+  if (seoRoute && seoRoute.path !== '/') {
+    const targetSol = seoRoute.routeState.solutionId;
+    const launch = Boolean(fromSearch.launch);
+    let resolvedView: DeepLinkView = fromSearch.view || seoRoute.routeState.view;
+    if (launch && targetSol && resolvedView === 'flashcard') {
+      resolvedView = COURSE_IDS.has(targetSol) ? 'bizzclass' : 'active-app';
+    }
+    return {
+      hasDeepLink: true,
+      stageId: seoRoute.routeState.stageId || fromSearch.stageId,
+      solutionId: targetSol || fromSearch.solutionId,
+      view: resolvedView,
+      launch,
+      rawParams: fromSearch.rawParams,
+    };
+  }
+
+  return fromSearch;
+}
+
+/**
+ * Builds clean multi-page path URLs (e.g. /vi-ability, /library, /bizzoptimizer, /about)
+ * while preserving marketing attribution params (utm_*, gclid, fbclid) and special views.
+ */
+export function buildCleanPathUrl(opts: {
+  stageId?: string;
+  solutionId?: string;
+  view?: DeepLinkView;
+  existingSearch?: string;
+}): string {
+  try {
+    const current = new URLSearchParams(opts.existingSearch || '');
+    const preserved = new URLSearchParams();
+    const preservedKeys = [
+      'utm_source',
+      'utm_medium',
+      'utm_campaign',
+      'utm_term',
+      'utm_content',
+      'gclid',
+      'fbclid',
+      'debug_mode',
+      'ga_debug',
+    ];
+    preservedKeys.forEach((k) => {
+      const val = current.get(k);
+      if (val) preserved.set(k, val);
+    });
+
+    let pathname = '/';
+    if (opts.view === 'ask-gemini') {
+      pathname = '/ask-gemini';
+    } else if (opts.view === 'admin-centre') {
+      pathname = '/admin-centre';
+    } else if (opts.stageId === 'operations' || opts.stageId === 'operations-sandbox' || opts.stageId === 'growth') {
+      pathname = `/${opts.stageId}`;
+    } else {
+      const route = resolveSeoRouteFromState({
+        view: opts.view,
+        stageId: opts.stageId,
+        solutionId: opts.solutionId,
+      });
+      pathname = route.path;
+      if (opts.view === 'active-app' || opts.view === 'bizzclass') {
+        preserved.set('view', opts.view);
+      }
+    }
+
+    const qs = preserved.toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+  } catch {
+    return '/';
+  }
+}
+
+/**
+ * Keeps browser <title>, meta description, robots, canonical link, and OG/Twitter tags
+ * cleanly synchronized on client-side page transitions.
+ */
+export function syncClientSeoMeta(opts: {
+  view?: DeepLinkView;
+  stageId?: string;
+  solutionId?: string;
+  pathname?: string;
+}): void {
+  if (typeof document === 'undefined') return;
+  try {
+    const route = resolveSeoRouteFromState({
+      view: opts.view,
+      stageId: opts.stageId,
+      solutionId: opts.solutionId,
+    });
+    const activePath = opts.pathname || route.path;
+    const noIndex = isNoIndexRoute(activePath, typeof window !== 'undefined' ? window.location.search : '');
+    const canonicalUrl =
+      route.path === '/' ? `${SITE_ORIGIN}/` : `${SITE_ORIGIN}${route.path}`;
+
+    document.title = route.title;
+
+    const upsertMeta = (attr: 'name' | 'property', key: string, content: string) => {
+      let el = document.querySelector(`meta[${attr}="${key}"]`);
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute(attr, key);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', content);
+    };
+
+    upsertMeta('name', 'description', route.description);
+    upsertMeta('name', 'robots', noIndex ? 'noindex, nofollow' : 'index, follow');
+    upsertMeta('property', 'og:title', route.title);
+    upsertMeta('property', 'og:description', route.description);
+    upsertMeta('property', 'og:url', canonicalUrl);
+    upsertMeta('name', 'twitter:title', route.title);
+    upsertMeta('name', 'twitter:description', route.description);
+
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute('href', canonicalUrl);
+  } catch {
+    // ignore DOM sync errors
+  }
+}
+

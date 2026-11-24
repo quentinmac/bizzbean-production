@@ -62,7 +62,12 @@ import {
   markWelcomeEmailDispatched,
 } from './services/onboardingAuditService';
 import { recordTransactionToJournal, upsertClientProfile } from './services/transactionJournalService';
-import { parseDeepLinkFromSearch, buildDeepLinkSearch, inferStageForSolution } from './utils/deepLink';
+import {
+  parseDeepLinkFromLocation,
+  buildCleanPathUrl,
+  syncClientSeoMeta,
+  inferStageForSolution,
+} from './utils/deepLink';
 import {
   initAnalytics,
   trackPageView,
@@ -100,13 +105,18 @@ import {
 } from 'lucide-react';
 
 export default function App() {
-  // Parse deep-link parameters (?stage=...&solution=...&view=...&course=...&launch=1) once on mount
+  // Parse clean multi-page URLs (/vi-ability, /library, /bizzoptimizer, /about, etc.) or legacy query params once on mount
   const initialDeepLink = useMemo(
-    () => parseDeepLinkFromSearch(typeof window !== 'undefined' ? window.location.search : ''),
+    () =>
+      parseDeepLinkFromLocation(
+        typeof window !== 'undefined' ? window.location.pathname : '/',
+        typeof window !== 'undefined' ? window.location.search : ''
+      ),
     []
   );
+  const isPopStateNavRef = React.useRef(false);
 
-  // Navigation / View state (bypass splash doors automatically on ad/share deep-links)
+  // Navigation / View state (bypass splash doors automatically on direct page URLs or deep-links)
   const [inSplashDoors, setInSplashDoors] = useState<boolean>(() => !initialDeepLink.hasDeepLink);
   const [showWelcomeLetter, setShowWelcomeLetter] = useState<boolean>(false);
   const [bookNotice, setBookNotice] = useState<string | null>(null);
@@ -1022,46 +1032,73 @@ export default function App() {
       };
     }, [activeSolutionId, cmsProducts, userPurchases]);
 
-  // Sync URL query params for shareable deep-links & fire GA4 SPA page_view / view_item events
+  // Support browser Back / Forward buttons cleanly across multi-page bizz-DESK routes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handlePopState = () => {
+      const parsed = parseDeepLinkFromLocation(
+        window.location.pathname,
+        window.location.search
+      );
+      isPopStateNavRef.current = true;
+      if (!parsed.hasDeepLink && window.location.pathname === '/') {
+        setActiveStageId('vi-ability');
+        setActiveSolutionId('learn-earn-capital');
+        setActiveView('flashcard');
+        return;
+      }
+      setInSplashDoors(false);
+      if (parsed.stageId) setActiveStageId(parsed.stageId);
+      if (parsed.solutionId) setActiveSolutionId(parsed.solutionId);
+      if (parsed.view) setActiveView(parsed.view);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Sync clean multi-page SEO URLs, browser <title>/meta tags & fire GA4 page_view / view_item events
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (inSplashDoors) {
-      trackPageView('/splash-doors', 'bizz-DESK | Welcome Doors', {
+      syncClientSeoMeta({ view: 'flashcard', stageId: 'vi-ability', solutionId: 'learn-earn-capital', pathname: '/' });
+      trackPageView('/', 'bizzbean — Startup Financial Modeling & BOM Calculators', {
         screen_name: 'splash_doors',
       });
       return;
     }
 
-    try {
-      if (!window.location.search.includes('payfast_status=')) {
-        const nextSearch = buildDeepLinkSearch({
-          stageId: activeStageId,
-          solutionId: activeSolutionId,
-          view: activeView,
-          existingSearch: window.location.search,
-        });
-        const nextUrl = `${window.location.pathname}${nextSearch}`;
-        const currentUrl = `${window.location.pathname}${window.location.search}`;
-        if (nextUrl !== currentUrl) {
-          window.history.replaceState({}, document.title, nextUrl);
-        }
-      }
-    } catch {}
-
-    const viewLabel =
-      activeView === 'flashcard' || activeView === 'active-app' || activeView === 'bizzclass'
-        ? `${activeStageId} / ${activeSolution?.name || activeSolutionId} (${activeView})`
-        : activeView;
-
-    const virtualPath = buildDeepLinkSearch({
+    const nextUrl = buildCleanPathUrl({
       stageId: activeStageId,
       solutionId: activeSolutionId,
       view: activeView,
+      existingSearch: window.location.search,
+    });
+
+    try {
+      if (!window.location.search.includes('payfast_status=')) {
+        const currentUrl = `${window.location.pathname}${window.location.search}`;
+        if (nextUrl !== currentUrl) {
+          if (isPopStateNavRef.current) {
+            window.history.replaceState({}, document.title, nextUrl);
+          } else {
+            window.history.pushState({}, document.title, nextUrl);
+          }
+        }
+      }
+    } catch {}
+    isPopStateNavRef.current = false;
+
+    const cleanPathname = nextUrl.split('?')[0] || '/';
+    syncClientSeoMeta({
+      view: activeView,
+      stageId: activeStageId,
+      solutionId: activeSolutionId,
+      pathname: cleanPathname,
     });
 
     trackPageView(
-      `/${virtualPath}`,
-      `bizz-DESK | ${viewLabel}`,
+      nextUrl,
+      document.title || `bizzbean | ${activeSolution?.name || activeSolutionId}`,
       {
         stage_id: activeStageId,
         solution_id: activeSolutionId,
@@ -1239,8 +1276,8 @@ export default function App() {
     setIsCalmSolutionsOpen(false);
     setShowPromotion(false);
     try {
-      const cleanQs = buildDeepLinkSearch({ existingSearch: window.location.search });
-      window.history.replaceState({}, document.title, `${window.location.pathname}${cleanQs}`);
+      const cleanHomeUrl = buildCleanPathUrl({ existingSearch: window.location.search });
+      window.history.replaceState({}, document.title, cleanHomeUrl);
     } catch {}
     const nextPromo = getRandomActivePromotion(cmsPromotions);
     if (nextPromo) {

@@ -179,9 +179,15 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
               const isAboutActive = activeSolutionId === 'about-bizzbean';
 
               return (
-                <button
-                  onClick={onSelectAbout}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${getSubtleActiveBtnClass(
+                <a
+                  href="/about"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onSelectAbout();
+                    }
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer ${getSubtleActiveBtnClass(
                     isAboutActive
                   )}`}
                 >
@@ -206,7 +212,7 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
                   ) : (
                     <ChevronRight className="h-3.5 w-3.5 opacity-60 shrink-0" />
                   )}
-                </button>
+                </a>
               );
             })()}
           </div>
@@ -238,9 +244,15 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
                           (activeStageId === sol.id ||
                             (isStartupCategory && activeSolutionId === sol.id));
                         return (
-                          <button
+                          <a
                             key={sol.id}
-                            onClick={() => onSelectSolution(sol.id)}
+                            href={`/${sol.id}`}
+                            onClick={(e) => {
+                              if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                                e.preventDefault();
+                                onSelectSolution(sol.id);
+                              }
+                            }}
                             className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase cursor-pointer ${getSubtleActiveBtnClass(
                               isActive
                             )}`}
@@ -251,7 +263,7 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
                             {isActive && (
                               <ChevronRight className="h-3.5 w-3.5 opacity-75 shrink-0" />
                             )}
-                          </button>
+                          </a>
                         );
                       })}
                     </div>
@@ -315,9 +327,15 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
                             ['videos', 'articles'].includes(activeSolutionId)) &&
                           activeSolutionId === sol.id;
                         return (
-                          <button
+                          <a
                             key={sol.id}
-                            onClick={() => onSelectSolution(sol.id)}
+                            href={`/${sol.id}`}
+                            onClick={(e) => {
+                              if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                                e.preventDefault();
+                                onSelectSolution(sol.id);
+                              }
+                            }}
                             className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all lowercase cursor-pointer ${getSubtleActiveBtnClass(
                               isActive
                             )}`}
@@ -328,7 +346,7 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
                             {isActive && (
                               <ChevronRight className="h-3.5 w-3.5 opacity-75 shrink-0" />
                             )}
-                          </button>
+                          </a>
                         );
                       })}
                     </div>
@@ -347,8 +365,14 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
           isDark ? 'bg-[#161C30]/50 border-[#252E4A]' : 'bg-[#F4EFE6]/60 border-[#E8E2D8]'
         }`}
       >
-        <button
-          onClick={onSelectWorkspace}
+        <a
+          href="/google-workspace"
+          onClick={(e) => {
+            if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+              e.preventDefault();
+              onSelectWorkspace();
+            }
+          }}
           className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between cursor-pointer ${getSubtleActiveBtnClass(
             activeSolutionId === 'google-workspace'
           )}`}
@@ -357,10 +381,16 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
           {activeSolutionId === 'google-workspace' && (
             <ChevronRight className="h-3.5 w-3.5 opacity-75 shrink-0" />
           )}
-        </button>
+        </a>
 
-        <button
-          onClick={onSelectFooter}
+        <a
+          href="/website-footer"
+          onClick={(e) => {
+            if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+              e.preventDefault();
+              onSelectFooter();
+            }
+          }}
           className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between cursor-pointer ${getSubtleActiveBtnClass(
             activeSolutionId === 'website-footer'
           )}`}
@@ -369,7 +399,7 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
           {activeSolutionId === 'website-footer' && (
             <ChevronRight className="h-3.5 w-3.5 opacity-75 shrink-0" />
           )}
-        </button>
+        </a>
 
         {/* Dedicated Book Download Button */}
         {onDownloadBook && (

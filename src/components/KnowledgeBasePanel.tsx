@@ -78,15 +78,20 @@ export const KnowledgeBasePanel: React.FC<KnowledgeBasePanelProps> = ({
         </div>
 
         {onOpenLibraryInCenterPanel && (
-          <button
-            type="button"
-            onClick={onOpenLibraryInCenterPanel}
+          <a
+            href="/library"
+            onClick={(e) => {
+              if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                e.preventDefault();
+                onOpenLibraryInCenterPanel();
+              }
+            }}
             className="text-[11px] font-mono font-semibold text-[#5584B4] hover:underline flex items-center gap-1 lowercase cursor-pointer whitespace-nowrap"
             title="Open Full Virtual Library in Work Area"
           >
             <span>library</span>
             <ExternalLink className="h-3 w-3" />
-          </button>
+          </a>
         )}
       </div>
 
@@ -94,9 +99,14 @@ export const KnowledgeBasePanel: React.FC<KnowledgeBasePanelProps> = ({
       <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent">
         {/* Open Full Virtual Library */}
         {onOpenLibraryInCenterPanel && (
-          <button
-            type="button"
-            onClick={onOpenLibraryInCenterPanel}
+          <a
+            href="/library"
+            onClick={(e) => {
+              if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                e.preventDefault();
+                onOpenLibraryInCenterPanel();
+              }
+            }}
             className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-mono transition-colors cursor-pointer ${
               isDark
                 ? 'bg-[#161C30] hover:bg-[#1E2548] text-[#DDEBF7] border-[#252E4A]'
@@ -114,7 +124,7 @@ export const KnowledgeBasePanel: React.FC<KnowledgeBasePanelProps> = ({
               </div>
             </div>
             <ExternalLink className="h-3.5 w-3.5 text-[#5584B4] shrink-0" />
-          </button>
+          </a>
         )}
 
         {/* Daily Work Objectives (3 Focus Points) */}
