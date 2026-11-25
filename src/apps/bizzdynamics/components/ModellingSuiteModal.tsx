@@ -11,13 +11,14 @@ import {
   ExternalLink,
   ShieldCheck,
   CheckCircle2,
+  Building2,
 } from 'lucide-react';
 
 interface ModellingSuiteModalProps {
   theme?: 'light' | 'dark';
   isOpen: boolean;
   onClose: () => void;
-  onSelectApp: (appId: 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzplan') => void;
+  onSelectApp: (appId: 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzbudget' | 'bizzplan') => void;
   currentApp: string;
 }
 
@@ -63,6 +64,22 @@ export const ModellingSuiteModal: React.FC<ModellingSuiteModalProps> = ({
       icon: TrendingUp,
       color: '#2E5E88',
       linkTarget: 'rolling-forecast',
+    },
+    {
+      id: 'bizzbudget',
+      name: 'bizzbudget',
+      badge: '12-month group budget',
+      headline: 'branch, region & group consolidated budgeting',
+      bullets: [
+        '12-month operational & financial budget',
+        'standalone branch or multi-branch + holding company',
+        'branch, region & 100%-eliminated group consolidations',
+        'preceding-year ytd forecast & 6-column variance summary',
+        'custom effectiveness areas & operational plans',
+      ],
+      icon: Building2,
+      color: '#1E3A5F',
+      linkTarget: 'bizzbudget',
     },
     {
       id: 'bizzmodel',

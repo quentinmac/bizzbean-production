@@ -1213,6 +1213,8 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
         ? 'bizzcalculators'
         : solName.includes('dynamics') || solId.includes('dynamics')
         ? 'bizzdynamics'
+        : solName.includes('budget') || solId.includes('budget')
+        ? 'bizzbudget'
         : solName.includes('rolling') || solId.includes('rolling') || solName.includes('optimizer') || solId.includes('optimizer')
         ? 'rolling-forecast'
         : solName.includes('model') || solId.includes('model') || solName.includes('hi-level') || solId.includes('hi-level')
@@ -2277,6 +2279,8 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                           ? 'bizzcalculators'
                           : nameCheck.includes('dynamics')
                           ? 'bizzdynamics'
+                          : nameCheck.includes('budget')
+                          ? 'bizzbudget'
                           : nameCheck.includes('rolling') || nameCheck.includes('optimizer')
                           ? 'rolling-forecast'
                           : nameCheck.includes('model') || nameCheck.includes('hi-level')

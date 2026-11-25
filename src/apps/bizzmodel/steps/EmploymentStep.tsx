@@ -17,11 +17,19 @@ import {
   Briefcase,
   PieChart,
   BarChart2,
+  Download,
+  Upload,
+  FileSpreadsheet,
+  Lock,
+  Eye,
+  EyeOff,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   BizzModelState,
   EmploymentItem,
   EmploymentCategory,
+  EmploymentImportMeta,
   PlatformForecastAppId,
   DEFAULT_EMPLOYMENT_CATEGORIES,
   DEFAULT_EMPLOYMENT_ITEMS,
@@ -30,14 +38,17 @@ import {
 } from '../constants';
 import { AssumptionRateItem } from '../../bizzdynamics/types';
 import { BaseRateAdjustmentTool } from '../../bizzdynamics/components/BaseRateAdjustmentTool';
+import { HrPayrollImportModal } from '../components/HrPayrollImportModal';
+import { downloadHrEmploymentTemplate } from '../utils/hrSpreadsheetUtils';
 
 interface EmploymentStepProps {
   theme?: 'light' | 'dark';
-  mode: PlatformForecastAppId; // 'bizzdynamics' | 'rolling-forecast' | 'hi-level-forecast' | 'bizzmodel'
+  mode: PlatformForecastAppId; // 'bizzdynamics' | 'rolling-forecast' | 'hi-level-forecast' | 'bizzmodel' | 'bizzbudget'
   state: BizzModelState;
   onUpdateState: (updater: (prev: BizzModelState) => BizzModelState) => void;
   subTab?: 'assumptions' | 'results' | 'charts' | 'data entry' | 'data-entry';
   onSelectSubTab?: (tab: 'assumptions' | 'results' | 'charts') => void;
+  branchName?: string;
 }
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -53,6 +64,7 @@ export const EmploymentStep: React.FC<EmploymentStepProps> = ({
   onUpdateState,
   subTab: subTabProp,
   onSelectSubTab,
+  branchName,
 }) => {
   const isDark = theme === 'dark';
 
@@ -99,14 +111,19 @@ export const EmploymentStep: React.FC<EmploymentStepProps> = ({
     return DEFAULT_EMPLOYMENT_ITEMS;
   }, [state.employmentItems]);
 
+  // HR Spreadsheet Import & Confidential Earnings Privacy
+  const [showHrImportModal, setShowHrImportModal] = useState<boolean>(false);
+  const isPrivacyMode = Boolean(state.employmentPrivacyMode);
+  const entityDisplayName = branchName || state.businessDetails?.businessName || 'Business Entity';
+
   // Max Category and Employee limits by App Mode
   // • bizzdynamics: limit 5 categories, limit 5 employees
   // • rolling forecast: no categories, 2 preset titles
   // • hi-level forecast: no categories, 2 preset titles
-  // • bizzmodel: unlimited categories, unlimited employees
-  const categoryLimit = mode === 'bizzdynamics' ? 5 : mode === 'bizzmodel' ? Infinity : 0;
+  // • bizzmodel / bizzbudget: unlimited categories, unlimited employees
+  const categoryLimit = mode === 'bizzdynamics' ? 5 : (mode === 'bizzmodel' || mode === 'bizzbudget') ? Infinity : 0;
   const employeeLimit = mode === 'bizzdynamics' ? 5 : (mode === 'rolling-forecast' || mode === 'hi-level-forecast') ? 2 : Infinity;
-  const supportsCategories = mode === 'bizzdynamics' || mode === 'bizzmodel';
+  const supportsCategories = mode === 'bizzdynamics' || mode === 'bizzmodel' || mode === 'bizzbudget';
 
   // Category map for quick lookup
   const categoryMap = useMemo(() => {
@@ -227,6 +244,79 @@ export const EmploymentStep: React.FC<EmploymentStepProps> = ({
       return { ...prev, employmentItems: currentEmps.filter((e) => e.id !== empId) };
     });
   };
+
+  const handleTogglePrivacyMode = (nextValue?: boolean) => {
+    onUpdateState((prev) => ({
+      ...prev,
+      employmentPrivacyMode: nextValue !== undefined ? nextValue : !prev.employmentPrivacyMode,
+    }));
+  };
+
+  const handleConfirmHrImport = (payload: {
+    items: EmploymentItem[];
+    newCategories: EmploymentCategory[];
+    replaceExisting: boolean;
+    enablePrivacyMode: boolean;
+    meta: EmploymentImportMeta;
+  }) => {
+    onUpdateState((prev) => {
+      const existingCats =
+        prev.employmentCategories && prev.employmentCategories.length > 0
+          ? prev.employmentCategories
+          : DEFAULT_EMPLOYMENT_CATEGORIES;
+      const mergedCategories =
+        payload.newCategories.length > 0
+          ? [...existingCats, ...payload.newCategories]
+          : existingCats;
+
+      const existingEmps =
+        prev.employmentItems && prev.employmentItems.length > 0
+          ? prev.employmentItems
+          : [];
+
+      const combinedEmps = payload.replaceExisting
+        ? payload.items
+        : [...existingEmps, ...payload.items];
+
+      const boundedEmps =
+        employeeLimit !== Infinity ? combinedEmps.slice(0, employeeLimit) : combinedEmps;
+
+      return {
+        ...prev,
+        employmentCategories:
+          categoryLimit !== Infinity ? mergedCategories.slice(0, categoryLimit) : mergedCategories,
+        employmentItems: boundedEmps,
+        employmentPrivacyMode: payload.enablePrivacyMode,
+        employmentImportMeta: payload.meta,
+      };
+    });
+  };
+
+  // Confidential Band Summary (used when Earnings Privacy Mode is active so no individual salaries appear on screen)
+  const confidentialBandRows = useMemo(() => {
+    return categories
+      .map((cat) => {
+        const bandEmps = employees.filter((e) => e.categoryId === cat.id);
+        const ftes = bandEmps.reduce((s, e) => s + (e.numEmployees || 1), 0);
+        const cosTotal = bandEmps
+          .filter((e) => e.allocation === 'cost_of_sales')
+          .reduce((s, e) => s + e.baseRateMonthly * (e.numEmployees || 1) * (1 + cat.onCostPct / 100), 0);
+        const opexTotal = bandEmps
+          .filter((e) => e.allocation !== 'cost_of_sales')
+          .reduce((s, e) => s + e.baseRateMonthly * (e.numEmployees || 1) * (1 + cat.onCostPct / 100), 0);
+        const departments = Array.from(new Set(bandEmps.map((e) => e.department))).filter(Boolean);
+        return {
+          cat,
+          ftes,
+          lineCount: bandEmps.length,
+          cosTotal,
+          opexTotal,
+          totalMonthly: cosTotal + opexTotal,
+          departments,
+        };
+      })
+      .filter((row) => row.ftes > 0 || row.lineCount > 0);
+  }, [categories, employees]);
 
   // -------------------------------------------------------------------------
   // Calculation: Monthly Cost per Employee
@@ -365,18 +455,58 @@ export const EmploymentStep: React.FC<EmploymentStepProps> = ({
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-base font-bold uppercase tracking-tight text-slate-900 dark:text-white">
               EMPLOYMENT & HEADCOUNT CALCULATOR
             </h1>
             <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-[#2E5E88]/10 text-[#2E5E88] dark:text-[#5584B4]">
-              {mode}
+              {branchName || mode}
             </span>
+            {isPrivacyMode && (
+              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                <Lock className="w-2.5 h-2.5" />
+                Earnings Private
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Define employment category bands, team compensation, and benefit on-costs.
+            Define employment category bands, team compensation, or import HR payroll spreadsheets privately.
           </p>
         </div>
+
+        {supportsCategories && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                downloadHrEmploymentTemplate({
+                  entityName: entityDisplayName,
+                  categories,
+                  departments: availableDepartments,
+                  includeExistingRoster: false,
+                })
+              }
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold uppercase transition-colors cursor-pointer ${
+                isDark
+                  ? 'bg-[#101626] border-[#222F4C] text-slate-200 hover:border-[#5584B4] hover:text-white'
+                  : 'bg-white border-[#D8CEBC] text-slate-700 hover:border-[#2E5E88] hover:text-[#2E5E88]'
+              }`}
+              title="Download Excel workbook with instructions for the HR Department"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>HR Template (.xlsx)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowHrImportModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#2E5E88] hover:bg-[#234E73] text-white text-xs font-bold uppercase shadow-xs transition-colors cursor-pointer"
+              title="Import HR payroll spreadsheet with earnings privacy protection"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Import HR Sheet</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* =================================================================== */}
@@ -529,33 +659,112 @@ export const EmploymentStep: React.FC<EmploymentStepProps> = ({
           <div className={`p-5 rounded-2xl border space-y-4 ${
             isDark ? 'bg-[#101626] border-[#222F4C]' : 'bg-white border-[#D8CEBC] shadow-xs'
           }`}>
-            {/* Header with Title and Add Button */}
+            {/* Header with Title, Privacy Toggle, HR Import and Add Button */}
             <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-sm font-bold uppercase text-slate-900 dark:text-white">
-                    EMPLOYEE LISTING
+                    {isPrivacyMode ? 'CONFIDENTIAL PAYROLL SUMMARY' : 'EMPLOYEE LISTING'}
                   </h2>
                   <span className="text-[11px] text-slate-500 font-semibold">
-                    ({employees.length} {employeeLimit !== Infinity ? `/ ${employeeLimit} max` : 'titles'})
+                    ({employees.length} {employeeLimit !== Infinity ? `/ ${employeeLimit} max` : isPrivacyMode ? 'confidential lines' : 'titles'})
                   </span>
                 </div>
                 <p className="text-xs text-slate-500">
-                  Formula: monthly base cost × (1 + employee category on-cost) × headcount. Supports permanent and seasonal schedules.
+                  Formula: monthly base cost × (1 + employee category on-cost) × headcount. Supports permanent, seasonal, and private HR spreadsheet imports.
                 </p>
               </div>
 
-              {employees.length < employeeLimit && (
+              <div className="flex flex-wrap items-center gap-2">
+                {supportsCategories && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleTogglePrivacyMode()}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold uppercase transition-colors cursor-pointer ${
+                        isPrivacyMode
+                          ? isDark
+                            ? 'bg-emerald-950/60 border-emerald-600 text-emerald-300 hover:bg-emerald-900/60'
+                            : 'bg-emerald-50 border-emerald-600 text-emerald-800 hover:bg-emerald-100'
+                          : isDark
+                          ? 'bg-[#0E1322] border-[#222F4C] text-slate-300 hover:border-slate-500'
+                          : 'bg-slate-50 border-[#D8CEBC] text-slate-700 hover:border-slate-400'
+                      }`}
+                      title={
+                        isPrivacyMode
+                          ? 'Individual earnings are currently hidden. Click to reveal line items.'
+                          : 'Hide individual salaries and display Category Band totals only.'
+                      }
+                    >
+                      {isPrivacyMode ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                      <span>{isPrivacyMode ? 'Reveal Lines' : 'Hide Earnings'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowHrImportModal(true)}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold uppercase transition-colors cursor-pointer ${
+                        isDark
+                          ? 'bg-[#101A30] border-[#2E5E88] text-[#7EB2E2] hover:bg-[#172544]'
+                          : 'bg-[#EEF5FC] border-[#BDD4EB] text-[#2E5E88] hover:bg-[#DFECFA]'
+                      }`}
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5" />
+                      <span>HR Import / Template</span>
+                    </button>
+                  </>
+                )}
+
+                {!isPrivacyMode && employees.length < employeeLimit && (
+                  <button
+                    type="button"
+                    onClick={handleAddEmployee}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#2E5E88] hover:bg-[#234E73] text-white text-xs font-bold uppercase shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Employee Title</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Confidential HR Import Status Banner (when Privacy Mode is ON) */}
+            {isPrivacyMode && (
+              <div
+                className={`p-4 rounded-xl border flex flex-wrap items-center justify-between gap-3 ${
+                  isDark
+                    ? 'bg-[#0F211B] border-emerald-800/80 text-emerald-200'
+                    : 'bg-emerald-50/80 border-emerald-300 text-emerald-950'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  <div className="text-xs">
+                    <span className="font-bold uppercase block">
+                      Employee Earnings Privacy Active
+                    </span>
+                    <span className="text-[11px] opacity-90">
+                      {state.employmentImportMeta
+                        ? `Imported from "${state.employmentImportMeta.fileName}" (${state.employmentImportMeta.sourceRowCount} HR rows → ${
+                            state.employmentImportMeta.privacyMode === 'aggregated'
+                              ? `${state.employmentImportMeta.importedLineCount} anonymised confidential band lines; individual salaries were never stored`
+                              : `${state.employmentImportMeta.importedLineCount} role lines concealed on screen`
+                          }).`
+                        : 'Individual salaries are masked on screen. Only aggregate Category Band payroll totals are visible for forecasting.'}
+                    </span>
+                  </div>
+                </div>
+
                 <button
                   type="button"
-                  onClick={handleAddEmployee}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#2E5E88] hover:bg-[#234E73] text-white text-xs font-bold uppercase shadow-xs transition-colors"
+                  onClick={() => setShowHrImportModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold uppercase transition-colors cursor-pointer"
                 >
-                  <Plus className="w-4 h-4" />
-                  <span>Add Employee Title</span>
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Update via HR Sheet</span>
                 </button>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Run-rate Summary Card */}
             <div className={`p-4 rounded-xl border grid grid-cols-1 sm:grid-cols-3 gap-3 ${
@@ -583,7 +792,56 @@ export const EmploymentStep: React.FC<EmploymentStepProps> = ({
               </div>
             </div>
 
-            {/* Employee Cards List */}
+            {/* Confidential Band Summary Table (when Privacy Mode is ON) OR Employee Cards List */}
+            {isPrivacyMode ? (
+              <div
+                className={`rounded-xl border overflow-hidden ${
+                  isDark ? 'bg-[#0E1322] border-[#222F4C]' : 'bg-white border-[#D8CEBC]'
+                }`}
+              >
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead>
+                      <tr className={`border-b text-[10px] uppercase text-slate-500 ${isDark ? 'bg-[#121A2F] border-[#222F4C]' : 'bg-slate-50 border-[#D8CEBC]'}`}>
+                        <th className="py-2.5 px-3.5 font-bold">Category Band</th>
+                        <th className="py-2.5 px-3 font-bold">Departments</th>
+                        <th className="py-2.5 px-3 font-bold text-center">FTEs</th>
+                        <th className="py-2.5 px-3 font-bold text-right">On-Cost %</th>
+                        <th className="py-2.5 px-3 font-bold text-right">Cost of Sales / Mo</th>
+                        <th className="py-2.5 px-3 font-bold text-right">Opex / Mo</th>
+                        <th className="py-2.5 px-3.5 font-bold text-right">Band Total / Mo</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
+                      {confidentialBandRows.map((row) => (
+                        <tr key={row.cat.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20">
+                          <td className="py-2.5 px-3.5 font-bold text-slate-900 dark:text-white">
+                            <span className="inline-flex items-center gap-1.5">
+                              <Lock className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                              {row.cat.name}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-[11px] capitalize text-slate-500">
+                            {row.departments.join(', ') || '—'}
+                          </td>
+                          <td className="py-2.5 px-3 text-center font-bold">{row.ftes}</td>
+                          <td className="py-2.5 px-3 text-right text-slate-500">{row.cat.onCostPct}%</td>
+                          <td className="py-2.5 px-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 font-semibold">
+                            {row.cosTotal > 0 ? Math.round(row.cosTotal).toLocaleString() : '—'}
+                          </td>
+                          <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 dark:text-slate-300 font-semibold">
+                            {row.opexTotal > 0 ? Math.round(row.opexTotal).toLocaleString() : '—'}
+                          </td>
+                          <td className="py-2.5 px-3.5 text-right tabular-nums font-bold text-[#2E5E88] dark:text-[#7EB2E2]">
+                            {Math.round(row.totalMonthly).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
             <div className="space-y-4">
               {employees.map((emp) => {
                 const assignedCat = categoryMap.get(emp.categoryId) || categories[0];
@@ -842,6 +1100,7 @@ export const EmploymentStep: React.FC<EmploymentStepProps> = ({
                 );
               })}
             </div>
+            )}
           </div>
         </div>
       )}
@@ -1364,6 +1623,19 @@ export const EmploymentStep: React.FC<EmploymentStepProps> = ({
           </div>
         );
       })()}
+
+      {/* HR Payroll Spreadsheet Upload & Template Modal */}
+      <HrPayrollImportModal
+        isOpen={showHrImportModal}
+        onClose={() => setShowHrImportModal(false)}
+        theme={theme}
+        entityName={entityDisplayName}
+        categories={categories}
+        availableDepartments={availableDepartments}
+        existingEmployees={employees}
+        isPrivacyCurrentlyActive={isPrivacyMode}
+        onConfirmImport={handleConfirmHrImport}
+      />
     </div>
   );
 };

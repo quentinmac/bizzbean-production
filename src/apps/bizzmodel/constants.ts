@@ -757,6 +757,15 @@ export interface HighLevelForecastData {
   targetHorizonMonths: 12 | 24 | 36;
 }
 
+export interface EmploymentImportMeta {
+  fileName: string;
+  importedAt: string;
+  privacyMode: 'aggregated' | 'masked';
+  sourceRowCount: number;
+  importedLineCount: number;
+  totalHeadcount: number;
+}
+
 export interface BizzModelState {
   appMode?: PlatformForecastAppId;
   activeModelSet?: 'unit-sales' | 'batch-lots' | 'continuous-production' | 'fabrication' | 'family-restaurant';
@@ -764,6 +773,8 @@ export interface BizzModelState {
   revenueItems: RevenueItem[];
   employmentCategories?: EmploymentCategory[];
   employmentItems: EmploymentItem[];
+  employmentPrivacyMode?: boolean;
+  employmentImportMeta?: EmploymentImportMeta;
   expenses: ExpenseItem[];
   opexSettings?: OperatingExpensesSettings;
   assetCategories?: StandardAssetCategoryDef[];
@@ -872,7 +883,7 @@ export const DEFAULT_BUSINESS_STATE: BizzModelState = {
   },
 };
 
-export type PlatformForecastAppId = 'bizzdynamics' | 'rolling-forecast' | 'hi-level-forecast' | 'bizzmodel';
+export type PlatformForecastAppId = 'bizzdynamics' | 'rolling-forecast' | 'hi-level-forecast' | 'bizzmodel' | 'bizzbudget';
 
 export const DEFAULT_SETUP_ASSUMPTIONS: AssumptionRateItem[] = [
   {

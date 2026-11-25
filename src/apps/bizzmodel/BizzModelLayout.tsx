@@ -6,9 +6,9 @@ import { PlatformHelpStepId } from '../../services/platformHelpService';
 
 interface BizzModelLayoutProps {
   theme?: 'light' | 'dark';
-  mode: 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel';
-  activeAppTab: 'bizzcalc' | 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzplan' | 'reports';
-  onSelectAppTab: (tab: 'bizzcalc' | 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzplan' | 'reports') => void;
+  mode: 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzbudget';
+  activeAppTab: 'bizzcalc' | 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzbudget' | 'bizzplan' | 'reports';
+  onSelectAppTab: (tab: 'bizzcalc' | 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzbudget' | 'bizzplan' | 'reports') => void;
   activeStep: string;
   onSelectStep: (step: string) => void;
   setupTab?: 'assumptions' | 'results' | 'charts';
@@ -104,14 +104,17 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
 
   // Resolve lowercase display name & mode
   const isRollingForecast = mode === 'rolling-forecast' || activeAppTab === 'rolling-forecast';
-  const showBizzPlanTab = Boolean(onSelectBizzPlanTab) && !isRollingForecast;
-  const appDisplayName = isRollingForecast
+  const isBizzBudget = mode === 'bizzbudget' || activeAppTab === 'bizzbudget';
+  const showBizzPlanTab = Boolean(onSelectBizzPlanTab) && !isRollingForecast && !isBizzBudget;
+  const appDisplayName = isBizzBudget
+    ? 'bizzbudget'
+    : isRollingForecast
     ? 'bizzoptimizer'
     : mode === 'bizzdynamics' || activeAppTab === 'bizzdynamics'
     ? 'bizzdynamics'
     : 'bizzmodel';
 
-  // Streamlined 5-Step dock for BizzOptimizer (excludes Revenue Calculator, Employment, Operating Expenses)
+  // Streamlined 5-Step dock for BizzOptimizer, 8-Step dock for BizzBudget (12-Month + Prior Year YTD),
   // Full 7-Step dock preserved intact for BizzModel & BizzDynamics
   const STEPS: Array<{
     id: string;
@@ -120,7 +123,18 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
     icon: string;
     useSpreadsheetIcon?: boolean;
     description: string;
-  }> = isRollingForecast
+  }> = isBizzBudget
+    ? [
+        { id: 'setup', num: 1, name: 'business details', icon: '/business details.jpg', description: '12-month budget setup, calendar & macro rates' },
+        { id: 'ytd-actuals', num: 2, name: 'prior year ytd', icon: '/reports.jpg', useSpreadsheetIcon: true, description: 'preceding year ytd actuals & trading distribution forecast' },
+        { id: 'revenue', num: 3, name: 'revenue calculator', icon: '/revenue calculator.jpg', description: '12-month revenue calculator, model-sets & bizzbox' },
+        { id: 'employment', num: 4, name: 'employment', icon: '/employment.jpg', description: 'branch / holding team & payroll' },
+        { id: 'opex', num: 5, name: 'operating expenses', icon: '/operating expenses.jpg', description: 'operating overheads & variable costs' },
+        { id: 'fixed-assets', num: 6, name: 'fixed assets', icon: '/fixed assets.jpg', description: 'opening fixed assets, capex & depreciation' },
+        { id: 'funding', num: 7, name: 'funding calculator', icon: '/funding calculator.jpg', description: 'equity loan, investment 3-2-1-29 & operational plans' },
+        { id: 'reports', num: 8, name: 'reports', icon: '/reports.jpg', description: 'branch / region / group consolidation & 6-col executive summary' },
+      ]
+    : isRollingForecast
     ? [
         { id: 'setup', num: 1, name: 'business details', icon: '/business details.jpg', description: 'business details, update month & macro rates' },
         { id: 'ytd-actuals', num: 2, name: 'actuals ytd', icon: '/reports.jpg', useSpreadsheetIcon: true, description: 'ytd trading account & balance sheet actuals' },
@@ -239,7 +253,9 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
                 {[
                   { id: 'dynamics', label: 'dynamics' },
                   { id: 'what-if', label: 'what if' },
-                  ...(isRollingForecast
+                  ...(isBizzBudget
+                    ? [{ id: 'actions-to-improve', label: 'operational plans' }]
+                    : isRollingForecast
                     ? [{ id: 'actions-to-improve', label: 'actions to improve' }]
                     : []),
                 ].map((tab) => (

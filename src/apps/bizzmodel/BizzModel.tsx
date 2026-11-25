@@ -446,8 +446,14 @@ export const BizzModel: React.FC<BizzModelProps> = ({
 
   // Handle switching tabs along the top header bar
   const handleSelectAppTab = (
-    tab: 'bizzcalc' | 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzplan' | 'reports'
+    tab: 'bizzcalc' | 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzbudget' | 'bizzplan' | 'reports'
   ) => {
+    if (tab === 'bizzbudget') {
+      if (onContextSwitch) {
+        onContextSwitch('bizzbudget');
+      }
+      return;
+    }
     setActiveAppTab(tab);
     if (tab === 'bizzdynamics') {
       setCurrentMode('bizzdynamics');

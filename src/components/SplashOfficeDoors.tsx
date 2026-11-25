@@ -20,6 +20,8 @@ interface SplashOfficeDoorsProps {
     company: string,
     options?: { skipWelcomeEmail?: boolean }
   ) => void;
+  initialAuthMode?: 'none' | 'signin' | 'signup';
+  onCancelDirectAuth?: () => void;
 }
 
 export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
@@ -29,6 +31,8 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
   cmsPromotions,
   onTriggerDoorOpening,
   onConfirmSignUp,
+  initialAuthMode = 'none',
+  onCancelDirectAuth,
 }) => {
   const isValidActivePromo = (p?: CmsPromotionSection | null): p is CmsPromotionSection =>
     Boolean(
@@ -43,11 +47,17 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
   const [doorPromotion, setDoorPromotion] = useState<CmsPromotionSection | null>(
     isValidActivePromo(activePromotion) ? activePromotion : null
   );
-  const [authMode, setAuthMode] = useState<'none' | 'signin' | 'signup'>('none');
+  const [authMode, setAuthMode] = useState<'none' | 'signin' | 'signup'>(initialAuthMode);
   const [emailInput, setEmailInput] = useState('founder@bizzbean.com');
   const [fullNameInput, setFullNameInput] = useState('Elena Vance');
   const [companyInput, setCompanyInput] = useState('Apex Cloud Dynamics');
   const [currentTime, setCurrentTime] = useState('10:10');
+
+  useEffect(() => {
+    if (initialAuthMode !== 'none') {
+      setAuthMode(initialAuthMode);
+    }
+  }, [initialAuthMode]);
 
   useEffect(() => {
     if (isValidActivePromo(activePromotion)) {
@@ -469,6 +479,7 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
       {authMode !== 'none' && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
           <AuthGateway
+            initialMode={authMode === 'signup' ? 'signup' : 'signin'}
             onAuthenticated={(_destination, profile, authMeta) => {
               // 1. Public guest preview ("Enter Sandbox — No Account")
               if (authMeta?.mode === 'guest' || profile?.role === 'public') {
@@ -491,7 +502,13 @@ export const SplashOfficeDoors: React.FC<SplashOfficeDoorsProps> = ({
               // 3. Existing client sign-in (authMeta.mode === 'signin'): enter workspace directly with ZERO welcome email
               handleTriggerEnter(true, profile?.email, resolvedName);
             }}
-            onClose={() => setAuthMode('none')}
+            onClose={() => {
+              if (initialAuthMode !== 'none' && onCancelDirectAuth) {
+                onCancelDirectAuth();
+              } else {
+                setAuthMode('none');
+              }
+            }}
           />
         </div>
       )}

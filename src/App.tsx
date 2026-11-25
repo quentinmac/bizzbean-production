@@ -118,6 +118,7 @@ export default function App() {
 
   // Navigation / View state (bypass splash doors automatically on direct page URLs or deep-links)
   const [inSplashDoors, setInSplashDoors] = useState<boolean>(() => !initialDeepLink.hasDeepLink);
+  const [splashInitialAuthMode, setSplashInitialAuthMode] = useState<'none' | 'signin' | 'signup'>('none');
   const [showWelcomeLetter, setShowWelcomeLetter] = useState<boolean>(false);
   const [bookNotice, setBookNotice] = useState<string | null>(null);
   const [isMember, setIsMember] = useState<boolean>(() => {
@@ -1252,10 +1253,22 @@ export default function App() {
     // Always open the 5-Stage Illuminated Journey Gallery on door entry (Google Ads deep-links bypass handleEnterWorkspace)
     setActiveView('flashcard');
     setShowPromotion(true);
+    setSplashInitialAuthMode('none');
     setInSplashDoors(false);
     trackWorkspaceEnter(asMember ? 'member' : 'guest', {
       has_promo: Boolean(randomPromo),
     });
+  };
+
+  // Open the AuthGateway sign-up form directly from solution/stage cards (skipping the door sign-in step)
+  const handleOpenDirectSignUp = () => {
+    setSplashInitialAuthMode('signup');
+    setInSplashDoors(true);
+  };
+
+  const handleOpenDirectSignIn = () => {
+    setSplashInitialAuthMode('signin');
+    setInSplashDoors(true);
   };
 
   // Sign out / Close doors (Triggers Close Shop Session Review)
@@ -1270,6 +1283,7 @@ export default function App() {
       localStorage.setItem('bizz_is_member', 'false');
     } catch (e) {}
     setIsCloseShopModalOpen(false);
+    setSplashInitialAuthMode('none');
     setInSplashDoors(true);
     setActiveView('flashcard');
     setIsMaximized(true);
@@ -2092,6 +2106,11 @@ export default function App() {
           cmsPromotions={cmsPromotions}
           onTriggerDoorOpening={handleTriggerDoorOpening}
           onConfirmSignUp={handleConfirmSignUp}
+          initialAuthMode={splashInitialAuthMode}
+          onCancelDirectAuth={() => {
+            setSplashInitialAuthMode('none');
+            setInSplashDoors(false);
+          }}
         />
       ) : (
         /* ========================================================================= */
@@ -2263,7 +2282,7 @@ export default function App() {
                   onOpenVideoModal={(sol) => setVideoModalSolution(sol)}
                   onUpdateProfile={(prof) => setUserProfile(prof)}
                   onSelectSolutionById={handleSelectSolution}
-                  onOpenSignUp={() => setInSplashDoors(true)}
+                  onOpenSignUp={handleOpenDirectSignUp}
                   onConfirmSignUp={handleConfirmSignUp}
                   libraryItems={libraryItems}
                   objectives={dailyObjectives}
@@ -3102,7 +3121,7 @@ export default function App() {
         onCloseModal={() => setIsCloseShopModalOpen(false)}
         onOpenSignUp={() => {
           setIsCloseShopModalOpen(false);
-          setInSplashDoors(true);
+          handleOpenDirectSignUp();
         }}
       />
 
@@ -3147,11 +3166,11 @@ export default function App() {
         onClose={() => setIsNonMemberTalkToUsOpen(false)}
         onOpenSignUp={() => {
           setIsNonMemberTalkToUsOpen(false);
-          setInSplashDoors(true);
+          handleOpenDirectSignUp();
         }}
         onOpenSignIn={() => {
           setIsNonMemberTalkToUsOpen(false);
-          setInSplashDoors(true);
+          handleOpenDirectSignIn();
         }}
         theme={theme}
       />

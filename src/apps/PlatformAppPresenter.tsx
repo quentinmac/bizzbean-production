@@ -28,6 +28,7 @@ import { BizzCalc } from './bizzcalc/BizzCalc';
 import { BizzDynamics } from './bizzdynamics/BizzDynamics';
 import { BizzCalculators } from './bizzcalculators/BizzCalculators';
 import { BizzModel } from './bizzmodel/BizzModel';
+import { BizzBudget } from './bizzbudget/BizzBudget';
 import { BizzPlan } from './bizzplan/BizzPlan';
 
 // Modular Companions & Specialized Apps
@@ -78,6 +79,7 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
     if (matchingCms) {
       const cmsName = (matchingCms.name || '').toLowerCase();
       const cmsSub = (matchingCms.subtitle || '').toLowerCase();
+      if (cmsName.includes('budget') || cmsSub.includes('bizzbudget')) return 'bizzbudget';
       if (cmsName.includes('dynamics') || cmsSub.includes('dynamics')) return 'bizzdynamics';
       if (cmsName.includes('calculators') || cmsSub.includes('calculators')) return 'bizzcalculators';
       if (cmsName.includes('rolling') || cmsSub.includes('rolling') || cmsName.includes('optimizer') || cmsSub.includes('optimizer')) return 'rolling-forecast';
@@ -86,6 +88,8 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
       if (cmsName.includes('plan')) return 'bizzplan';
       if (cmsName.includes('calc')) return 'bizzcalc';
     }
+
+    if (lower.includes('budget')) return 'bizzbudget';
 
     if (lower.includes('calculators')) return 'bizzcalculators';
     if (lower.includes('dynamics')) return 'bizzdynamics';
@@ -238,8 +242,10 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
       sku: 'BA-007',
       stage: 'operations',
       stageCode: 'Stage 05',
-      subtitle: 'Rolling Cash Flow Allocations & Variance Reporting',
+      subtitle: '12-Month Multi-Branch & Regional Budget, YTD Forecast, Consolidation & Operational Plans',
+      badge: '12-month consolidation',
       icon: FileSpreadsheet,
+      desktopOnly: true,
     },
     {
       id: 'growth-strategy',
@@ -670,12 +676,12 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
           />
         )}
 
-        {/* 9. BIZZBUDGET */}
+        {/* 9. BIZZBUDGET (12-Month Multi-Branch & Regional Consolidation Suite) */}
         {activeApp === 'bizzbudget' && (
-          <BizzBudgetApp
+          <BizzBudget
             theme={theme}
-            onBackToWorkstation={onBackToWorkstation}
-            onNavigateToStage={onNavigateToStage}
+            onClose={onBackToWorkstation}
+            onContextSwitch={(app) => setActiveApp(normalizeAppId(app))}
           />
         )}
 

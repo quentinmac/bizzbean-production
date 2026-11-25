@@ -51,16 +51,31 @@ interface AuthGatewayProps {
     authMeta?: AuthCompletionMeta
   ) => void;
   onClose?: () => void;
+  initialMode?: 'signin' | 'signup';
 }
 
-export default function AuthGateway({ onAuthenticated, onClose }: AuthGatewayProps) {
+export default function AuthGateway({ onAuthenticated, onClose, initialMode }: AuthGatewayProps) {
   const [isRegistering, setIsRegistering] = useState(() => {
+    if (initialMode === 'signup') {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('bizz_auth_register_mode');
+      }
+      return true;
+    }
     const forced = typeof window !== 'undefined' && localStorage.getItem('bizz_auth_register_mode') === 'true';
     if (forced) {
       localStorage.removeItem('bizz_auth_register_mode');
     }
     return forced;
   });
+
+  useEffect(() => {
+    if (initialMode === 'signup') {
+      setIsRegistering(true);
+    } else if (initialMode === 'signin') {
+      setIsRegistering(false);
+    }
+  }, [initialMode]);
 
   // Registration Form State
   const [email, setEmail] = useState('');

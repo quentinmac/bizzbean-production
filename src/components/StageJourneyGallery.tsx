@@ -29,7 +29,7 @@ const CORE_STAGES: StageCardDefinition[] = [
     stepNumber: '01',
     verb: 'Discover',
     title: 'vi-ABILITY',
-    question: 'Will your business idea actually make money and reach break-even?',
+    question: 'you have a business idea, and you want to start a business',
     accentBarClass: 'bg-[#5584B4]',
   },
   {
@@ -37,7 +37,7 @@ const CORE_STAGES: StageCardDefinition[] = [
     stepNumber: '02',
     verb: 'Build',
     title: 'fund-ABILITY',
-    question: 'Do your pricing, BOM, and 3-statement projections pass lender scrutiny?',
+    question: 'you have a business and you need funding to grow',
     accentBarClass: 'bg-[#9FC754]',
   },
   {
@@ -45,7 +45,7 @@ const CORE_STAGES: StageCardDefinition[] = [
     stepNumber: '03',
     verb: 'Grow',
     title: 'sustain-ABILITY',
-    question: 'How do you eliminate margin leaks and protect your operating cash runway?',
+    question: 'you want to professionalize your business',
     accentBarClass: 'bg-[#C59B63]',
   },
   {
@@ -53,7 +53,7 @@ const CORE_STAGES: StageCardDefinition[] = [
     stepNumber: '04',
     verb: 'Invest',
     title: 'invest-ABILITY',
-    question: 'Is your venture structured to scale and withstand investor due diligence?',
+    question: 'you need an investor to grow your business',
     accentBarClass: 'bg-[#2E5E88]',
   },
 ];
