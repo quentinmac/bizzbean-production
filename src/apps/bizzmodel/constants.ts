@@ -4,6 +4,12 @@ import {
   ContinuousProductionProductConfig,
   FabricationProductConfig,
   FamilyRestaurantProductConfig,
+  ValueSalesCategory,
+  ValueSalesProductConfig,
+  CommissionCategory,
+  CommissionProductConfig,
+  RevenueShareCategory,
+  RevenueShareProductConfig,
 } from './components/modelsets/modelSetTypes';
 import { BizzOptimizerState, DEFAULT_BIZZOPTIMIZER_STATE } from './data/bizzoptimizerDefaults';
 
@@ -93,9 +99,9 @@ export const ALL_MODEL_SETS: ModelSetCategory[] = [
     type: 'trading',
     modelSets: [
       { id: 'unit-sales', name: 'unit sales', isAvailable: true, statusLabel: 'Available' },
-      { id: 'value-sales', name: 'value sales', isAvailable: false, statusLabel: 'coming soon' },
-      { id: 'commission', name: 'commission', isAvailable: false, statusLabel: 'coming soon' },
-      { id: 'revenue-share', name: 'revenue share', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'value-sales', name: 'value sales', isAvailable: true, statusLabel: 'Available' },
+      { id: 'commission', name: 'commission', isAvailable: true, statusLabel: 'Available' },
+      { id: 'revenue-share', name: 'revenue share', isAvailable: true, statusLabel: 'Available' },
     ],
   },
   {
@@ -252,6 +258,12 @@ export interface RevenueItem {
   continuousProductionConfig?: ContinuousProductionProductConfig;
   fabricationConfig?: FabricationProductConfig;
   familyRestaurantConfig?: FamilyRestaurantProductConfig;
+  valueSalesCategoryId?: string;
+  valueSalesConfig?: ValueSalesProductConfig;
+  commissionCategoryId?: string;
+  commissionConfig?: CommissionProductConfig;
+  revenueShareCategoryId?: string;
+  revenueShareConfig?: RevenueShareProductConfig;
 }
 
 export interface EmploymentCategory {
@@ -768,8 +780,11 @@ export interface EmploymentImportMeta {
 
 export interface BizzModelState {
   appMode?: PlatformForecastAppId;
-  activeModelSet?: 'unit-sales' | 'batch-lots' | 'continuous-production' | 'fabrication' | 'family-restaurant';
+  activeModelSet?: 'unit-sales' | 'value-sales' | 'commission' | 'revenue-share' | 'batch-lots' | 'continuous-production' | 'fabrication' | 'family-restaurant';
   businessDetails: BusinessDetails;
+  valueSalesCategories?: ValueSalesCategory[];
+  commissionCategories?: CommissionCategory[];
+  revenueShareCategories?: RevenueShareCategory[];
   revenueItems: RevenueItem[];
   employmentCategories?: EmploymentCategory[];
   employmentItems: EmploymentItem[];

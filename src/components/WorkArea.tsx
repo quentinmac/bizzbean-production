@@ -330,7 +330,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
         onSelectSolutionById={onSelectSolutionById}
         onLaunchApp={(appId) => {
           if (onSelectSolutionById) onSelectSolutionById(appId);
-          onLaunchSolution();
+          onLaunchSolution(appId);
         }}
         onBackToWorkstation={onBackToWorkstation || onCloseActiveApp}
         onBackToAdmin={() => {

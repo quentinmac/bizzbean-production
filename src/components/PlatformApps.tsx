@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   Layers,
   ShieldCheck,
@@ -6,36 +6,23 @@ import {
   TrendingUp,
   DollarSign,
   ArrowRight,
-  ExternalLink,
-  Check,
   ShoppingCart,
   Play,
-  RefreshCw,
-  X,
-  ChevronRight,
-  ChevronLeft,
-  Filter,
-  Sparkles,
   BarChart3,
-  PieChart,
   FileText,
-  Lock,
-  Unlock,
-  Mic,
-  Search,
   Zap,
   CheckCircle2,
-  AlertCircle,
-  ArrowUpRight,
   Sliders,
   FolderLock,
   Workflow,
-  HelpCircle,
-  Database,
+  ChevronRight,
 } from 'lucide-react';
 import { CmsProduct, INITIAL_CMS_PRODUCTS } from '../data/cmsConsoleData';
-import { BIZZ_SOLUTIONS } from '../data/bizzdeskData';
 import { BizzSolution, UserBusinessProfile } from '../types';
+import {
+  computeTicketPriceFromCms,
+  findCmsProductForProfile,
+} from './publicSite/publicSiteData';
 
 export interface PlatformAppsProps {
   theme?: 'light' | 'dark';
@@ -376,16 +363,98 @@ export const PLATFORM_APPS_CATALOG: PlatformAppDefinition[] = [
   },
 ];
 
+interface PlatformAppCardSpec {
+  id: string;
+  launchId: string;
+  matchIds: string[];
+  name: string;
+  defaultStageLabel: string;
+  defaultTagline: string;
+  defaultSummary: string;
+  defaultTicketPriceZAR: number;
+}
+
+const CORE_PLATFORM_APPS: PlatformAppCardSpec[] = [
+  {
+    id: 'bizzcalc',
+    launchId: 'bizzcalc',
+    matchIds: ['bizzcalc'],
+    name: 'bizzcalc',
+    defaultStageLabel: 'vi-ABILITY',
+    defaultTagline: '7-Step Startup Financial Viability Simulator',
+    defaultSummary:
+      'Validate whether a startup idea can recover its overheads, survive slow ramp-up months, and generate sustainable founder earnings in seven clear steps.',
+    defaultTicketPriceZAR: 299,
+  },
+  {
+    id: 'bizzdynamics',
+    launchId: 'bizzdynamics',
+    matchIds: ['bizzdynamics'],
+    name: 'bizzdynamics',
+    defaultStageLabel: 'sustain-ABILITY',
+    defaultTagline: 'Business Economics & Cash-Flow Dynamics Simulator',
+    defaultSummary:
+      'Visualize how pricing, volume, cost structure, inventory days, and debtor collections interact across your trading cycle before making strategic changes.',
+    defaultTicketPriceZAR: 418.8,
+  },
+  {
+    id: 'bizzmodel',
+    launchId: 'bizzmodel',
+    matchIds: ['bizzmodel'],
+    name: 'bizzmodel',
+    defaultStageLabel: 'fund-ABILITY',
+    defaultTagline: 'Integrated 5-Year 3-Statement Financial Modelling',
+    defaultSummary:
+      'Build lender-ready 60-month Trading Accounts, Income Statements, Balance Sheets, and Cash Flow forecasts across trading, manufacturing, hospitality, and service model-sets.',
+    defaultTicketPriceZAR: 1499,
+  },
+  {
+    id: 'bizzoptimizer',
+    launchId: 'rolling-forecast',
+    matchIds: ['rolling-forecast', 'bizzoptimizer'],
+    name: 'bizzoptimizer',
+    defaultStageLabel: 'sustain-ABILITY',
+    defaultTagline: 'YTD Forecasting, What-If Simulation & Actions to Improve',
+    defaultSummary:
+      'Turn monthly management accounts into a 60-month rolling forecast, simulate Return on Net Operating Assets (RONOA) improvements, and track departmental action plans.',
+    defaultTicketPriceZAR: 414,
+  },
+  {
+    id: 'bizzforecasta',
+    launchId: 'bizzforecasta',
+    matchIds: ['bizzforecasta'],
+    name: 'bizzforecasta',
+    defaultStageLabel: 'sustain-ABILITY',
+    defaultTagline: 'Rolling 60-Month Forecast & Cash-Flow Modeler',
+    defaultSummary:
+      'Project multi-year revenue, cost structures, working capital timing, and cash runway quickly to support monthly board and management forecasting.',
+    defaultTicketPriceZAR: 441.6,
+  },
+];
+
+function formatStageLabel(stage?: string, fallback?: string): string {
+  switch ((stage || '').toLowerCase()) {
+    case 'vi-ability':
+      return 'vi-ABILITY';
+    case 'fund-ability':
+      return 'fund-ABILITY';
+    case 'sustain-ability':
+      return 'sustain-ABILITY';
+    case 'invest-ability':
+      return 'invest-ABILITY';
+    case 'personal-sandbox':
+      return 'Personal Sandbox';
+    default:
+      return fallback || 'Platform App';
+  }
+}
+
 export const PlatformApps: React.FC<PlatformAppsProps> = ({
   theme = 'light',
   isAdmin = false,
   cmsProducts = [],
   userPurchases = [],
-  userProfile,
-  tokenBalance = 250,
-  initialAppId,
   onSelectSolutionById,
-  onNavigateToStage,
   onBuySolution,
   onBackToWorkstation,
   onBackToAdmin,
@@ -393,1508 +462,256 @@ export const PlatformApps: React.FC<PlatformAppsProps> = ({
 }) => {
   const isDark = theme === 'dark';
 
-  // Merge catalog with CMS products to reflect live dynamic pricing & purchase states
-  const apps = useMemo(() => {
-    return PLATFORM_APPS_CATALOG.map((baseApp) => {
-      const cmsMatch = cmsProducts.find(
-        (p) =>
-          p.id === baseApp.id ||
-          (baseApp.id === 'budget' && p.id === 'bizzbudget') ||
-          (baseApp.id === 'bizzbudget' && p.id === 'budget')
-      );
+  const effectiveCmsCatalog = useMemo(
+    () => (cmsProducts && cmsProducts.length > 0 ? cmsProducts : INITIAL_CMS_PRODUCTS),
+    [cmsProducts]
+  );
 
-      const isOwned = Boolean(
+  const normalizedPurchases = useMemo(
+    () => new Set((userPurchases || []).map((id) => String(id || '').toLowerCase().trim())),
+    [userPurchases]
+  );
+
+  const appCards = useMemo(() => {
+    return CORE_PLATFORM_APPS.map((spec) => {
+      const cms = findCmsProductForProfile(spec.id, spec.name, effectiveCmsCatalog);
+      const pricing = computeTicketPriceFromCms(cms, spec.defaultTicketPriceZAR, true);
+
+      const candidateKeys = [
+        ...spec.matchIds,
+        spec.name.toLowerCase(),
+        ...(cms ? [cms.id.toLowerCase(), (cms.name || '').toLowerCase().trim()] : []),
+      ];
+
+      const isOwned =
         isAdmin ||
-          (userPurchases &&
-            (userPurchases.includes(baseApp.id) ||
-              (baseApp.id === 'budget' && userPurchases.includes('bizzbudget')) ||
-              (baseApp.id === 'bizzbudget' && userPurchases.includes('budget'))))
-      );
+        pricing.ticketPriceZAR <= 0 ||
+        candidateKeys.some((key) => normalizedPurchases.has(key));
 
-      if (cmsMatch) {
-        return {
-          ...baseApp,
-          name: cmsMatch.name || baseApp.name,
-          subtitle: cmsMatch.subtitle || baseApp.subtitle,
-          description: cmsMatch.description || baseApp.description,
-          purpose: cmsMatch.purpose || baseApp.purpose,
-          sellingPriceZAR: cmsMatch.sellingPriceZAR ?? baseApp.sellingPriceZAR,
-          exclusivePriceZAR: cmsMatch.exclusivePriceZAR ?? baseApp.exclusivePriceZAR,
-          vatZAR: cmsMatch.vatZAR ?? baseApp.vatZAR,
-          tokensAllocated: cmsMatch.tokensAllocated ?? baseApp.tokensAllocated,
-          ticketPriceZAR: cmsMatch.ticketPriceZAR ?? baseApp.ticketPriceZAR,
-          isPurchased: isOwned,
-          modules: cmsMatch.modules && cmsMatch.modules.length > 0 ? cmsMatch.modules : baseApp.modules,
-        };
-      }
+      const stageLabel = formatStageLabel(cms?.stage, spec.defaultStageLabel);
+      const tagline =
+        cms?.subtitle && cms.subtitle.trim().length > 0 ? cms.subtitle : spec.defaultTagline;
+      const summary =
+        cms?.description && cms.description.trim().length > 0
+          ? cms.description
+          : spec.defaultSummary;
+
       return {
-        ...baseApp,
-        isPurchased: isOwned,
+        spec,
+        cms,
+        pricing,
+        isOwned,
+        stageLabel,
+        tagline,
+        summary,
       };
     });
-  }, [cmsProducts, userPurchases, isAdmin]);
+  }, [effectiveCmsCatalog, isAdmin, normalizedPurchases]);
 
-  // Selected App for interactive testing/runner mode
-  const [selectedAppId, setSelectedAppId] = useState<string | null>(initialAppId || null);
-  // View mode: 'catalog' matrix vs 'runner' interactive simulator
-  const [viewMode, setViewMode] = useState<'catalog' | 'runner'>(initialAppId ? 'runner' : 'catalog');
-  // Stage Filter
-  const [stageFilter, setStageFilter] = useState<string>('all');
-  // Search query
-  const [searchQuery, setSearchQuery] = useState<string>('');
-
-  // Currently active app in runner mode
-  const currentApp = useMemo(() => {
-    if (!selectedAppId) return apps[0];
-    return apps.find((a) => a.id === selectedAppId) || apps[0];
-  }, [apps, selectedAppId]);
-
-  // Filtered Apps
-  const filteredApps = useMemo(() => {
-    return apps.filter((app) => {
-      if (stageFilter !== 'all' && app.stage !== stageFilter) {
-        return false;
-      }
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchesName = app.name.toLowerCase().includes(q);
-        const matchesSku = app.sku.toLowerCase().includes(q);
-        const matchesSub = app.subtitle.toLowerCase().includes(q);
-        const matchesDesc = app.description.toLowerCase().includes(q);
-        const matchesModule = app.modules.some((m) => m.toLowerCase().includes(q));
-        if (!matchesName && !matchesSku && !matchesSub && !matchesDesc && !matchesModule) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [apps, stageFilter, searchQuery]);
-
-  // ---------------------------------------------------------------------------
-  // INTERACTIVE SIMULATOR RUNNER STATES (FOR OPERABILITY TESTING)
-  // ---------------------------------------------------------------------------
-  // 1. bizzcalc states
-  const [calcOverheadRate, setCalcOverheadRate] = useState<number>(45);
-  const [calcLaborRate, setCalcLaborRate] = useState<number>(65);
-  const [calcMaterialsCost, setCalcMaterialsCost] = useState<number>(85);
-  const [calcFixedOpex, setCalcFixedOpex] = useState<number>(25000);
-  const [calcTargetVolume, setCalcTargetVolume] = useState<number>(250);
-
-  // bizzcalc outputs
-  const calcTotalDirectCost = calcMaterialsCost + calcLaborRate;
-  const calcOverheadPerUnit = calcTargetVolume > 0 ? Math.round(calcFixedOpex / calcTargetVolume) : 0;
-  const calcBreakEvenPrice = calcTotalDirectCost + calcOverheadPerUnit;
-  const calcTargetPrice = Math.round(calcBreakEvenPrice * 1.35); // 35% margin floor
-  const calcContributionMargin = calcTargetPrice > 0 ? Math.round(((calcTargetPrice - calcTotalDirectCost) / calcTargetPrice) * 100) : 0;
-
-  // 2. bizzmodel states
-  const [modRevenue, setModRevenue] = useState<number>(30000);
-  const [modOpEx, setModOpEx] = useState<number>(45000);
-  const [modGrossMargin, setModGrossMargin] = useState<number>(70);
-  const [modCashReserves, setModCashReserves] = useState<number>(180000);
-
-  // bizzmodel outputs
-  const modGrossProfit = (modRevenue * modGrossMargin) / 100;
-  const modNetBurn = Math.max(0, modOpEx - modGrossProfit);
-  const modRunwayMonths = modNetBurn > 0 ? (modCashReserves / modNetBurn).toFixed(1) : 'Infinite (>36)';
-  const modValuation = modRevenue * 12 * 6; // 6x ARR
-
-  // 3. bizzplan states
-  const [planProblem, setPlanProblem] = useState<string>(
-    'Founders lack institutional financial modeling, causing 70% of venture applications to fail investor scrutiny.'
-  );
-  const [planMoat, setPlanMoat] = useState<string>(
-    'Proprietary quantitative dynamic dials linked to real general ledgers and AI coaching.'
-  );
-  const [planAsk, setPlanAsk] = useState<number>(500000);
-  const [planValuationCap, setPlanValuationCap] = useState<number>(4500000);
-
-  // 4. sustain-runway states
-  const [susDebtorDays, setSusDebtorDays] = useState<number>(48);
-  const [susCreditorDays, setSusCreditorDays] = useState<number>(28);
-  const [susDiscretionary, setSusDiscretionary] = useState<number>(12500);
-  const susTrappedCash = Math.round((modRevenue / 30) * Math.max(0, susDebtorDays - susCreditorDays));
-  const susRunwayAddedMonths = ((susDiscretionary * 0.40 * 12) / (modNetBurn || 10000)).toFixed(1);
-
-  // 5. invest-vdr states
-  const [vdrChecked, setVdrChecked] = useState<{ [key: string]: boolean }>({
-    'vdr-1': true,
-    'vdr-2': true,
-    'vdr-3': false,
-    'vdr-4': true,
-    'vdr-5': false,
-    'vdr-6': false,
-  });
-  const vdrItems = [
-    { id: 'vdr-1', cat: 'Corporate', label: 'Certificate of Incorporation & Bylaws' },
-    { id: 'vdr-2', cat: 'Capitalization', label: 'Detailed Cap Table with Fully Diluted Waterfall' },
-    { id: 'vdr-3', cat: 'Financials', label: 'Audited 3-Statement Historicals & 36-Month Model' },
-    { id: 'vdr-4', cat: 'IP / Tech', label: 'Proprietary IP Assignment Agreements (Founders & Team)' },
-    { id: 'vdr-5', cat: 'Commercial', label: 'Customer Cohort CAC : LTV Verification & Contracts' },
-    { id: 'vdr-6', cat: 'Compliance', label: 'Tax Clearances & Corporate Governance Minutes' },
-  ];
-  const vdrCompletedCount = Object.values(vdrChecked).filter(Boolean).length;
-  const vdrAuditPct = Math.round((vdrCompletedCount / vdrItems.length) * 100);
-
-  // 6. bizzmoney states
-  const [voiceSimActive, setVoiceSimActive] = useState<boolean>(false);
-  const [bmClient, setBmClient] = useState<string>('Apex Global Logistics');
-  const [bmAmount, setBmAmount] = useState<number>(4500);
-  const [bmAccount, setBmAccount] = useState<string>('4000 REVENUE');
-  const [bmStatus, setBmStatus] = useState<string>('idle');
-  const [recentEntries, setRecentEntries] = useState<
-    Array<{ client: string; amount: number; account: string; vat: number; date: string }>
-  >([
-    { client: 'Zenith Retail Corp', amount: 12500, account: '4000 REVENUE', vat: 1875, date: 'Today, 09:15' },
-    { client: 'Cloud Cluster Hosting', amount: 3200, account: '6000 OPEX', vat: 480, date: 'Yesterday, 14:30' },
-  ]);
-
-  // 7. bizzbudget states
-  const [bgtSalesMktg, setBgtSalesMktg] = useState<number>(18000);
-  const [bgtEngineering, setBgtEngineering] = useState<number>(24000);
-  const [bgtGa, setBgtGa] = useState<number>(8500);
-  const bgtTotalBudget = bgtSalesMktg + bgtEngineering + bgtGa;
-  const bgtActualSpent = Math.round(bgtTotalBudget * 1.08); // 8% drift
-  const bgtVariance = bgtActualSpent - bgtTotalBudget;
-
-  // 8. bizzoptimizer states
-  const [optSaasSpend, setOptSaasSpend] = useState<number>(6800);
-  const [optVendorSpend, setOptVendorSpend] = useState<number>(14500);
-  const [optTrimPct, setOptTrimPct] = useState<number>(18);
-  const optMonthlySavings = Math.round(((optSaasSpend + optVendorSpend) * optTrimPct) / 100);
-  const optAnnualSavings = optMonthlySavings * 12;
-
-  // 9. growth-strategy states
-  const [stratChannel, setStratChannel] = useState<'direct' | 'partner' | 'inbound'>('direct');
-  const [stratElasticity, setStratElasticity] = useState<number>(1.2);
-  const [stratMoatScore, setStratMoatScore] = useState<number>(82);
-
-  // Helper to handle purchasing an app
-  const handlePurchaseApp = (app: PlatformAppDefinition) => {
-    if (onBuySolution) {
-      const bizzSol = BIZZ_SOLUTIONS.find((s) => s.id === app.id) || {
-        id: app.id,
-        name: app.name,
-        category: (app.stage === 'operations' ? 'operations' : app.stage === 'growth' ? 'growth' : 'startup') as any,
-        stage: app.stage,
-        priceUSD: Math.round(app.sellingPriceZAR / 18.5),
-        priceZAR: app.sellingPriceZAR,
-        vatRate: 0.15,
-        tokensAllocated: app.tokensAllocated,
-        billingModel: app.billingModel,
-        imageUrl: '',
-        isPurchased: app.isPurchased,
-        description: app.description,
-        subtitle: app.subtitle,
-        purpose: app.purpose,
-        stageCode: app.sku,
-        features: app.modules,
-      };
-      onBuySolution(bizzSol);
-    }
-  };
-
-  // Helper to jump to stage in workstation
-  const handleLinkToStage = (app: PlatformAppDefinition) => {
-    if (onNavigateToStage) {
-      onNavigateToStage(app.stage, app.id);
+  const handleLaunch = (launchId: string) => {
+    if (onLaunchApp) {
+      onLaunchApp(launchId);
     } else if (onSelectSolutionById) {
-      onSelectSolutionById(app.id);
+      onSelectSolutionById(launchId);
     }
   };
 
-  // Launch app into full presenter (or inline runner if no handler)
-  const handleLaunchAppRunner = (appId: string, forceInline = false) => {
-    const targetApp = apps.find((a) => a.id === appId);
-    if (!isAdmin && targetApp && !targetApp.isPurchased && onBuySolution) {
-      handlePurchaseApp(targetApp);
-      return;
-    }
-    if (onLaunchApp && !forceInline) {
-      onLaunchApp(appId);
-    } else {
-      setSelectedAppId(appId);
-      setViewMode('runner');
-    }
+  const handleBuy = (card: (typeof appCards)[number]) => {
+    if (!onBuySolution) return;
+    const { spec, cms, pricing } = card;
+    const solId = cms?.id || spec.launchId;
+    const stageStr = (cms?.stage || '').toLowerCase();
+    const category: BizzSolution['category'] =
+      stageStr === 'operations' || stageStr === 'operations-sandbox'
+        ? 'operations'
+        : stageStr === 'growth'
+        ? 'growth'
+        : 'startup';
+    const solution: BizzSolution = {
+      id: solId,
+      name: cms?.name || spec.name,
+      subtitle: card.tagline,
+      category,
+      stage: cms?.stage || spec.defaultStageLabel,
+      priceUSD: Math.round((pricing.sellingPriceZAR / 18) * 100) / 100,
+      priceZAR: pricing.sellingPriceZAR,
+      vatRate: 0.15,
+      tokensAllocated: pricing.tokensAllocated,
+      billingModel: cms?.billingModel || 'once-off',
+      isPurchased: false,
+      description: card.summary,
+      purpose: cms?.purpose || card.tagline,
+      features: cms?.modules || [],
+    };
+    onBuySolution(solution);
   };
 
   return (
     <div
-      className={`min-h-full flex flex-col transition-colors ${
-        isDark ? 'bg-[#0A0D14] text-[#E2E8F0]' : 'bg-[#FAF8F5] text-slate-800'
+      className={`h-full w-full overflow-y-auto px-4 sm:px-8 py-6 sm:py-8 ${
+        isDark ? 'bg-[#0A0D14] text-slate-100' : 'bg-[#FAF8F5] text-[#12172A]'
       }`}
     >
-      {/* ===================================================================== */}
-      {/* TOP HEADER: PLATFORM APPS SUITE (V2 STYLING)                         */}
-      {/* ===================================================================== */}
-      <header
-        className={`px-4 sm:px-6 py-4 border-b shrink-0 flex flex-wrap items-center justify-between gap-3 ${
-          isDark ? 'bg-[#101626] border-[#222F4C]' : 'bg-white border-[#D8CEBC] shadow-2xs'
-        }`}
-      >
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-[#5584B4]/20 border border-[#5584B4]/40 text-[#5584B4]">
-            <Layers className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-bold text-[#5584B4] uppercase tracking-wider">
-                BIZZBEAN PLATFORM
-              </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
-                V2 APPS SUITE
-              </span>
-            </div>
-            <h1 className="text-base sm:text-lg font-bold font-mono tracking-tight uppercase text-slate-900 dark:text-white">
-              The Platform Applications & Interactive Sandbox Suite
-            </h1>
-          </div>
-        </div>
-
-        {/* Header Right Actions */}
-        <div className="flex items-center gap-2">
-          {/* View Mode Toggle: Catalog vs Interactive Runner */}
-          <div
-            className={`p-1 rounded-xl flex items-center border ${
-              isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-[#F4EFE6] border-[#D8CEBC]'
-            }`}
-          >
-            <button
-              onClick={() => setViewMode('catalog')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all lowercase ${
-                viewMode === 'catalog'
-                  ? isDark
-                    ? 'bg-[#1E2548] text-white shadow-xs'
-                    : 'bg-[#12172A] text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              catalog grid ({apps.length})
-            </button>
-            <button
-              onClick={() => setViewMode('runner')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all lowercase flex items-center gap-1.5 ${
-                viewMode === 'runner'
-                  ? isDark
-                    ? 'bg-[#1E2548] text-white shadow-xs'
-                    : 'bg-[#12172A] text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Play className="h-3 w-3 text-[#5584B4]" />
-              <span>operability tester</span>
-            </button>
-          </div>
-
-          {onBackToAdmin && (
-            <button
-              onClick={onBackToAdmin}
-              title="Return to Administration Centre"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-semibold transition-colors border ${
+      <div className="max-w-7xl mx-auto">
+        {/* Clean Header Bar */}
+        <div
+          className={`flex flex-wrap items-center justify-between gap-4 pb-6 mb-8 border-b ${
+            isDark ? 'border-[#222B45]' : 'border-[#E6DFD2]'
+          }`}
+        >
+          <div className="flex items-start gap-3.5">
+            <div
+              className={`h-10 w-10 rounded-xl border flex items-center justify-center shrink-0 mt-0.5 ${
                 isDark
-                  ? 'bg-[#161C30] hover:bg-[#1E2548] text-slate-200 border-[#252E4A]'
-                  : 'bg-white hover:bg-[#F4EFE6] text-slate-700 border-[#D8CEBC]'
+                  ? 'bg-[#111626] border-[#242E49] text-[#7EB2E2]'
+                  : 'bg-white border-[#E0D7C8] text-[#2E5E88]'
               }`}
             >
-              <ShieldCheck className="h-3.5 w-3.5 text-[#5584B4]" />
-              <span className="hidden sm:inline">Admin Centre</span>
-            </button>
-          )}
-
-          {onBackToWorkstation && (
-            <button
-              onClick={onBackToWorkstation}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold bg-[#5584B4] hover:bg-[#4773A0] text-white shadow-xs transition-colors"
-            >
-              <span>Back to Workstation</span>
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-      </header>
-
-      {/* ===================================================================== */}
-      {/* SUB-BAR: STAGE FILTERS & SEARCH                                       */}
-      {/* ===================================================================== */}
-      <div
-        className={`px-4 sm:px-6 py-2.5 border-b flex flex-wrap items-center justify-between gap-3 shrink-0 ${
-          isDark ? 'bg-[#0E1322] border-[#1D2644]' : 'bg-[#F4EFE6] border-[#D8CEBC]'
-        }`}
-      >
-        {/* Stage Filter Buttons */}
-        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
-          {[
-            { id: 'all', label: 'all apps', count: apps.length },
-            { id: 'vi-ability', label: 'stage 01 · vi-ability', count: apps.filter((a) => a.stage === 'vi-ability').length },
-            { id: 'fund-ability', label: 'stage 02 · fund-ability', count: apps.filter((a) => a.stage === 'fund-ability').length },
-            { id: 'sustain-ability', label: 'stage 03 · sustain-ability', count: apps.filter((a) => a.stage === 'sustain-ability').length },
-            { id: 'invest-ability', label: 'stage 04 · invest-ability', count: apps.filter((a) => a.stage === 'invest-ability').length },
-            { id: 'operations', label: 'operations', count: apps.filter((a) => a.stage === 'operations').length },
-            { id: 'growth', label: 'growth', count: apps.filter((a) => a.stage === 'growth').length },
-          ].map((item) => {
-            const isSelected = stageFilter === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setStageFilter(item.id)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold transition-all whitespace-nowrap lowercase border ${
-                  isSelected
-                    ? isDark
-                      ? 'bg-[#1E2548] text-[#DDEBF7] border-[#5584B4] shadow-xs'
-                      : 'bg-[#12172A] text-white border-[#12172A] shadow-xs'
-                    : isDark
-                    ? 'text-slate-400 hover:text-white bg-[#13182B] border-transparent'
-                    : 'text-slate-600 hover:text-slate-900 bg-white border-[#D8CEBC]'
+              <Layers className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-[11px] font-mono uppercase tracking-widest text-[#9A7B4F] dark:text-[#D4A373]">
+                bizzbean Platform Apps
+              </p>
+              <h1
+                className={`text-2xl sm:text-3xl font-bold tracking-tight mt-0.5 ${
+                  isDark ? 'text-white' : 'text-[#12172A]'
+                }`}
+                style={{ fontFamily: "'Outfit', sans-serif" }}
+              >
+                Interactive Financial Applications
+              </h1>
+              <p
+                className={`text-xs sm:text-sm mt-1 ${
+                  isDark ? 'text-slate-400' : 'text-slate-600'
                 }`}
               >
-                <span>{item.label}</span>
-                <span className="ml-1.5 opacity-60 text-[10px]">({item.count})</span>
+                Launch your licensed platform apps directly or purchase access with inclusive VAT &amp; bizz-tokens.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            {isAdmin && onBackToAdmin && (
+              <button
+                type="button"
+                onClick={onBackToAdmin}
+                className={`px-3.5 py-2 rounded-lg text-xs font-semibold border transition-colors inline-flex items-center gap-1.5 cursor-pointer ${
+                  isDark
+                    ? 'bg-[#111626] border-[#242E49] text-slate-200 hover:border-[#7EB2E2]'
+                    : 'bg-white border-[#E0D7C8] text-slate-800 hover:border-[#2E5E88]'
+                }`}
+              >
+                <ShieldCheck className="h-3.5 w-3.5 text-[#2E5E88] dark:text-[#7EB2E2]" />
+                <span>Admin Centre</span>
               </button>
+            )}
+            {onBackToWorkstation && (
+              <button
+                type="button"
+                onClick={onBackToWorkstation}
+                className="px-4 py-2 rounded-lg bg-[#2E5E88] hover:bg-[#234C70] text-white text-xs font-semibold transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Back to Workstation</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Platform Apps Card Grid — Matching Top-Tier Website Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {appCards.map((card) => {
+            const { spec, pricing, isOwned, stageLabel, tagline, summary } = card;
+            return (
+              <article
+                key={spec.id}
+                className={`rounded-xl border p-6 flex flex-col justify-between transition-colors ${
+                  isDark
+                    ? 'border-[#242E49] bg-[#111626] hover:border-[#7EB2E2]/70'
+                    : 'border-[#E6DFD2] bg-white hover:border-[#2E5E88]/70'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 text-[11px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    <span>SOFTWARE · {stageLabel}</span>
+                    <span
+                      className={`font-semibold tabular-nums ${
+                        isDark ? 'text-white' : 'text-[#12172A]'
+                      }`}
+                      title="Ticket price (incl. VAT & bizz-tokens)"
+                    >
+                      {pricing.label}
+                    </span>
+                  </div>
+
+                  <h2
+                    className={`text-xl font-bold mt-3 ${
+                      isDark ? 'text-white' : 'text-[#12172A]'
+                    }`}
+                    style={{ fontFamily: "'Outfit', sans-serif" }}
+                  >
+                    {spec.name}
+                  </h2>
+
+                  <p className="text-xs font-medium text-[#2E5E88] dark:text-[#7EB2E2] mt-1">
+                    {tagline}
+                  </p>
+
+                  <p
+                    className={`text-sm mt-3 leading-relaxed ${
+                      isDark ? 'text-slate-400' : 'text-slate-600'
+                    }`}
+                  >
+                    {summary}
+                  </p>
+                </div>
+
+                <div
+                  className={`mt-6 pt-4 border-t flex items-center justify-between gap-3 ${
+                    isDark ? 'border-[#222B45]' : 'border-[#EDE7DC]'
+                  }`}
+                >
+                  {isOwned ? (
+                    <>
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                        <span>Access active</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleLaunch(spec.launchId)}
+                        className="px-3.5 py-2 rounded-lg bg-[#2E5E88] hover:bg-[#234C70] text-white text-xs font-semibold transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Play className="h-3.5 w-3.5 fill-white" />
+                        <span>Access App</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                        incl. VAT &amp; {pricing.tokensAllocated} tokens
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleBuy(card)}
+                        className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors inline-flex items-center gap-1.5 cursor-pointer ${
+                          isDark
+                            ? 'bg-[#2E5E88] hover:bg-[#3A72A3] text-white'
+                            : 'bg-[#12172A] hover:bg-[#2E5E88] text-white'
+                        }`}
+                      >
+                        <ShoppingCart className="h-3.5 w-3.5" />
+                        <span>Buy · {pricing.label}</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </article>
             );
           })}
         </div>
-
-        {/* Search Input */}
-        <div className="relative min-w-[200px] sm:min-w-[240px]">
-          <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search apps, SKUs, modules..."
-            className={`w-full pl-8 pr-3 py-1.5 rounded-lg text-xs font-mono border focus:outline-none focus:ring-1 focus:ring-[#5584B4] ${
-              isDark
-                ? 'bg-[#13182B] border-[#252E4A] text-white placeholder-slate-500'
-                : 'bg-white border-[#D8CEBC] text-slate-900 placeholder-slate-400'
-            }`}
-          />
-        </div>
-      </div>
-
-      {/* ===================================================================== */}
-      {/* MAIN VIEW AREA                                                        */}
-      {/* ===================================================================== */}
-      <div className="flex-grow p-4 sm:p-6 overflow-y-auto">
-        {viewMode === 'catalog' ? (
-          /* ================================================================= */
-          /* 1. CATALOG GRID VIEW                                              */
-          /* ================================================================= */
-          <div className="max-w-7xl mx-auto space-y-6">
-            
-            {/* Top Overview Banner */}
-            <div
-              className={`p-4 sm:p-5 rounded-2xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
-                isDark ? 'bg-[#141A2E] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'
-              }`}
-            >
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs font-bold text-[#5584B4] uppercase tracking-wider">
-                    V1 ARCHITECTURE TRANSFERRED TO V2
-                  </span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#DDEBF7] text-[#24496B] dark:bg-[#1E3048] dark:text-[#DDEBF7] font-semibold">
-                    100% OPERATIONAL
-                  </span>
-                </div>
-                <h2 className="text-sm sm:text-base font-bold font-mono text-slate-900 dark:text-white uppercase">
-                  Institutional Venture Acceleration & Operational Application Cockpit
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-3xl leading-relaxed">
-                  Every platform application is coupled with its respective venture stage. You can launch interactive sandboxes for real-time testing, purchase licenses with transparent ZAR/token pricing, or jump directly into the stage workspace.
-                </p>
-              </div>
-
-              {/* Founder Token Balance Card */}
-              <div
-                className={`p-3.5 rounded-xl border shrink-0 text-right ${
-                  isDark ? 'bg-[#0E1322] border-[#252E4A]' : 'bg-[#FAF8F5] border-[#D8CEBC]'
-                }`}
-              >
-                <div className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">
-                  Founder Token Vault
-                </div>
-                <div className="font-mono text-lg font-bold text-amber-500 tabular-nums">
-                  {tokenBalance} Tokens
-                </div>
-                <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-                  20% V1 discount active
-                </div>
-              </div>
-            </div>
-
-            {/* Apps Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filteredApps.map((app) => {
-                const Icon = app.icon || Calculator;
-                return (
-                  <div
-                    key={app.id}
-                    className={`rounded-2xl border p-5 flex flex-col justify-between transition-all hover:shadow-md ${
-                      isDark
-                        ? 'bg-[#141A2E] border-[#252E4A] hover:border-[#5584B4]'
-                        : 'bg-white border-[#D8CEBC] hover:border-[#5584B4] shadow-xs'
-                    }`}
-                  >
-                    {/* Top Row: SKU, Stage Badge & Purchase Status */}
-                    <div>
-                      <div className="flex items-center justify-between pb-3 border-b border-[#E8E2D8] dark:border-[#222F4C] gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-[#FAF8F5] dark:bg-[#0E1322] text-slate-700 dark:text-slate-300 border border-[#D8CEBC] dark:border-[#252E4A]">
-                            {app.sku}
-                          </span>
-                          <span className="font-mono text-[10px] uppercase font-bold text-[#5584B4]">
-                            {app.stageCode}
-                          </span>
-                        </div>
-
-                        {app.isPurchased ? (
-                          <span className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold lowercase">
-                            <Check className="h-3 w-3" />
-                            <span>active / purchased</span>
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-bold lowercase">
-                            R{app.sellingPriceZAR.toFixed(2)}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Title & Subtitle */}
-                      <div className="mt-3.5 space-y-1">
-                        <div className="flex items-center gap-2.5">
-                          <div className="p-2 rounded-xl bg-[#5584B4]/10 dark:bg-[#5584B4]/20 text-[#5584B4] border border-[#5584B4]/30 shrink-0">
-                            <Icon className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <h3 className="font-mono text-base font-bold text-slate-900 dark:text-white lowercase tracking-tight">
-                              {app.name.toLowerCase()}
-                            </h3>
-                            <div className="text-[11px] font-mono text-[#5584B4] lowercase">
-                              {app.assignedStep}
-                            </div>
-                          </div>
-                        </div>
-
-                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mt-2 line-clamp-1">
-                          {app.subtitle}
-                        </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mt-1 line-clamp-2">
-                          {app.description}
-                        </p>
-                      </div>
-
-                      {/* Integrated Modules List */}
-                      <div className="mt-4 pt-3 border-t border-[#E8E2D8] dark:border-[#222F4C] space-y-1.5">
-                        <div className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
-                          Standard Integrated Modules:
-                        </div>
-                        <ul className="space-y-1 text-xs font-mono text-slate-600 dark:text-slate-300">
-                          {app.modules.slice(0, 3).map((mod, idx) => (
-                            <li key={idx} className="flex items-center gap-1.5 text-[11px]">
-                              <span className="h-1.5 w-1.5 rounded-full bg-[#5584B4] shrink-0" />
-                              <span className="truncate">{mod}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-
-                    {/* Bottom Action Buttons */}
-                    <div className="mt-5 pt-3 border-t border-[#E8E2D8] dark:border-[#222F4C] space-y-2">
-                      {/* Price & Token Breakdown */}
-                      <div className="flex items-center justify-between text-[11px] font-mono text-slate-500">
-                        <span>{app.billingModel === 'monthly subscription' ? 'Monthly Sub' : 'Once-off License'}</span>
-                        <span className="font-bold text-slate-700 dark:text-slate-300">
-                          {app.tokensAllocated} Tokens
-                        </span>
-                      </div>
-
-                      {/* Interactive Actions Grid */}
-                      <div className="grid grid-cols-2 gap-2">
-                        {/* Use / Test Operability */}
-                        <button
-                          onClick={() => handleLaunchAppRunner(app.id)}
-                          className="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-xs font-mono font-bold bg-[#12172A] hover:bg-[#1E2548] text-white dark:bg-[#1E2548] dark:hover:bg-[#2B3566] transition-colors lowercase"
-                          title="Test operability in sandbox"
-                        >
-                          <Play className="h-3 w-3 text-[#5584B4]" />
-                          <span>use / test</span>
-                        </button>
-
-                        {/* Link to Stage for Purchase and Use */}
-                        <button
-                          onClick={() => handleLinkToStage(app)}
-                          className="flex items-center justify-center gap-1 py-2 px-2.5 rounded-xl text-xs font-mono font-bold bg-[#FAF8F5] dark:bg-[#0E1322] hover:bg-[#F4EFE6] dark:hover:bg-[#182038] border border-[#D8CEBC] dark:border-[#252E4A] text-slate-800 dark:text-slate-200 transition-colors lowercase"
-                          title={`Link to ${app.stageDisplayName} stage`}
-                        >
-                          <span>link to stage</span>
-                          <ArrowRight className="h-3 w-3 text-[#5584B4]" />
-                        </button>
-                      </div>
-
-                      {/* Purchase Action (if not purchased) */}
-                      {!app.isPurchased && (
-                        <button
-                          onClick={() => handlePurchaseApp(app)}
-                          className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-mono font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 transition-colors lowercase"
-                        >
-                          <ShoppingCart className="h-3 w-3" />
-                          <span>purchase for {app.stageDisplayName} (R{app.sellingPriceZAR.toFixed(2)})</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-          </div>
-        ) : (
-          /* ================================================================= */
-          /* 2. OPERABILITY TESTER / RUNNER MODE                               */
-          /* ================================================================= */
-          <div className="max-w-5xl mx-auto space-y-6">
-            
-            {/* Top Selector Bar: Switch between apps while in runner */}
-            <div
-              className={`p-3 rounded-2xl border flex items-center justify-between gap-3 ${
-                isDark ? 'bg-[#141A2E] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'
-              }`}
-            >
-              <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
-                <span className="text-[11px] font-mono text-slate-400 uppercase font-bold shrink-0 ml-1">
-                  APP RUNNER:
-                </span>
-                {apps.map((app) => (
-                  <button
-                    key={app.id}
-                    onClick={() => setSelectedAppId(app.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all lowercase shrink-0 border ${
-                      currentApp.id === app.id
-                        ? isDark
-                          ? 'bg-[#1E2548] text-white border-[#5584B4] shadow-xs'
-                          : 'bg-[#12172A] text-white border-[#12172A] shadow-xs'
-                        : isDark
-                        ? 'text-slate-400 hover:text-white bg-[#0E1322] border-transparent'
-                        : 'text-slate-600 hover:text-slate-900 bg-[#FAF8F5] border-[#D8CEBC]'
-                    }`}
-                  >
-                    <span>{app.name.toLowerCase()}</span>
-                  </button>
-                ))}
-              </div>
-
-              <button
-                onClick={() => setViewMode('catalog')}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-mono text-slate-500 hover:text-slate-900 dark:hover:text-white shrink-0 lowercase"
-              >
-                <X className="h-3.5 w-3.5" />
-                <span>close runner</span>
-              </button>
-            </div>
-
-            {/* Currently Active App Header Card */}
-            <div
-              className={`p-5 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
-                isDark ? 'bg-[#141A2E] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'
-              }`}
-            >
-              <div className="flex items-center gap-3.5">
-                <div className="p-3 rounded-2xl bg-[#5584B4]/20 border border-[#5584B4]/40 text-[#5584B4]">
-                  {React.createElement(currentApp.icon || Calculator, { className: 'h-6 w-6' })}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-slate-400 uppercase">
-                      {currentApp.sku}
-                    </span>
-                    <span className="font-mono text-xs font-bold text-[#5584B4] uppercase">
-                      {currentApp.stageCode} · {currentApp.stageDisplayName}
-                    </span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 lowercase">
-                      live operability mode
-                    </span>
-                  </div>
-                  <h2 className="text-lg font-bold font-mono text-slate-900 dark:text-white lowercase tracking-tight">
-                    {currentApp.name.toLowerCase()}
-                  </h2>
-                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    {currentApp.subtitle}
-                  </div>
-                </div>
-              </div>
-
-              {/* Stage Linking & Purchase Buttons */}
-              <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                {onLaunchApp && (
-                  <button
-                    onClick={() => onLaunchApp(currentApp.id)}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-mono font-bold bg-[#12172A] dark:bg-[#1E2548] hover:bg-[#1E2548] text-white shadow-xs transition-colors lowercase"
-                    title="Launch full presenter in Work Area"
-                  >
-                    <Layers className="h-3.5 w-3.5 text-[#84CC16]" />
-                    <span>Launch Full Presenter</span>
-                  </button>
-                )}
-
-                <button
-                  onClick={() => handleLinkToStage(currentApp)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-mono font-bold bg-[#FAF8F5] dark:bg-[#0E1322] hover:bg-[#F4EFE6] dark:hover:bg-[#182038] border border-[#D8CEBC] dark:border-[#252E4A] text-slate-800 dark:text-slate-200 transition-colors lowercase"
-                >
-                  <span>Link to {currentApp.stageDisplayName} Stage</span>
-                  <ArrowRight className="h-3.5 w-3.5 text-[#5584B4]" />
-                </button>
-
-                {!currentApp.isPurchased && (
-                  <button
-                    onClick={() => handlePurchaseApp(currentApp)}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-mono font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-600 dark:text-amber-400 border border-amber-500/30 transition-colors lowercase"
-                  >
-                    <ShoppingCart className="h-3.5 w-3.5" />
-                    <span>Purchase (R{currentApp.sellingPriceZAR.toFixed(2)})</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* =============================================================== */}
-            {/* INTERACTIVE OPERABLE ENGINE BY CURRENT APP ID                  */}
-            {/* =============================================================== */}
-            
-            {/* APP 1: bizzcalc (Cost Recovery, Break-Even & Contribution Margin Simulator) */}
-            {currentApp.id === 'bizzcalc' && (
-              <div className="space-y-5">
-                {/* Metrics Bar */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                    <div className="text-[11px] font-mono text-slate-400 uppercase">Break-Even Price Floor</div>
-                    <div className="font-mono text-xl font-bold text-slate-900 dark:text-white mt-1 tabular-nums">
-                      R{calcBreakEvenPrice.toFixed(2)}
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">100% cost recovery</div>
-                  </div>
-
-                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                    <div className="text-[11px] font-mono text-slate-400 uppercase">Target Commercial Price</div>
-                    <div className="font-mono text-xl font-bold text-[#5584B4] mt-1 tabular-nums">
-                      R{calcTargetPrice.toFixed(2)}
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">35% sustainable markup</div>
-                  </div>
-
-                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                    <div className="text-[11px] font-mono text-slate-400 uppercase">Contribution Margin</div>
-                    <div className="font-mono text-xl font-bold text-emerald-500 mt-1 tabular-nums">
-                      {calcContributionMargin}%
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">benchmark &ge; 30%</div>
-                  </div>
-
-                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                    <div className="text-[11px] font-mono text-slate-400 uppercase">Overhead Absorbed</div>
-                    <div className="font-mono text-xl font-bold text-amber-500 mt-1 tabular-nums">
-                      R{calcOverheadPerUnit.toFixed(2)} / unit
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">at {calcTargetVolume} units volume</div>
-                  </div>
-                </div>
-
-                {/* Dynamic Dials / Sliders */}
-                <div className={`p-5 rounded-2xl border space-y-4 ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                  <div className="text-xs font-mono font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center justify-between">
-                    <span>DYNAMIC PRODUCTION & OVERHEAD DIALS</span>
-                    <span className="text-[11px] text-[#5584B4] lowercase">real-time math recalculation</span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <div className="flex justify-between text-xs mb-1 font-mono">
-                        <span className="text-slate-600 dark:text-slate-300">Raw Materials Cost / Unit:</span>
-                        <span className="text-slate-900 dark:text-white font-bold">R{calcMaterialsCost}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="10"
-                        max="500"
-                        step="5"
-                        value={calcMaterialsCost}
-                        onChange={(e) => setCalcMaterialsCost(Number(e.target.value))}
-                        className="w-full accent-[#5584B4]"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-xs mb-1 font-mono">
-                        <span className="text-slate-600 dark:text-slate-300">Direct Labor Rate / Unit:</span>
-                        <span className="text-slate-900 dark:text-white font-bold">R{calcLaborRate}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="10"
-                        max="300"
-                        step="5"
-                        value={calcLaborRate}
-                        onChange={(e) => setCalcLaborRate(Number(e.target.value))}
-                        className="w-full accent-[#5584B4]"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-xs mb-1 font-mono">
-                        <span className="text-slate-600 dark:text-slate-300">Fixed Monthly Expenditures:</span>
-                        <span className="text-slate-900 dark:text-white font-bold">R{calcFixedOpex.toLocaleString()}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="5000"
-                        max="150000"
-                        step="5000"
-                        value={calcFixedOpex}
-                        onChange={(e) => setCalcFixedOpex(Number(e.target.value))}
-                        className="w-full accent-[#5584B4]"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-xs mb-1 font-mono">
-                        <span className="text-slate-600 dark:text-slate-300">Monthly Target Unit Volume:</span>
-                        <span className="text-slate-900 dark:text-white font-bold">{calcTargetVolume} units</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="25"
-                        max="2000"
-                        step="25"
-                        value={calcTargetVolume}
-                        onChange={(e) => setCalcTargetVolume(Number(e.target.value))}
-                        className="w-full accent-[#5584B4]"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* APP 2: bizzmodel (3-Statement Financial Simulator) */}
-            {currentApp.id === 'bizzmodel' && (
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                    <div className="text-[11px] font-mono text-slate-400 uppercase">NET CASH RUNWAY</div>
-                    <div className="font-mono text-2xl font-bold text-emerald-500 mt-1 tabular-nums">
-                      {modRunwayMonths} {typeof modRunwayMonths === 'number' ? 'mo' : ''}
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">threshold: audited</div>
-                  </div>
-
-                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                    <div className="text-[11px] font-mono text-slate-400 uppercase">MONTHLY NET BURN</div>
-                    <div className="font-mono text-2xl font-bold text-slate-900 dark:text-white mt-1 tabular-nums">
-                      ${modNetBurn.toLocaleString()}
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">opex minus gross profit</div>
-                  </div>
-
-                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                    <div className="text-[11px] font-mono text-slate-400 uppercase">VALUATION (6X ARR)</div>
-                    <div className="font-mono text-2xl font-bold text-[#5584B4] mt-1 tabular-nums">
-                      ${modValuation.toLocaleString()}
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">pre-money valuation baseline</div>
-                  </div>
-                </div>
-
-                <div className={`p-5 rounded-2xl border space-y-4 ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                  <div className="text-xs font-mono font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                    3-STATEMENT OPERATIONAL DRIVER DIALS
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <div className="flex justify-between text-xs mb-1 font-mono">
-                        <span className="text-slate-600 dark:text-slate-300">Monthly Revenue:</span>
-                        <span className="font-bold text-slate-900 dark:text-white">${modRevenue.toLocaleString()}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="5000"
-                        max="200000"
-                        step="5000"
-                        value={modRevenue}
-                        onChange={(e) => setModRevenue(Number(e.target.value))}
-                        className="w-full accent-[#5584B4]"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-xs mb-1 font-mono">
-                        <span className="text-slate-600 dark:text-slate-300">Monthly OpEx:</span>
-                        <span className="font-bold text-slate-900 dark:text-white">${modOpEx.toLocaleString()}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="10000"
-                        max="200000"
-                        step="5000"
-                        value={modOpEx}
-                        onChange={(e) => setModOpEx(Number(e.target.value))}
-                        className="w-full accent-[#5584B4]"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-xs mb-1 font-mono">
-                        <span className="text-slate-600 dark:text-slate-300">Gross Margin %:</span>
-                        <span className="font-bold text-slate-900 dark:text-white">{modGrossMargin}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="20"
-                        max="90"
-                        step="5"
-                        value={modGrossMargin}
-                        onChange={(e) => setModGrossMargin(Number(e.target.value))}
-                        className="w-full accent-[#5584B4]"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-xs mb-1 font-mono">
-                        <span className="text-slate-600 dark:text-slate-300">Cash Reserves:</span>
-                        <span className="font-bold text-slate-900 dark:text-white">${modCashReserves.toLocaleString()}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="20000"
-                        max="800000"
-                        step="10000"
-                        value={modCashReserves}
-                        onChange={(e) => setModCashReserves(Number(e.target.value))}
-                        className="w-full accent-[#5584B4]"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* APP 3: bizzplan (Executive Memorandums & Investment Pitch Synthesis) */}
-            {currentApp.id === 'bizzplan' && (
-              <div className="space-y-5">
-                <div className={`p-5 rounded-2xl border space-y-4 ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                  <div className="text-xs font-mono font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                    EXECUTIVE MEMORANDUM & PITCH SYNTHESIS BUILDER
-                  </div>
-
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-xs font-mono text-slate-600 dark:text-slate-300 block mb-1">
-                        Core Problem Hypothesis & Market Pain
-                      </label>
-                      <textarea
-                        value={planProblem}
-                        onChange={(e) => setPlanProblem(e.target.value)}
-                        rows={2}
-                        className={`w-full p-2.5 rounded-xl text-xs font-mono border focus:outline-none focus:ring-1 focus:ring-[#5584B4] ${
-                          isDark ? 'bg-[#0E1322] border-[#252E4A] text-white' : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900'
-                        }`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-mono text-slate-600 dark:text-slate-300 block mb-1">
-                        Defensible Competitive Moat & Unit Economics
-                      </label>
-                      <textarea
-                        value={planMoat}
-                        onChange={(e) => setPlanMoat(e.target.value)}
-                        rows={2}
-                        className={`w-full p-2.5 rounded-xl text-xs font-mono border focus:outline-none focus:ring-1 focus:ring-[#5584B4] ${
-                          isDark ? 'bg-[#0E1322] border-[#252E4A] text-white' : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900'
-                        }`}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs font-mono text-slate-600 dark:text-slate-300 block mb-1">
-                          Capital Requirement Ask (USD)
-                        </label>
-                        <input
-                          type="number"
-                          value={planAsk}
-                          onChange={(e) => setPlanAsk(Number(e.target.value))}
-                          className={`w-full p-2.5 rounded-xl text-xs font-mono border focus:outline-none focus:ring-1 focus:ring-[#5584B4] ${
-                            isDark ? 'bg-[#0E1322] border-[#252E4A] text-white' : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900'
-                          }`}
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-mono text-slate-600 dark:text-slate-300 block mb-1">
-                          Post-Money Valuation Cap (USD)
-                        </label>
-                        <input
-                          type="number"
-                          value={planValuationCap}
-                          onChange={(e) => setPlanValuationCap(Number(e.target.value))}
-                          className={`w-full p-2.5 rounded-xl text-xs font-mono border focus:outline-none focus:ring-1 focus:ring-[#5584B4] ${
-                            isDark ? 'bg-[#0E1322] border-[#252E4A] text-white' : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900'
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Generated Executive Summary Card */}
-                  <div className={`p-4 rounded-xl border mt-3 ${isDark ? 'bg-[#0E1322] border-[#252E4A]' : 'bg-[#FAF8F5] border-[#D8CEBC]'}`}>
-                    <div className="flex items-center justify-between pb-2 border-b border-[#E8E2D8] dark:border-[#252E4A]">
-                      <span className="font-mono text-xs font-bold text-[#5584B4] uppercase">
-                        INSTITUTIONAL MEMO PREVIEW
-                      </span>
-                      <span className="text-[10px] font-mono text-slate-400">
-                        Dilution: {((planAsk / planValuationCap) * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                    <div className="mt-2 text-xs font-mono text-slate-600 dark:text-slate-300 space-y-1">
-                      <div><strong className="text-slate-900 dark:text-white">Enterprise:</strong> {userProfile?.companyName || 'Apex Cloud Dynamics'}</div>
-                      <div><strong className="text-slate-900 dark:text-white">Problem:</strong> {planProblem}</div>
-                      <div><strong className="text-slate-900 dark:text-white">Moat:</strong> {planMoat}</div>
-                      <div><strong className="text-slate-900 dark:text-white">Ask:</strong> ${planAsk.toLocaleString()} on ${planValuationCap.toLocaleString()} Cap</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* APP 4: sustain-runway (Working Capital & Runway Safeguards) */}
-            {currentApp.id === 'sustain-runway' && (
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                    <div className="text-[11px] font-mono text-slate-400 uppercase">Cash Trapped in Receivables</div>
-                    <div className="font-mono text-2xl font-bold text-amber-500 mt-1 tabular-nums">
-                      ${susTrappedCash.toLocaleString()}
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">debtor lag cycle: {susDebtorDays} days</div>
-                  </div>
-
-                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                    <div className="text-[11px] font-mono text-slate-400 uppercase">Non-Dilutive Runway Gained</div>
-                    <div className="font-mono text-2xl font-bold text-emerald-500 mt-1 tabular-nums">
-                      +{susRunwayAddedMonths} Months
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">by trimming discretionary spend</div>
-                  </div>
-
-                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                    <div className="text-[11px] font-mono text-slate-400 uppercase">Working Capital Gap</div>
-                    <div className="font-mono text-2xl font-bold text-[#5584B4] mt-1 tabular-nums">
-                      {susDebtorDays - susCreditorDays} Days
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">target gap &le; 15 days</div>
-                  </div>
-                </div>
-
-                <div className={`p-5 rounded-2xl border space-y-4 ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                  <div className="text-xs font-mono font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                    WORKING CAPITAL LEVERS & EXPENSE CONTROLS
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <div className="flex justify-between text-xs mb-1 font-mono">
-                        <span className="text-slate-600 dark:text-slate-300">Customer Payment Delay (Debtor Days):</span>
-                        <span className="font-bold text-slate-900 dark:text-white">{susDebtorDays} Days</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="15"
-                        max="90"
-                        step="1"
-                        value={susDebtorDays}
-                        onChange={(e) => setSusDebtorDays(Number(e.target.value))}
-                        className="w-full accent-[#5584B4]"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-xs mb-1 font-mono">
-                        <span className="text-slate-600 dark:text-slate-300">Vendor Payment Terms (Creditor Days):</span>
-                        <span className="font-bold text-slate-900 dark:text-white">{susCreditorDays} Days</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="15"
-                        max="60"
-                        step="1"
-                        value={susCreditorDays}
-                        onChange={(e) => setSusCreditorDays(Number(e.target.value))}
-                        className="w-full accent-[#5584B4]"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-xs mb-1 font-mono">
-                        <span className="text-slate-600 dark:text-slate-300">Discretionary Monthly Expenditures:</span>
-                        <span className="font-bold text-slate-900 dark:text-white">${susDiscretionary.toLocaleString()}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="2000"
-                        max="50000"
-                        step="500"
-                        value={susDiscretionary}
-                        onChange={(e) => setSusDiscretionary(Number(e.target.value))}
-                        className="w-full accent-[#5584B4]"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* APP 5: invest-vdr (40-Point Due Diligence Virtual Data Room Matrix) */}
-            {currentApp.id === 'invest-vdr' && (
-              <div className="space-y-5">
-                <div className={`p-4 rounded-xl border flex items-center justify-between ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                  <div>
-                    <span className="text-[11px] font-mono text-slate-400 uppercase font-bold block">
-                      VIRTUAL DATA ROOM AUDIT READINESS SCORE
-                    </span>
-                    <span className="font-mono text-xl font-bold text-slate-900 dark:text-white">
-                      {vdrCompletedCount} of {vdrItems.length} Checklist Pillars Verified ({vdrAuditPct}%)
-                    </span>
-                  </div>
-                  <div className="h-10 w-24 bg-slate-200 dark:bg-[#0E1322] rounded-lg overflow-hidden border border-[#D8CEBC] dark:border-[#252E4A] p-1 flex items-center">
-                    <div
-                      className="h-full bg-emerald-500 rounded transition-all duration-300"
-                      style={{ width: `${vdrAuditPct}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className={`p-5 rounded-2xl border space-y-3 ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                  <div className="text-xs font-mono font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                    INSTITUTIONAL DUE DILIGENCE AUDIT CHECKLIST
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {vdrItems.map((item) => {
-                      const isChecked = !!vdrChecked[item.id];
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => setVdrChecked((prev) => ({ ...prev, [item.id]: !prev[item.id] }))}
-                          className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all font-mono text-xs ${
-                            isChecked
-                              ? isDark
-                                ? 'bg-[#1E2548] border-[#5584B4] text-white'
-                                : 'bg-[#FAF8F5] border-[#5584B4] text-slate-900'
-                              : isDark
-                              ? 'bg-[#0E1322] border-[#252E4A] text-slate-400'
-                              : 'bg-white border-[#D8CEBC] text-slate-600'
-                          }`}
-                        >
-                          <div className={`mt-0.5 h-4 w-4 rounded flex items-center justify-center shrink-0 border ${
-                            isChecked ? 'bg-[#5584B4] text-white border-[#5584B4]' : 'border-slate-400'
-                          }`}>
-                            {isChecked && <Check className="h-3 w-3" />}
-                          </div>
-                          <div>
-                            <div className="text-[10px] uppercase font-bold text-[#5584B4]">{item.cat}</div>
-                            <div className="leading-snug">{item.label}</div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* APP 6: bizzmoney (Standard Chart of Accounts & Integrated Ledger) */}
-            {currentApp.id === 'bizzmoney' && (
-              <div className="space-y-5">
-                <div className={`p-5 rounded-2xl border space-y-4 ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                  <div className="flex items-center justify-between pb-3 border-b border-[#E8E2D8] dark:border-[#252E4A]">
-                    <div>
-                      <div className="text-xs font-mono font-bold text-slate-900 dark:text-white uppercase">
-                        62-ACCOUNT GENERAL LEDGER & TRANSACTION RECORDER
-                      </div>
-                      <div className="text-xs text-slate-400">
-                        Two-way sync with bizzmodel and automated 15% VAT accruals
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        setVoiceSimActive(true);
-                        setTimeout(() => {
-                          setBmClient('Alpha Edge Technologies');
-                          setBmAmount(6200);
-                          setBmAccount('4000 REVENUE');
-                          setVoiceSimActive(false);
-                        }, 1800);
-                      }}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
-                        voiceSimActive
-                          ? 'bg-rose-500 text-white animate-pulse'
-                          : 'bg-[#5584B4]/20 hover:bg-[#5584B4]/30 text-[#5584B4] border border-[#5584B4]/40'
-                      }`}
-                    >
-                      <Mic className="h-3.5 w-3.5" />
-                      <span>{voiceSimActive ? 'Listening to Instruction...' : 'Voice Instruction'}</span>
-                    </button>
-                  </div>
-
-                  {/* Transaction Inputs */}
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                    <div>
-                      <label className="text-[11px] font-mono text-slate-500">Account Bucket</label>
-                      <select
-                        value={bmAccount}
-                        onChange={(e) => setBmAccount(e.target.value)}
-                        className={`w-full mt-1 px-3 py-2 border rounded-lg text-xs font-mono ${
-                          isDark ? 'bg-[#0E1322] border-[#252E4A] text-white' : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900'
-                        }`}
-                      >
-                        <option value="1000 ASSETS">1000 ASSETS</option>
-                        <option value="2000 LIABILITIES">2000 LIABILITIES</option>
-                        <option value="4000 REVENUE">4000 REVENUE</option>
-                        <option value="6000 OPEX">6000 OPEX</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-mono text-slate-500">Client / Vendor Name</label>
-                      <input
-                        type="text"
-                        value={bmClient}
-                        onChange={(e) => setBmClient(e.target.value)}
-                        className={`w-full mt-1 px-3 py-2 border rounded-lg text-xs font-mono ${
-                          isDark ? 'bg-[#0E1322] border-[#252E4A] text-white' : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900'
-                        }`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-mono text-slate-500">Amount (ZAR)</label>
-                      <input
-                        type="number"
-                        value={bmAmount}
-                        onChange={(e) => setBmAmount(Number(e.target.value))}
-                        className={`w-full mt-1 px-3 py-2 border rounded-lg text-xs font-mono ${
-                          isDark ? 'bg-[#0E1322] border-[#252E4A] text-white' : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-900'
-                        }`}
-                      />
-                    </div>
-
-                    <div className="flex items-end">
-                      <button
-                        onClick={() => {
-                          const vat = Math.round(bmAmount * 0.15 * 100) / 100;
-                          setRecentEntries((prev) => [
-                            { client: bmClient, amount: bmAmount, account: bmAccount, vat, date: 'Just now' },
-                            ...prev,
-                          ]);
-                          setBmStatus('posted');
-                          setTimeout(() => setBmStatus('idle'), 2500);
-                        }}
-                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-bold rounded-lg transition-colors lowercase"
-                      >
-                        {bmStatus === 'posted' ? 'posted to ledger!' : 'post transaction'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Ledger Account Summary Cards */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-xs font-mono">
-                    <div className={`p-3 rounded-xl border ${isDark ? 'bg-[#0E1322] border-[#252E4A]' : 'bg-[#FAF8F5] border-[#D8CEBC]'}`}>
-                      <div className="text-slate-400 text-[10px]">1000 ASSETS</div>
-                      <div className="text-slate-900 dark:text-white font-bold mt-0.5">R180,000</div>
-                    </div>
-                    <div className={`p-3 rounded-xl border ${isDark ? 'bg-[#0E1322] border-[#252E4A]' : 'bg-[#FAF8F5] border-[#D8CEBC]'}`}>
-                      <div className="text-slate-400 text-[10px]">2000 LIABILITIES</div>
-                      <div className="text-slate-900 dark:text-white font-bold mt-0.5">R14,500</div>
-                    </div>
-                    <div className={`p-3 rounded-xl border ${isDark ? 'bg-[#0E1322] border-[#252E4A]' : 'bg-[#FAF8F5] border-[#D8CEBC]'}`}>
-                      <div className="text-slate-400 text-[10px]">4000 REVENUE</div>
-                      <div className="text-emerald-500 font-bold mt-0.5">R30,000 / mo</div>
-                    </div>
-                    <div className={`p-3 rounded-xl border ${isDark ? 'bg-[#0E1322] border-[#252E4A]' : 'bg-[#FAF8F5] border-[#D8CEBC]'}`}>
-                      <div className="text-slate-400 text-[10px]">6000 OPEX</div>
-                      <div className="text-amber-500 font-bold mt-0.5">R42,000 / mo</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* APP 7: bizzbudget (Rolling Cash Flow Allocations & Variance Reporting) */}
-            {currentApp.id === 'budget' && (
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                    <div className="text-[11px] font-mono text-slate-400 uppercase">Planned Departmental Budget</div>
-                    <div className="font-mono text-2xl font-bold text-slate-900 dark:text-white mt-1 tabular-nums">
-                      R{bgtTotalBudget.toLocaleString()}
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">zero-base monthly baseline</div>
-                  </div>
-
-                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                    <div className="text-[11px] font-mono text-slate-400 uppercase">Actual Monthly Spend</div>
-                    <div className="font-mono text-2xl font-bold text-amber-500 mt-1 tabular-nums">
-                      R{bgtActualSpent.toLocaleString()}
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">derived from bizzmoney journals</div>
-                  </div>
-
-                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                    <div className="text-[11px] font-mono text-slate-400 uppercase">Variance Drift Deviation</div>
-                    <div className="font-mono text-2xl font-bold text-rose-500 mt-1 tabular-nums">
-                      +R{bgtVariance.toLocaleString()} (+8%)
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">tripwire alert: spending overage</div>
-                  </div>
-                </div>
-
-                <div className={`p-5 rounded-2xl border space-y-4 ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                  <div className="text-xs font-mono font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                    DEPARTMENTAL ALLOCATION DRIFT CONTROLS
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <div className="flex justify-between text-xs mb-1 font-mono">
-                        <span className="text-slate-600 dark:text-slate-300">Sales & Marketing:</span>
-                        <span className="font-bold text-slate-900 dark:text-white">R{bgtSalesMktg.toLocaleString()}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="5000"
-                        max="80000"
-                        step="2500"
-                        value={bgtSalesMktg}
-                        onChange={(e) => setBgtSalesMktg(Number(e.target.value))}
-                        className="w-full accent-[#5584B4]"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-xs mb-1 font-mono">
-                        <span className="text-slate-600 dark:text-slate-300">Engineering & Tech:</span>
-                        <span className="font-bold text-slate-900 dark:text-white">R{bgtEngineering.toLocaleString()}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="5000"
-                        max="100000"
-                        step="2500"
-                        value={bgtEngineering}
-                        onChange={(e) => setBgtEngineering(Number(e.target.value))}
-                        className="w-full accent-[#5584B4]"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-xs mb-1 font-mono">
-                        <span className="text-slate-600 dark:text-slate-300">General & Admin (G&A):</span>
-                        <span className="font-bold text-slate-900 dark:text-white">R{bgtGa.toLocaleString()}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="2000"
-                        max="50000"
-                        step="1000"
-                        value={bgtGa}
-                        onChange={(e) => setBgtGa(Number(e.target.value))}
-                        className="w-full accent-[#5584B4]"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* APP 8: bizzoptimizer (Margin Trimmer & Working Capital Optimizer) */}
-            {currentApp.id === 'bizzoptimizer' && (
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                    <div className="text-[11px] font-mono text-slate-400 uppercase">Monthly Trim Identified</div>
-                    <div className="font-mono text-2xl font-bold text-emerald-500 mt-1 tabular-nums">
-                      R{optMonthlySavings.toLocaleString()} / mo
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">direct margin contribution</div>
-                  </div>
-
-                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                    <div className="text-[11px] font-mono text-slate-400 uppercase">Annualized Capital Conserved</div>
-                    <div className="font-mono text-2xl font-bold text-slate-900 dark:text-white mt-1 tabular-nums">
-                      R{optAnnualSavings.toLocaleString()}
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">non-dilutive runway extension</div>
-                  </div>
-
-                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                    <div className="text-[11px] font-mono text-slate-400 uppercase">Optimization Target</div>
-                    <div className="font-mono text-2xl font-bold text-[#5584B4] mt-1 tabular-nums">
-                      {optTrimPct}%
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">without cutting headcount</div>
-                  </div>
-                </div>
-
-                <div className={`p-5 rounded-2xl border space-y-4 ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                  <div className="text-xs font-mono font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                    OPERATIONAL EXPENSE OPTIMIZATION DIALS
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <div className="flex justify-between text-xs mb-1 font-mono">
-                        <span className="text-slate-600 dark:text-slate-300">Software & SaaS Spend:</span>
-                        <span className="font-bold text-slate-900 dark:text-white">R{optSaasSpend.toLocaleString()}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="1000"
-                        max="30000"
-                        step="500"
-                        value={optSaasSpend}
-                        onChange={(e) => setOptSaasSpend(Number(e.target.value))}
-                        className="w-full accent-[#5584B4]"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-xs mb-1 font-mono">
-                        <span className="text-slate-600 dark:text-slate-300">Vendor Retainers:</span>
-                        <span className="font-bold text-slate-900 dark:text-white">R{optVendorSpend.toLocaleString()}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="2000"
-                        max="50000"
-                        step="500"
-                        value={optVendorSpend}
-                        onChange={(e) => setOptVendorSpend(Number(e.target.value))}
-                        className="w-full accent-[#5584B4]"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-xs mb-1 font-mono">
-                        <span className="text-slate-600 dark:text-slate-300">Target Efficiency %:</span>
-                        <span className="font-bold text-slate-900 dark:text-white">{optTrimPct}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="5"
-                        max="35"
-                        step="1"
-                        value={optTrimPct}
-                        onChange={(e) => setOptTrimPct(Number(e.target.value))}
-                        className="w-full accent-[#5584B4]"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* APP 9: growth-strategy (Simulated Market Pivots & Competitive Moats) */}
-            {currentApp.id === 'growth-strategy' && (
-              <div className="space-y-5">
-                <div className={`p-5 rounded-2xl border space-y-4 ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                  <div className="text-xs font-mono font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                    GROWTH CHANNEL ECONOMICS & MOAT HEATMAP
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <button
-                      onClick={() => setStratChannel('direct')}
-                      className={`p-3.5 rounded-xl border text-left transition-all ${
-                        stratChannel === 'direct'
-                          ? isDark
-                            ? 'bg-[#1E2548] border-[#5584B4] text-white'
-                            : 'bg-[#FAF8F5] border-[#5584B4] text-slate-900'
-                          : isDark
-                          ? 'bg-[#0E1322] border-[#252E4A] text-slate-400'
-                          : 'bg-white border-[#D8CEBC] text-slate-600'
-                      }`}
-                    >
-                      <div className="font-mono text-xs font-bold uppercase">Direct Enterprise Sales</div>
-                      <div className="text-[11px] text-slate-400 mt-1">CAC: $1,800 · Payback: 5.2 Mo</div>
-                    </button>
-
-                    <button
-                      onClick={() => setStratChannel('partner')}
-                      className={`p-3.5 rounded-xl border text-left transition-all ${
-                        stratChannel === 'partner'
-                          ? isDark
-                            ? 'bg-[#1E2548] border-[#5584B4] text-white'
-                            : 'bg-[#FAF8F5] border-[#5584B4] text-slate-900'
-                          : isDark
-                          ? 'bg-[#0E1322] border-[#252E4A] text-slate-400'
-                          : 'bg-white border-[#D8CEBC] text-slate-600'
-                      }`}
-                    >
-                      <div className="font-mono text-xs font-bold uppercase">Partner Ecosystem</div>
-                      <div className="text-[11px] text-slate-400 mt-1">CAC: $750 · Payback: 2.8 Mo</div>
-                    </button>
-
-                    <button
-                      onClick={() => setStratChannel('inbound')}
-                      className={`p-3.5 rounded-xl border text-left transition-all ${
-                        stratChannel === 'inbound'
-                          ? isDark
-                            ? 'bg-[#1E2548] border-[#5584B4] text-white'
-                            : 'bg-[#FAF8F5] border-[#5584B4] text-slate-900'
-                          : isDark
-                          ? 'bg-[#0E1322] border-[#252E4A] text-slate-400'
-                          : 'bg-white border-[#D8CEBC] text-slate-600'
-                      }`}
-                    >
-                      <div className="font-mono text-xs font-bold uppercase">Inbound Product-Led</div>
-                      <div className="text-[11px] text-slate-400 mt-1">CAC: $320 · Payback: 1.4 Mo</div>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* APP 10: personal-sandbox (Custom Assembled Workbench) */}
-            {currentApp.id === 'personal-sandbox' && (
-              <div className="space-y-5">
-                <div className={`p-5 rounded-2xl border space-y-4 ${isDark ? 'bg-[#161C30] border-[#252E4A]' : 'bg-white border-[#D8CEBC] shadow-xs'}`}>
-                  <div className="text-xs font-mono font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                    PERSONAL COCKPIT & WORKBENCH ASSEMBLER
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                    The personal sandbox connects all financial model runs, daily objectives, and pinboard tools into an unobstructed workspace.
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                    <div className={`p-3.5 rounded-xl border ${isDark ? 'bg-[#0E1322] border-[#252E4A]' : 'bg-[#FAF8F5] border-[#D8CEBC]'}`}>
-                      <div className="font-mono text-xs font-bold text-[#5584B4] uppercase">Live Model Runs</div>
-                      <div className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                        Apex_Cloud_Dynamics_3Statement_v2.gsheet synced with Google Workspace
-                      </div>
-                    </div>
-                    <div className={`p-3.5 rounded-xl border ${isDark ? 'bg-[#0E1322] border-[#252E4A]' : 'bg-[#FAF8F5] border-[#D8CEBC]'}`}>
-                      <div className="font-mono text-xs font-bold text-emerald-500 uppercase">Cloud Library Status</div>
-                      <div className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                        All modules backed up to IndexedDB and Google Drive VDR
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-          </div>
-        )}
       </div>
     </div>
   );

@@ -17,7 +17,10 @@ export type DeepLinkView =
   | 'admin-centre'
   | 'education-centre'
   | 'bizzclass'
-  | 'platform-apps';
+  | 'platform-apps'
+  | 'solutions'
+  | 'contact'
+  | 'article-detail';
 
 export interface ParsedDeepLink {
   hasDeepLink: boolean;
@@ -25,6 +28,8 @@ export interface ParsedDeepLink {
   solutionId?: string;
   view?: DeepLinkView;
   launch?: boolean;
+  openDesk?: boolean;
+  articleSlug?: string;
   rawParams: Record<string, string>;
 }
 
@@ -52,6 +57,9 @@ const VALID_VIEWS = new Set<DeepLinkView>([
   'education-centre',
   'bizzclass',
   'platform-apps',
+  'solutions',
+  'contact',
+  'article-detail',
 ]);
 
 const SOLUTION_ALIASES: Record<string, string> = {
@@ -182,6 +190,22 @@ export function parseDeepLinkFromSearch(search: string): ParsedDeepLink {
       resolvedSolution = 'website-footer';
     }
     const launch = launchParam === '1' || launchParam === 'true' || launchParam === 'yes';
+    const deskParam = normalizeToken(params.get('desk'));
+    const verifiedParam = normalizeToken(params.get('verified'));
+    const openDesk =
+      launch ||
+      deskParam === '1' ||
+      deskParam === 'true' ||
+      verifiedParam === 'true' ||
+      isPayfastReturn ||
+      resolvedView === 'active-app' ||
+      resolvedView === 'bizzclass' ||
+      resolvedView === 'ask-gemini' ||
+      resolvedView === 'admin-centre' ||
+      resolvedView === 'workspace' ||
+      resolvedStage === 'operations' ||
+      resolvedStage === 'operations-sandbox' ||
+      resolvedStage === 'growth';
 
     if (courseParam) {
       resolvedSolution = normalizeSolutionId(courseParam);
@@ -226,7 +250,7 @@ export function parseDeepLinkFromSearch(search: string): ParsedDeepLink {
     }
 
     const hasDeepLink = Boolean(
-      resolvedStage || resolvedSolution || resolvedView || isPayfastReturn
+      resolvedStage || resolvedSolution || resolvedView || isPayfastReturn || openDesk
     );
 
     return {
@@ -235,6 +259,7 @@ export function parseDeepLinkFromSearch(search: string): ParsedDeepLink {
       solutionId: resolvedSolution,
       view: resolvedView,
       launch,
+      openDesk,
       rawParams,
     };
   } catch {
@@ -313,11 +338,12 @@ export function parseDeepLinkFromLocation(pathname: string, search: string): Par
     return fromSearch;
   }
 
-  // Hidden/admin internal paths that still map cleanly if navigated directly
+  // Hidden/admin internal paths that still map cleanly if navigated directly (open directly in bizz-DESK)
   if (cleanPath === '/operations' || cleanPath === '/operations-sandbox') {
     const stageId = cleanPath.slice(1);
     return {
       hasDeepLink: true,
+      openDesk: true,
       stageId,
       solutionId: STAGE_DEFAULT_SOLUTION[stageId] || 'bizzmoney',
       view: fromSearch.view || 'flashcard',
@@ -328,6 +354,7 @@ export function parseDeepLinkFromLocation(pathname: string, search: string): Par
   if (cleanPath === '/growth' || cleanPath === '/growth-strategy') {
     return {
       hasDeepLink: true,
+      openDesk: true,
       stageId: 'growth',
       solutionId: 'growth-strategy',
       view: fromSearch.view || 'flashcard',
@@ -338,6 +365,7 @@ export function parseDeepLinkFromLocation(pathname: string, search: string): Par
   if (cleanPath === '/ask-gemini' || cleanPath === '/gim') {
     return {
       hasDeepLink: true,
+      openDesk: true,
       solutionId: 'ask-gemini',
       view: 'ask-gemini',
       launch: fromSearch.launch,
@@ -347,11 +375,41 @@ export function parseDeepLinkFromLocation(pathname: string, search: string): Par
   if (cleanPath === '/admin-centre' || cleanPath === '/administration-centre') {
     return {
       hasDeepLink: true,
+      openDesk: true,
       solutionId: 'administration-centre',
       view: 'admin-centre',
       launch: fromSearch.launch,
       rawParams: fromSearch.rawParams,
     };
+  }
+  if (cleanPath === '/bizzbudget' || cleanPath === '/bizzmoney') {
+    const sol = cleanPath.slice(1);
+    return {
+      hasDeepLink: true,
+      openDesk: true,
+      stageId: inferStageForSolution(sol) || 'operations',
+      solutionId: sol,
+      view: fromSearch.view || 'flashcard',
+      launch: fromSearch.launch,
+      rawParams: fromSearch.rawParams,
+    };
+  }
+
+  // Individual article URLs (/articles/<slug>)
+  if (cleanPath.startsWith('/articles/')) {
+    const articleSlug = cleanPath.slice('/articles/'.length).trim();
+    if (articleSlug && !articleSlug.includes('/')) {
+      return {
+        hasDeepLink: true,
+        openDesk: Boolean(fromSearch.openDesk),
+        stageId: 'education',
+        solutionId: 'articles',
+        view: 'article-detail',
+        articleSlug,
+        launch: fromSearch.launch,
+        rawParams: fromSearch.rawParams,
+      };
+    }
   }
 
   // Match against authoritative public SEO route table (including aliases like /rolling-forecast -> /bizzoptimizer)
@@ -365,6 +423,7 @@ export function parseDeepLinkFromLocation(pathname: string, search: string): Par
     }
     return {
       hasDeepLink: true,
+      openDesk: Boolean(fromSearch.openDesk || resolvedView === 'active-app' || resolvedView === 'bizzclass'),
       stageId: seoRoute.routeState.stageId || fromSearch.stageId,
       solutionId: targetSol || fromSearch.solutionId,
       view: resolvedView,
@@ -440,20 +499,29 @@ export function syncClientSeoMeta(opts: {
   stageId?: string;
   solutionId?: string;
   pathname?: string;
+  customTitle?: string;
+  customDescription?: string;
 }): void {
   if (typeof document === 'undefined') return;
   try {
-    const route = resolveSeoRouteFromState({
-      view: opts.view,
-      stageId: opts.stageId,
-      solutionId: opts.solutionId,
-    });
+    const byPath = opts.pathname ? resolveSeoRouteByPath(opts.pathname) : null;
+    const route =
+      byPath ||
+      resolveSeoRouteFromState({
+        view: opts.view,
+        stageId: opts.stageId,
+        solutionId: opts.solutionId,
+      });
     const activePath = opts.pathname || route.path;
     const noIndex = isNoIndexRoute(activePath, typeof window !== 'undefined' ? window.location.search : '');
+    const canonicalPath = activePath === '/' ? '/' : normalizePathname(activePath);
     const canonicalUrl =
-      route.path === '/' ? `${SITE_ORIGIN}/` : `${SITE_ORIGIN}${route.path}`;
+      canonicalPath === '/' ? `${SITE_ORIGIN}/` : `${SITE_ORIGIN}${canonicalPath}`;
 
-    document.title = route.title;
+    const finalTitle = opts.customTitle || route.title;
+    const finalDescription = opts.customDescription || route.description;
+
+    document.title = finalTitle;
 
     const upsertMeta = (attr: 'name' | 'property', key: string, content: string) => {
       let el = document.querySelector(`meta[${attr}="${key}"]`);
@@ -465,13 +533,13 @@ export function syncClientSeoMeta(opts: {
       el.setAttribute('content', content);
     };
 
-    upsertMeta('name', 'description', route.description);
+    upsertMeta('name', 'description', finalDescription);
     upsertMeta('name', 'robots', noIndex ? 'noindex, nofollow' : 'index, follow');
-    upsertMeta('property', 'og:title', route.title);
-    upsertMeta('property', 'og:description', route.description);
+    upsertMeta('property', 'og:title', finalTitle);
+    upsertMeta('property', 'og:description', finalDescription);
     upsertMeta('property', 'og:url', canonicalUrl);
-    upsertMeta('name', 'twitter:title', route.title);
-    upsertMeta('name', 'twitter:description', route.description);
+    upsertMeta('name', 'twitter:title', finalTitle);
+    upsertMeta('name', 'twitter:description', finalDescription);
 
     let canonical = document.querySelector('link[rel="canonical"]');
     if (!canonical) {

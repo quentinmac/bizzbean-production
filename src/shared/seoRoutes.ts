@@ -9,7 +9,10 @@ export type SeoViewType =
   | 'admin-centre'
   | 'education-centre'
   | 'bizzclass'
-  | 'platform-apps';
+  | 'platform-apps'
+  | 'solutions'
+  | 'contact'
+  | 'article-detail';
 
 export type SeoSchemaType =
   | 'WebApplication'
@@ -17,7 +20,51 @@ export type SeoSchemaType =
   | 'Course'
   | 'CollectionPage'
   | 'AboutPage'
+  | 'ContactPage'
+  | 'Article'
   | 'WebPage';
+
+export interface PublicArticleIndexEntry {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+  author: string;
+  readTime: string;
+  summary: string;
+}
+
+export function slugifyArticleTitle(title: string): string {
+  return String(title || '')
+    .toLowerCase()
+    .trim()
+    .replace(/['’"?.,!:;()&/]+/g, ' ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'article';
+}
+
+export const PUBLIC_ARTICLE_INDEX: PublicArticleIndexEntry[] = [
+  { id: 'art-1793105801480', slug: 'employees-as-a-touch-point', title: 'Employees as a Touch-Point', category: 'Strategy', author: 'the bizzbean channel', readTime: '4 min read', summary: 'How team capability, accountability, and daily habits shape customer experience and financial return.' },
+  { id: 'art-1793105905445', slug: 'products-as-a-touch-point', title: 'Products as a Touch-Point', category: 'Strategy', author: 'the bizzbean channel', readTime: '4 min read', summary: 'Designing product mix, pricing, and quality standards so every unit sold protects gross margin.' },
+  { id: 'art-1793105759004', slug: 'infrastructure-as-a-touch-point', title: 'Infrastructure as a Touch-Point', category: 'Strategy', author: 'the bizzbean channel', readTime: '4 min read', summary: 'Aligning premises, equipment, and capital expenditure with real trading capacity and asset turn.' },
+  { id: 'art-1793105871360', slug: 'customers-as-a-touch-point', title: 'Customers as a Touch-Point', category: 'Strategy', author: 'the bizzbean channel', readTime: '4 min read', summary: 'Understanding customer segments, payment terms, and retention economics before scaling sales.' },
+  { id: 'art-1793105723384', slug: 'systems-as-a-touch-point', title: 'Systems as a Touch-Point', category: 'Strategy', author: 'the bizzbean channel', readTime: '4 min read', summary: 'Replacing founder guesswork with repeatable operating and financial reporting systems.' },
+  { id: 'art-1793105839254', slug: 'suppliers-as-a-touch-point', title: 'Suppliers as a Touch-Point', category: 'Strategy', author: 'the bizzbean channel', readTime: '4 min read', summary: 'Managing supplier reliability, input pricing, and payable terms to safeguard working capital.' },
+  { id: 'art-1793105682138', slug: 'leader-as-a-touch-point', title: 'Leader as a Touch-Point', category: 'Strategy', author: 'the bizzbean channel', readTime: '4 min read', summary: 'Why financial discipline and operational standards begin with how the business owner leads.' },
+  { id: 'art-1793105644404', slug: 'are-you-an-entrepreneur', title: 'Are You an Entrepreneur?', category: 'Strategy', author: 'the bizzbean channel', readTime: '4 min read', summary: 'A candid look at what separates an idea from an enduring, financially self-sustaining business.' },
+  { id: 'art-1793105603942', slug: 'scorekeeper', title: 'Scorekeeper', category: 'Strategy', author: 'the bizzbean channel', readTime: '4 min read', summary: 'Why every founder needs clear financial scorekeeping before making hiring or expansion bets.' },
+  { id: 'art-1793105565452', slug: 'make-the-financial-model-a-decision-checkpoint', title: 'Make the Financial Model a Decision Checkpoint', category: 'Strategy', author: 'the bizzbean channel', readTime: '4 min read', summary: 'Using a 3-statement financial model to test assumptions before committing real cash.' },
+  { id: 'art-1793105524108', slug: 'should-you-reduce-expenses-to-free-up-capital-for-investment', title: 'Should You Reduce Expenses to Free Up Capital for Investment?', category: 'Strategy', author: 'the bizzbean channel', readTime: '4 min read', summary: 'How to distinguish unproductive overhead from capacity-building expenditure.' },
+  { id: 'art-1793105483793', slug: 'earn-access-to-capital', title: 'EARN Access to Capital', category: 'Strategy', author: 'the bizzbean channel', readTime: '4 min read', summary: 'Why lenders and investors back proven unit economics, governance, and repayment visibility.' },
+  { id: 'art-1793105447139', slug: 'professionalizing-your-business', title: 'Professionalizing Your Business', category: 'Strategy', author: 'the bizzbean channel', readTime: '4 min read', summary: 'Transitioning from informal founder management to structured planning, budgets, and KPIs.' },
+  { id: 'art-1793105405771', slug: 'innovation-laboratory', title: 'Innovation Laboratory', category: 'Strategy', author: 'the bizzbean channel', readTime: '4 min read', summary: 'Testing new products, pricing models, and channels safely inside a financial sandbox first.' },
+  { id: 'art-1793105363070', slug: 'preparation-checklist', title: 'Preparation Checklist', category: 'Strategy', author: 'the bizzbean channel', readTime: '4 min read', summary: 'What to gather before your annual planning cycle and financial modelling workshop.' },
+  { id: 'art-1793105319289', slug: 'planning-workshop', title: 'Planning Workshop', category: 'Strategy', author: 'the bizzbean channel', readTime: '4 min read', summary: 'How to run an annual management planning workshop that links operational actions to cash flow.' },
+  { id: 'art-1793105276544', slug: 'budget', title: 'Budget', category: 'Strategy', author: 'the bizzbean channel', readTime: '4 min read', summary: 'Building a realistic 12-month operating budget grounded in trading drivers rather than guesswork.' },
+  { id: 'art-1793105233940', slug: 'operational-plan', title: 'Operational Plan', category: 'Strategy', author: 'the bizzbean channel', readTime: '4 min read', summary: 'Translating financial targets into accountable departmental effectiveness areas and deadlines.' },
+  { id: 'art-1793105172463', slug: 'financial-year-end-and-audit-sign-off', title: 'Financial Year-End and Audit Sign Off', category: 'Strategy', author: 'the bizzbean channel', readTime: '4 min read', summary: 'Closing the financial year cleanly so historical actuals become a reliable baseline for growth.' },
+  { id: 'art-decision-checkpoint', slug: 'review-and-react', title: 'Review and React', category: 'Finance', author: 'Quentin McCullough', readTime: '4 min read', summary: 'Why dynamic forecasting transforms static spreadsheets into operational governance engines, forcing leadership teams to confront unit economic reality early.' },
+];
 
 export interface SeoRouteDefinition {
   path: string;
@@ -96,6 +143,54 @@ export const SEO_ROUTES: SeoRouteDefinition[] = [
     routeState: {
       solutionId: 'about-bizzbean',
       view: 'about',
+    },
+  },
+  {
+    path: '/solutions',
+    navLabel: 'Solutions',
+    title: 'Solutions — Financial Modeling Software & Courses | bizzbean',
+    description:
+      'Explore all bizzbean financial modeling apps, BOM pricing calculators, and practical courses organized across vi-ABILITY, fund-ABILITY, sustain-ABILITY, and invest-ABILITY.',
+    h1: 'bizzbean Solutions — Practical Software & Courses for Every Business Stage',
+    intro:
+      'From testing a startup idea to preparing lender-ready 5-year financials and optimizing profit margins, explore every bizzbean tool and course in one clear directory.',
+    highlights: [
+      'vi-ABILITY: you have a business idea, and you want to start a business',
+      'fund-ABILITY: you have a business and you need funding to grow',
+      'sustain-ABILITY: you want to professionalize your business',
+      'invest-ABILITY: you need an investor to grow your business',
+    ],
+    schemaType: 'CollectionPage',
+    priority: '0.95',
+    changefreq: 'weekly',
+    includeInSitemap: true,
+    routeState: {
+      stageId: 'vi-ability',
+      solutionId: 'bizzmodel',
+      view: 'solutions',
+    },
+  },
+  {
+    path: '/contact',
+    navLabel: 'Contact',
+    title: 'Contact bizzbean — Talk to Us & Enquiries',
+    description:
+      'Reach the bizzbean team for onboarding guidance, enterprise financial modelling enquiries, workshops, or course support.',
+    h1: 'Contact bizzbean — Talk to Our Team',
+    intro:
+      'Have a question about our financial modelling software, courses, or choosing the right stage for your business? Send us a message directly.',
+    highlights: [
+      'Direct founder and onboarding enquiry channel',
+      'Guidance on selecting the right model-set or stage for your business',
+      'Support for universities, incubators, and advisory practices',
+    ],
+    schemaType: 'ContactPage',
+    priority: '0.8',
+    changefreq: 'monthly',
+    includeInSitemap: true,
+    routeState: {
+      solutionId: 'contact',
+      view: 'contact',
     },
   },
   {
@@ -461,30 +556,6 @@ export const SEO_ROUTES: SeoRouteDefinition[] = [
       view: 'flashcard',
     },
   },
-  {
-    path: '/bizzplan',
-    navLabel: 'bizzplan',
-    title: 'bizzplan — Structured Lender-Ready Business Plan | bizzbean',
-    description:
-      'Draft a structured, checklist-driven business plan linked directly to your bizzmodel 5-year financial statements and ready for banks or investors.',
-    h1: 'bizzplan — Structured Business Plan Linked Live to Your Financials',
-    intro:
-      'Eliminate blank-page paralysis with a guided, lender-ready business plan structure whose financial tables stay automatically aligned with your bizzmodel projections.',
-    highlights: [
-      'Guided checklist narrative covering strategy, market, operations, team, and risk',
-      'Live synchronization with 5-year Income Statement, Cash Flow, and Funding tables',
-      'Clean executive export layout ready for banks, DFIs, and equity investors',
-    ],
-    schemaType: 'SoftwareApplication',
-    priority: '0.85',
-    changefreq: 'weekly',
-    includeInSitemap: true,
-    routeState: {
-      stageId: 'fund-ability',
-      solutionId: 'bizzplan',
-      view: 'flashcard',
-    },
-  },
 
   // --- PUBLIC COURSES ---
   {
@@ -672,6 +743,29 @@ export const SEO_ROUTES: SeoRouteDefinition[] = [
       view: 'flashcard',
     },
   },
+  {
+    path: '/your-first-hire',
+    navLabel: 'Your First Hire',
+    title: 'Your First Hire Course — Payroll & Hiring Readiness | bizzbean',
+    description:
+      'Plan the true financial cost of hiring your first employee, calculate break-even sales impact, and build onboarding accountability with bizzbean.',
+    h1: 'Your First Hire — Plan Recruitment & Payroll Sustainability',
+    intro:
+      'Quantify total cost-to-company, productivity ramp-up, and break-even sales before making your first hire.',
+    highlights: [
+      'Total cost-to-company and break-even hiring affordability checks',
+      'Practical onboarding and role accountability frameworks',
+    ],
+    schemaType: 'Course',
+    priority: '0.75',
+    changefreq: 'monthly',
+    includeInSitemap: true,
+    routeState: {
+      stageId: 'fund-ability',
+      solutionId: 'your-first-hire',
+      view: 'flashcard',
+    },
+  },
 ];
 
 /** Friendly path aliases that resolve cleanly to canonical public SEO routes */
@@ -684,7 +778,13 @@ const PATH_ALIASES: Record<string, string> = {
   '/policies': '/website-footer',
   '/privacy-policy': '/website-footer',
   '/terms-of-service': '/website-footer',
-  '/talk-to-us': '/website-footer',
+  '/talk-to-us': '/contact',
+  '/blog': '/articles',
+  '/blogs': '/articles',
+  '/insights': '/articles',
+  '/products': '/solutions',
+  '/apps': '/solutions',
+  '/courses': '/solutions',
   '/rolling-forecast': '/bizzoptimizer',
   '/rolling_forecast': '/bizzoptimizer',
   '/hi-level-forecast': '/bizzoptimizer',
@@ -694,7 +794,8 @@ const PATH_ALIASES: Record<string, string> = {
   '/bizz-calculators': '/bizzcalculators',
   '/bizz-dynamics': '/bizzdynamics',
   '/bizz-model': '/bizzmodel',
-  '/bizz-plan': '/bizzplan',
+  '/bizzplan': '/bizzmodel',
+  '/bizz-plan': '/bizzmodel',
   '/education': '/videos',
   '/media': '/videos',
 };
@@ -714,8 +815,33 @@ const NOINDEX_PREFIXES = [
   '/bizzbudget',
 ];
 
+const ARTICLE_ROUTES: SeoRouteDefinition[] = PUBLIC_ARTICLE_INDEX.map((art) => ({
+  path: `/articles/${art.slug}`,
+  navLabel: art.title,
+  title: `${art.title} | bizzbean Articles`,
+  description: art.summary,
+  h1: art.title,
+  intro: art.summary,
+  highlights: [
+    `Category: ${art.category}`,
+    `Author: ${art.author}`,
+    `Reading time: ${art.readTime}`,
+  ],
+  schemaType: 'Article',
+  priority: '0.75',
+  changefreq: 'monthly',
+  includeInSitemap: true,
+  routeState: {
+    stageId: 'education',
+    solutionId: 'articles',
+    view: 'article-detail',
+  },
+}));
+
+const ALL_SEO_ROUTES: SeoRouteDefinition[] = [...SEO_ROUTES, ...ARTICLE_ROUTES];
+
 const ROUTE_BY_PATH = new Map<string, SeoRouteDefinition>(
-  SEO_ROUTES.map((r) => [r.path, r])
+  ALL_SEO_ROUTES.map((r) => [r.path, r])
 );
 
 export function normalizePathname(rawPathname: string): string {
@@ -730,7 +856,38 @@ export function normalizePathname(rawPathname: string): string {
 export function resolveSeoRouteByPath(rawPathname: string): SeoRouteDefinition | null {
   const normalized = normalizePathname(rawPathname);
   const canonicalPath = PATH_ALIASES[normalized] || normalized;
-  return ROUTE_BY_PATH.get(canonicalPath) || null;
+  const direct = ROUTE_BY_PATH.get(canonicalPath);
+  if (direct) return direct;
+
+  // Dynamic fallback for CMS-created articles at /articles/<slug>
+  if (canonicalPath.startsWith('/articles/')) {
+    const slug = canonicalPath.slice('/articles/'.length).trim();
+    if (slug && !slug.includes('/')) {
+      const readableTitle = slug
+        .split('-')
+        .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : ''))
+        .join(' ');
+      return {
+        path: canonicalPath,
+        navLabel: readableTitle,
+        title: `${readableTitle} | bizzbean Articles`,
+        description: `Practical financial modelling and business management insights from bizzbean: ${readableTitle}.`,
+        h1: readableTitle,
+        intro: `Read ${readableTitle} in the bizzbean knowledge hub.`,
+        highlights: ['Practical entrepreneurial finance & governance guide'],
+        schemaType: 'Article',
+        priority: '0.7',
+        changefreq: 'monthly',
+        includeInSitemap: false,
+        routeState: {
+          stageId: 'education',
+          solutionId: 'articles',
+          view: 'article-detail',
+        },
+      };
+    }
+  }
+  return null;
 }
 
 export function isNoIndexRoute(rawPathname: string, rawSearch = ''): boolean {
@@ -766,6 +923,12 @@ export function resolveSeoRouteFromState(opts: {
 
   if (view === 'about' || sol === 'about-bizzbean') {
     return ROUTE_BY_PATH.get('/about')!;
+  }
+  if (view === 'solutions') {
+    return ROUTE_BY_PATH.get('/solutions')!;
+  }
+  if (view === 'contact' || sol === 'contact') {
+    return ROUTE_BY_PATH.get('/contact')!;
   }
   if (view === 'library' || sol === 'sandbox-library' || sol === 'library') {
     return ROUTE_BY_PATH.get('/library')!;
@@ -870,22 +1033,54 @@ function buildJsonLd(route: SeoRouteDefinition, origin: string): string {
   ];
 
   if (route.path !== '/') {
+    const breadcrumbItems: Array<Record<string, unknown>> = [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: `${cleanOrigin}/`,
+      },
+    ];
+    if (route.path.startsWith('/articles/')) {
+      breadcrumbItems.push({
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Articles',
+        item: `${cleanOrigin}/articles`,
+      });
+      breadcrumbItems.push({
+        '@type': 'ListItem',
+        position: 3,
+        name: route.navLabel,
+        item: pageUrl,
+      });
+    } else if (
+      route.schemaType === 'SoftwareApplication' ||
+      route.schemaType === 'Course'
+    ) {
+      breadcrumbItems.push({
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Solutions',
+        item: `${cleanOrigin}/solutions`,
+      });
+      breadcrumbItems.push({
+        '@type': 'ListItem',
+        position: 3,
+        name: route.navLabel,
+        item: pageUrl,
+      });
+    } else {
+      breadcrumbItems.push({
+        '@type': 'ListItem',
+        position: 2,
+        name: route.navLabel,
+        item: pageUrl,
+      });
+    }
     graph.push({
       '@type': 'BreadcrumbList',
-      itemListElement: [
-        {
-          '@type': 'ListItem',
-          position: 1,
-          name: 'Home',
-          item: `${cleanOrigin}/`,
-        },
-        {
-          '@type': 'ListItem',
-          position: 2,
-          name: route.navLabel,
-          item: pageUrl,
-        },
-      ],
+      itemListElement: breadcrumbItems,
     });
   }
 
@@ -930,6 +1125,22 @@ function buildJsonLd(route: SeoRouteDefinition, origin: string): string {
       };
     }
     graph.push(courseNode);
+  } else if (route.schemaType === 'Article') {
+    graph.push({
+      '@type': 'Article',
+      '@id': `${pageUrl}#article`,
+      headline: route.h1,
+      url: pageUrl,
+      description: route.description,
+      author: {
+        '@type': 'Organization',
+        name: 'bizzbean',
+      },
+      publisher: {
+        '@id': `${cleanOrigin}/#organization`,
+      },
+      mainEntityOfPage: pageUrl,
+    });
   } else {
     graph.push({
       '@type': route.schemaType,
@@ -1041,7 +1252,7 @@ export function renderSeoHtml(
  */
 export function generateSitemapXml(origin: string = SITE_ORIGIN): string {
   const cleanOrigin = origin.replace(/\/$/, '');
-  const urls = SEO_ROUTES.filter((r) => r.includeInSitemap)
+  const urls = ALL_SEO_ROUTES.filter((r) => r.includeInSitemap)
     .map((r) => {
       const loc = r.path === '/' ? `${cleanOrigin}/` : `${cleanOrigin}${r.path}`;
       return [

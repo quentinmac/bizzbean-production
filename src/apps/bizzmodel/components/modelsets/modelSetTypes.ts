@@ -413,3 +413,224 @@ export interface FabricationFullResult {
   variableCosts: VariableCostSummaryResult;
   dynamics: UnitCostDynamicsResult;
 }
+
+// ============================================================================
+// TRADING: VALUE SALES MODEL-SET TYPES
+// ============================================================================
+
+export interface ValueSalesCategory {
+  id: string;
+  name: string;
+  grossProfitMarginPct: number; // Governs GP margin % for all products in this category (e.g. 20.00%)
+  description?: string;
+}
+
+export interface ValueSalesProductConfig {
+  categoryId: string;
+  dailyValueSalesBase: number;         // Base value sales per working day (e.g. 20,000)
+  dailyValueSalesMonthly: number[];    // 60-month daily value sales series (adjusted via slider)
+  commissionOnSalesPct: number;        // Base commission % on sales (e.g. 1.00%)
+  otherIncomeMonthlyBase: number;      // Base monthly other income (e.g. 10,000)
+}
+
+export interface ValueSalesMonthResult {
+  monthNum: number;                    // 1..12 within active year
+  absMonth: number;                    // 1..60
+  daysWorked: number;
+  isLaunched: boolean;
+  dailyValueSales: number;             // 0 before startMonth
+  dailyValueSalesGrowthPct: number;    // MoM % growth vs previous active month
+  valueSales: number;                  // daysWorked * dailyValueSales
+  costOfSalesPct: number;              // 100 - gpMarginPct
+  costOfSales: number;                 // negative (e.g. -288,000)
+  grossProfit: number;                 // valueSales + costOfSales
+  grossProfitMarginPct: number;        // governed by Product Category
+  commissionOnSalesPct: number;
+  grossProfitAdjustments: number;      // negative (-valueSales * commissionOnSalesPct / 100)
+  otherIncome: number;                 // applies across all months (per value sales.PNG)
+  otherIncomeAdjustmentPct: number;    // MoM % change in other income
+}
+
+export interface ValueSalesYearGridResult {
+  categoryName: string;
+  categoryGpMarginPct: number;
+  months: ValueSalesMonthResult[];
+  totals: {
+    totalDaysWorked: number;
+    avgDailyValueSales: number;
+    sumValueSales: number;
+    sumCostOfSales: number;
+    sumGrossProfit: number;
+    effectiveGpMarginPct: number;
+    avgCommissionPct: number;
+    sumGrossProfitAdjustments: number;
+    sumOtherIncome: number;
+  };
+}
+
+export interface ValueSalesCategorySummary {
+  category: ValueSalesCategory;
+  productCount: number;
+  yearValueSales: number;
+  yearCostOfSales: number;
+  yearGrossProfit: number;
+  yearGpAdjustments: number;
+  yearOtherIncome: number;
+  revenueSharePct: number;
+}
+
+// ============================================================================
+// TRADING: COMMISSION MODEL-SET TYPES
+// ============================================================================
+
+export interface CommissionCategory {
+  id: string;
+  name: string;
+  commissionRatePct: number; // Governs commission % earned on principal revenue for all products/services in this category (e.g. 10.00%)
+  description?: string;
+}
+
+export interface CommissionProductConfig {
+  categoryId: string;
+  dailyPrincipalSalesBase: number;       // Base third-party principal value sales per working day (e.g. 20,000)
+  dailyPrincipalSalesMonthly: number[];  // 60-month daily principal sales series (adjusted via slider)
+  commissionOnSalesPct: number;          // GP adjustment % paid on principal value sales (e.g. 1.00%)
+  otherIncomeMonthlyBase: number;        // Base monthly other income (e.g. 10,000)
+}
+
+export interface CommissionMonthResult {
+  monthNum: number;                      // 1..12 within active year
+  absMonth: number;                      // 1..60
+  daysWorked: number;
+  isLaunched: boolean;
+  dailyPrincipalSales: number;           // 0 before startMonth
+  dailyPrincipalSalesGrowthPct: number;  // MoM % growth vs previous active month
+  principalValueSales: number;           // daysWorked * dailyPrincipalSales
+  commissionRatePct: number;             // governed by Product Category (e.g. 10.00%)
+  commissionRevenue: number;             // principalValueSales * (commissionRatePct / 100) -> transferred to Trading Account Revenue (0 COS)
+  commissionOnSalesPct: number;          // e.g. 1.00%
+  grossProfitAdjustments: number;        // negative (-principalValueSales * commissionOnSalesPct / 100)
+  otherIncome: number;                   // applies across all months (per commission.PNG)
+  otherIncomeAdjustmentPct: number;      // MoM % change in other income
+}
+
+export interface CommissionYearGridResult {
+  categoryName: string;
+  categoryCommissionRatePct: number;
+  months: CommissionMonthResult[];
+  totals: {
+    totalDaysWorked: number;
+    avgDailyPrincipalSales: number;
+    sumPrincipalValueSales: number;
+    sumCommissionRevenue: number;
+    effectiveCommissionRatePct: number;
+    avgCommissionOnSalesPct: number;
+    sumGrossProfitAdjustments: number;
+    sumOtherIncome: number;
+  };
+}
+
+export interface CommissionCategorySummary {
+  category: CommissionCategory;
+  productCount: number;
+  yearPrincipalSales: number;
+  yearCommissionRevenue: number;
+  yearGpAdjustments: number;
+  yearOtherIncome: number;
+  revenueSharePct: number;
+}
+
+// ============================================================================
+// TRADING: REVENUE SHARE MODEL-SET TYPES
+// ============================================================================
+
+export interface RevenueShareExpenseItem {
+  id: string;
+  name: string;         // e.g. 'royalties', 'administration', 'hosting services', 'payment gateway', 'other'
+  sharePct: number;     // % of product revenue shared with this service provider / partner (e.g. 2.00)
+}
+
+export interface RevenueShareCosCategory {
+  id: string;
+  name: string;         // e.g. 'Platform & Administration', 'Marketing & Digital', 'Fulfilment & Logistics'
+  items: RevenueShareExpenseItem[];
+}
+
+export interface RevenueShareCategory {
+  id: string;
+  name: string;         // Product Category name (governs all products listed within it)
+  description?: string;
+  cosCategories: RevenueShareCosCategory[];
+}
+
+export interface RevenueShareProductConfig {
+  categoryId: string;
+  dailyValueSalesBase: number;        // Base value sales per working day (e.g. 20,000)
+  dailyValueSalesMonthly: number[];   // 60-month daily value sales series (adjusted via slider)
+  otherIncomeMonthlyBase: number;     // Base monthly other income (e.g. 10,000)
+}
+
+export interface RevenueShareComputedExpenseRow {
+  id: string;
+  name: string;
+  sharePct: number;
+  monthlyAmounts: number[];           // 12 months, negative (cost of sales outflow)
+  yearTotal: number;                  // negative
+}
+
+export interface RevenueShareComputedCosCategory {
+  id: string;
+  name: string;
+  subtotalPct: number;
+  items: RevenueShareComputedExpenseRow[];
+  monthlySubtotals: number[];         // 12 months, negative
+  yearSubtotal: number;               // negative
+}
+
+export interface RevenueShareMonthResult {
+  monthNum: number;                   // 1..12 within active year
+  absMonth: number;                   // 1..60
+  daysWorked: number;
+  isLaunched: boolean;
+  dailyValueSales: number;            // 0 before startMonth
+  dailyValueSalesGrowthPct: number;   // MoM % growth vs previous active month
+  valueSales: number;                 // daysWorked * dailyValueSales
+  totalRevenueSharePct: number;       // aggregate % across all Cost of Sales categories
+  totalCostOfSales: number;           // negative aggregate of all revenue share partner expenses
+  grossProfit: number;                // valueSales + totalCostOfSales
+  grossMarginPct: number;             // retained GP % (100 - totalRevenueSharePct)
+  otherIncome: number;                // applies across all months (per revenue share.PNG)
+  otherIncomeAdjustmentPct: number;   // MoM % change in other income
+}
+
+export interface RevenueShareYearGridResult {
+  categoryName: string;
+  totalRevenueSharePct: number;
+  retainedGrossMarginPct: number;
+  cosCategories: RevenueShareComputedCosCategory[];
+  months: RevenueShareMonthResult[];
+  totals: {
+    totalDaysWorked: number;
+    avgDailyValueSales: number;
+    sumValueSales: number;
+    sumCostOfSales: number;           // negative
+    effectiveRevenueSharePct: number;
+    sumGrossProfit: number;
+    effectiveGrossMarginPct: number;
+    sumOtherIncome: number;
+  };
+}
+
+export interface RevenueShareCategorySummary {
+  category: RevenueShareCategory;
+  totalRevenueSharePct: number;
+  retainedGrossMarginPct: number;
+  productCount: number;
+  yearRevenue: number;
+  yearCostOfSales: number;            // negative
+  yearGrossProfit: number;
+  yearOtherIncome: number;
+  revenueShareOfPortfolioPct: number;
+}
+
+

@@ -13,6 +13,8 @@ import { CmsConsoleModal } from './components/CmsConsoleModal';
 import { BuyTokensModal } from './components/BuyTokensModal';
 import { TalkToUsModal } from './components/TalkToUsModal';
 import { NonMemberTalkToUsModal } from './components/NonMemberTalkToUsModal';
+import { PublicWebsiteShell } from './components/publicSite/PublicWebsiteShell';
+import { normalizePathname, slugifyArticleTitle } from './shared/seoRoutes';
 import { INITIAL_CMS_PRODUCTS, INITIAL_CMS_VIDEOS, INITIAL_CMS_ARTICLES, INITIAL_CMS_PROMOTIONS, CmsProduct, CmsVideo, CmsArticle, CmsPromotionSection } from './data/cmsConsoleData';
 import {
   safeSaveStorage,
@@ -116,8 +118,14 @@ export default function App() {
   );
   const isPopStateNavRef = React.useRef(false);
 
-  // Navigation / View state (bypass splash doors automatically on direct page URLs or deep-links)
-  const [inSplashDoors, setInSplashDoors] = useState<boolean>(() => !initialDeepLink.hasDeepLink);
+  // Two-Layer Architecture:
+  // Layer 1 (Public Front Door) greets cold visitors on / and public SEO routes.
+  // Layer 2 (bizz-DESK Workstation) opens on demand ("Open bizz-DESK") or on direct app/workstation deep-links.
+  const [inPublicSite, setInPublicSite] = useState<boolean>(() => !initialDeepLink.openDesk);
+  const [publicPath, setPublicPath] = useState<string>(() =>
+    typeof window !== 'undefined' ? normalizePathname(window.location.pathname) : '/'
+  );
+  const [inSplashDoors, setInSplashDoors] = useState<boolean>(false);
   const [splashInitialAuthMode, setSplashInitialAuthMode] = useState<'none' | 'signin' | 'signup'>('none');
   const [showWelcomeLetter, setShowWelcomeLetter] = useState<boolean>(false);
   const [bookNotice, setBookNotice] = useState<string | null>(null);
@@ -425,7 +433,11 @@ export default function App() {
 
   const [activeStageId, setActiveStageId] = useState<string>(() => initialDeepLink.stageId || 'vi-ability');
   const [activeSolutionId, setActiveSolutionId] = useState<string>(() => initialDeepLink.solutionId || 'learn-earn-capital');
-  const [activeView, setActiveView] = useState<'flashcard' | 'active-app' | 'about' | 'footer' | 'workspace' | 'library' | 'ask-gemini' | 'admin-centre' | 'education-centre' | 'bizzclass' | 'platform-apps'>(() => initialDeepLink.view || 'flashcard');
+  const [activeView, setActiveView] = useState<'flashcard' | 'active-app' | 'about' | 'footer' | 'workspace' | 'library' | 'ask-gemini' | 'admin-centre' | 'education-centre' | 'bizzclass' | 'platform-apps'>(() => {
+    const v = initialDeepLink.view;
+    if (!v || v === 'solutions' || v === 'contact' || v === 'article-detail') return 'flashcard';
+    return v;
+  });
   const [isMaximized, setIsMaximized] = useState<boolean>(true);
   const [isCalmSolutionsOpen, setIsCalmSolutionsOpen] = useState<boolean>(false);
   const [mobileCarouselIdx, setMobileCarouselIdx] = useState<number>(0);
@@ -1033,25 +1045,37 @@ export default function App() {
       };
     }, [activeSolutionId, cmsProducts, userPurchases]);
 
-  // Support browser Back / Forward buttons cleanly across multi-page bizz-DESK routes
+  // Support browser Back / Forward buttons cleanly across both Public Website and bizz-DESK routes
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const handlePopState = () => {
+      const normalizedPath = normalizePathname(window.location.pathname);
       const parsed = parseDeepLinkFromLocation(
         window.location.pathname,
         window.location.search
       );
       isPopStateNavRef.current = true;
-      if (!parsed.hasDeepLink && window.location.pathname === '/') {
-        setActiveStageId('vi-ability');
-        setActiveSolutionId('learn-earn-capital');
-        setActiveView('flashcard');
+      setInSplashDoors(false);
+
+      if (parsed.openDesk) {
+        setInPublicSite(false);
+        if (parsed.stageId) setActiveStageId(parsed.stageId);
+        if (parsed.solutionId) setActiveSolutionId(parsed.solutionId);
+        if (
+          parsed.view &&
+          parsed.view !== 'solutions' &&
+          parsed.view !== 'contact' &&
+          parsed.view !== 'article-detail'
+        ) {
+          setActiveView(parsed.view);
+        } else {
+          setActiveView('flashcard');
+        }
         return;
       }
-      setInSplashDoors(false);
-      if (parsed.stageId) setActiveStageId(parsed.stageId);
-      if (parsed.solutionId) setActiveSolutionId(parsed.solutionId);
-      if (parsed.view) setActiveView(parsed.view);
+
+      setPublicPath(normalizedPath);
+      setInPublicSite(true);
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -1060,10 +1084,60 @@ export default function App() {
   // Sync clean multi-page SEO URLs, browser <title>/meta tags & fire GA4 page_view / view_item events
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
     if (inSplashDoors) {
-      syncClientSeoMeta({ view: 'flashcard', stageId: 'vi-ability', solutionId: 'learn-earn-capital', pathname: '/' });
-      trackPageView('/', 'bizzbean — Startup Financial Modeling & BOM Calculators', {
-        screen_name: 'splash_doors',
+      return;
+    }
+
+    if (inPublicSite) {
+      const cleanPath = normalizePathname(publicPath || '/');
+      // Preserve attribution query parameters (utm_*, gclid, fbclid)
+      let nextPublicUrl = cleanPath;
+      try {
+        const current = new URLSearchParams(window.location.search);
+        const preserved = new URLSearchParams();
+        ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid'].forEach((k) => {
+          const val = current.get(k);
+          if (val) preserved.set(k, val);
+        });
+        const qs = preserved.toString();
+        nextPublicUrl = qs ? `${cleanPath}?${qs}` : cleanPath;
+
+        if (!window.location.search.includes('payfast_status=')) {
+          const currentUrl = `${window.location.pathname}${window.location.search}`;
+          if (nextPublicUrl !== currentUrl) {
+            if (isPopStateNavRef.current) {
+              window.history.replaceState({}, document.title, nextPublicUrl);
+            } else {
+              window.history.pushState({}, document.title, nextPublicUrl);
+            }
+          }
+        }
+      } catch {}
+      isPopStateNavRef.current = false;
+
+      let customTitle: string | undefined;
+      let customDescription: string | undefined;
+      if (cleanPath.startsWith('/articles/')) {
+        const slug = cleanPath.slice('/articles/'.length);
+        const matchedArticle = (cmsArticles || []).find(
+          (a) => slugifyArticleTitle(a.title) === slug || a.id.toLowerCase() === slug
+        );
+        if (matchedArticle) {
+          customTitle = `${matchedArticle.title} | bizzbean Articles`;
+          customDescription = matchedArticle.summary;
+        }
+      }
+
+      syncClientSeoMeta({
+        pathname: cleanPath,
+        customTitle,
+        customDescription,
+      });
+
+      trackPageView(nextPublicUrl, document.title || 'bizzbean', {
+        layer: 'public_website',
+        public_path: cleanPath,
       });
       return;
     }
@@ -1101,6 +1175,7 @@ export default function App() {
       nextUrl,
       document.title || `bizzbean | ${activeSolution?.name || activeSolutionId}`,
       {
+        layer: 'bizz_desk',
         stage_id: activeStageId,
         solution_id: activeSolutionId,
         view_mode: activeView,
@@ -1116,7 +1191,7 @@ export default function App() {
         priceZAR: Number((activeSolution as any)?.sellingPriceZAR ?? activeSolution?.priceZAR ?? 0),
       });
     }
-  }, [inSplashDoors, activeStageId, activeSolutionId, activeView, activeSolution]);
+  }, [inPublicSite, publicPath, inSplashDoors, activeStageId, activeSolutionId, activeView, activeSolution, cmsArticles]);
 
   // Triggered the instant the sliding doors start opening to immediately randomize the HERO PROMOTION image
   const handleTriggerDoorOpening = useCallback((): CmsPromotionSection | null => {
@@ -1255,10 +1330,73 @@ export default function App() {
     setShowPromotion(true);
     setSplashInitialAuthMode('none');
     setInSplashDoors(false);
+    setInPublicSite(false);
     trackWorkspaceEnter(asMember ? 'member' : 'guest', {
       has_promo: Boolean(randomPromo),
     });
   };
+
+  // Layer 1 Public Website Navigation
+  const handleNavigatePublic = useCallback((path: string) => {
+    setPublicPath(normalizePathname(path));
+    setInSplashDoors(false);
+    setInPublicSite(true);
+  }, []);
+
+  // Transition seamlessly from Layer 1 Public Front Door -> Layer 2 bizz-DESK Workstation
+  const handleOpenDeskFromPublic = useCallback(
+    (target?: { stageId?: string; solutionId?: string; launch?: boolean }) => {
+      setShowPromotion(false);
+      setSplashInitialAuthMode('none');
+      setInSplashDoors(false);
+      setInPublicSite(false);
+
+      if (target?.solutionId === 'sandbox-library' || target?.solutionId === 'library') {
+        setActiveView('library');
+        setActiveSolutionId('sandbox-library');
+      } else if (target?.solutionId) {
+        const inferredStage = target.stageId || inferStageForSolution(target.solutionId) || 'vi-ability';
+        setActiveStageId(inferredStage);
+        setActiveSolutionId(target.solutionId);
+        if (target.launch) {
+          const isCourse = [
+            'learn-earn-capital',
+            'how-to-bizzcalc',
+            'cost-recovery-calculator',
+            'follow-the-money',
+            'financial-reports',
+            'profit-optimizer',
+            'financial-scenario-planning',
+            'annual-business-planning-cycle',
+          ].includes(target.solutionId);
+          setActiveView(isCourse ? 'bizzclass' : 'active-app');
+        } else {
+          setActiveView('flashcard');
+        }
+      } else if (target?.stageId) {
+        setActiveStageId(target.stageId);
+        setActiveView('flashcard');
+      } else {
+        setActiveView('flashcard');
+      }
+
+      trackWorkspaceEnter(isMember ? 'member' : 'guest', {
+        source: 'public_front_door',
+        stage_id: target?.stageId || activeStageId,
+        solution_id: target?.solutionId || activeSolutionId,
+      });
+    },
+    [isMember, activeStageId, activeSolutionId]
+  );
+
+  // Return cleanly from Layer 2 bizz-DESK -> Layer 1 Public Website Home
+  const handleReturnToWebsite = useCallback((path = '/') => {
+    setShowPromotion(false);
+    setIsCalmSolutionsOpen(false);
+    setInSplashDoors(false);
+    setPublicPath(normalizePathname(path));
+    setInPublicSite(true);
+  }, []);
 
   // Open the AuthGateway sign-up form directly from solution/stage cards (skipping the door sign-in step)
   const handleOpenDirectSignUp = () => {
@@ -1284,7 +1422,9 @@ export default function App() {
     } catch (e) {}
     setIsCloseShopModalOpen(false);
     setSplashInitialAuthMode('none');
-    setInSplashDoors(true);
+    setInSplashDoors(false);
+    setPublicPath('/');
+    setInPublicSite(true);
     setActiveView('flashcard');
     setIsMaximized(true);
     setIsCalmSolutionsOpen(false);
@@ -1628,6 +1768,8 @@ export default function App() {
       nameLower.includes('bizzmoney') ||
       nameLower.includes('bizzbudget') ||
       nameLower.includes('bizzplan') ||
+      nameLower.includes('bizzforecasta') ||
+      nameLower.includes('forecasta') ||
       nameLower.includes('optimizer');
     const isCourse =
       !isAppProduct &&
@@ -2093,12 +2235,41 @@ export default function App() {
   // Unified layout behavior: allow BizzCalc to share identical responsive workstation layout with BizzDynamics
   const isStandaloneApp = false;
 
+  const isPublicMode = inPublicSite && !inSplashDoors;
+
   return (
-    <div className="fixed inset-0 w-full max-w-full overflow-hidden bg-[#FAF8F5] text-slate-800 font-sans flex flex-col">
+    <div
+      className={
+        isPublicMode
+          ? 'min-h-screen w-full max-w-full bg-[#FAF8F5] dark:bg-[#0A0D14] text-slate-800 dark:text-slate-100 font-sans flex flex-col'
+          : 'fixed inset-0 w-full max-w-full overflow-hidden bg-[#FAF8F5] text-slate-800 font-sans flex flex-col'
+      }
+    >
       {/* ========================================================================= */}
-      {/* VIEW 1: TINTED GLASS SLIDING DOORS & OFFICE ENVIRONMENT SPLASH PAGE       */}
+      {/* LAYER 1: PUBLIC SEO WEBSITE FRONT DOOR                                    */}
       {/* ========================================================================= */}
-      {inSplashDoors ? (
+      {isPublicMode ? (
+        <PublicWebsiteShell
+          publicPath={publicPath}
+          theme={theme}
+          isMember={isMember}
+          cmsProducts={cmsProducts}
+          cmsArticles={cmsArticles}
+          cmsVideos={cmsVideos}
+          libraryItems={libraryItems}
+          onNavigate={handleNavigatePublic}
+          onOpenDesk={handleOpenDeskFromPublic}
+          onOpenSignIn={handleOpenDirectSignIn}
+          onOpenSignUp={handleOpenDirectSignUp}
+          onToggleTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+          onDownloadBook={handleDownloadBook}
+          onOpenLibraryItem={(item) => setInspectedLibraryItem(item)}
+          onOpenTalkToUs={handleOpenTalkToUs}
+        />
+      ) : inSplashDoors ? (
+        /* ========================================================================= */
+        /* AUTH / SIGN-IN & SIGN-UP GATEWAY (SLIDING DOORS)                          */
+        /* ========================================================================= */
         <SplashOfficeDoors
           onEnterWorkspace={handleEnterWorkspace}
           onOpenAboutModal={() => setIsAboutModalOpen(true)}
@@ -2114,7 +2285,7 @@ export default function App() {
         />
       ) : (
         /* ========================================================================= */
-        /* VIEW 2: THE bizz-DESK 3-PANEL WORKSTATION (ZERO VERTICAL SCROLL ON DESK)  */
+        /* LAYER 2: THE bizz-DESK 3-PANEL WORKSTATION (ZERO VERTICAL SCROLL ON DESK) */
         /* ========================================================================= */
         <div
           className={`flex-1 min-h-0 h-full w-full max-w-full min-w-0 flex flex-col overflow-hidden transition-colors ${
@@ -2160,6 +2331,7 @@ export default function App() {
                 onOpenClientProfileJournal={() => setIsClientProfileJournalOpen(true)}
                 onResetPinboardDefault={handleResetPinboardDefault}
                 onClearPinboard={handleClearPinboard}
+                onReturnToWebsite={() => handleReturnToWebsite('/')}
               />
             </div>
           )}

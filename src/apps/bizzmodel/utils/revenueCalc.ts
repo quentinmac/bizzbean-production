@@ -9,6 +9,10 @@ import {
 import { AssumptionRateItem } from '../../bizzdynamics/types';
 import { calculate60MonthWorkingCalendar } from './calendarCalc';
 import { calculateTermLoanMetrics } from './loanCalc';
+import {
+  calculateRevenueShareMonthlyCosPositive,
+  resolveRevenueShareCategory,
+} from '../components/modelsets/revenueShareEngine';
 
 /**
  * Excel PMT Formula for lease calculations:
@@ -780,11 +784,119 @@ export function calculateFinancialModelProjections(
     } else {
       state.revenueItems.forEach((item) => {
         const launchMonth = item.startMonth || 1;
+        const absIdx = mo < 60 ? mo : 59;
+        const daysWorked = calendar60[absIdx]?.daysWorked ?? 21;
+
+        const isValueSalesItem =
+          state.activeModelSet === 'value-sales' || item.modelType === 'value sales';
+
+        if (isValueSalesItem) {
+          // Other income applies across all months (even before product startMonth, per value sales.PNG)
+          const otherInc = item.otherIncomeMonthly?.[absIdx] ?? item.valueSalesConfig?.otherIncomeMonthlyBase ?? 0;
+          otherIncomeTotal += Math.round(otherInc);
+
+          if (m < launchMonth) return;
+
+          const vsCategories = state.valueSalesCategories || [];
+          const targetCatId = item.valueSalesCategoryId || item.valueSalesConfig?.categoryId;
+          const matchedCat =
+            vsCategories.find((c) => c.id === targetCatId) || vsCategories[0];
+          const gpMargin =
+            matchedCat !== undefined
+              ? Math.max(0, Math.min(99.9, Number(matchedCat.grossProfitMarginPct) || 0))
+              : (item.grossProfitMarginPctMonthly?.[absIdx] ?? 20.0);
+
+          const dailyValSales =
+            item.valueSalesConfig?.dailyValueSalesMonthly?.[absIdx] ??
+            item.valueSalesConfig?.dailyValueSalesBase ??
+            20000;
+          const commPct =
+            item.salesCommissionPctMonthly?.[absIdx] ??
+            item.valueSalesConfig?.commissionOnSalesPct ??
+            1.0;
+
+          const itemRev = Math.round(daysWorked * dailyValSales);
+          const itemCogs = Math.round(itemRev * (1 - gpMargin / 100));
+
+          revenue += itemRev;
+          cogs += itemCogs;
+          gpAdjustmentsCommission += Math.round(itemRev * (commPct / 100));
+          return;
+        }
+
+        const isCommissionItem =
+          state.activeModelSet === 'commission' || item.modelType === 'commission';
+
+        if (isCommissionItem) {
+          // Other income applies across all months (even before product startMonth, per commission.PNG)
+          const otherInc =
+            item.otherIncomeMonthly?.[absIdx] ?? item.commissionConfig?.otherIncomeMonthlyBase ?? 0;
+          otherIncomeTotal += Math.round(otherInc);
+
+          if (m < launchMonth) return;
+
+          const commCategories = state.commissionCategories || [];
+          const targetCatId = item.commissionCategoryId || item.commissionConfig?.categoryId;
+          const matchedCat =
+            commCategories.find((c) => c.id === targetCatId) || commCategories[0];
+          const commissionRatePct =
+            matchedCat !== undefined
+              ? Math.max(0, Math.min(100, Number(matchedCat.commissionRatePct) || 0))
+              : 10.0;
+
+          const dailyPrincipalSales =
+            item.commissionConfig?.dailyPrincipalSalesMonthly?.[absIdx] ??
+            item.commissionConfig?.dailyPrincipalSalesBase ??
+            20000;
+          const commOnSalesPct =
+            item.salesCommissionPctMonthly?.[absIdx] ??
+            item.commissionConfig?.commissionOnSalesPct ??
+            1.0;
+
+          // Principal third-party value sales -> Commission earned transfers to Trading Account as Revenue with ZERO Cost of Sales
+          const principalValueSales = Math.round(daysWorked * dailyPrincipalSales);
+          const commissionRev = Math.round(principalValueSales * (commissionRatePct / 100));
+
+          revenue += commissionRev;
+          // No Cost of Sales (0) for third-party commission revenue
+          gpAdjustmentsCommission += Math.round(principalValueSales * (commOnSalesPct / 100));
+          return;
+        }
+
+        const isRevenueShareItem =
+          state.activeModelSet === 'revenue-share' || item.modelType === 'revenue share';
+
+        if (isRevenueShareItem) {
+          // Other income applies across all months (even before product startMonth, per revenue share.PNG)
+          const otherInc =
+            item.otherIncomeMonthly?.[absIdx] ??
+            item.revenueShareConfig?.otherIncomeMonthlyBase ??
+            0;
+          otherIncomeTotal += Math.round(otherInc);
+
+          if (m < launchMonth) return;
+
+          const matchedCat = resolveRevenueShareCategory(
+            item,
+            state.revenueShareCategories || []
+          );
+          const dailyValSales =
+            item.revenueShareConfig?.dailyValueSalesMonthly?.[absIdx] ??
+            item.revenueShareConfig?.dailyValueSalesBase ??
+            20000;
+
+          // Revenue = Value Sales; Cost of Sales = Aggregate of partner revenue share expenses across Cost of Sales categories
+          const itemRev = Math.round(daysWorked * dailyValSales);
+          const itemCogs = calculateRevenueShareMonthlyCosPositive(itemRev, matchedCat);
+
+          revenue += itemRev;
+          cogs += itemCogs;
+          return;
+        }
+
         if (m < launchMonth) return;
 
         if (item.dailyUnitSalesMonthly && item.dailyUnitSalesMonthly.length > 0) {
-          const absIdx = mo < 60 ? mo : 59;
-          const daysWorked = calendar60[absIdx]?.daysWorked ?? 21;
           const dailyUnits = item.dailyUnitSalesMonthly[absIdx] ?? 1000;
           const prodCost = item.productionUnitCostMonthly?.[absIdx] ?? -Math.abs(item.unitCost !== undefined ? item.unitCost : 10);
           const mfgMargin = item.manufacturingMarginPctMonthly?.[absIdx] ?? 10.00;

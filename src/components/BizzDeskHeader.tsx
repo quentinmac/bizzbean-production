@@ -25,6 +25,7 @@ import {
   Layers,
   GraduationCap,
   Lock,
+  Home,
 } from 'lucide-react';
 import { BIZZ_SOLUTIONS } from '../data/bizzdeskData';
 import { CmsProduct } from '../data/cmsConsoleData';
@@ -58,6 +59,7 @@ interface BizzDeskHeaderProps {
   onOpenClientProfileJournal?: () => void;
   onResetPinboardDefault?: () => void;
   onClearPinboard?: () => void;
+  onReturnToWebsite?: () => void;
 }
 
 export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
@@ -87,6 +89,7 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
   onOpenClientProfileJournal,
   onResetPinboardDefault,
   onClearPinboard,
+  onReturnToWebsite,
 }) => {
   const isDark = theme === 'dark';
   const [isPinboardOpen, setIsPinboardOpen] = useState(false);
@@ -825,15 +828,16 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
           </span>
         </button>
 
-        {/* Close Doors (Opens Close Shop / Session Review) */}
+        {/* Back to Website (Returns directly to public website front door) */}
         <button
-          onClick={onSignOut}
-          title="Close Shop for the Day"
-          aria-label="Close doors"
-          className="flex items-center gap-1 px-2 lg:px-2.5 py-1.5 rounded-lg bg-[#12172A] hover:bg-[#1E2548] text-white text-xs font-mono transition-colors border border-[#2B3452] whitespace-nowrap cursor-pointer shrink-0"
+          type="button"
+          onClick={() => (onReturnToWebsite ? onReturnToWebsite() : onSignOut())}
+          title="Back to Website"
+          aria-label="Back to website"
+          className="flex items-center gap-1.5 px-2.5 lg:px-3 py-1.5 rounded-lg bg-[#12172A] hover:bg-[#1E2548] text-white text-xs font-mono transition-colors border border-[#2B3452] whitespace-nowrap cursor-pointer shrink-0"
         >
-          <LogOut className="h-3.5 w-3.5 text-[#DDEBF7] shrink-0" />
-          <span className="hidden lg:inline lowercase">close doors</span>
+          <Home className="h-3.5 w-3.5 text-[#DDEBF7] shrink-0" />
+          <span className="hidden lg:inline lowercase">back to website</span>
         </button>
       </div>
 

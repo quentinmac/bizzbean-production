@@ -340,7 +340,7 @@ export const LandingWireframeModal: React.FC<LandingWireframeModalProps> = ({
 
               <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#12172A] text-white text-[10px] lowercase">
                 <LogOut className="h-3 w-3" />
-                <span className="hidden sm:inline">close doors</span>
+                <span className="hidden sm:inline">back to website</span>
               </span>
             </div>
           </div>

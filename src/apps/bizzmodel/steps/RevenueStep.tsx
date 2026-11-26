@@ -35,6 +35,15 @@ import {
   ManufacturingContinuousWorkbench,
   ManufacturingFabricationWorkbench,
   FamilyRestaurantWorkbench,
+  TradingValueSalesWorkbench,
+  ValueSalesResultsView,
+  ValueSalesChartsView,
+  TradingCommissionWorkbench,
+  CommissionResultsView,
+  CommissionChartsView,
+  TradingRevenueShareWorkbench,
+  RevenueShareResultsView,
+  RevenueShareChartsView,
   createDefaultBatchLotsConfig,
   calculateBatchLotsFull,
   createDefaultContinuousProductionConfig,
@@ -43,10 +52,20 @@ import {
   calculateFabricationFull,
   createDefaultFamilyRestaurantConfig,
   calculateFamilyRestaurantFull,
+  createDefaultValueSalesCategories,
+  createDefaultValueSalesConfig,
+  createDefaultCommissionCategories,
+  createDefaultCommissionConfig,
+  createDefaultRevenueShareCategories,
+  createDefaultRevenueShareConfig,
+  getRevenueShareCategoryTotalPct,
   BatchLotsProductConfig,
   ContinuousProductionProductConfig,
   FabricationProductConfig,
   FamilyRestaurantProductConfig,
+  ValueSalesCategory,
+  CommissionCategory,
+  RevenueShareCategory,
 } from '../components/modelsets';
 import { BizzBoxPanel } from '../components/BizzBoxPanel';
 
@@ -163,18 +182,48 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
   // Selected Model-Set (persisted on state so switching tabs/steps keeps user choice)
   const selectedModelSet:
     | 'unit-sales'
+    | 'value-sales'
+    | 'commission'
+    | 'revenue-share'
     | 'batch-lots'
     | 'continuous-production'
     | 'fabrication'
     | 'family-restaurant' =
     mode === 'bizzmodel' &&
-    (state.activeModelSet === 'batch-lots' ||
+    (state.activeModelSet === 'value-sales' ||
+      state.activeModelSet === 'commission' ||
+      state.activeModelSet === 'revenue-share' ||
+      state.activeModelSet === 'batch-lots' ||
       state.activeModelSet === 'continuous-production' ||
       state.activeModelSet === 'fabrication' ||
       state.activeModelSet === 'family-restaurant')
       ? state.activeModelSet
       : 'unit-sales';
   const [showTaxonomyTable, setShowTaxonomyTable] = useState<boolean>(false);
+
+  // Value Sales Product Categories (govern gross profit margin % for products listed within each category)
+  const valueSalesCategories: ValueSalesCategory[] = useMemo(() => {
+    if (state.valueSalesCategories && state.valueSalesCategories.length > 0) {
+      return state.valueSalesCategories;
+    }
+    return createDefaultValueSalesCategories();
+  }, [state.valueSalesCategories]);
+
+  // Commission Product Categories (govern commission rate % earned on third-party revenue for products listed within each category)
+  const commissionCategories: CommissionCategory[] = useMemo(() => {
+    if (state.commissionCategories && state.commissionCategories.length > 0) {
+      return state.commissionCategories;
+    }
+    return createDefaultCommissionCategories();
+  }, [state.commissionCategories]);
+
+  // Revenue Share Product Categories (each contains Cost of Sales categories & partner expense/service items governing revenue share % as Cost of Sales)
+  const revenueShareCategories: RevenueShareCategory[] = useMemo(() => {
+    if (state.revenueShareCategories && state.revenueShareCategories.length > 0) {
+      return state.revenueShareCategories;
+    }
+    return createDefaultRevenueShareCategories();
+  }, [state.revenueShareCategories]);
 
   // Active Year in 12-month views (Years 1 to 5)
   const [activeYear, setActiveYear] = useState<number>(1);
@@ -296,13 +345,450 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
     });
   };
 
-  // Add Product for BizzModel
-  const handleAddBizzModelProduct = () => {
+  // Value Sales Category CRUD (automatically syncs category GP margin % to all products in that category)
+  const handleAddValueSalesCategory = () => {
+    const currentCats =
+      state.valueSalesCategories && state.valueSalesCategories.length > 0
+        ? state.valueSalesCategories
+        : createDefaultValueSalesCategories();
+    const newCat: ValueSalesCategory = {
+      id: `vs-cat-${Date.now()}`,
+      name: `Product Category ${currentCats.length + 1}`,
+      grossProfitMarginPct: 25.0,
+      description: 'Custom trading product category',
+    };
+    onUpdateState((prev) => {
+      const cats =
+        prev.valueSalesCategories && prev.valueSalesCategories.length > 0
+          ? prev.valueSalesCategories
+          : createDefaultValueSalesCategories();
+      return {
+        ...prev,
+        valueSalesCategories: [...cats, newCat],
+      };
+    });
+  };
+
+  const handleUpdateValueSalesCategory = (
+    categoryId: string,
+    patch: Partial<ValueSalesCategory>
+  ) => {
+    onUpdateState((prev) => {
+      const cats =
+        prev.valueSalesCategories && prev.valueSalesCategories.length > 0
+          ? prev.valueSalesCategories
+          : createDefaultValueSalesCategories();
+      const updatedCats = cats.map((c) => (c.id === categoryId ? { ...c, ...patch } : c));
+      const targetCat = updatedCats.find((c) => c.id === categoryId);
+
+      // Keep products listed in this category synchronized with the governing category GP margin & name
+      const updatedProducts = (prev.revenueItems || []).map((item) => {
+        const itemCatId = item.valueSalesCategoryId || item.valueSalesConfig?.categoryId;
+        if (itemCatId === categoryId && targetCat) {
+          return {
+            ...item,
+            category: targetCat.name,
+            costOfSalesPct: Number((100 - targetCat.grossProfitMarginPct).toFixed(2)),
+            grossProfitMarginPctMonthly: new Array(60).fill(targetCat.grossProfitMarginPct),
+          };
+        }
+        return item;
+      });
+
+      return {
+        ...prev,
+        valueSalesCategories: updatedCats,
+        revenueItems: updatedProducts,
+      };
+    });
+  };
+
+  const handleRemoveValueSalesCategory = (categoryId: string) => {
+    onUpdateState((prev) => {
+      const cats =
+        prev.valueSalesCategories && prev.valueSalesCategories.length > 0
+          ? prev.valueSalesCategories
+          : createDefaultValueSalesCategories();
+      if (cats.length <= 1) return prev;
+      const remainingCats = cats.filter((c) => c.id !== categoryId);
+      const fallbackCat = remainingCats[0];
+
+      const updatedProducts = (prev.revenueItems || []).map((item) => {
+        const itemCatId = item.valueSalesCategoryId || item.valueSalesConfig?.categoryId;
+        if (itemCatId === categoryId && fallbackCat) {
+          return {
+            ...item,
+            category: fallbackCat.name,
+            valueSalesCategoryId: fallbackCat.id,
+            costOfSalesPct: Number((100 - fallbackCat.grossProfitMarginPct).toFixed(2)),
+            grossProfitMarginPctMonthly: new Array(60).fill(fallbackCat.grossProfitMarginPct),
+            valueSalesConfig: item.valueSalesConfig
+              ? { ...item.valueSalesConfig, categoryId: fallbackCat.id }
+              : createDefaultValueSalesConfig(fallbackCat.id),
+          };
+        }
+        return item;
+      });
+
+      return {
+        ...prev,
+        valueSalesCategories: remainingCats,
+        revenueItems: updatedProducts,
+      };
+    });
+  };
+
+  // Commission Category CRUD (automatically governs commission rate % for all products/services in that category; zero Cost of Sales)
+  const handleAddCommissionCategory = () => {
+    const currentCats =
+      state.commissionCategories && state.commissionCategories.length > 0
+        ? state.commissionCategories
+        : createDefaultCommissionCategories();
+    const newCat: CommissionCategory = {
+      id: `comm-cat-${Date.now()}`,
+      name: `Commission Category ${currentCats.length + 1}`,
+      commissionRatePct: 10.0,
+      description: 'Third-party agency / brokerage product category',
+    };
+    onUpdateState((prev) => {
+      const cats =
+        prev.commissionCategories && prev.commissionCategories.length > 0
+          ? prev.commissionCategories
+          : createDefaultCommissionCategories();
+      return {
+        ...prev,
+        commissionCategories: [...cats, newCat],
+      };
+    });
+  };
+
+  const handleUpdateCommissionCategory = (
+    categoryId: string,
+    patch: Partial<CommissionCategory>
+  ) => {
+    onUpdateState((prev) => {
+      const cats =
+        prev.commissionCategories && prev.commissionCategories.length > 0
+          ? prev.commissionCategories
+          : createDefaultCommissionCategories();
+      const updatedCats = cats.map((c) => (c.id === categoryId ? { ...c, ...patch } : c));
+      const targetCat = updatedCats.find((c) => c.id === categoryId);
+
+      // Keep products listed in this category synchronized with the governing category name & zero Cost of Sales
+      const updatedProducts = (prev.revenueItems || []).map((item) => {
+        const itemCatId = item.commissionCategoryId || item.commissionConfig?.categoryId;
+        if (itemCatId === categoryId && targetCat) {
+          return {
+            ...item,
+            category: targetCat.name,
+            costOfSalesPct: 0,
+            grossProfitMarginPctMonthly: new Array(60).fill(100),
+          };
+        }
+        return item;
+      });
+
+      return {
+        ...prev,
+        commissionCategories: updatedCats,
+        revenueItems: updatedProducts,
+      };
+    });
+  };
+
+  const handleRemoveCommissionCategory = (categoryId: string) => {
+    onUpdateState((prev) => {
+      const cats =
+        prev.commissionCategories && prev.commissionCategories.length > 0
+          ? prev.commissionCategories
+          : createDefaultCommissionCategories();
+      if (cats.length <= 1) return prev;
+      const remainingCats = cats.filter((c) => c.id !== categoryId);
+      const fallbackCat = remainingCats[0];
+
+      const updatedProducts = (prev.revenueItems || []).map((item) => {
+        const itemCatId = item.commissionCategoryId || item.commissionConfig?.categoryId;
+        if (itemCatId === categoryId && fallbackCat) {
+          return {
+            ...item,
+            category: fallbackCat.name,
+            commissionCategoryId: fallbackCat.id,
+            costOfSalesPct: 0,
+            grossProfitMarginPctMonthly: new Array(60).fill(100),
+            commissionConfig: item.commissionConfig
+              ? { ...item.commissionConfig, categoryId: fallbackCat.id }
+              : createDefaultCommissionConfig(fallbackCat.id),
+          };
+        }
+        return item;
+      });
+
+      return {
+        ...prev,
+        commissionCategories: remainingCats,
+        revenueItems: updatedProducts,
+      };
+    });
+  };
+
+  // Revenue Share Product Category CRUD (each category houses Cost of Sales categories & partner expense/service items governing aggregate COS %)
+  const handleAddRevenueShareCategory = () => {
+    const currentCats =
+      state.revenueShareCategories && state.revenueShareCategories.length > 0
+        ? state.revenueShareCategories
+        : createDefaultRevenueShareCategories();
+    const ts = Date.now();
+    const newCat: RevenueShareCategory = {
+      id: `rs-cat-${ts}`,
+      name: `Revenue Share Category ${currentCats.length + 1}`,
+      description: 'Custom risk-sharing partner product category',
+      cosCategories: [
+        {
+          id: `rs-cos-${ts}-1`,
+          name: 'Platform & Administration',
+          items: [
+            { id: `rs-exp-${ts}-1`, name: 'royalties', sharePct: 5.0 },
+            { id: `rs-exp-${ts}-2`, name: 'administration', sharePct: 5.0 },
+          ],
+        },
+        {
+          id: `rs-cos-${ts}-2`,
+          name: 'Fulfilment & Partner Services',
+          items: [
+            { id: `rs-exp-${ts}-3`, name: 'service partners', sharePct: 10.0 },
+          ],
+        },
+      ],
+    };
+    onUpdateState((prev) => {
+      const cats =
+        prev.revenueShareCategories && prev.revenueShareCategories.length > 0
+          ? prev.revenueShareCategories
+          : createDefaultRevenueShareCategories();
+      return {
+        ...prev,
+        revenueShareCategories: [...cats, newCat],
+      };
+    });
+  };
+
+  const handleUpdateRevenueShareCategory = (
+    categoryId: string,
+    patch: Partial<RevenueShareCategory>
+  ) => {
+    onUpdateState((prev) => {
+      const cats =
+        prev.revenueShareCategories && prev.revenueShareCategories.length > 0
+          ? prev.revenueShareCategories
+          : createDefaultRevenueShareCategories();
+      const updatedCats = cats.map((c) => (c.id === categoryId ? { ...c, ...patch } : c));
+      const targetCat = updatedCats.find((c) => c.id === categoryId);
+
+      // Keep products listed in this category synchronized with the aggregate Cost of Sales % & Retained GP %
+      const updatedProducts = (prev.revenueItems || []).map((item) => {
+        const itemCatId = item.revenueShareCategoryId || item.revenueShareConfig?.categoryId;
+        if (itemCatId === categoryId && targetCat) {
+          const totalSharePct = getRevenueShareCategoryTotalPct(targetCat);
+          return {
+            ...item,
+            category: targetCat.name,
+            costOfSalesPct: totalSharePct,
+            grossProfitMarginPctMonthly: new Array(60).fill(
+              Number((100 - totalSharePct).toFixed(2))
+            ),
+          };
+        }
+        return item;
+      });
+
+      return {
+        ...prev,
+        revenueShareCategories: updatedCats,
+        revenueItems: updatedProducts,
+      };
+    });
+  };
+
+  const handleRemoveRevenueShareCategory = (categoryId: string) => {
+    onUpdateState((prev) => {
+      const cats =
+        prev.revenueShareCategories && prev.revenueShareCategories.length > 0
+          ? prev.revenueShareCategories
+          : createDefaultRevenueShareCategories();
+      if (cats.length <= 1) return prev;
+      const remainingCats = cats.filter((c) => c.id !== categoryId);
+      const fallbackCat = remainingCats[0];
+      const fallbackSharePct = getRevenueShareCategoryTotalPct(fallbackCat);
+
+      const updatedProducts = (prev.revenueItems || []).map((item) => {
+        const itemCatId = item.revenueShareCategoryId || item.revenueShareConfig?.categoryId;
+        if (itemCatId === categoryId && fallbackCat) {
+          return {
+            ...item,
+            category: fallbackCat.name,
+            revenueShareCategoryId: fallbackCat.id,
+            costOfSalesPct: fallbackSharePct,
+            grossProfitMarginPctMonthly: new Array(60).fill(
+              Number((100 - fallbackSharePct).toFixed(2))
+            ),
+            revenueShareConfig: item.revenueShareConfig
+              ? { ...item.revenueShareConfig, categoryId: fallbackCat.id }
+              : createDefaultRevenueShareConfig(fallbackCat.id),
+          };
+        }
+        return item;
+      });
+
+      return {
+        ...prev,
+        revenueShareCategories: remainingCats,
+        revenueItems: updatedProducts,
+      };
+    });
+  };
+
+  // Add Product for BizzModel (optional targetCategoryId when adding inside a Value Sales, Commission, or Revenue Share category)
+  const handleAddBizzModelProduct = (targetCategoryId?: string) => {
     const nextNum = (state.revenueItems || []).length + 1;
+    const isValueSales = selectedModelSet === 'value-sales';
+    const isCommission = selectedModelSet === 'commission';
+    const isRevenueShare = selectedModelSet === 'revenue-share';
     const isBatchLots = selectedModelSet === 'batch-lots';
     const isContinuous = selectedModelSet === 'continuous-production';
     const isFabrication = selectedModelSet === 'fabrication';
     const isFamilyRestaurant = selectedModelSet === 'family-restaurant';
+
+    if (isValueSales) {
+      const cats =
+        state.valueSalesCategories && state.valueSalesCategories.length > 0
+          ? state.valueSalesCategories
+          : createDefaultValueSalesCategories();
+      const assignedCat =
+        cats.find((c) => c.id === targetCategoryId) || cats[0];
+      const vsConfig = createDefaultValueSalesConfig(assignedCat.id, 20000, 1.0, 0);
+
+      const newVsItem: RevenueItem = {
+        id: `rev-vs-${Date.now()}`,
+        category: assignedCat.name,
+        name: `product line ${String.fromCharCode(64 + nextNum)}`,
+        modelType: 'value sales',
+        unitPrice: 1,
+        unitCost: Number((1 - assignedCat.grossProfitMarginPct / 100).toFixed(4)),
+        costOfSalesPct: Number((100 - assignedCat.grossProfitMarginPct).toFixed(2)),
+        startMonth: 1,
+        dailyCapacity: 0,
+        monthlyUnits: new Array(60).fill(0),
+        dailyUnitSalesMonthly: new Array(60).fill(0),
+        productionUnitCostMonthly: new Array(60).fill(0),
+        manufacturingMarginPctMonthly: new Array(60).fill(0),
+        grossProfitMarginPctMonthly: new Array(60).fill(assignedCat.grossProfitMarginPct),
+        salesCommissionPctMonthly: new Array(60).fill(1.0),
+        inventoryAdjustmentPctMonthly: new Array(60).fill(0),
+        otherIncomeMonthly: new Array(60).fill(0),
+        valueSalesCategoryId: assignedCat.id,
+        valueSalesConfig: vsConfig,
+      };
+
+      onUpdateState((prev) => ({
+        ...prev,
+        valueSalesCategories:
+          prev.valueSalesCategories && prev.valueSalesCategories.length > 0
+            ? prev.valueSalesCategories
+            : cats,
+        revenueItems: [...prev.revenueItems, newVsItem],
+      }));
+      setActiveProductIdx(state.revenueItems.length);
+      return;
+    }
+
+    if (isCommission) {
+      const cats =
+        state.commissionCategories && state.commissionCategories.length > 0
+          ? state.commissionCategories
+          : createDefaultCommissionCategories();
+      const assignedCat =
+        cats.find((c) => c.id === targetCategoryId) || cats[0];
+      const commConfig = createDefaultCommissionConfig(assignedCat.id, 20000, 1.0, 0);
+
+      const newCommItem: RevenueItem = {
+        id: `rev-comm-${Date.now()}`,
+        category: assignedCat.name,
+        name: `commission product ${String.fromCharCode(64 + nextNum)}`,
+        modelType: 'commission',
+        unitPrice: 1,
+        unitCost: 0,
+        costOfSalesPct: 0,
+        startMonth: 1,
+        dailyCapacity: 0,
+        monthlyUnits: new Array(60).fill(0),
+        dailyUnitSalesMonthly: new Array(60).fill(0),
+        productionUnitCostMonthly: new Array(60).fill(0),
+        manufacturingMarginPctMonthly: new Array(60).fill(0),
+        grossProfitMarginPctMonthly: new Array(60).fill(100),
+        salesCommissionPctMonthly: new Array(60).fill(1.0),
+        inventoryAdjustmentPctMonthly: new Array(60).fill(0),
+        otherIncomeMonthly: new Array(60).fill(0),
+        commissionCategoryId: assignedCat.id,
+        commissionConfig: commConfig,
+      };
+
+      onUpdateState((prev) => ({
+        ...prev,
+        commissionCategories:
+          prev.commissionCategories && prev.commissionCategories.length > 0
+            ? prev.commissionCategories
+            : cats,
+        revenueItems: [...prev.revenueItems, newCommItem],
+      }));
+      setActiveProductIdx(state.revenueItems.length);
+      return;
+    }
+
+    if (isRevenueShare) {
+      const cats =
+        state.revenueShareCategories && state.revenueShareCategories.length > 0
+          ? state.revenueShareCategories
+          : createDefaultRevenueShareCategories();
+      const assignedCat =
+        cats.find((c) => c.id === targetCategoryId) || cats[0];
+      const totalSharePct = getRevenueShareCategoryTotalPct(assignedCat);
+      const rsConfig = createDefaultRevenueShareConfig(assignedCat.id, 20000, 0);
+
+      const newRsItem: RevenueItem = {
+        id: `rev-rs-${Date.now()}`,
+        category: assignedCat.name,
+        name: `revenue share product ${String.fromCharCode(64 + nextNum)}`,
+        modelType: 'revenue share',
+        unitPrice: 1,
+        unitCost: Number((totalSharePct / 100).toFixed(4)),
+        costOfSalesPct: totalSharePct,
+        startMonth: 1,
+        dailyCapacity: 0,
+        monthlyUnits: new Array(60).fill(0),
+        dailyUnitSalesMonthly: new Array(60).fill(0),
+        productionUnitCostMonthly: new Array(60).fill(0),
+        manufacturingMarginPctMonthly: new Array(60).fill(0),
+        grossProfitMarginPctMonthly: new Array(60).fill(
+          Number((100 - totalSharePct).toFixed(2))
+        ),
+        salesCommissionPctMonthly: new Array(60).fill(0),
+        inventoryAdjustmentPctMonthly: new Array(60).fill(0),
+        otherIncomeMonthly: new Array(60).fill(0),
+        revenueShareCategoryId: assignedCat.id,
+        revenueShareConfig: rsConfig,
+      };
+
+      onUpdateState((prev) => ({
+        ...prev,
+        revenueShareCategories:
+          prev.revenueShareCategories && prev.revenueShareCategories.length > 0
+            ? prev.revenueShareCategories
+            : cats,
+        revenueItems: [...prev.revenueItems, newRsItem],
+      }));
+      setActiveProductIdx(state.revenueItems.length);
+      return;
+    }
 
     const defaultBatchConfig = isBatchLots ? createDefaultBatchLotsConfig() : undefined;
     const batchDerived = defaultBatchConfig
@@ -464,10 +950,18 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
     return Math.round(setupProductionDaysPerAnnum / 12) || 21;
   }, [setupProductionDaysPerAnnum]);
 
+  const daysWorked60 = useMemo(
+    () => monthlyCalendar60.map((m) => m.daysWorked),
+    [monthlyCalendar60]
+  );
+
   // Switch active model-set and sync derived unit cost & daily capacity to Results tab
   const handleSelectModelSet = (nextModelSetId: string) => {
     if (
       nextModelSetId !== 'unit-sales' &&
+      nextModelSetId !== 'value-sales' &&
+      nextModelSetId !== 'commission' &&
+      nextModelSetId !== 'revenue-share' &&
       nextModelSetId !== 'batch-lots' &&
       nextModelSetId !== 'continuous-production' &&
       nextModelSetId !== 'fabrication' &&
@@ -478,6 +972,151 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
     if (nextModelSetId !== 'unit-sales' && mode !== 'bizzmodel') return;
 
     onUpdateState((prev) => {
+      if (nextModelSetId === 'value-sales') {
+        const cats =
+          prev.valueSalesCategories && prev.valueSalesCategories.length > 0
+            ? prev.valueSalesCategories
+            : createDefaultValueSalesCategories();
+        const defaultCat = cats[0];
+
+        const syncedItems = (prev.revenueItems || []).map((item, idx) => {
+          const matchedCat =
+            cats.find(
+              (c) => c.id === (item.valueSalesCategoryId || item.valueSalesConfig?.categoryId)
+            ) || cats[idx % cats.length] || defaultCat;
+          const existingCfg = item.valueSalesConfig;
+          const vsConfig =
+            existingCfg ||
+            createDefaultValueSalesConfig(
+              matchedCat.id,
+              20000,
+              item.salesCommissionPctMonthly?.[0] ?? 1.0,
+              idx === 0 ? (item.otherIncomeMonthly?.[0] || 10000) : (item.otherIncomeMonthly?.[0] || 0)
+            );
+          return {
+            ...item,
+            category: matchedCat.name,
+            modelType: 'value sales',
+            valueSalesCategoryId: matchedCat.id,
+            valueSalesConfig: { ...vsConfig, categoryId: matchedCat.id },
+            costOfSalesPct: Number((100 - matchedCat.grossProfitMarginPct).toFixed(2)),
+            grossProfitMarginPctMonthly: new Array(60).fill(matchedCat.grossProfitMarginPct),
+            salesCommissionPctMonthly:
+              item.salesCommissionPctMonthly && item.salesCommissionPctMonthly.length >= 60
+                ? item.salesCommissionPctMonthly
+                : new Array(60).fill(vsConfig.commissionOnSalesPct),
+            otherIncomeMonthly:
+              item.otherIncomeMonthly && item.otherIncomeMonthly.length >= 60
+                ? item.otherIncomeMonthly
+                : new Array(60).fill(vsConfig.otherIncomeMonthlyBase),
+          };
+        });
+
+        return {
+          ...prev,
+          activeModelSet: 'value-sales',
+          valueSalesCategories: cats,
+          revenueItems: syncedItems,
+        };
+      }
+
+      if (nextModelSetId === 'commission') {
+        const cats =
+          prev.commissionCategories && prev.commissionCategories.length > 0
+            ? prev.commissionCategories
+            : createDefaultCommissionCategories();
+        const defaultCat = cats[0];
+
+        const syncedItems = (prev.revenueItems || []).map((item, idx) => {
+          const matchedCat =
+            cats.find(
+              (c) => c.id === (item.commissionCategoryId || item.commissionConfig?.categoryId)
+            ) || cats[idx % cats.length] || defaultCat;
+          const existingCfg = item.commissionConfig;
+          const commConfig =
+            existingCfg ||
+            createDefaultCommissionConfig(
+              matchedCat.id,
+              20000,
+              item.salesCommissionPctMonthly?.[0] ?? 1.0,
+              idx === 0 ? (item.otherIncomeMonthly?.[0] || 10000) : (item.otherIncomeMonthly?.[0] || 0)
+            );
+          return {
+            ...item,
+            category: matchedCat.name,
+            modelType: 'commission',
+            commissionCategoryId: matchedCat.id,
+            commissionConfig: { ...commConfig, categoryId: matchedCat.id },
+            unitCost: 0,
+            costOfSalesPct: 0,
+            grossProfitMarginPctMonthly: new Array(60).fill(100),
+            salesCommissionPctMonthly:
+              item.salesCommissionPctMonthly && item.salesCommissionPctMonthly.length >= 60
+                ? item.salesCommissionPctMonthly
+                : new Array(60).fill(commConfig.commissionOnSalesPct),
+            otherIncomeMonthly:
+              item.otherIncomeMonthly && item.otherIncomeMonthly.length >= 60
+                ? item.otherIncomeMonthly
+                : new Array(60).fill(commConfig.otherIncomeMonthlyBase),
+          };
+        });
+
+        return {
+          ...prev,
+          activeModelSet: 'commission',
+          commissionCategories: cats,
+          revenueItems: syncedItems,
+        };
+      }
+
+      if (nextModelSetId === 'revenue-share') {
+        const cats =
+          prev.revenueShareCategories && prev.revenueShareCategories.length > 0
+            ? prev.revenueShareCategories
+            : createDefaultRevenueShareCategories();
+        const defaultCat = cats[0];
+
+        const syncedItems = (prev.revenueItems || []).map((item, idx) => {
+          const matchedCat =
+            cats.find(
+              (c) =>
+                c.id === (item.revenueShareCategoryId || item.revenueShareConfig?.categoryId)
+            ) || cats[idx % cats.length] || defaultCat;
+          const totalSharePct = getRevenueShareCategoryTotalPct(matchedCat);
+          const existingCfg = item.revenueShareConfig;
+          const rsConfig =
+            existingCfg ||
+            createDefaultRevenueShareConfig(
+              matchedCat.id,
+              20000,
+              idx === 0 ? (item.otherIncomeMonthly?.[0] || 10000) : (item.otherIncomeMonthly?.[0] || 0)
+            );
+          return {
+            ...item,
+            category: matchedCat.name,
+            modelType: 'revenue share',
+            revenueShareCategoryId: matchedCat.id,
+            revenueShareConfig: { ...rsConfig, categoryId: matchedCat.id },
+            unitCost: Number((totalSharePct / 100).toFixed(4)),
+            costOfSalesPct: totalSharePct,
+            grossProfitMarginPctMonthly: new Array(60).fill(
+              Number((100 - totalSharePct).toFixed(2))
+            ),
+            otherIncomeMonthly:
+              item.otherIncomeMonthly && item.otherIncomeMonthly.length >= 60
+                ? item.otherIncomeMonthly
+                : new Array(60).fill(rsConfig.otherIncomeMonthlyBase),
+          };
+        });
+
+        return {
+          ...prev,
+          activeModelSet: 'revenue-share',
+          revenueShareCategories: cats,
+          revenueItems: syncedItems,
+        };
+      }
+
       if (nextModelSetId === 'batch-lots') {
         const syncedItems = (prev.revenueItems || []).map((item) => {
           const cfg = item.batchLotsConfig || createDefaultBatchLotsConfig();
@@ -1074,11 +1713,11 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                 <p className="text-[11px] text-slate-500 lowercase mt-1">
                   {mode === 'bizzmodel' ? (
                     <>
-                      * active model-sets: <strong>unit sales</strong>, <strong>manufacturing — batch lots</strong>, <strong>continuous production</strong>, <strong>fabrication</strong> &amp; <strong>hospitality — family restaurant</strong>. select any available model-set above; others are marked as <em>coming soon</em>.
+                      * active model-sets: <strong>trading — unit sales, value sales, commission &amp; revenue share (all 4 complete)</strong>, <strong>manufacturing — batch lots, continuous production &amp; fabrication</strong> &amp; <strong>hospitality — family restaurant</strong>. select any available model-set above; others are marked as <em>coming soon</em>.
                     </>
                   ) : (
                     <>
-                      * for this simulator mode, <strong>unit sales</strong> is the active model-set. launch <strong>bizzmodel</strong> to access manufacturing (batch lots, continuous production &amp; fabrication) and hospitality family restaurant.
+                      * for this simulator mode, <strong>unit sales</strong> is the active model-set. launch <strong>bizzmodel</strong> to access all 4 trading model-sets, manufacturing (batch lots, continuous production &amp; fabrication), and hospitality family restaurant.
                     </>
                   )}
                 </p>
@@ -1089,7 +1728,13 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                 <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase">
                   <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                   <span>
-                    {selectedModelSet === 'batch-lots'
+                    {selectedModelSet === 'value-sales'
+                      ? 'TRADING: VALUE SALES'
+                      : selectedModelSet === 'commission'
+                      ? 'TRADING: COMMISSION'
+                      : selectedModelSet === 'revenue-share'
+                      ? 'TRADING: REVENUE SHARE'
+                      : selectedModelSet === 'batch-lots'
                       ? 'MANUFACTURING: BATCH LOTS'
                       : selectedModelSet === 'continuous-production'
                       ? 'MANUFACTURING: CONTINUOUS PRODUCTION'
@@ -1101,7 +1746,13 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                   </span>
                 </div>
                 <p className="text-[10px] text-emerald-700 dark:text-emerald-300 leading-snug">
-                  {selectedModelSet === 'batch-lots'
+                  {selectedModelSet === 'value-sales'
+                    ? 'Daily value sales grouped into Product Categories that govern each product’s gross profit margin %, with commission adjustments and other income.'
+                    : selectedModelSet === 'commission'
+                    ? 'Commission earned on third-party principal revenue, grouped into Product Categories that govern commission rate %. Transfers to Trading Account as Revenue with zero Cost of Sales.'
+                    : selectedModelSet === 'revenue-share'
+                    ? 'Share revenue with service providers across Cost of Sales categories inside each Product Category — the aggregate partner share transfers to Trading Account as Cost of Sales.'
+                    : selectedModelSet === 'batch-lots'
                     ? 'Multi-process bottleneck capacity (units/batch), advisory staffing, BOM, multi-level packaging & variable unit cost dynamics.'
                     : selectedModelSet === 'continuous-production'
                     ? 'Multi-process bottleneck capacity (units/hour), advisory staffing, per-item BOM with hourly consumables, multi-level packaging & variable unit cost dynamics.'
@@ -1192,7 +1843,13 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-800">
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white block">
-                  {selectedModelSet === 'batch-lots'
+                  {selectedModelSet === 'value-sales'
+                    ? 'PRODUCT CATEGORIES & PRODUCTS CONFIGURATION (TRADING — VALUE SALES)'
+                    : selectedModelSet === 'commission'
+                    ? 'PRODUCT CATEGORIES & PRODUCTS CONFIGURATION (TRADING — COMMISSION)'
+                    : selectedModelSet === 'revenue-share'
+                    ? 'PRODUCT CATEGORIES, COST OF SALES CATEGORIES & PRODUCTS (TRADING — REVENUE SHARE)'
+                    : selectedModelSet === 'batch-lots'
                     ? 'PRODUCTS CONFIGURATION (MANUFACTURING — BATCH LOTS)'
                     : selectedModelSet === 'continuous-production'
                     ? 'PRODUCTS CONFIGURATION (MANUFACTURING — CONTINUOUS PRODUCTION)'
@@ -1203,7 +1860,13 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                     : 'PRODUCTS CONFIGURATION (UNIT SALES)'}
                 </span>
                 <span className="text-[11px] text-slate-400 lowercase">
-                  {selectedModelSet === 'batch-lots'
+                  {selectedModelSet === 'value-sales'
+                    ? 'categorize products under product categories — each category governs the gross profit margin % for every product listed within it'
+                    : selectedModelSet === 'commission'
+                    ? 'categorize products / services under product categories — each category governs the commission rate % earned on third-party revenue (transfers to trading account as revenue with zero cost of sales)'
+                    : selectedModelSet === 'revenue-share'
+                    ? 'create product categories with cost of sales categories and partner expense/service items — the aggregate revenue share % governs cost of sales for every product listed within each category'
+                    : selectedModelSet === 'batch-lots'
                     ? 'configure production processes (units/batch), advisory staffing, BOM, packaging levels & variable costs — unit cost & daily capacity transfer automatically to results'
                     : selectedModelSet === 'continuous-production'
                     ? 'configure continuous workstreams (units/hour), advisory staffing, BOM, packaging levels & variable costs — unit cost & daily capacity transfer automatically to results'
@@ -1229,7 +1892,7 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                 {mode === 'bizzmodel' && (
                   <button
                     type="button"
-                    onClick={handleAddBizzModelProduct}
+                    onClick={() => handleAddBizzModelProduct()}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#2E5E88] hover:bg-[#234E73] text-white text-xs font-bold lowercase shadow-xs transition-colors cursor-pointer"
                   >
                     <Plus className="h-3.5 w-3.5" />
@@ -1240,7 +1903,61 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
             </div>
 
             {/* Product Cards List */}
-            {selectedModelSet === 'batch-lots' ? (
+            {selectedModelSet === 'value-sales' ? (
+              <TradingValueSalesWorkbench
+                theme={theme}
+                categories={valueSalesCategories}
+                products={state.revenueItems}
+                daysWorked60={daysWorked60}
+                isPredetermined={!!predeterminedNames}
+                onAddCategory={handleAddValueSalesCategory}
+                onUpdateCategory={handleUpdateValueSalesCategory}
+                onRemoveCategory={handleRemoveValueSalesCategory}
+                onAddProductToCategory={(catId) => handleAddBizzModelProduct(catId)}
+                onUpdateProduct={handleUpdateProduct}
+                onRemoveProduct={handleRemoveProduct}
+                onOpenResultsTab={(idx) => {
+                  setActiveProductIdx(idx);
+                  setActiveSubTab('results');
+                }}
+              />
+            ) : selectedModelSet === 'commission' ? (
+              <TradingCommissionWorkbench
+                theme={theme}
+                categories={commissionCategories}
+                products={state.revenueItems}
+                daysWorked60={daysWorked60}
+                isPredetermined={!!predeterminedNames}
+                onAddCategory={handleAddCommissionCategory}
+                onUpdateCategory={handleUpdateCommissionCategory}
+                onRemoveCategory={handleRemoveCommissionCategory}
+                onAddProductToCategory={(catId) => handleAddBizzModelProduct(catId)}
+                onUpdateProduct={handleUpdateProduct}
+                onRemoveProduct={handleRemoveProduct}
+                onOpenResultsTab={(idx) => {
+                  setActiveProductIdx(idx);
+                  setActiveSubTab('results');
+                }}
+              />
+            ) : selectedModelSet === 'revenue-share' ? (
+              <TradingRevenueShareWorkbench
+                theme={theme}
+                categories={revenueShareCategories}
+                products={state.revenueItems}
+                daysWorked60={daysWorked60}
+                isPredetermined={!!predeterminedNames}
+                onAddCategory={handleAddRevenueShareCategory}
+                onUpdateCategory={handleUpdateRevenueShareCategory}
+                onRemoveCategory={handleRemoveRevenueShareCategory}
+                onAddProductToCategory={(catId) => handleAddBizzModelProduct(catId)}
+                onUpdateProduct={handleUpdateProduct}
+                onRemoveProduct={handleRemoveProduct}
+                onOpenResultsTab={(idx) => {
+                  setActiveProductIdx(idx);
+                  setActiveSubTab('results');
+                }}
+              />
+            ) : selectedModelSet === 'batch-lots' ? (
               <div className="space-y-4">
                 {state.revenueItems.map((prod, idx) => {
                   const batchConfig = prod.batchLotsConfig || createDefaultBatchLotsConfig();
@@ -1516,9 +2233,51 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
       )}
 
       {/* ===================================================================== */}
-      {/* TAB 2: RESULTS TAB (FULL 19-LINE CALCULATION & ADJUSTMENT SLIDER)      */}
+      {/* TAB 2: RESULTS TAB (VALUE SALES OR 19-LINE UNIT CALCULATION & SLIDER) */}
       {/* ===================================================================== */}
-      {activeSubTab === 'results' && currentProduct && calculationGrid && (
+      {activeSubTab === 'results' && selectedModelSet === 'value-sales' && currentProduct && (
+        <ValueSalesResultsView
+          theme={theme}
+          categories={valueSalesCategories}
+          products={state.revenueItems}
+          activeProductIdx={activeProductIdx}
+          onSelectProductIdx={setActiveProductIdx}
+          activeYear={activeYear}
+          onSelectYear={setActiveYear}
+          daysWorked60={daysWorked60}
+          onUpdateProduct={handleUpdateProduct}
+          onGoToAssumptions={() => setActiveSubTab('assumptions')}
+        />
+      )}
+      {activeSubTab === 'results' && selectedModelSet === 'commission' && currentProduct && (
+        <CommissionResultsView
+          theme={theme}
+          categories={commissionCategories}
+          products={state.revenueItems}
+          activeProductIdx={activeProductIdx}
+          onSelectProductIdx={setActiveProductIdx}
+          activeYear={activeYear}
+          onSelectYear={setActiveYear}
+          daysWorked60={daysWorked60}
+          onUpdateProduct={handleUpdateProduct}
+          onGoToAssumptions={() => setActiveSubTab('assumptions')}
+        />
+      )}
+      {activeSubTab === 'results' && selectedModelSet === 'revenue-share' && currentProduct && (
+        <RevenueShareResultsView
+          theme={theme}
+          categories={revenueShareCategories}
+          products={state.revenueItems}
+          activeProductIdx={activeProductIdx}
+          onSelectProductIdx={setActiveProductIdx}
+          activeYear={activeYear}
+          onSelectYear={setActiveYear}
+          daysWorked60={daysWorked60}
+          onUpdateProduct={handleUpdateProduct}
+          onGoToAssumptions={() => setActiveSubTab('assumptions')}
+        />
+      )}
+      {activeSubTab === 'results' && selectedModelSet !== 'value-sales' && selectedModelSet !== 'commission' && selectedModelSet !== 'revenue-share' && currentProduct && calculationGrid && (
         <div className="space-y-6 animate-in fade-in duration-150">
 
           {/* 1. AUTHENTIC 19-ROW CALCULATION TABLE (results_70dba554.png) */}
@@ -2093,9 +2852,45 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
       )}
 
       {/* ===================================================================== */}
-      {/* TAB 3: CHARTS TAB (UNIT SALES VS CAPACITY & COST VS SELLING PRICE)    */}
+      {/* TAB 3: CHARTS TAB (VALUE SALES OR UNIT SALES VS CAPACITY & MARGIN)    */}
       {/* ===================================================================== */}
-      {activeSubTab === 'charts' && currentProduct && calculationGrid && (
+      {activeSubTab === 'charts' && selectedModelSet === 'value-sales' && currentProduct && (
+        <ValueSalesChartsView
+          theme={theme}
+          categories={valueSalesCategories}
+          products={state.revenueItems}
+          activeProductIdx={activeProductIdx}
+          onSelectProductIdx={setActiveProductIdx}
+          activeYear={activeYear}
+          onSelectYear={setActiveYear}
+          daysWorked60={daysWorked60}
+        />
+      )}
+      {activeSubTab === 'charts' && selectedModelSet === 'commission' && currentProduct && (
+        <CommissionChartsView
+          theme={theme}
+          categories={commissionCategories}
+          products={state.revenueItems}
+          activeProductIdx={activeProductIdx}
+          onSelectProductIdx={setActiveProductIdx}
+          activeYear={activeYear}
+          onSelectYear={setActiveYear}
+          daysWorked60={daysWorked60}
+        />
+      )}
+      {activeSubTab === 'charts' && selectedModelSet === 'revenue-share' && currentProduct && (
+        <RevenueShareChartsView
+          theme={theme}
+          categories={revenueShareCategories}
+          products={state.revenueItems}
+          activeProductIdx={activeProductIdx}
+          onSelectProductIdx={setActiveProductIdx}
+          activeYear={activeYear}
+          onSelectYear={setActiveYear}
+          daysWorked60={daysWorked60}
+        />
+      )}
+      {activeSubTab === 'charts' && selectedModelSet !== 'value-sales' && selectedModelSet !== 'commission' && selectedModelSet !== 'revenue-share' && currentProduct && calculationGrid && (
         <div className="space-y-6 animate-in fade-in duration-150">
 
           {/* Top Controls: Product Selector & Year Selector */}

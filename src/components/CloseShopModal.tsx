@@ -195,7 +195,7 @@ export const CloseShopModal: React.FC<CloseShopModalProps> = ({
                 onClick={onConfirmCloseShop}
                 className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-[#F4EFE6] border border-[#D8CEBC] text-slate-700 text-xs font-medium transition-colors lowercase"
               >
-                <span>close doors & exit preview</span>
+                <span>back to website</span>
               </button>
             </div>
           </div>
