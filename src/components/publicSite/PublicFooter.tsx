@@ -239,11 +239,52 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({
           </div>
         </div>
 
+        {/* PayFast & Payment Security Bar */}
+        <div className="py-7 border-b border-[#E3DBCC] dark:border-[#1E263D] flex flex-col items-center justify-center space-y-3">
+          <div className="inline-flex flex-wrap items-center justify-center gap-3 sm:gap-5 px-5 py-2.5 bg-[#12172A] dark:bg-[#070A12] border border-[#242E49] rounded-xl shadow-xs select-none">
+            <div className="flex items-center gap-1.5 text-slate-200 font-extrabold text-xs tracking-wider">
+              <span className="bg-emerald-500 text-slate-950 font-black text-[9px] px-1.5 py-0.5 rounded">
+                DPO
+              </span>
+              <span className="font-bold text-slate-300">pay</span>
+            </div>
+            <span className="text-slate-700 font-light" aria-hidden="true">|</span>
+            <div className="flex items-center gap-1 font-black text-sm tracking-tight text-white italic">
+              <span className="text-red-500">Pay</span>
+              <span>Fast</span>
+            </div>
+            <span className="text-slate-700 font-light" aria-hidden="true">|</span>
+            <div className="font-black text-sm tracking-widest text-[#4A90E2] italic px-1 font-serif">
+              VISA
+            </div>
+            <span className="text-slate-700 font-light" aria-hidden="true">|</span>
+            <div className="flex items-center gap-1.5">
+              <div className="flex -space-x-1.5">
+                <div className="w-3.5 h-3.5 rounded-full bg-[#EB001B] opacity-90" />
+                <div className="w-3.5 h-3.5 rounded-full bg-[#F79E1B] opacity-90" />
+              </div>
+              <span className="font-bold text-xs text-slate-300 font-sans">MasterCard</span>
+            </div>
+            <span className="text-slate-700 font-light hidden sm:inline" aria-hidden="true">|</span>
+            <div className="px-2 py-0.5 rounded border border-slate-600 bg-slate-900/90 text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">
+              VERIFIED BY VISA
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-600 dark:text-slate-400 text-center max-w-2xl leading-relaxed">
+            Official PayFast by DPO Group Merchant · Merchant ID:{' '}
+            <span className="font-mono font-semibold text-slate-900 dark:text-slate-200">
+              14980265
+            </span>{' '}
+            (BizzBean South Africa). Secured with 256-bit SSL encryption, 3D Secure, Visa,
+            MasterCard, and South African Instant EFT.
+          </p>
+        </div>
+
         {/* Quiet Bottom Bar */}
         <div className="pt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
           <p>
-            © {new Date().getFullYear()} bizzbean. Built by entrepreneurs for founders and operating
-            businesses.
+            © {new Date().getFullYear()} BizzBean (Pty) Ltd. Built by entrepreneurs for founders and
+            operating businesses.
           </p>
           <div className="flex items-center gap-5">
             <a

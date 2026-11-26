@@ -383,24 +383,6 @@ export const SolutionsPanel: React.FC<SolutionsPanelProps> = ({
           )}
         </a>
 
-        <a
-          href="/website-footer"
-          onClick={(e) => {
-            if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
-              e.preventDefault();
-              onSelectFooter();
-            }
-          }}
-          className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition-colors lowercase flex items-center justify-between cursor-pointer ${getSubtleActiveBtnClass(
-            activeSolutionId === 'website-footer'
-          )}`}
-        >
-          <span>website footer</span>
-          {activeSolutionId === 'website-footer' && (
-            <ChevronRight className="h-3.5 w-3.5 opacity-75 shrink-0" />
-          )}
-        </a>
-
         {/* Dedicated Book Download Button */}
         {onDownloadBook && (
           <button
