@@ -11,6 +11,8 @@ interface BillOfMaterialsPanelProps {
   theme?: 'light' | 'dark';
   stepNumber?: number;
   unitLabel?: string;
+  qtyColumnLabel?: string;
+  consumablesColumnLabel?: string;
   mode?: 'daily' | 'per_batch';
   subtitle?: string;
   components: BomComponent[];
@@ -23,6 +25,8 @@ export const BillOfMaterialsPanel: React.FC<BillOfMaterialsPanelProps> = ({
   theme = 'light',
   stepNumber = 3,
   unitLabel = 'units',
+  qtyColumnLabel = 'qty / batch',
+  consumablesColumnLabel = 'consumables / batch',
   mode = 'daily',
   subtitle,
   components,
@@ -129,14 +133,14 @@ export const BillOfMaterialsPanel: React.FC<BillOfMaterialsPanelProps> = ({
                 }`}
               >
                 <th className="py-2.5 px-3 text-left font-bold min-w-[165px]">component / material</th>
-                <th className="py-2.5 px-2 text-right font-bold w-24">qty / batch</th>
+                <th className="py-2.5 px-2 text-right font-bold w-24">{qtyColumnLabel}</th>
                 <th className="py-2.5 px-2 text-center font-bold w-16">unit</th>
                 <th className="py-2.5 px-2 text-right font-bold w-20" title="Conversion factor if batch unit differs from pack unit (e.g. 1000 for g to kg)">
                   divider
                 </th>
                 <th className="py-2.5 px-2 text-right font-bold w-24">pack size</th>
                 <th className="py-2.5 px-2 text-right font-bold w-24">pack cost</th>
-                <th className="py-2.5 px-2 text-right font-bold w-24">consumables / batch</th>
+                <th className="py-2.5 px-2 text-right font-bold w-24">{consumablesColumnLabel}</th>
                 <th className="py-2.5 px-2 text-center font-bold w-24">surplus wasted?</th>
                 <th className="py-2.5 px-2 text-right font-bold w-24">packs / surplus</th>
                 <th className="py-2.5 px-3 text-right font-bold w-24 text-[#2E5E88] dark:text-[#6BA3D6]">

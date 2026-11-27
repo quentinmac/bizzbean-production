@@ -826,6 +826,204 @@ Strict Quality Rules:
     }
   });
 
+  // =========================================================================
+  // BOOK & WORKBOOK BUNDLE (.zip) — Server-Persisted Public Download Storage
+  // Saves uploaded .zip to public/downloads/getting-to-value.zip so all visitors
+  // (including production deployments) receive the real ZIP archive, never a .txt fallback.
+  // =========================================================================
+  const BOOK_DOWNLOADS_DIR = path.resolve(__dirname, 'public', 'downloads');
+  const BOOK_ZIP_FILENAME = 'getting-to-value.zip';
+  const BOOK_META_FILENAME = 'getting-to-value.meta.json';
+
+  const formatByteSize = (bytes: number): string => {
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  };
+
+  const resolveBookBundleOnDisk = (): {
+    filePath: string;
+    fileName: string;
+    sizeBytes: number;
+    fileSize: string;
+    uploadedAt: string;
+  } | null => {
+    const candidateFiles = [
+      path.resolve(__dirname, 'public', 'downloads', BOOK_ZIP_FILENAME),
+      path.resolve(__dirname, 'dist', 'downloads', BOOK_ZIP_FILENAME),
+      path.resolve(__dirname, 'public', 'getting to value.zip'),
+      path.resolve(__dirname, 'public', 'getting_to_value.zip'),
+      path.resolve(__dirname, 'public', 'getting-to-value.zip'),
+      path.resolve(__dirname, 'dist', 'getting to value.zip'),
+      path.resolve(__dirname, 'dist', 'getting_to_value.zip'),
+      path.resolve(__dirname, 'dist', 'getting-to-value.zip'),
+    ];
+
+    const foundPath = candidateFiles.find((p) => {
+      try {
+        return fs.existsSync(p) && fs.statSync(p).isFile() && fs.statSync(p).size > 22;
+      } catch {
+        return false;
+      }
+    });
+
+    if (!foundPath) return null;
+
+    const stat = fs.statSync(foundPath);
+    let meta: { fileName?: string; uploadedAt?: string } = {};
+    const metaCandidates = [
+      path.resolve(__dirname, 'public', 'downloads', BOOK_META_FILENAME),
+      path.resolve(__dirname, 'dist', 'downloads', BOOK_META_FILENAME),
+    ];
+    for (const mp of metaCandidates) {
+      try {
+        if (fs.existsSync(mp)) {
+          meta = JSON.parse(fs.readFileSync(mp, 'utf-8'));
+          break;
+        }
+      } catch {}
+    }
+
+    return {
+      filePath: foundPath,
+      fileName: meta.fileName || (path.basename(foundPath) === BOOK_ZIP_FILENAME ? 'getting to value.zip' : path.basename(foundPath)),
+      sizeBytes: stat.size,
+      fileSize: formatByteSize(stat.size),
+      uploadedAt: meta.uploadedAt || stat.mtime.toISOString(),
+    };
+  };
+
+  app.get('/api/cms/book-bundle/meta', (_req, res) => {
+    const info = resolveBookBundleOnDisk();
+    res.setHeader('Cache-Control', 'no-store');
+    if (!info) {
+      return res.json({ exists: false });
+    }
+    return res.json({
+      exists: true,
+      fileName: info.fileName,
+      fileSize: info.fileSize,
+      sizeBytes: info.sizeBytes,
+      uploadedAt: info.uploadedAt,
+      url: '/api/cms/book-bundle',
+    });
+  });
+
+  app.get('/api/cms/book-bundle', (_req, res) => {
+    const info = resolveBookBundleOnDisk();
+    if (!info) {
+      return res.status(404).json({ error: 'Book zip bundle has not been uploaded to the server yet.' });
+    }
+    const safeName = path.basename(info.fileName).replace(/["\r\n]/g, '') || 'getting to value.zip';
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+    res.setHeader('Cache-Control', 'no-cache');
+    return res.sendFile(info.filePath);
+  });
+
+  app.post(
+    '/api/cms/book-bundle',
+    express.raw({
+      type: ['application/zip', 'application/x-zip-compressed', 'application/octet-stream'],
+      limit: '50mb',
+    }),
+    (req, res) => {
+      try {
+        let zipBuffer: Buffer | null = null;
+        let rawName = 'getting to value.zip';
+
+        if (Buffer.isBuffer(req.body) && req.body.length > 0) {
+          zipBuffer = req.body;
+          const headerName = req.headers['x-book-filename'];
+          if (typeof headerName === 'string' && headerName.trim()) {
+            try {
+              rawName = decodeURIComponent(headerName.trim());
+            } catch {
+              rawName = headerName.trim();
+            }
+          }
+        } else if (req.body && typeof req.body === 'object' && typeof req.body.base64 === 'string') {
+          const cleanBase64 = req.body.base64.replace(/^data:[^;]+;base64,/, '');
+          zipBuffer = Buffer.from(cleanBase64, 'base64');
+          if (typeof req.body.fileName === 'string' && req.body.fileName.trim()) {
+            rawName = req.body.fileName.trim();
+          }
+        }
+
+        if (!zipBuffer || zipBuffer.length < 22) {
+          return res.status(400).json({ success: false, error: 'Missing or empty ZIP file payload.' });
+        }
+
+        // Validate ZIP magic bytes ("PK")
+        if (zipBuffer[0] !== 0x50 || zipBuffer[1] !== 0x4b) {
+          return res.status(400).json({ success: false, error: 'Uploaded file is not a valid ZIP archive.' });
+        }
+
+        const sanitizedBase = path.basename(rawName).replace(/[^a-zA-Z0-9._\-\s()]/g, '').trim() || 'getting to value.zip';
+        const finalFileName = sanitizedBase.toLowerCase().endsWith('.zip') ? sanitizedBase : `${sanitizedBase}.zip`;
+        const uploadedAt = new Date().toLocaleDateString('en-ZA', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        const metaPayload = {
+          fileName: finalFileName,
+          fileSize: formatByteSize(zipBuffer.length),
+          sizeBytes: zipBuffer.length,
+          uploadedAt,
+        };
+
+        if (!fs.existsSync(BOOK_DOWNLOADS_DIR)) {
+          fs.mkdirSync(BOOK_DOWNLOADS_DIR, { recursive: true });
+        }
+        fs.writeFileSync(path.join(BOOK_DOWNLOADS_DIR, BOOK_ZIP_FILENAME), zipBuffer);
+        fs.writeFileSync(path.join(BOOK_DOWNLOADS_DIR, BOOK_META_FILENAME), JSON.stringify(metaPayload, null, 2), 'utf-8');
+
+        // Mirror into dist/downloads if production dist directory exists
+        const distDir = path.resolve(__dirname, 'dist');
+        if (fs.existsSync(distDir)) {
+          const distDownloadsDir = path.join(distDir, 'downloads');
+          if (!fs.existsSync(distDownloadsDir)) {
+            fs.mkdirSync(distDownloadsDir, { recursive: true });
+          }
+          fs.writeFileSync(path.join(distDownloadsDir, BOOK_ZIP_FILENAME), zipBuffer);
+          fs.writeFileSync(path.join(distDownloadsDir, BOOK_META_FILENAME), JSON.stringify(metaPayload, null, 2), 'utf-8');
+        }
+
+        console.log(`[CMS Book Bundle] Saved ${finalFileName} (${metaPayload.fileSize}) to public/downloads/${BOOK_ZIP_FILENAME}`);
+
+        return res.json({
+          success: true,
+          ...metaPayload,
+          url: '/api/cms/book-bundle',
+        });
+      } catch (err: any) {
+        console.error('[CMS Book Bundle] Upload error:', err);
+        return res.status(500).json({ success: false, error: err?.message || 'Failed to save book zip bundle.' });
+      }
+    }
+  );
+
+  app.delete('/api/cms/book-bundle', (_req, res) => {
+    try {
+      const targets = [
+        path.resolve(__dirname, 'public', 'downloads', BOOK_ZIP_FILENAME),
+        path.resolve(__dirname, 'public', 'downloads', BOOK_META_FILENAME),
+        path.resolve(__dirname, 'dist', 'downloads', BOOK_ZIP_FILENAME),
+        path.resolve(__dirname, 'dist', 'downloads', BOOK_META_FILENAME),
+      ];
+      for (const t of targets) {
+        try {
+          if (fs.existsSync(t)) fs.unlinkSync(t);
+        } catch {}
+      }
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err?.message || 'Failed to remove book zip bundle.' });
+    }
+  });
+
   // Health check route
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -882,7 +1080,7 @@ Strict Quality Rules:
 
   const isAssetOrApi = (p: string): boolean => {
     if (p.startsWith('/api/')) return true;
-    return /\.(js|mjs|cjs|css|map|png|jpe?g|gif|svg|webp|ico|woff2?|ttf|eot|json|xml|txt|pdf|xlsx?|xlsm|mp4|webm|mp3)$/i.test(p);
+    return /\.(js|mjs|cjs|css|map|png|jpe?g|gif|svg|webp|ico|woff2?|ttf|eot|json|xml|txt|pdf|xlsx?|xlsm|zip|mp4|webm|mp3)$/i.test(p);
   };
 
   if (process.env.NODE_ENV === 'production') {

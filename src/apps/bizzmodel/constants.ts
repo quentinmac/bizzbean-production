@@ -10,6 +10,10 @@ import {
   CommissionProductConfig,
   RevenueShareCategory,
   RevenueShareProductConfig,
+  TimeUnitsProductConfig,
+  InstallationServicesProductConfig,
+  MeasuredUnitsProductConfig,
+  LaundryProductConfig,
 } from './components/modelsets/modelSetTypes';
 import { BizzOptimizerState, DEFAULT_BIZZOPTIMIZER_STATE } from './data/bizzoptimizerDefaults';
 
@@ -115,11 +119,11 @@ export const ALL_MODEL_SETS: ModelSetCategory[] = [
   {
     type: 'services',
     modelSets: [
-      { id: 'time-units', name: 'time units', isAvailable: false, statusLabel: 'coming soon' },
-      { id: 'installation-services', name: 'installation services', isAvailable: false, statusLabel: 'coming soon' },
-      { id: 'measured-units', name: 'measured units', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'time-units', name: 'time units', isAvailable: true, statusLabel: 'Available' },
+      { id: 'installation-services', name: 'installation services', isAvailable: true, statusLabel: 'Available' },
+      { id: 'measured-units', name: 'measured units', isAvailable: true, statusLabel: 'Available' },
       { id: 'printing', name: 'printing', isAvailable: false, statusLabel: 'coming soon' },
-      { id: 'laundry', name: 'laundry', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'laundry', name: 'laundry', isAvailable: true, statusLabel: 'Available' },
       { id: 'drycleaning', name: 'drycleaning', isAvailable: false, statusLabel: 'coming soon' },
       { id: 'time-slots', name: 'time slots', isAvailable: false, statusLabel: 'coming soon' },
       { id: 'time-slot-rentals', name: 'time slot rentals', isAvailable: false, statusLabel: 'coming soon' },
@@ -264,6 +268,10 @@ export interface RevenueItem {
   commissionConfig?: CommissionProductConfig;
   revenueShareCategoryId?: string;
   revenueShareConfig?: RevenueShareProductConfig;
+  timeUnitsConfig?: TimeUnitsProductConfig;
+  installationServicesConfig?: InstallationServicesProductConfig;
+  measuredUnitsConfig?: MeasuredUnitsProductConfig;
+  laundryConfig?: LaundryProductConfig;
 }
 
 export interface EmploymentCategory {
@@ -780,7 +788,7 @@ export interface EmploymentImportMeta {
 
 export interface BizzModelState {
   appMode?: PlatformForecastAppId;
-  activeModelSet?: 'unit-sales' | 'value-sales' | 'commission' | 'revenue-share' | 'batch-lots' | 'continuous-production' | 'fabrication' | 'family-restaurant';
+  activeModelSet?: 'unit-sales' | 'value-sales' | 'commission' | 'revenue-share' | 'batch-lots' | 'continuous-production' | 'fabrication' | 'family-restaurant' | 'time-units' | 'installation-services' | 'measured-units' | 'laundry';
   businessDetails: BusinessDetails;
   valueSalesCategories?: ValueSalesCategory[];
   commissionCategories?: CommissionCategory[];

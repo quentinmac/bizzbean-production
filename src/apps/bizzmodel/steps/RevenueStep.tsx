@@ -44,6 +44,12 @@ import {
   TradingRevenueShareWorkbench,
   RevenueShareResultsView,
   RevenueShareChartsView,
+  ServicesTimeUnitsWorkbench,
+  ServicesInstallationWorkbench,
+  ServicesMeasuredUnitsWorkbench,
+  ServicesLaundryWorkbench,
+  TimeUnitsResultsView,
+  TimeUnitsChartsView,
   createDefaultBatchLotsConfig,
   calculateBatchLotsFull,
   createDefaultContinuousProductionConfig,
@@ -52,6 +58,14 @@ import {
   calculateFabricationFull,
   createDefaultFamilyRestaurantConfig,
   calculateFamilyRestaurantFull,
+  createDefaultTimeUnitsConfig,
+  calculateTimeUnitsFull,
+  createDefaultInstallationServicesConfig,
+  calculateInstallationServicesFull,
+  createDefaultMeasuredUnitsConfig,
+  calculateMeasuredUnitsFull,
+  createDefaultLaundryConfig,
+  calculateLaundryFull,
   createDefaultValueSalesCategories,
   createDefaultValueSalesConfig,
   createDefaultCommissionCategories,
@@ -63,6 +77,10 @@ import {
   ContinuousProductionProductConfig,
   FabricationProductConfig,
   FamilyRestaurantProductConfig,
+  TimeUnitsProductConfig,
+  InstallationServicesProductConfig,
+  MeasuredUnitsProductConfig,
+  LaundryProductConfig,
   ValueSalesCategory,
   CommissionCategory,
   RevenueShareCategory,
@@ -188,7 +206,11 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
     | 'batch-lots'
     | 'continuous-production'
     | 'fabrication'
-    | 'family-restaurant' =
+    | 'family-restaurant'
+    | 'time-units'
+    | 'installation-services'
+    | 'measured-units'
+    | 'laundry' =
     mode === 'bizzmodel' &&
     (state.activeModelSet === 'value-sales' ||
       state.activeModelSet === 'commission' ||
@@ -196,7 +218,11 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
       state.activeModelSet === 'batch-lots' ||
       state.activeModelSet === 'continuous-production' ||
       state.activeModelSet === 'fabrication' ||
-      state.activeModelSet === 'family-restaurant')
+      state.activeModelSet === 'family-restaurant' ||
+      state.activeModelSet === 'time-units' ||
+      state.activeModelSet === 'installation-services' ||
+      state.activeModelSet === 'measured-units' ||
+      state.activeModelSet === 'laundry')
       ? state.activeModelSet
       : 'unit-sales';
   const [showTaxonomyTable, setShowTaxonomyTable] = useState<boolean>(false);
@@ -657,6 +683,46 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
     const isContinuous = selectedModelSet === 'continuous-production';
     const isFabrication = selectedModelSet === 'fabrication';
     const isFamilyRestaurant = selectedModelSet === 'family-restaurant';
+    const isTimeUnits = selectedModelSet === 'time-units';
+    const isInstallationServices = selectedModelSet === 'installation-services';
+    const isMeasuredUnits = selectedModelSet === 'measured-units';
+    const isLaundry = selectedModelSet === 'laundry';
+
+    if (isTimeUnits) {
+      const tuConfig = createDefaultTimeUnitsConfig(100, 1.0, 0);
+      const tuFull = calculateTimeUnitsFull(
+        tuConfig,
+        setupProductionDaysPerMonth,
+        setupProductionDaysPerAnnum
+      );
+      const dailyCap = tuFull.production.dailyProductionCapacity;
+      const newTuItem: RevenueItem = {
+        id: `rev-tu-${Date.now()}`,
+        category: 'SERVICES',
+        name: `service stream ${String.fromCharCode(64 + nextNum)}`,
+        modelType: 'time units',
+        unitPrice: tuConfig.unitSellingPriceBase,
+        unitCost: 0,
+        costOfSalesPct: 0,
+        startMonth: 1,
+        dailyCapacity: dailyCap,
+        monthlyUnits: new Array(60).fill(Number((dailyCap * setupProductionDaysPerMonth).toFixed(2))),
+        dailyUnitSalesMonthly: new Array(60).fill(dailyCap),
+        productionUnitCostMonthly: new Array(60).fill(0),
+        manufacturingMarginPctMonthly: new Array(60).fill(0),
+        grossProfitMarginPctMonthly: new Array(60).fill(100),
+        salesCommissionPctMonthly: new Array(60).fill(tuConfig.commissionOnSalesPct),
+        inventoryAdjustmentPctMonthly: new Array(60).fill(0),
+        otherIncomeMonthly: new Array(60).fill(tuConfig.otherIncomeMonthlyBase),
+        timeUnitsConfig: tuConfig,
+      };
+      onUpdateState((prev) => ({
+        ...prev,
+        revenueItems: [...prev.revenueItems, newTuItem],
+      }));
+      setActiveProductIdx(state.revenueItems.length);
+      return;
+    }
 
     if (isValueSales) {
       const cats =
@@ -828,6 +894,39 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
         )
       : null;
 
+    const defaultInstallationConfig = isInstallationServices
+      ? createDefaultInstallationServicesConfig()
+      : undefined;
+    const installationDerived = defaultInstallationConfig
+      ? calculateInstallationServicesFull(
+          defaultInstallationConfig,
+          setupProductionDaysPerMonth,
+          setupProductionDaysPerAnnum
+        )
+      : null;
+
+    const defaultMeasuredUnitsConfig = isMeasuredUnits
+      ? createDefaultMeasuredUnitsConfig()
+      : undefined;
+    const measuredUnitsDerived = defaultMeasuredUnitsConfig
+      ? calculateMeasuredUnitsFull(
+          defaultMeasuredUnitsConfig,
+          setupProductionDaysPerMonth,
+          setupProductionDaysPerAnnum
+        )
+      : null;
+
+    const defaultLaundryConfig = isLaundry
+      ? createDefaultLaundryConfig()
+      : undefined;
+    const laundryDerived = defaultLaundryConfig
+      ? calculateLaundryFull(
+          defaultLaundryConfig,
+          setupProductionDaysPerMonth,
+          setupProductionDaysPerAnnum
+        )
+      : null;
+
     const initialUnitCost = batchDerived
       ? Number(batchDerived.dynamics.modeledUnitCost.toFixed(4))
       : continuousDerived
@@ -836,6 +935,12 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
       ? Number(fabricationDerived.dynamics.modeledUnitCost.toFixed(4))
       : restaurantDerived
       ? Number(restaurantDerived.dynamics.modeledUnitCost.toFixed(4))
+      : installationDerived
+      ? Number(installationDerived.dynamics.modeledUnitCost.toFixed(4))
+      : measuredUnitsDerived
+      ? Number(measuredUnitsDerived.dynamics.modeledUnitCost.toFixed(4))
+      : laundryDerived
+      ? Number(laundryDerived.dynamics.modeledUnitCost.toFixed(4))
       : 10.0;
     const initialDailyCap = batchDerived
       ? batchDerived.dynamics.dailyCapacity
@@ -845,6 +950,12 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
       ? fabricationDerived.dynamics.dailyCapacity
       : restaurantDerived
       ? restaurantDerived.dynamics.dailyCapacity
+      : installationDerived
+      ? installationDerived.dynamics.dailyCapacity
+      : measuredUnitsDerived
+      ? measuredUnitsDerived.dynamics.dailyCapacity
+      : laundryDerived
+      ? laundryDerived.dynamics.dailyCapacity
       : 1500;
     const initialDailySales = batchDerived
       ? Math.min(1000, initialDailyCap || 1000)
@@ -854,6 +965,12 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
       ? initialDailyCap || 0.5
       : restaurantDerived
       ? Math.max(1, restaurantDerived.restaurant.expectedDailyGuests || initialDailyCap)
+      : installationDerived
+      ? Math.max(1, initialDailyCap)
+      : measuredUnitsDerived
+      ? Math.max(1, initialDailyCap)
+      : laundryDerived
+      ? Math.max(1, initialDailyCap)
       : 1000;
 
     const restaurantCategoryNames = [
@@ -864,6 +981,12 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
     ];
     const defaultName = isFamilyRestaurant
       ? restaurantCategoryNames[nextNum - 1] || `menu stream SKU-${String.fromCharCode(64 + nextNum)}`
+      : isInstallationServices
+      ? `installation service ${String.fromCharCode(64 + nextNum)}`
+      : isMeasuredUnits
+      ? `measured service ${String.fromCharCode(64 + nextNum)}`
+      : isLaundry
+      ? `laundry service ${String.fromCharCode(64 + nextNum)}`
       : `revenue generator SKU-${String.fromCharCode(64 + nextNum)}`;
 
     const newItem: RevenueItem = {
@@ -873,6 +996,8 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
           ? 'MANUFACTURING'
           : isFamilyRestaurant
           ? 'HOSPITALITY'
+          : isInstallationServices || isMeasuredUnits || isLaundry
+          ? 'SERVICES'
           : 'RETAIL PRODUCTS',
       name: defaultName,
       modelType: isBatchLots
@@ -883,6 +1008,12 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
         ? 'fabrication'
         : isFamilyRestaurant
         ? 'family restaurant'
+        : isInstallationServices
+        ? 'installation services'
+        : isMeasuredUnits
+        ? 'measured units'
+        : isLaundry
+        ? 'laundry'
         : 'unit sales',
       unitPrice: 22.22,
       unitCost: initialUnitCost,
@@ -901,6 +1032,9 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
       continuousProductionConfig: defaultContinuousConfig,
       fabricationConfig: defaultFabricationConfig,
       familyRestaurantConfig: defaultRestaurantConfig,
+      installationServicesConfig: defaultInstallationConfig,
+      measuredUnitsConfig: defaultMeasuredUnitsConfig,
+      laundryConfig: defaultLaundryConfig,
     };
     onUpdateState((prev) => ({
       ...prev,
@@ -965,7 +1099,11 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
       nextModelSetId !== 'batch-lots' &&
       nextModelSetId !== 'continuous-production' &&
       nextModelSetId !== 'fabrication' &&
-      nextModelSetId !== 'family-restaurant'
+      nextModelSetId !== 'family-restaurant' &&
+      nextModelSetId !== 'time-units' &&
+      nextModelSetId !== 'installation-services' &&
+      nextModelSetId !== 'measured-units' &&
+      nextModelSetId !== 'laundry'
     ) {
       return;
     }
@@ -1271,6 +1409,174 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
         };
       }
 
+      if (nextModelSetId === 'time-units') {
+        const syncedItems = (prev.revenueItems || []).map((item) => {
+          const cfg =
+            item.timeUnitsConfig ||
+            createDefaultTimeUnitsConfig(
+              item.unitPrice > 0 && item.unitPrice !== 22.22 ? item.unitPrice : 100,
+              item.salesCommissionPctMonthly?.[0] ?? 1.0,
+              item.otherIncomeMonthly?.[0] ?? 0
+            );
+          const full = calculateTimeUnitsFull(
+            cfg,
+            setupProductionDaysPerMonth,
+            setupProductionDaysPerAnnum
+          );
+          const derivedCap = full.production.dailyProductionCapacity;
+
+          return {
+            ...item,
+            category: 'SERVICES',
+            modelType: 'time units',
+            timeUnitsConfig: cfg,
+            unitPrice: cfg.unitSellingPriceBase,
+            unitCost: 0,
+            costOfSalesPct: 0,
+            dailyCapacity: derivedCap,
+            productionUnitCostMonthly: new Array(60).fill(0),
+            grossProfitMarginPctMonthly: new Array(60).fill(100),
+            salesCommissionPctMonthly:
+              item.salesCommissionPctMonthly && item.salesCommissionPctMonthly.length >= 60
+                ? item.salesCommissionPctMonthly
+                : new Array(60).fill(cfg.commissionOnSalesPct),
+            otherIncomeMonthly:
+              item.otherIncomeMonthly && item.otherIncomeMonthly.length >= 60
+                ? item.otherIncomeMonthly
+                : new Array(60).fill(cfg.otherIncomeMonthlyBase),
+          };
+        });
+
+        return {
+          ...prev,
+          activeModelSet: 'time-units',
+          revenueItems: syncedItems,
+        };
+      }
+
+      if (nextModelSetId === 'installation-services') {
+        const syncedItems = (prev.revenueItems || []).map((item) => {
+          const cfg =
+            item.installationServicesConfig ||
+            createDefaultInstallationServicesConfig();
+          const full = calculateInstallationServicesFull(
+            cfg,
+            setupProductionDaysPerMonth,
+            setupProductionDaysPerAnnum
+          );
+          const derivedCost = Number(full.dynamics.modeledUnitCost.toFixed(4));
+          const derivedCap = full.dynamics.dailyCapacity;
+          const isUntouchedDefaultSales =
+            !item.installationServicesConfig &&
+            Array.isArray(item.dailyUnitSalesMonthly) &&
+            item.dailyUnitSalesMonthly.every(
+              (v) => v === 1000 || v === 800 || v === 11520 || v === 12.8
+            );
+          const nextDailySales =
+            isUntouchedDefaultSales && derivedCap > 0
+              ? new Array(60).fill(derivedCap)
+              : item.dailyUnitSalesMonthly;
+
+          return {
+            ...item,
+            category: 'SERVICES',
+            modelType: 'installation services',
+            installationServicesConfig: cfg,
+            unitCost: derivedCost,
+            dailyCapacity: derivedCap,
+            productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedCost)),
+            dailyUnitSalesMonthly: nextDailySales,
+          };
+        });
+
+        return {
+          ...prev,
+          activeModelSet: 'installation-services',
+          revenueItems: syncedItems,
+        };
+      }
+
+      if (nextModelSetId === 'measured-units') {
+        const syncedItems = (prev.revenueItems || []).map((item) => {
+          const cfg =
+            item.measuredUnitsConfig || createDefaultMeasuredUnitsConfig();
+          const full = calculateMeasuredUnitsFull(
+            cfg,
+            setupProductionDaysPerMonth,
+            setupProductionDaysPerAnnum
+          );
+          const derivedCost = Number(full.dynamics.modeledUnitCost.toFixed(4));
+          const derivedCap = full.dynamics.dailyCapacity;
+          const isUntouchedDefaultSales =
+            !item.measuredUnitsConfig &&
+            Array.isArray(item.dailyUnitSalesMonthly) &&
+            item.dailyUnitSalesMonthly.every(
+              (v) => v === 1000 || v === 800 || v === 11520 || v === 12.8 || v === 4
+            );
+          const nextDailySales =
+            isUntouchedDefaultSales && derivedCap > 0
+              ? new Array(60).fill(derivedCap)
+              : item.dailyUnitSalesMonthly;
+
+          return {
+            ...item,
+            category: 'SERVICES',
+            modelType: 'measured units',
+            measuredUnitsConfig: cfg,
+            unitCost: derivedCost,
+            dailyCapacity: derivedCap,
+            productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedCost)),
+            dailyUnitSalesMonthly: nextDailySales,
+          };
+        });
+
+        return {
+          ...prev,
+          activeModelSet: 'measured-units',
+          revenueItems: syncedItems,
+        };
+      }
+
+      if (nextModelSetId === 'laundry') {
+        const syncedItems = (prev.revenueItems || []).map((item) => {
+          const cfg = item.laundryConfig || createDefaultLaundryConfig();
+          const full = calculateLaundryFull(
+            cfg,
+            setupProductionDaysPerMonth,
+            setupProductionDaysPerAnnum
+          );
+          const derivedCost = Number(full.dynamics.modeledUnitCost.toFixed(4));
+          const derivedCap = full.dynamics.dailyCapacity;
+          const isUntouchedDefaultSales =
+            !item.laundryConfig &&
+            Array.isArray(item.dailyUnitSalesMonthly) &&
+            item.dailyUnitSalesMonthly.every(
+              (v) => v === 1000 || v === 800 || v === 11520 || v === 12.8 || v === 4
+            );
+          const nextDailySales =
+            isUntouchedDefaultSales && derivedCap > 0
+              ? new Array(60).fill(derivedCap)
+              : item.dailyUnitSalesMonthly;
+
+          return {
+            ...item,
+            category: 'SERVICES',
+            modelType: 'laundry',
+            laundryConfig: cfg,
+            unitCost: derivedCost,
+            dailyCapacity: derivedCap,
+            productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedCost)),
+            dailyUnitSalesMonthly: nextDailySales,
+          };
+        });
+
+        return {
+          ...prev,
+          activeModelSet: 'laundry',
+          revenueItems: syncedItems,
+        };
+      }
+
       return {
         ...prev,
         activeModelSet: 'unit-sales',
@@ -1336,6 +1642,82 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
     handleUpdateProduct(idx, {
       modelType: 'family restaurant',
       familyRestaurantConfig: updatedConfig,
+      unitCost: derivedDynamics.unitCost,
+      dailyCapacity: derivedDynamics.dailyCapacity,
+      productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedDynamics.unitCost)),
+    });
+  };
+
+  // Update a product's Services Time Units configuration and sync dailyCapacity & trading base rates to Results tab
+  const handleUpdateTimeUnitsConfig = (
+    idx: number,
+    updatedConfig: TimeUnitsProductConfig,
+    derived: {
+      dailyCapacity: number;
+      unitPrice: number;
+      productionFactorPct: number;
+      commissionOnSalesPct: number;
+      otherIncomeMonthlyBase: number;
+    }
+  ) => {
+    const existing = state.revenueItems[idx];
+    const prevCfg = existing?.timeUnitsConfig;
+    const patch: Partial<RevenueItem> = {
+      modelType: 'time units',
+      timeUnitsConfig: updatedConfig,
+      unitPrice: derived.unitPrice,
+      unitCost: 0,
+      costOfSalesPct: 0,
+      dailyCapacity: derived.dailyCapacity,
+    };
+    if (!prevCfg || prevCfg.commissionOnSalesPct !== derived.commissionOnSalesPct) {
+      patch.salesCommissionPctMonthly = new Array(60).fill(derived.commissionOnSalesPct);
+    }
+    if (!prevCfg || prevCfg.otherIncomeMonthlyBase !== derived.otherIncomeMonthlyBase) {
+      patch.otherIncomeMonthly = new Array(60).fill(derived.otherIncomeMonthlyBase);
+    }
+    handleUpdateProduct(idx, patch);
+  };
+
+  // Update a product's Services Installation Services configuration and transfer unitCost + dailyCapacity immediately to Results tab
+  const handleUpdateInstallationServicesConfig = (
+    idx: number,
+    updatedConfig: InstallationServicesProductConfig,
+    derivedDynamics: { unitCost: number; dailyCapacity: number }
+  ) => {
+    handleUpdateProduct(idx, {
+      modelType: 'installation services',
+      installationServicesConfig: updatedConfig,
+      unitCost: derivedDynamics.unitCost,
+      dailyCapacity: derivedDynamics.dailyCapacity,
+      productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedDynamics.unitCost)),
+    });
+  };
+
+  // Update a product's Services Measured Units configuration and transfer unitCost + dailyCapacity immediately to Results tab
+  const handleUpdateMeasuredUnitsConfig = (
+    idx: number,
+    updatedConfig: MeasuredUnitsProductConfig,
+    derivedDynamics: { unitCost: number; dailyCapacity: number }
+  ) => {
+    handleUpdateProduct(idx, {
+      modelType: 'measured units',
+      measuredUnitsConfig: updatedConfig,
+      unitCost: derivedDynamics.unitCost,
+      dailyCapacity: derivedDynamics.dailyCapacity,
+      productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedDynamics.unitCost)),
+    });
+  };
+
+  // Update a product's Services Laundry configuration and transfer unitCost + dailyCapacity immediately to Results tab
+  const handleUpdateLaundryConfig = (
+    idx: number,
+    updatedConfig: LaundryProductConfig,
+    derivedDynamics: { unitCost: number; dailyCapacity: number }
+  ) => {
+    handleUpdateProduct(idx, {
+      modelType: 'laundry',
+      laundryConfig: updatedConfig,
       unitCost: derivedDynamics.unitCost,
       dailyCapacity: derivedDynamics.dailyCapacity,
       productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedDynamics.unitCost)),
@@ -1713,11 +2095,11 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                 <p className="text-[11px] text-slate-500 lowercase mt-1">
                   {mode === 'bizzmodel' ? (
                     <>
-                      * active model-sets: <strong>trading — unit sales, value sales, commission &amp; revenue share (all 4 complete)</strong>, <strong>manufacturing — batch lots, continuous production &amp; fabrication</strong> &amp; <strong>hospitality — family restaurant</strong>. select any available model-set above; others are marked as <em>coming soon</em>.
+                      * active model-sets: <strong>trading — unit sales, value sales, commission &amp; revenue share (all 4 complete)</strong>, <strong>manufacturing — batch lots, continuous production &amp; fabrication</strong>, <strong>services — time units, installation services, measured units &amp; laundry</strong> &amp; <strong>hospitality — family restaurant</strong>. select any available model-set above; others are marked as <em>coming soon</em>.
                     </>
                   ) : (
                     <>
-                      * for this simulator mode, <strong>unit sales</strong> is the active model-set. launch <strong>bizzmodel</strong> to access all 4 trading model-sets, manufacturing (batch lots, continuous production &amp; fabrication), and hospitality family restaurant.
+                      * for this simulator mode, <strong>unit sales</strong> is the active model-set. launch <strong>bizzmodel</strong> to access all 4 trading model-sets, manufacturing (batch lots, continuous production &amp; fabrication), services (time units, installation services, measured units &amp; laundry), and hospitality family restaurant.
                     </>
                   )}
                 </p>
@@ -1742,6 +2124,14 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                       ? 'MANUFACTURING: FABRICATION'
                       : selectedModelSet === 'family-restaurant'
                       ? 'HOSPITALITY: FAMILY RESTAURANT'
+                      : selectedModelSet === 'time-units'
+                      ? 'SERVICES: TIME UNITS'
+                      : selectedModelSet === 'installation-services'
+                      ? 'SERVICES: INSTALLATION SERVICES'
+                      : selectedModelSet === 'measured-units'
+                      ? 'SERVICES: MEASURED UNITS'
+                      : selectedModelSet === 'laundry'
+                      ? 'SERVICES: LAUNDRY'
                       : 'UNIT SALES MODEL-SET'}
                   </span>
                 </div>
@@ -1760,6 +2150,14 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                     ? 'Multi-process bottleneck capacity (units/batch & days/batch), advisory staffing, per-batch BOM, multi-level packaging & variable unit cost dynamics.'
                     : selectedModelSet === 'family-restaurant'
                     ? 'Table & seat turnover capacity, kitchen BOM, multi-level packaging & variable utility unit cost dynamics.'
+                    : selectedModelSet === 'time-units'
+                    ? 'Multi-process daily production capacity (hours/day), advisory productive employee indicator (no production impact), and hourly billing dynamics with zero variable COS.'
+                    : selectedModelSet === 'installation-services'
+                    ? 'Multi-process daily installation capacity & mileage, advisory staffing, dynamic BOM, multi-level packaging, reusable vehicle/logistics CPK costing & unit cost dynamics.'
+                    : selectedModelSet === 'measured-units'
+                    ? 'Multi-process measured output capacity (units/operator-hour), advisory staffing, dynamic BOM, multi-level packaging, production variable costs & unit cost dynamics.'
+                    : selectedModelSet === 'laundry'
+                    ? 'Multi-process laundry cycle capacity (kg/wash cycle & cycles/day), advisory staffing, per-kg BOM, multi-level packaging, utilities variable costs & unit cost dynamics.'
                     : 'Calculates item unit cost and production volumes constraining volume sales.'}
                 </p>
               </div>
@@ -1857,6 +2255,14 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                     ? 'PRODUCTS CONFIGURATION (MANUFACTURING — FABRICATION)'
                     : selectedModelSet === 'family-restaurant'
                     ? 'PRODUCTS CONFIGURATION (HOSPITALITY — FAMILY RESTAURANT)'
+                    : selectedModelSet === 'time-units'
+                    ? 'SERVICE LINES CONFIGURATION (SERVICES — TIME UNITS)'
+                    : selectedModelSet === 'installation-services'
+                    ? 'INSTALLATION SERVICES CONFIGURATION (SERVICES — INSTALLATION SERVICES)'
+                    : selectedModelSet === 'measured-units'
+                    ? 'MEASURED UNITS CONFIGURATION (SERVICES — MEASURED UNITS)'
+                    : selectedModelSet === 'laundry'
+                    ? 'LAUNDRY SERVICES CONFIGURATION (SERVICES — LAUNDRY)'
                     : 'PRODUCTS CONFIGURATION (UNIT SALES)'}
                 </span>
                 <span className="text-[11px] text-slate-400 lowercase">
@@ -1874,6 +2280,14 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                     ? 'configure fabrication processes (units/batch & days/batch), advisory staffing, BOM, packaging levels & variable costs — unit cost & daily capacity transfer automatically to results'
                     : selectedModelSet === 'family-restaurant'
                     ? 'configure tables, seats, turnover cycles, kitchen BOM, packaging & variable costs — unit cost & guest capacity transfer automatically to results'
+                    : selectedModelSet === 'time-units'
+                    ? 'configure multi-process daily production capacity (hours/day), advisory employee calculator (no production impact), and hourly billing dynamics'
+                    : selectedModelSet === 'installation-services'
+                    ? 'configure multi-process installation operations & mileage, advisory staffing, BOM, multi-level packaging & logistics vehicle costs — unit cost & daily capacity transfer automatically to results'
+                    : selectedModelSet === 'measured-units'
+                    ? 'configure multi-process measured output capacity (units/operator-hour), advisory staffing, BOM, multi-level packaging & variable costs — unit cost & daily capacity transfer automatically to results'
+                    : selectedModelSet === 'laundry'
+                    ? 'configure multi-process wash/dry/press cycle capacity (kg/cycle), advisory staffing, BOM, multi-level packaging & utility variable costs — unit cost & daily capacity transfer automatically to results'
                     : 'insert start month, unit cost, and daily capacity below (selling price is derived dynamically on the results tab)'}
                 </span>
               </div>
@@ -1896,7 +2310,19 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#2E5E88] hover:bg-[#234E73] text-white text-xs font-bold lowercase shadow-xs transition-colors cursor-pointer"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    <span>{selectedModelSet === 'family-restaurant' ? 'add menu stream' : 'add product'}</span>
+                    <span>
+                      {selectedModelSet === 'family-restaurant'
+                        ? 'add menu stream'
+                        : selectedModelSet === 'time-units'
+                        ? 'add service line'
+                        : selectedModelSet === 'installation-services'
+                        ? 'add installation service'
+                        : selectedModelSet === 'measured-units'
+                        ? 'add measured service'
+                        : selectedModelSet === 'laundry'
+                        ? 'add laundry service'
+                        : 'add product'}
+                    </span>
                   </button>
                 )}
               </div>
@@ -2075,6 +2501,135 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                       onChangeStartMonth={(startMonth) => handleUpdateProduct(idx, { startMonth })}
                       onChangeConfig={(updatedConfig, derivedDynamics) =>
                         handleUpdateFamilyRestaurantConfig(idx, updatedConfig, derivedDynamics)
+                      }
+                      onRemove={() => handleRemoveProduct(idx)}
+                      onOpenResultsTab={() => {
+                        setActiveProductIdx(idx);
+                        setActiveSubTab('results');
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            ) : selectedModelSet === 'time-units' ? (
+              <div className="space-y-4">
+                {state.revenueItems.map((prod, idx) => {
+                  const timeUnitsConfig =
+                    prod.timeUnitsConfig || createDefaultTimeUnitsConfig();
+                  return (
+                    <ServicesTimeUnitsWorkbench
+                      key={prod.id}
+                      theme={theme}
+                      productId={prod.id}
+                      productName={prod.name}
+                      startMonth={prod.startMonth || 1}
+                      isPredetermined={!!predeterminedNames}
+                      canRemove={state.revenueItems.length > 1}
+                      defaultExpanded={idx === 0 || idx === activeProductIdx}
+                      config={timeUnitsConfig}
+                      productionDaysPerMonth={setupProductionDaysPerMonth}
+                      productionDaysPerAnnum={setupProductionDaysPerAnnum}
+                      onChangeName={(name) => handleUpdateProduct(idx, { name })}
+                      onChangeStartMonth={(startMonth) => handleUpdateProduct(idx, { startMonth })}
+                      onChangeConfig={(updatedConfig, derived) =>
+                        handleUpdateTimeUnitsConfig(idx, updatedConfig, derived)
+                      }
+                      onRemove={() => handleRemoveProduct(idx)}
+                      onOpenResultsTab={() => {
+                        setActiveProductIdx(idx);
+                        setActiveSubTab('results');
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            ) : selectedModelSet === 'installation-services' ? (
+              <div className="space-y-4">
+                {state.revenueItems.map((prod, idx) => {
+                  const installationConfig =
+                    prod.installationServicesConfig ||
+                    createDefaultInstallationServicesConfig();
+                  return (
+                    <ServicesInstallationWorkbench
+                      key={prod.id}
+                      theme={theme}
+                      productId={prod.id}
+                      productName={prod.name}
+                      startMonth={prod.startMonth || 1}
+                      isPredetermined={!!predeterminedNames}
+                      canRemove={state.revenueItems.length > 1}
+                      defaultExpanded={idx === 0 || idx === activeProductIdx}
+                      config={installationConfig}
+                      productionDaysPerMonth={setupProductionDaysPerMonth}
+                      productionDaysPerAnnum={setupProductionDaysPerAnnum}
+                      onChangeName={(name) => handleUpdateProduct(idx, { name })}
+                      onChangeStartMonth={(startMonth) => handleUpdateProduct(idx, { startMonth })}
+                      onChangeConfig={(updatedConfig, derivedDynamics) =>
+                        handleUpdateInstallationServicesConfig(idx, updatedConfig, derivedDynamics)
+                      }
+                      onRemove={() => handleRemoveProduct(idx)}
+                      onOpenResultsTab={() => {
+                        setActiveProductIdx(idx);
+                        setActiveSubTab('results');
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            ) : selectedModelSet === 'measured-units' ? (
+              <div className="space-y-4">
+                {state.revenueItems.map((prod, idx) => {
+                  const measuredUnitsConfig =
+                    prod.measuredUnitsConfig || createDefaultMeasuredUnitsConfig();
+                  return (
+                    <ServicesMeasuredUnitsWorkbench
+                      key={prod.id}
+                      theme={theme}
+                      productId={prod.id}
+                      productName={prod.name}
+                      startMonth={prod.startMonth || 1}
+                      isPredetermined={!!predeterminedNames}
+                      canRemove={state.revenueItems.length > 1}
+                      defaultExpanded={idx === 0 || idx === activeProductIdx}
+                      config={measuredUnitsConfig}
+                      productionDaysPerMonth={setupProductionDaysPerMonth}
+                      productionDaysPerAnnum={setupProductionDaysPerAnnum}
+                      onChangeName={(name) => handleUpdateProduct(idx, { name })}
+                      onChangeStartMonth={(startMonth) => handleUpdateProduct(idx, { startMonth })}
+                      onChangeConfig={(updatedConfig, derivedDynamics) =>
+                        handleUpdateMeasuredUnitsConfig(idx, updatedConfig, derivedDynamics)
+                      }
+                      onRemove={() => handleRemoveProduct(idx)}
+                      onOpenResultsTab={() => {
+                        setActiveProductIdx(idx);
+                        setActiveSubTab('results');
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            ) : selectedModelSet === 'laundry' ? (
+              <div className="space-y-4">
+                {state.revenueItems.map((prod, idx) => {
+                  const laundryConfig =
+                    prod.laundryConfig || createDefaultLaundryConfig();
+                  return (
+                    <ServicesLaundryWorkbench
+                      key={prod.id}
+                      theme={theme}
+                      productId={prod.id}
+                      productName={prod.name}
+                      startMonth={prod.startMonth || 1}
+                      isPredetermined={!!predeterminedNames}
+                      canRemove={state.revenueItems.length > 1}
+                      defaultExpanded={idx === 0 || idx === activeProductIdx}
+                      config={laundryConfig}
+                      productionDaysPerMonth={setupProductionDaysPerMonth}
+                      productionDaysPerAnnum={setupProductionDaysPerAnnum}
+                      onChangeName={(name) => handleUpdateProduct(idx, { name })}
+                      onChangeStartMonth={(startMonth) => handleUpdateProduct(idx, { startMonth })}
+                      onChangeConfig={(updatedConfig, derivedDynamics) =>
+                        handleUpdateLaundryConfig(idx, updatedConfig, derivedDynamics)
                       }
                       onRemove={() => handleRemoveProduct(idx)}
                       onOpenResultsTab={() => {
@@ -2277,7 +2832,20 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
           onGoToAssumptions={() => setActiveSubTab('assumptions')}
         />
       )}
-      {activeSubTab === 'results' && selectedModelSet !== 'value-sales' && selectedModelSet !== 'commission' && selectedModelSet !== 'revenue-share' && currentProduct && calculationGrid && (
+      {activeSubTab === 'results' && selectedModelSet === 'time-units' && currentProduct && (
+        <TimeUnitsResultsView
+          theme={theme}
+          products={state.revenueItems}
+          activeProductIdx={activeProductIdx}
+          onSelectProductIdx={setActiveProductIdx}
+          activeYear={activeYear}
+          onSelectYear={setActiveYear}
+          daysWorked60={daysWorked60}
+          onUpdateProduct={handleUpdateProduct}
+          onGoToAssumptions={() => setActiveSubTab('assumptions')}
+        />
+      )}
+      {activeSubTab === 'results' && selectedModelSet !== 'value-sales' && selectedModelSet !== 'commission' && selectedModelSet !== 'revenue-share' && selectedModelSet !== 'time-units' && currentProduct && calculationGrid && (
         <div className="space-y-6 animate-in fade-in duration-150">
 
           {/* 1. AUTHENTIC 19-ROW CALCULATION TABLE (results_70dba554.png) */}
@@ -2890,7 +3458,18 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
           daysWorked60={daysWorked60}
         />
       )}
-      {activeSubTab === 'charts' && selectedModelSet !== 'value-sales' && selectedModelSet !== 'commission' && selectedModelSet !== 'revenue-share' && currentProduct && calculationGrid && (
+      {activeSubTab === 'charts' && selectedModelSet === 'time-units' && currentProduct && (
+        <TimeUnitsChartsView
+          theme={theme}
+          products={state.revenueItems}
+          activeProductIdx={activeProductIdx}
+          onSelectProductIdx={setActiveProductIdx}
+          activeYear={activeYear}
+          onSelectYear={setActiveYear}
+          daysWorked60={daysWorked60}
+        />
+      )}
+      {activeSubTab === 'charts' && selectedModelSet !== 'value-sales' && selectedModelSet !== 'commission' && selectedModelSet !== 'revenue-share' && selectedModelSet !== 'time-units' && currentProduct && calculationGrid && (
         <div className="space-y-6 animate-in fade-in duration-150">
 
           {/* Top Controls: Product Selector & Year Selector */}

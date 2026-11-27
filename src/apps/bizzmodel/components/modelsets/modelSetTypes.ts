@@ -633,4 +633,362 @@ export interface RevenueShareCategorySummary {
   revenueShareOfPortfolioPct: number;
 }
 
+// ============================================================================
+// SERVICES: TIME UNITS MODEL-SET TYPES
+// ============================================================================
+
+export type TimeUnitsCapacityMode = 'sum' | 'bottleneck';
+
+export interface TimeUnitsProcess {
+  id: string;
+  name: string;
+  numberOfWorkstreams: number;      // Excel R25: number of workstreams
+  employeesPerWorkstream: number;   // Excel R26: employees per workstream
+  shiftHours: number;               // Excel R27: shift hours (e.g. 8 = 08:00)
+  shiftsPerDay: number;             // Excel R28: shifts per day (e.g. 2)
+  workstreamUtilizationPct: number; // Excel R30: workstream utilization % (0 or 100 = 100%, e.g. 80%)
+}
+
+export interface TimeUnitsProductConfig {
+  processes: TimeUnitsProcess[];
+  capacityMode: TimeUnitsCapacityMode; // 'sum' (parallel service streams) or 'bottleneck' (sequential)
+  employeeAssumptions: EmployeeCalcAssumptions;
+  unitSellingPriceBase: number;        // Excel R49: rate per time unit / hour (e.g. 100)
+  unitSellingPriceMonthly: number[];   // 60-month selling price series (adjusted via slider)
+  productionFactorBasePct: number;     // Excel R47: base production factor % (e.g. 100%)
+  productionFactorMonthly: number[];   // 60-month production factor % series (adjusted via slider)
+  commissionOnSalesPct: number;        // Excel R54: commission on sales % (e.g. 1.00%)
+  otherIncomeMonthlyBase: number;      // Excel R57: base monthly other income (e.g. 0)
+}
+
+export interface TimeUnitsProcessResult {
+  id: string;
+  name: string;
+  hoursAvailablePerDay: number;     // Excel R29: numberOfWorkstreams * employeesPerWorkstream * shiftHours * shiftsPerDay
+  effectiveUtilizationPct: number;  // Excel R30: IF(util=0, 100%, util)
+  productionHoursPerDay: number;    // Excel R31: hoursAvailablePerDay * (effectiveUtilizationPct / 100)
+  monthlyProductionHours: number;   // productionDaysPerMonth * productionHoursPerDay
+  annualProductionHours: number;    // productionDaysPerAnnum * productionHoursPerDay
+  employeesRequiredStandard: number;// Excel R32: numberOfWorkstreams * employeesPerWorkstream * shiftsPerDay
+  isBottleneck: boolean;
+  spareDailyHours: number;
+}
+
+export interface TimeUnitsProductionSummaryResult {
+  processes: TimeUnitsProcessResult[];
+  capacityMode: TimeUnitsCapacityMode;
+  totalHoursAvailablePerDay: number;
+  dailyProductionCapacity: number;  // Combined SUM or Bottleneck MIN of productionHoursPerDay
+  monthlyCapacityHours: number;
+  annualCapacityHours: number;
+  bottleneckProcessIds: string[];
+  bottleneckProcessNames: string[];
+  totalEmployeesStandard: number;
+  productionDaysPerMonth: number;
+  productionDaysPerAnnum: number;
+}
+
+export interface TimeUnitsFullResult {
+  production: TimeUnitsProductionSummaryResult;
+  productionBridge: ProductionSummaryResult; // Adapter so shared EmployeeCalculatorPanel works natively
+  employees: EmployeeCalcResult;
+}
+
+export interface TimeUnitsMonthResult {
+  monthNum: number;                    // 1..12 within active year
+  absMonth: number;                    // 1..60
+  daysWorked: number;
+  isLaunched: boolean;
+  dailyCapacityHours: number;          // From Production Calculator (hrs/day)
+  monthlyCapacityHours: number;        // daysWorked * dailyCapacityHours
+  productionFactorPct: number;         // Adjustable via slider (e.g. 100%)
+  productionGrowthFactorPct: number;   // MoM percentage-point delta vs previous active month
+  hoursPerMonth: number;               // monthlyCapacityHours * (productionFactorPct / 100) -> unit sales
+  unitSellingPrice: number;            // Adjustable via slider (rate per time unit)
+  sellingPriceAdjustment: number;      // MoM value delta vs previous active month
+  unitCostPrice: number;               // 0 for pure time-units service (fixed COS from Steps 3-5)
+  unitGrossProfit: number;             // unitSellingPrice + unitCostPrice
+  revenue: number;                     // hoursPerMonth * unitSellingPrice
+  variableCostOfSales: number;         // 0
+  grossProfit: number;                 // revenue
+  commissionOnSalesPct: number;        // Adjustable via slider
+  grossProfitAdjustments: number;      // negative (-revenue * commissionOnSalesPct / 100)
+  otherIncome: number;                 // Adjustable via slider
+  otherIncomeAdjustmentPct: number;    // MoM % change in other income
+}
+
+export interface TimeUnitsYearGridResult {
+  dailyCapacityHours: number;
+  employeesStandard: number;
+  employeesAdjusted: number;
+  months: TimeUnitsMonthResult[];
+  totals: {
+    totalDaysWorked: number;
+    sumCapacityHours: number;
+    avgProductionFactorPct: number;
+    sumHoursSold: number;
+    avgUnitSellingPrice: number;
+    sumRevenue: number;
+    sumVariableCos: number;
+    sumGrossProfit: number;
+    avgCommissionPct: number;
+    sumGrossProfitAdjustments: number;
+    sumOtherIncome: number;
+    utilizationOfCapacityPct: number;
+  };
+}
+
+// ============================================================================
+// REUSABLE MODULE: VEHICLE / LOGISTICS VARIABLE COSTING TYPES
+// Shared across Services (Installation Services) & Mobility/Logistics model-sets
+// ============================================================================
+
+export interface VehicleLogisticsConfig {
+  vehicleLabel?: string;             // e.g. 'Service / Installation Vehicle', 'Delivery Truck'
+  serviceIntervalKm: number;         // Excel R77: vehicle - service interval (kms), e.g. 10,000
+  daysPerService: number;            // Excel R78: vehicle - days per service, e.g. 1
+  numberOfWheels: number;            // Excel R79: vehicle - number of wheels, e.g. 4
+  fuelCostPerLitre: number;          // Excel R80: fuel - cost per liter, e.g. 20
+  oilCostPerLitre: number;           // Excel R82: oil - cost per liter, e.g. 50
+  fuelConsumptionPer100Km: number;   // Excel R84: fuel consumption - liters / 100kms, e.g. 13
+  oilConsumptionPer1000Km: number;   // Excel R85: oil consumption - liters per 1000 kms, e.g. 1
+  partsPanelSubletsCpk: number;      // Excel R86: parts, panel & sublets - cpk, e.g. 1
+  tyreCostPerWheelCpk: number;       // Excel R87: tyre costs - cpk (per wheel), e.g. 1
+  serviceCostPerService: number;     // Excel R88: service cost per interval, e.g. 1,000
+  kilometerBaseOverride?: number;    // Optional manual daily km override (0 = linked from Production Calculator)
+}
+
+export interface VehicleLogisticsResult {
+  kilometerBaseDaily: number;            // Excel R89: daily km base (linked or overridden)
+  isUsingKmOverride: boolean;
+  shiftHoursReference: number;           // Reference daily shift hours (Excel F27*24)
+  serviceProvisionHoursPerDay: number;   // Excel R90: (kmBase / serviceIntervalKm) * shiftHours * daysPerService
+  calculatedVehicleHoursPerDay: number;  // Excel R91: max(0, shiftHours - serviceProvisionHoursPerDay)
+  fuelCostPerKm: number;                 // Excel R92: (fuelConsumption / 100) * fuelCostPerLitre
+  oilCostPerKm: number;                  // Excel R93: (oilConsumption / 1000) * oilCostPerLitre
+  partsPanelSubletsPerKm: number;        // Excel R94: partsPanelSubletsCpk
+  tyreCostPerKm: number;                 // Excel R95: tyreCostPerWheelCpk * numberOfWheels
+  serviceCostPerKm: number;              // Excel R96: serviceCostPerService / serviceIntervalKm
+  totalCostPerKm: number;                // Excel R97: sum of per-km components
+  dailyLogisticsCost: number;            // totalCostPerKm * kilometerBaseDaily
+  monthlyKmTravelled: number;            // Excel R99: kilometerBaseDaily * productionDaysPerMonth
+  monthlyOutputUnits: number;            // Excel R100: dailyOutputUnits * productionDaysPerMonth
+  monthlyLogisticsCost: number;          // totalCostPerKm * monthlyKmTravelled
+  costPerUnit: number;                   // Excel R101: (totalCostPerKm * monthlyKmTravelled) / monthlyOutputUnits
+}
+
+// ============================================================================
+// SERVICES: INSTALLATION SERVICES MODEL-SET TYPES
+// ============================================================================
+
+export type InstallationCapacityMode = 'bottleneck' | 'sum';
+
+export interface InstallationProcess {
+  id: string;
+  name: string;
+  numberOfWorkstreams: number;       // Excel R25: number of workstreams / installation teams
+  employeesPerWorkstream: number;    // Excel R26: employees per workstream
+  shiftHours: number;                // Excel R27: shift hours (e.g. 8 = 08:00)
+  shiftsPerDay: number;              // Excel R28: shifts per day (e.g. 1)
+  productionTimeMinutes: number;     // Excel R30: on-site installation/production time (minutes, e.g. 60 = 01:00)
+  travelOrSetupTimeMinutes: number;  // Excel R31: travel or set up time (minutes, e.g. 60 = 01:00)
+  kilometersPerOperation: number;    // Excel R35: kilometres travelled per operation (e.g. 100)
+}
+
+export interface InstallationServicesProductConfig {
+  processes: InstallationProcess[];
+  capacityMode: InstallationCapacityMode; // 'bottleneck' (sequential stages) or 'sum' (parallel teams)
+  employeeAssumptions: EmployeeCalcAssumptions;
+  bomComponents: BomComponent[];
+  packagingLevels: PackagingLevel[];
+  vehicleLogistics: VehicleLogisticsConfig;
+  extraVariableCosts: ProductionVariableCostItem[]; // Optional extra non-vehicle variable cost items
+  dynamicsOverrides: UnitCostDynamicsOverrides;
+}
+
+export interface InstallationProcessResult {
+  id: string;
+  name: string;
+  hoursAvailablePerDay: number;      // Excel R29: numberOfWorkstreams * employeesPerWorkstream * shiftHours * shiftsPerDay
+  operationTimeMinutes: number;      // Excel R32: productionTimeMinutes + travelOrSetupTimeMinutes
+  operationTimeHours: number;        // operationTimeMinutes / 60
+  operationsPerDay: number;          // Excel R33: floor(hoursAvailablePerDay / operationTimeHours)
+  operationsPerMonth: number;        // Excel R34: productionDaysPerMonth * operationsPerDay
+  operationsPerAnnum: number;        // productionDaysPerAnnum * operationsPerDay
+  kilometersPerOperation: number;    // Excel R35
+  kilometersPerDay: number;          // Excel R36: operationsPerDay * kilometersPerOperation
+  kilometersPerMonth: number;        // Excel R37: kilometersPerDay * productionDaysPerMonth
+  employeesRequiredStandard: number; // Excel R38: numberOfWorkstreams * employeesPerWorkstream * shiftsPerDay
+  isBottleneck: boolean;
+  spareDailyOperations: number;
+}
+
+export interface InstallationProductionSummaryResult {
+  processes: InstallationProcessResult[];
+  capacityMode: InstallationCapacityMode;
+  dailyOperationsCapacity: number;   // Bottleneck MIN or Combined SUM operations/day (Excel R33)
+  monthlyOperationsCapacity: number; // Excel R34: dailyOperationsCapacity * productionDaysPerMonth
+  annualOperationsCapacity: number;
+  dailyKilometersTravelled: number;  // Excel R36: effective daily km travelled
+  monthlyKilometersTravelled: number;// Excel R37: dailyKilometersTravelled * productionDaysPerMonth
+  referenceShiftHours: number;       // Reference shift hours for vehicle service provision (Excel F27)
+  bottleneckProcessIds: string[];
+  bottleneckProcessNames: string[];
+  totalEmployeesStandard: number;    // Sum of standard staff across processes (Excel R38)
+  productionDaysPerMonth: number;
+  productionDaysPerAnnum: number;
+}
+
+export interface InstallationServicesFullResult {
+  installationProduction: InstallationProductionSummaryResult;
+  productionBridge: ProductionSummaryResult; // Adapter so shared Employee / BOM / Dynamics panels work natively
+  employees: EmployeeCalcResult;
+  bom: BomSummaryResult;
+  packaging: PackagingSummaryResult;
+  vehicleLogistics: VehicleLogisticsResult;
+  extraVariableCosts: VariableCostSummaryResult;
+  combinedVariableCosts: VariableCostSummaryResult; // Vehicle logistics + extra variable costs for Unit Cost Dynamics
+  dynamics: UnitCostDynamicsResult;
+}
+
+// ============================================================================
+// SERVICES: MEASURED UNITS MODEL-SET TYPES
+// ============================================================================
+
+export type MeasuredUnitsCapacityMode = 'bottleneck' | 'sum';
+
+export interface MeasuredUnitsProcess {
+  id: string;
+  name: string;
+  numberOfWorkstreams: number;     // Excel R25: number of workstreams / crews
+  operatorsPerWorkstream: number;  // Excel R26: operators per workstream
+  shiftHours: number;              // Excel R27: shift hours (e.g. 8 = 08:00)
+  shiftsPerDay: number;            // Excel R28: shifts per day (e.g. 1)
+  unitsPerHourPerEmployee: number; // Excel R30: measured units produced per operator-hour (e.g. 100)
+}
+
+export interface MeasuredUnitsProductConfig {
+  measurementUnit?: string;        // e.g. 'units', 'm²', 'm', 'bricks', 'kg'
+  processes: MeasuredUnitsProcess[];
+  capacityMode: MeasuredUnitsCapacityMode; // 'bottleneck' (sequential stages) or 'sum' (parallel crews)
+  employeeAssumptions: EmployeeCalcAssumptions;
+  bomComponents: BomComponent[];
+  packagingLevels: PackagingLevel[];
+  variableCosts: ProductionVariableCostItem[];
+  dynamicsOverrides: UnitCostDynamicsOverrides;
+}
+
+export interface MeasuredUnitsProcessResult {
+  id: string;
+  name: string;
+  hoursAvailablePerDay: number;      // Excel R29: numberOfWorkstreams * operatorsPerWorkstream * shiftHours * shiftsPerDay
+  unitsPerHourPerEmployee: number;   // Excel R30
+  unitsPerDay: number;               // Excel R31: hoursAvailablePerDay * unitsPerHourPerEmployee
+  unitsPerMonth: number;             // Excel R32: productionDaysPerMonth * unitsPerDay
+  unitsPerAnnum: number;             // productionDaysPerAnnum * unitsPerDay
+  employeesRequiredStandard: number; // Excel R33: numberOfWorkstreams * operatorsPerWorkstream * shiftsPerDay
+  isBottleneck: boolean;
+  spareDailyUnits: number;
+}
+
+export interface MeasuredUnitsProductionSummaryResult {
+  measurementUnit: string;
+  processes: MeasuredUnitsProcessResult[];
+  capacityMode: MeasuredUnitsCapacityMode;
+  effectiveHoursPerDay: number;       // Constraining process hours/day (bottleneck) or total hours/day (sum)
+  referenceUnitsPerHour: number;      // Constraining units/op-hr (bottleneck) or weighted avg (sum) -> BOM & Variable Costs batch qty
+  dailyUnitsCapacity: number;         // Bottleneck MIN or Combined SUM units/day (Excel R31)
+  monthlyUnitsCapacity: number;       // Excel R32: dailyUnitsCapacity * productionDaysPerMonth
+  annualUnitsCapacity: number;
+  bottleneckProcessIds: string[];
+  bottleneckProcessNames: string[];
+  totalEmployeesStandard: number;     // Sum of standard staff across processes (Excel R33)
+  productionDaysPerMonth: number;
+  productionDaysPerAnnum: number;
+}
+
+export interface MeasuredUnitsFullResult {
+  measuredProduction: MeasuredUnitsProductionSummaryResult;
+  productionBridge: ProductionSummaryResult; // Adapter so shared Employee / BOM / Variable / Dynamics panels work natively
+  employees: EmployeeCalcResult;
+  bom: BomSummaryResult;
+  packaging: PackagingSummaryResult;
+  variableCosts: VariableCostSummaryResult;
+  dynamics: UnitCostDynamicsResult;
+}
+
+// ============================================================================
+// SERVICES: LAUNDRY MODEL-SET TYPES
+// ============================================================================
+
+export type LaundryCapacityMode = 'bottleneck' | 'sum';
+
+export interface LaundryProcess {
+  id: string;
+  name: string;
+  numberOfWorkstreams: number;    // Excel R25: number of workstreams / machines (e.g. 4)
+  employeesPerLine: number;       // Excel R27: employees per production line / machine (e.g. 1)
+  shiftHours: number;             // Excel R28: shift hours (e.g. 8 = 08:00)
+  shiftsPerDay: number;           // Excel R29: shifts per day (e.g. 1)
+  kgPerWashCycle: number;         // Excel R32: kg (or output units) per wash cycle (e.g. 10)
+  cycleRunTimeMinutes: number;    // Excel R33: active wash/dry/press cycle time in minutes (e.g. 55)
+  cycleSetupTimeMinutes: number;  // Excel R34: load/unload/changeover setup time in minutes (e.g. 5)
+}
+
+export interface LaundryProductConfig {
+  outputUnit?: string;            // e.g. 'kg', 'loads', 'items', 'bundles' (default 'kg')
+  processes: LaundryProcess[];
+  capacityMode: LaundryCapacityMode; // 'bottleneck' (sequential wash->dry->press) or 'sum' (parallel machines)
+  employeeAssumptions: EmployeeCalcAssumptions;
+  bomComponents: BomComponent[];
+  packagingLevels: PackagingLevel[];
+  variableCosts: ProductionVariableCostItem[];
+  dynamicsOverrides: UnitCostDynamicsOverrides;
+}
+
+export interface LaundryProcessResult {
+  id: string;
+  name: string;
+  productionHoursPerDay: number;     // Excel R31: numberOfWorkstreams * shiftHours * shiftsPerDay
+  kgPerWashCycle: number;            // Excel R32
+  cycleTotalTimeMinutes: number;     // Excel R35: cycleRunTimeMinutes + cycleSetupTimeMinutes
+  cycleTotalTimeHours: number;       // cycleTotalTimeMinutes / 60
+  cyclesPerDay: number;              // Excel R36: productionHoursPerDay / cycleTotalTimeHours
+  outputPerDay: number;              // Excel R37: kgPerWashCycle * cyclesPerDay
+  outputPerMonth: number;            // Excel R38: productionDaysPerMonth * outputPerDay
+  outputPerAnnum: number;            // productionDaysPerAnnum * outputPerDay
+  employeesRequiredStandard: number; // Excel R39: numberOfWorkstreams * employeesPerLine * shiftsPerDay
+  isBottleneck: boolean;
+  spareDailyOutput: number;
+}
+
+export interface LaundryProductionSummaryResult {
+  outputUnit: string;
+  processes: LaundryProcessResult[];
+  capacityMode: LaundryCapacityMode;
+  dailyOutputCapacity: number;       // Bottleneck MIN or Combined SUM output/day (Excel R37, e.g. 320 kg/day)
+  monthlyOutputCapacity: number;     // Excel R38: dailyOutputCapacity * productionDaysPerMonth
+  annualOutputCapacity: number;
+  effectiveCyclesPerDay: number;     // Constraining cycles/day (bottleneck) or total cycles/day (sum)
+  effectiveHoursPerDay: number;      // Constraining machine-hours/day (bottleneck) or total hours/day (sum)
+  bottleneckProcessIds: string[];
+  bottleneckProcessNames: string[];
+  totalEmployeesStandard: number;    // Sum of standard staff across processes (Excel R39)
+  productionDaysPerMonth: number;
+  productionDaysPerAnnum: number;
+}
+
+export interface LaundryFullResult {
+  laundryProduction: LaundryProductionSummaryResult;
+  productionBridge: ProductionSummaryResult; // Adapter so shared Employee / BOM / Variable / Dynamics panels work natively
+  employees: EmployeeCalcResult;
+  bom: BomSummaryResult;
+  packaging: PackagingSummaryResult;
+  variableCosts: VariableCostSummaryResult;
+  dynamics: UnitCostDynamicsResult;
+}
+
+
+
+
 

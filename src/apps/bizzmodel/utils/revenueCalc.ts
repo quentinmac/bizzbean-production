@@ -13,6 +13,7 @@ import {
   calculateRevenueShareMonthlyCosPositive,
   resolveRevenueShareCategory,
 } from '../components/modelsets/revenueShareEngine';
+import { calculateTimeUnitsMonthMetrics } from '../components/modelsets/timeUnitsEngine';
 
 /**
  * Excel PMT Formula for lease calculations:
@@ -891,6 +892,21 @@ export function calculateFinancialModelProjections(
 
           revenue += itemRev;
           cogs += itemCogs;
+          return;
+        }
+
+        const isTimeUnitsItem =
+          state.activeModelSet === 'time-units' || item.modelType === 'time units';
+
+        if (isTimeUnitsItem) {
+          const tu = calculateTimeUnitsMonthMetrics(item, absIdx, daysWorked);
+          otherIncomeTotal += tu.otherIncome;
+          if (!tu.isLaunched) return;
+
+          unitSales += tu.hoursPerMonth;
+          revenue += tu.revenue;
+          // Pure time-units service has zero variable COS (fixed COS from Employment, Overheads, Assets)
+          gpAdjustmentsCommission += tu.gpAdjustmentsCommissionPositive;
           return;
         }
 

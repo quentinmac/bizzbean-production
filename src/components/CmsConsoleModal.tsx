@@ -58,6 +58,11 @@ import {
   DEFAULT_MISSION_EQUATION,
   DEFAULT_MISSION_SUBTEXT,
 } from '../services/siteContentService';
+import {
+  fetchBookBundleMetaFromServer,
+  uploadBookBundleToServer,
+  deleteBookBundleFromServer,
+} from '../utils/bookDownload';
 import { generateTaxInvoicePdf } from '../utils/taxInvoicePdf';
 import {
   generateCmsConsoleDataTs,
@@ -388,6 +393,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     fileSize: string;
     uploadedAt: string;
     hasFile: boolean;
+    syncedToServer: boolean;
   }>(() => {
     try {
       const meta = localStorage.getItem('bizzdesk_book_bundle_zip_meta_v1');
@@ -398,22 +404,70 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
           fileSize: parsed.fileSize || '',
           uploadedAt: parsed.uploadedAt || '',
           hasFile: true,
+          syncedToServer: Boolean(parsed.syncedToServer),
         };
       }
     } catch (_) {}
-    return { fileName: '', fileSize: '', uploadedAt: '', hasFile: false };
+    return { fileName: '', fileSize: '', uploadedAt: '', hasFile: false, syncedToServer: false };
   });
 
   useEffect(() => {
-    idbGet('bizzdesk_book_bundle_zip_v1').then((res) => {
-      if (res) {
-        setZipBundleStatus((prev) => ({
-          ...prev,
-          hasFile: true,
-          fileName: prev.fileName || 'getting_to_value.zip',
-        }));
+    let cancelled = false;
+    (async () => {
+      const [serverMeta, localBin] = await Promise.all([
+        fetchBookBundleMetaFromServer(),
+        idbGet<Blob | ArrayBuffer>('bizzdesk_book_bundle_zip_v1').catch(() => null),
+      ]);
+      if (cancelled) return;
+
+      if (serverMeta.exists) {
+        const nextMeta = {
+          fileName: serverMeta.fileName || 'getting to value.zip',
+          fileSize: serverMeta.fileSize || '',
+          uploadedAt: serverMeta.uploadedAt || '',
+          syncedToServer: true,
+        };
+        try {
+          localStorage.setItem('bizzdesk_book_bundle_zip_meta_v1', JSON.stringify(nextMeta));
+        } catch {}
+        setZipBundleStatus({ ...nextMeta, hasFile: true });
+        return;
       }
-    }).catch(() => {});
+
+      if (localBin) {
+        let localFileName = 'getting to value.zip';
+        let localFileSize = '';
+        let localUploadedAt = '';
+        try {
+          const raw = localStorage.getItem('bizzdesk_book_bundle_zip_meta_v1');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed.fileName) localFileName = parsed.fileName;
+            if (parsed.fileSize) localFileSize = parsed.fileSize;
+            if (parsed.uploadedAt) localUploadedAt = parsed.uploadedAt;
+          }
+        } catch {}
+
+        // Auto-sync previously uploaded IndexedDB ZIP to server so it deploys to live site
+        const syncRes = await uploadBookBundleToServer(localBin, localFileName);
+        if (cancelled) return;
+        const syncedMeta = {
+          fileName: syncRes.fileName || localFileName,
+          fileSize: syncRes.fileSize || localFileSize,
+          uploadedAt: syncRes.uploadedAt || localUploadedAt,
+          syncedToServer: syncRes.success,
+        };
+        try {
+          localStorage.setItem('bizzdesk_book_bundle_zip_meta_v1', JSON.stringify(syncedMeta));
+        } catch {}
+        setZipBundleStatus({ ...syncedMeta, hasFile: true });
+      } else {
+        setZipBundleStatus({ fileName: '', fileSize: '', uploadedAt: '', hasFile: false, syncedToServer: false });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleUploadZipFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -434,27 +488,32 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
       const arrayBuffer = await file.arrayBuffer();
       await idbSet('bizzdesk_book_bundle_zip_v1', arrayBuffer);
 
+      const serverUpload = await uploadBookBundleToServer(arrayBuffer, file.name);
+
       const meta = {
-        fileName: file.name,
-        fileSize: sizeDisplay,
-        uploadedAt: now,
+        fileName: serverUpload.fileName || file.name,
+        fileSize: serverUpload.fileSize || sizeDisplay,
+        uploadedAt: serverUpload.uploadedAt || now,
+        syncedToServer: serverUpload.success,
       };
       localStorage.setItem('bizzdesk_book_bundle_zip_meta_v1', JSON.stringify(meta));
 
       setZipBundleStatus({
-        fileName: file.name,
-        fileSize: sizeDisplay,
-        uploadedAt: now,
+        ...meta,
         hasFile: true,
       });
 
       setBookBundle((prev) => {
-        const next = { ...prev, workbookFilename: file.name };
+        const next = { ...prev, workbookFilename: meta.fileName };
         localStorage.setItem('bizzdesk_cms_book_bundle_v1', JSON.stringify(next));
         return next;
       });
 
-      triggerSaveNotification(`Uploaded "${file.name}" (${sizeDisplay}). Members can now download this bundle.`);
+      if (serverUpload.success) {
+        triggerSaveNotification(`Uploaded "${meta.fileName}" (${meta.fileSize}) and saved to server downloads for all visitors.`);
+      } else {
+        triggerSaveNotification(`Saved "${meta.fileName}" locally, but server sync failed (${serverUpload.error || 'offline'}).`);
+      }
     } catch (err) {
       console.error('Error uploading zip bundle:', err);
       triggerSaveNotification(`Failed to process upload. Please try again.`);
@@ -462,16 +521,40 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
     e.target.value = '';
   };
 
+  const handleSyncZipToServer = async () => {
+    const localBin = await idbGet<Blob | ArrayBuffer>('bizzdesk_book_bundle_zip_v1');
+    if (!localBin) {
+      triggerSaveNotification('No local ZIP file found in browser storage. Please upload the .zip file.');
+      return;
+    }
+    const res = await uploadBookBundleToServer(localBin, zipBundleStatus.fileName || 'getting to value.zip');
+    if (res.success) {
+      const meta = {
+        fileName: res.fileName || zipBundleStatus.fileName || 'getting to value.zip',
+        fileSize: res.fileSize || zipBundleStatus.fileSize,
+        uploadedAt: res.uploadedAt || zipBundleStatus.uploadedAt,
+        syncedToServer: true,
+      };
+      localStorage.setItem('bizzdesk_book_bundle_zip_meta_v1', JSON.stringify(meta));
+      setZipBundleStatus({ ...meta, hasFile: true });
+      triggerSaveNotification(`Synced "${meta.fileName}" to server public/downloads for deployment.`);
+    } else {
+      triggerSaveNotification(`Server sync failed: ${res.error || 'Unable to reach server'}`);
+    }
+  };
+
   const handleRemoveZipFile = async () => {
     await idbDelete('bizzdesk_book_bundle_zip_v1');
+    await deleteBookBundleFromServer();
     localStorage.removeItem('bizzdesk_book_bundle_zip_meta_v1');
     setZipBundleStatus({
       fileName: '',
       fileSize: '',
       uploadedAt: '',
       hasFile: false,
+      syncedToServer: false,
     });
-    triggerSaveNotification(`Custom ZIP removed. Default manuscript package restored.`);
+    triggerSaveNotification(`Custom ZIP removed from server and browser storage.`);
   };
 
   const handleTestDownloadZip = async () => {
@@ -5296,7 +5379,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                       Member Download File: Getting to Value (.zip)
                     </label>
                     <span className="text-[10px] text-[#5584B4] lowercase">
-                      persisted in browser indexeddb & shared storage
+                      persisted in server public/downloads & browser cache
                     </span>
                   </div>
 
@@ -5308,10 +5391,14 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                             <CheckCircle2 className="h-5 w-5" />
                           </div>
                           <div>
-                            <div className="text-white font-bold text-xs font-mono flex items-center gap-2">
+                            <div className="text-white font-bold text-xs font-mono flex flex-wrap items-center gap-2">
                               <span>{zipBundleStatus.fileName}</span>
-                              <span className="text-[10px] px-2 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">
-                                ready for download
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full border uppercase ${
+                                zipBundleStatus.syncedToServer
+                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                  : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                              }`}>
+                                {zipBundleStatus.syncedToServer ? 'synced to server' : 'local browser only'}
                               </span>
                             </div>
                             <div className="text-[11px] text-slate-400 font-mono mt-0.5">
@@ -5320,7 +5407,19 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                          {!zipBundleStatus.syncedToServer && (
+                            <button
+                              type="button"
+                              onClick={handleSyncZipToServer}
+                              className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer"
+                              title="Sync this local browser ZIP to the server so all visitors receive it"
+                            >
+                              <RefreshCw className="h-3.5 w-3.5" />
+                              <span>Sync to Server</span>
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             onClick={handleTestDownloadZip}
@@ -5353,7 +5452,9 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                         </div>
                       </div>
                       <p className="text-[10px] text-slate-400 font-mono">
-                        ✓ All members clicking &ldquo;download getting to value&rdquo; across the website will receive this exact file.
+                        {zipBundleStatus.syncedToServer
+                          ? '✓ Saved on server (public/downloads/getting-to-value.zip). All public visitors and members will download this exact .zip archive.'
+                          : '⚠ Currently only in this browser. Click "Sync to Server" or re-upload the .zip so live website visitors also download the .zip archive.'}
                       </p>
                     </div>
                   ) : (

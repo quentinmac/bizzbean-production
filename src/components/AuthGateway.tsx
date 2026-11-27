@@ -27,7 +27,7 @@ import {
   AuthProfileData
 } from '../services/firebaseAuthService';
 import SandboxWelcomeLetter from './SandboxWelcomeLetter';
-import { getFile } from '../utils/idb';
+import { downloadGettingToValueBook } from '../utils/bookDownload';
 import { COUNTRY_OPTIONS } from '../data/countryData';
 import { validateCouponCode, redeemCouponCode } from '../services/promotionService';
 import { PromotionCoupon } from '../types';
@@ -185,38 +185,7 @@ export default function AuthGateway({ onAuthenticated, onClose, initialMode }: A
 
   const handleDownloadBookBundle = async () => {
     try {
-      const customBundleBlob = await getFile('custom_book_bundle.zip');
-      if (customBundleBlob) {
-        const url = URL.createObjectURL(customBundleBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'bizzbean_getting_to_value_secured_bundle.zip';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        return;
-      }
-      const content = `============================================================
-BIZZBEAN - GETTING TO VALUE & MODELING TEMPLATES
-============================================================
-Author: Quentin G. McCullough
-
-In this bundle, you will explore:
-1. "Getting to Value" complete operational book
-2. Interactive pricing spreadsheet ledger for startup founders.
-3. Overheads Cost Recovery matrix setup values.
-4. Annual Planning cycle roadmaps.
-
-Welcome to the bizzbean Sandbox environment!
-`;
-      const blob = new Blob([content], { type: 'application/zip' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'bizzbean_getting_to_value_bundle.zip';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      await downloadGettingToValueBook('Entrepreneur');
     } catch (err) {
       console.error('Error downloading bundle:', err);
     }
