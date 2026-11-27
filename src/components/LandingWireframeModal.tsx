@@ -82,7 +82,7 @@ export const LandingWireframeModal: React.FC<LandingWireframeModalProps> = ({
   activePromotion,
   cmsPromotions,
   userName = 'Quentin McCullough',
-  tokenBalance = 250,
+  tokenBalance = 0,
 }) => {
   const [mode, setMode] = useState<WireframeMode>('enhanced');
   const [wireframeTheme, setWireframeTheme] = useState<'light' | 'dark'>(initialTheme);

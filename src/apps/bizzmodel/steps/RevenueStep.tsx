@@ -48,6 +48,8 @@ import {
   ServicesInstallationWorkbench,
   ServicesMeasuredUnitsWorkbench,
   ServicesLaundryWorkbench,
+  ServicesDrycleanerWorkbench,
+  ServicesTimeSlotsWorkbench,
   TimeUnitsResultsView,
   TimeUnitsChartsView,
   createDefaultBatchLotsConfig,
@@ -66,6 +68,10 @@ import {
   calculateMeasuredUnitsFull,
   createDefaultLaundryConfig,
   calculateLaundryFull,
+  createDefaultDrycleanerConfig,
+  calculateDrycleanerFull,
+  createDefaultTimeSlotsConfig,
+  calculateTimeSlotsFull,
   createDefaultValueSalesCategories,
   createDefaultValueSalesConfig,
   createDefaultCommissionCategories,
@@ -81,6 +87,8 @@ import {
   InstallationServicesProductConfig,
   MeasuredUnitsProductConfig,
   LaundryProductConfig,
+  DrycleanerProductConfig,
+  TimeSlotsProductConfig,
   ValueSalesCategory,
   CommissionCategory,
   RevenueShareCategory,
@@ -210,7 +218,9 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
     | 'time-units'
     | 'installation-services'
     | 'measured-units'
-    | 'laundry' =
+    | 'laundry'
+    | 'drycleaning'
+    | 'time-slots' =
     mode === 'bizzmodel' &&
     (state.activeModelSet === 'value-sales' ||
       state.activeModelSet === 'commission' ||
@@ -222,7 +232,9 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
       state.activeModelSet === 'time-units' ||
       state.activeModelSet === 'installation-services' ||
       state.activeModelSet === 'measured-units' ||
-      state.activeModelSet === 'laundry')
+      state.activeModelSet === 'laundry' ||
+      state.activeModelSet === 'drycleaning' ||
+      state.activeModelSet === 'time-slots')
       ? state.activeModelSet
       : 'unit-sales';
   const [showTaxonomyTable, setShowTaxonomyTable] = useState<boolean>(false);
@@ -687,6 +699,8 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
     const isInstallationServices = selectedModelSet === 'installation-services';
     const isMeasuredUnits = selectedModelSet === 'measured-units';
     const isLaundry = selectedModelSet === 'laundry';
+    const isDrycleaner = selectedModelSet === 'drycleaning';
+    const isTimeSlots = selectedModelSet === 'time-slots';
 
     if (isTimeUnits) {
       const tuConfig = createDefaultTimeUnitsConfig(100, 1.0, 0);
@@ -927,6 +941,28 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
         )
       : null;
 
+    const defaultDrycleanerConfig = isDrycleaner
+      ? createDefaultDrycleanerConfig()
+      : undefined;
+    const drycleanerDerived = defaultDrycleanerConfig
+      ? calculateDrycleanerFull(
+          defaultDrycleanerConfig,
+          setupProductionDaysPerMonth,
+          setupProductionDaysPerAnnum
+        )
+      : null;
+
+    const defaultTimeSlotsConfig = isTimeSlots
+      ? createDefaultTimeSlotsConfig()
+      : undefined;
+    const timeSlotsDerived = defaultTimeSlotsConfig
+      ? calculateTimeSlotsFull(
+          defaultTimeSlotsConfig,
+          setupProductionDaysPerMonth,
+          setupProductionDaysPerAnnum
+        )
+      : null;
+
     const initialUnitCost = batchDerived
       ? Number(batchDerived.dynamics.modeledUnitCost.toFixed(4))
       : continuousDerived
@@ -941,6 +977,10 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
       ? Number(measuredUnitsDerived.dynamics.modeledUnitCost.toFixed(4))
       : laundryDerived
       ? Number(laundryDerived.dynamics.modeledUnitCost.toFixed(4))
+      : drycleanerDerived
+      ? Number(drycleanerDerived.dynamics.modeledUnitCost.toFixed(4))
+      : timeSlotsDerived
+      ? Number(timeSlotsDerived.dynamics.modeledUnitCost.toFixed(4))
       : 10.0;
     const initialDailyCap = batchDerived
       ? batchDerived.dynamics.dailyCapacity
@@ -956,6 +996,10 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
       ? measuredUnitsDerived.dynamics.dailyCapacity
       : laundryDerived
       ? laundryDerived.dynamics.dailyCapacity
+      : drycleanerDerived
+      ? drycleanerDerived.dynamics.dailyCapacity
+      : timeSlotsDerived
+      ? timeSlotsDerived.dynamics.dailyCapacity
       : 1500;
     const initialDailySales = batchDerived
       ? Math.min(1000, initialDailyCap || 1000)
@@ -970,6 +1014,10 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
       : measuredUnitsDerived
       ? Math.max(1, initialDailyCap)
       : laundryDerived
+      ? Math.max(1, initialDailyCap)
+      : drycleanerDerived
+      ? Math.max(1, initialDailyCap)
+      : timeSlotsDerived
       ? Math.max(1, initialDailyCap)
       : 1000;
 
@@ -987,6 +1035,10 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
       ? `measured service ${String.fromCharCode(64 + nextNum)}`
       : isLaundry
       ? `laundry service ${String.fromCharCode(64 + nextNum)}`
+      : isDrycleaner
+      ? `dry-cleaning service ${String.fromCharCode(64 + nextNum)}`
+      : isTimeSlots
+      ? `time-slot service ${String.fromCharCode(64 + nextNum)}`
       : `revenue generator SKU-${String.fromCharCode(64 + nextNum)}`;
 
     const newItem: RevenueItem = {
@@ -996,7 +1048,7 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
           ? 'MANUFACTURING'
           : isFamilyRestaurant
           ? 'HOSPITALITY'
-          : isInstallationServices || isMeasuredUnits || isLaundry
+          : isInstallationServices || isMeasuredUnits || isLaundry || isDrycleaner || isTimeSlots
           ? 'SERVICES'
           : 'RETAIL PRODUCTS',
       name: defaultName,
@@ -1014,8 +1066,12 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
         ? 'measured units'
         : isLaundry
         ? 'laundry'
+        : isDrycleaner
+        ? 'drycleaner'
+        : isTimeSlots
+        ? 'time slots'
         : 'unit sales',
-      unitPrice: 22.22,
+      unitPrice: isTimeSlots ? 150 : 22.22,
       unitCost: initialUnitCost,
       costOfSalesPct: 50.00,
       startMonth: 1,
@@ -1035,6 +1091,8 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
       installationServicesConfig: defaultInstallationConfig,
       measuredUnitsConfig: defaultMeasuredUnitsConfig,
       laundryConfig: defaultLaundryConfig,
+      drycleanerConfig: defaultDrycleanerConfig,
+      timeSlotsConfig: defaultTimeSlotsConfig,
     };
     onUpdateState((prev) => ({
       ...prev,
@@ -1103,7 +1161,9 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
       nextModelSetId !== 'time-units' &&
       nextModelSetId !== 'installation-services' &&
       nextModelSetId !== 'measured-units' &&
-      nextModelSetId !== 'laundry'
+      nextModelSetId !== 'laundry' &&
+      nextModelSetId !== 'drycleaning' &&
+      nextModelSetId !== 'time-slots'
     ) {
       return;
     }
@@ -1577,6 +1637,93 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
         };
       }
 
+      if (nextModelSetId === 'drycleaning') {
+        const syncedItems = (prev.revenueItems || []).map((item) => {
+          const cfg = item.drycleanerConfig || createDefaultDrycleanerConfig();
+          const full = calculateDrycleanerFull(
+            cfg,
+            setupProductionDaysPerMonth,
+            setupProductionDaysPerAnnum
+          );
+          const derivedCost = Number(full.dynamics.modeledUnitCost.toFixed(4));
+          const derivedCap = full.dynamics.dailyCapacity;
+          const isUntouchedDefaultSales =
+            !item.drycleanerConfig &&
+            Array.isArray(item.dailyUnitSalesMonthly) &&
+            item.dailyUnitSalesMonthly.every(
+              (v) => v === 1000 || v === 800 || v === 11520 || v === 12.8 || v === 4 || v === 320
+            );
+          const nextDailySales =
+            isUntouchedDefaultSales && derivedCap > 0
+              ? new Array(60).fill(derivedCap)
+              : item.dailyUnitSalesMonthly;
+
+          return {
+            ...item,
+            category: 'SERVICES',
+            modelType: 'drycleaner',
+            drycleanerConfig: cfg,
+            unitCost: derivedCost,
+            dailyCapacity: derivedCap,
+            productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedCost)),
+            dailyUnitSalesMonthly: nextDailySales,
+          };
+        });
+
+        return {
+          ...prev,
+          activeModelSet: 'drycleaning',
+          revenueItems: syncedItems,
+        };
+      }
+
+      if (nextModelSetId === 'time-slots') {
+        const syncedItems = (prev.revenueItems || []).map((item) => {
+          const cfg = item.timeSlotsConfig || createDefaultTimeSlotsConfig();
+          const full = calculateTimeSlotsFull(
+            cfg,
+            setupProductionDaysPerMonth,
+            setupProductionDaysPerAnnum
+          );
+          const derivedCost = Number(full.dynamics.modeledUnitCost.toFixed(4));
+          const derivedCap = full.dynamics.dailyCapacity;
+          const isUntouchedDefaultSales =
+            !item.timeSlotsConfig &&
+            Array.isArray(item.dailyUnitSalesMonthly) &&
+            item.dailyUnitSalesMonthly.every(
+              (v) =>
+                v === 1000 ||
+                v === 800 ||
+                v === 11520 ||
+                v === 12.8 ||
+                v === 4 ||
+                v === 320 ||
+                v === 80
+            );
+          const nextDailySales =
+            isUntouchedDefaultSales && derivedCap > 0
+              ? new Array(60).fill(derivedCap)
+              : item.dailyUnitSalesMonthly;
+
+          return {
+            ...item,
+            category: 'SERVICES',
+            modelType: 'time slots',
+            timeSlotsConfig: cfg,
+            unitCost: derivedCost,
+            dailyCapacity: derivedCap,
+            productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedCost)),
+            dailyUnitSalesMonthly: nextDailySales,
+          };
+        });
+
+        return {
+          ...prev,
+          activeModelSet: 'time-slots',
+          revenueItems: syncedItems,
+        };
+      }
+
       return {
         ...prev,
         activeModelSet: 'unit-sales',
@@ -1718,6 +1865,36 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
     handleUpdateProduct(idx, {
       modelType: 'laundry',
       laundryConfig: updatedConfig,
+      unitCost: derivedDynamics.unitCost,
+      dailyCapacity: derivedDynamics.dailyCapacity,
+      productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedDynamics.unitCost)),
+    });
+  };
+
+  // Update a product's Services Drycleaner configuration and transfer unitCost + dailyCapacity immediately to Results tab
+  const handleUpdateDrycleanerConfig = (
+    idx: number,
+    updatedConfig: DrycleanerProductConfig,
+    derivedDynamics: { unitCost: number; dailyCapacity: number }
+  ) => {
+    handleUpdateProduct(idx, {
+      modelType: 'drycleaner',
+      drycleanerConfig: updatedConfig,
+      unitCost: derivedDynamics.unitCost,
+      dailyCapacity: derivedDynamics.dailyCapacity,
+      productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedDynamics.unitCost)),
+    });
+  };
+
+  // Update a product's Services Time Slots configuration and transfer unitCost + dailyCapacity immediately to Results tab
+  const handleUpdateTimeSlotsConfig = (
+    idx: number,
+    updatedConfig: TimeSlotsProductConfig,
+    derivedDynamics: { unitCost: number; dailyCapacity: number }
+  ) => {
+    handleUpdateProduct(idx, {
+      modelType: 'time slots',
+      timeSlotsConfig: updatedConfig,
       unitCost: derivedDynamics.unitCost,
       dailyCapacity: derivedDynamics.dailyCapacity,
       productionUnitCostMonthly: new Array(60).fill(-Math.abs(derivedDynamics.unitCost)),
@@ -2095,11 +2272,11 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                 <p className="text-[11px] text-slate-500 lowercase mt-1">
                   {mode === 'bizzmodel' ? (
                     <>
-                      * active model-sets: <strong>trading — unit sales, value sales, commission &amp; revenue share (all 4 complete)</strong>, <strong>manufacturing — batch lots, continuous production &amp; fabrication</strong>, <strong>services — time units, installation services, measured units &amp; laundry</strong> &amp; <strong>hospitality — family restaurant</strong>. select any available model-set above; others are marked as <em>coming soon</em>.
+                      * active model-sets: <strong>trading — unit sales, value sales, commission &amp; revenue share (all 4 complete)</strong>, <strong>manufacturing — batch lots, continuous production &amp; fabrication</strong>, <strong>services — time units, installation services, measured units, laundry &amp; drycleaner</strong> &amp; <strong>hospitality — family restaurant</strong>. select any available model-set above; others are marked as <em>coming soon</em>.
                     </>
                   ) : (
                     <>
-                      * for this simulator mode, <strong>unit sales</strong> is the active model-set. launch <strong>bizzmodel</strong> to access all 4 trading model-sets, manufacturing (batch lots, continuous production &amp; fabrication), services (time units, installation services, measured units &amp; laundry), and hospitality family restaurant.
+                      * for this simulator mode, <strong>unit sales</strong> is the active model-set. launch <strong>bizzmodel</strong> to access all 4 trading model-sets, manufacturing (batch lots, continuous production &amp; fabrication), services (time units, installation services, measured units, laundry &amp; drycleaner), and hospitality family restaurant.
                     </>
                   )}
                 </p>
@@ -2132,6 +2309,10 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                       ? 'SERVICES: MEASURED UNITS'
                       : selectedModelSet === 'laundry'
                       ? 'SERVICES: LAUNDRY'
+                      : selectedModelSet === 'drycleaning'
+                      ? 'SERVICES: DRYCLEANER'
+                      : selectedModelSet === 'time-slots'
+                      ? 'SERVICES: TIME SLOTS'
                       : 'UNIT SALES MODEL-SET'}
                   </span>
                 </div>
@@ -2158,6 +2339,10 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                     ? 'Multi-process measured output capacity (units/operator-hour), advisory staffing, dynamic BOM, multi-level packaging, production variable costs & unit cost dynamics.'
                     : selectedModelSet === 'laundry'
                     ? 'Multi-process laundry cycle capacity (kg/wash cycle & cycles/day), advisory staffing, per-kg BOM, multi-level packaging, utilities variable costs & unit cost dynamics.'
+                    : selectedModelSet === 'drycleaning'
+                    ? 'Multi-process dry-cleaning capacity (pieces/hour & machine hours/day), advisory staffing, per-piece BOM, multi-level packaging, utilities variable costs & unit cost dynamics.'
+                    : selectedModelSet === 'time-slots'
+                    ? 'Multi-process session & time-slot capacity (sessions/day, clients/session & occupancy %), advisory staffing, dynamic BOM, utilities variable costs & unit cost dynamics.'
                     : 'Calculates item unit cost and production volumes constraining volume sales.'}
                 </p>
               </div>
@@ -2263,6 +2448,10 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                     ? 'MEASURED UNITS CONFIGURATION (SERVICES — MEASURED UNITS)'
                     : selectedModelSet === 'laundry'
                     ? 'LAUNDRY SERVICES CONFIGURATION (SERVICES — LAUNDRY)'
+                    : selectedModelSet === 'drycleaning'
+                    ? 'DRYCLEANER SERVICES CONFIGURATION (SERVICES — DRYCLEANER)'
+                    : selectedModelSet === 'time-slots'
+                    ? 'TIME SLOTS SERVICES CONFIGURATION (SERVICES — TIME SLOTS)'
                     : 'PRODUCTS CONFIGURATION (UNIT SALES)'}
                 </span>
                 <span className="text-[11px] text-slate-400 lowercase">
@@ -2288,6 +2477,10 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                     ? 'configure multi-process measured output capacity (units/operator-hour), advisory staffing, BOM, multi-level packaging & variable costs — unit cost & daily capacity transfer automatically to results'
                     : selectedModelSet === 'laundry'
                     ? 'configure multi-process wash/dry/press cycle capacity (kg/cycle), advisory staffing, BOM, multi-level packaging & utility variable costs — unit cost & daily capacity transfer automatically to results'
+                    : selectedModelSet === 'drycleaning'
+                    ? 'configure multi-process dry-cleaning capacity (pieces/hour), advisory staffing, BOM, multi-level packaging & utility variable costs — unit cost & daily capacity transfer automatically to results'
+                    : selectedModelSet === 'time-slots'
+                    ? 'configure multi-process time-slot sessions, client opportunities & occupancy %, advisory staffing, dynamic BOM & utility variable costs — unit cost & daily capacity transfer automatically to results'
                     : 'insert start month, unit cost, and daily capacity below (selling price is derived dynamically on the results tab)'}
                 </span>
               </div>
@@ -2321,6 +2514,10 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                         ? 'add measured service'
                         : selectedModelSet === 'laundry'
                         ? 'add laundry service'
+                        : selectedModelSet === 'drycleaning'
+                        ? 'add dry-cleaning service'
+                        : selectedModelSet === 'time-slots'
+                        ? 'add time-slot service'
                         : 'add product'}
                     </span>
                   </button>
@@ -2630,6 +2827,70 @@ export const RevenueStep: React.FC<RevenueStepProps> = ({
                       onChangeStartMonth={(startMonth) => handleUpdateProduct(idx, { startMonth })}
                       onChangeConfig={(updatedConfig, derivedDynamics) =>
                         handleUpdateLaundryConfig(idx, updatedConfig, derivedDynamics)
+                      }
+                      onRemove={() => handleRemoveProduct(idx)}
+                      onOpenResultsTab={() => {
+                        setActiveProductIdx(idx);
+                        setActiveSubTab('results');
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            ) : selectedModelSet === 'drycleaning' ? (
+              <div className="space-y-4">
+                {state.revenueItems.map((prod, idx) => {
+                  const drycleanerConfig =
+                    prod.drycleanerConfig || createDefaultDrycleanerConfig();
+                  return (
+                    <ServicesDrycleanerWorkbench
+                      key={prod.id}
+                      theme={theme}
+                      productId={prod.id}
+                      productName={prod.name}
+                      startMonth={prod.startMonth || 1}
+                      isPredetermined={!!predeterminedNames}
+                      canRemove={state.revenueItems.length > 1}
+                      defaultExpanded={idx === 0 || idx === activeProductIdx}
+                      config={drycleanerConfig}
+                      productionDaysPerMonth={setupProductionDaysPerMonth}
+                      productionDaysPerAnnum={setupProductionDaysPerAnnum}
+                      onChangeName={(name) => handleUpdateProduct(idx, { name })}
+                      onChangeStartMonth={(startMonth) => handleUpdateProduct(idx, { startMonth })}
+                      onChangeConfig={(updatedConfig, derivedDynamics) =>
+                        handleUpdateDrycleanerConfig(idx, updatedConfig, derivedDynamics)
+                      }
+                      onRemove={() => handleRemoveProduct(idx)}
+                      onOpenResultsTab={() => {
+                        setActiveProductIdx(idx);
+                        setActiveSubTab('results');
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            ) : selectedModelSet === 'time-slots' ? (
+              <div className="space-y-4">
+                {state.revenueItems.map((prod, idx) => {
+                  const timeSlotsConfig =
+                    prod.timeSlotsConfig || createDefaultTimeSlotsConfig();
+                  return (
+                    <ServicesTimeSlotsWorkbench
+                      key={prod.id}
+                      theme={theme}
+                      productId={prod.id}
+                      productName={prod.name}
+                      startMonth={prod.startMonth || 1}
+                      isPredetermined={!!predeterminedNames}
+                      canRemove={state.revenueItems.length > 1}
+                      defaultExpanded={idx === 0 || idx === activeProductIdx}
+                      config={timeSlotsConfig}
+                      productionDaysPerMonth={setupProductionDaysPerMonth}
+                      productionDaysPerAnnum={setupProductionDaysPerAnnum}
+                      onChangeName={(name) => handleUpdateProduct(idx, { name })}
+                      onChangeStartMonth={(startMonth) => handleUpdateProduct(idx, { startMonth })}
+                      onChangeConfig={(updatedConfig, derivedDynamics) =>
+                        handleUpdateTimeSlotsConfig(idx, updatedConfig, derivedDynamics)
                       }
                       onRemove={() => handleRemoveProduct(idx)}
                       onOpenResultsTab={() => {

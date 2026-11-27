@@ -988,7 +988,146 @@ export interface LaundryFullResult {
   dynamics: UnitCostDynamicsResult;
 }
 
+// ============================================================================
+// SERVICES: DRYCLEANER MODEL-SET TYPES
+// ============================================================================
 
+export type DrycleanerCapacityMode = 'bottleneck' | 'sum';
 
+export interface DrycleanerProcess {
+  id: string;
+  name: string;
+  numberOfWorkstreams: number;    // Excel R25: number of workstreams / machines (e.g. 1)
+  employeesPerLine: number;       // Excel R27: employees per production line (e.g. 1)
+  shiftHours: number;             // Excel R28: shift hours (e.g. 8 = 08:00)
+  shiftsPerDay: number;           // Excel R29: shifts per day (e.g. 1)
+  piecesPerHour: number;          // Excel R32: pieces (or garments) processed per hour (e.g. 10)
+}
 
+export interface DrycleanerProductConfig {
+  outputUnit?: string;            // e.g. 'pieces', 'garments', 'suits', 'items' (default 'pieces')
+  processes: DrycleanerProcess[];
+  capacityMode: DrycleanerCapacityMode; // 'bottleneck' (sequential spot->clean->press) or 'sum' (parallel stations)
+  employeeAssumptions: EmployeeCalcAssumptions;
+  bomComponents: BomComponent[];
+  packagingLevels: PackagingLevel[];
+  variableCosts: ProductionVariableCostItem[];
+  dynamicsOverrides: UnitCostDynamicsOverrides;
+}
 
+export interface DrycleanerProcessResult {
+  id: string;
+  name: string;
+  productionHoursPerDay: number;     // Excel R31: numberOfWorkstreams * shiftHours * shiftsPerDay
+  piecesPerHour: number;             // Excel R32
+  outputPerDay: number;              // Excel R33: productionHoursPerDay * piecesPerHour
+  outputPerMonth: number;            // Excel R34: productionDaysPerMonth * outputPerDay
+  outputPerAnnum: number;            // productionDaysPerAnnum * outputPerDay
+  employeesRequiredStandard: number; // Excel R35: numberOfWorkstreams * employeesPerLine * shiftsPerDay
+  isBottleneck: boolean;
+  spareDailyOutput: number;
+}
+
+export interface DrycleanerProductionSummaryResult {
+  outputUnit: string;
+  processes: DrycleanerProcessResult[];
+  capacityMode: DrycleanerCapacityMode;
+  dailyOutputCapacity: number;       // Bottleneck MIN or Combined SUM output/day (Excel R33, e.g. 80 pieces/day)
+  monthlyOutputCapacity: number;     // Excel R34: dailyOutputCapacity * productionDaysPerMonth (e.g. 1,520)
+  annualOutputCapacity: number;
+  effectiveHoursPerDay: number;      // Constraining machine-hours/day (bottleneck) or total hours/day (sum)
+  effectivePiecesPerHour: number;    // Effective hourly throughput rate (dailyOutputCapacity / effectiveHoursPerDay)
+  bottleneckProcessIds: string[];
+  bottleneckProcessNames: string[];
+  totalEmployeesStandard: number;    // Sum of standard staff across processes (Excel R35)
+  productionDaysPerMonth: number;
+  productionDaysPerAnnum: number;
+}
+
+export interface DrycleanerFullResult {
+  drycleanerProduction: DrycleanerProductionSummaryResult;
+  productionBridge: ProductionSummaryResult; // Adapter so shared Employee / BOM / Variable / Dynamics panels work natively
+  employees: EmployeeCalcResult;
+  bom: BomSummaryResult;
+  packaging: PackagingSummaryResult;
+  variableCosts: VariableCostSummaryResult;
+  dynamics: UnitCostDynamicsResult;
+}
+
+// ============================================================================
+// SERVICES: TIME SLOTS MODEL-SET TYPES
+// ============================================================================
+
+export type TimeSlotsCapacityMode = 'sum' | 'bottleneck';
+
+export interface TimeSlotsProcess {
+  id: string;
+  name: string;
+  numberOfWorkstreams: number;       // Excel R25: number of workstreams / rooms / studios (e.g. 2)
+  employeesPerWorkstream: number;    // Excel R26: employees per workstream (e.g. 1)
+  shiftHours: number;                // Excel R27: shift hours (e.g. 8 = 08:00)
+  shiftsPerDay: number;              // Excel R28: shifts per day (e.g. 1)
+  productionTimeMinutes: number;     // Excel R30: active session / production time in minutes (e.g. 60 = 01:00)
+  travelOrSetupTimeMinutes: number;  // Excel R31: travel or set up time in minutes (e.g. 60 = 01:00)
+  clientsPerSession: number;         // Excel R34: clients per session / class capacity (e.g. 10)
+  occupancyPct: number;              // Excel R37: occupancy % (e.g. 50; 0 defaults to 100% per Excel)
+}
+
+export interface TimeSlotsProductConfig {
+  clientLabel?: string;              // e.g. 'clients', 'attendees', 'students', 'guests', 'bookings'
+  processes: TimeSlotsProcess[];
+  capacityMode: TimeSlotsCapacityMode; // 'sum' (parallel studios/streams) or 'bottleneck' (sequential stages)
+  employeeAssumptions: EmployeeCalcAssumptions;
+  bomComponents: BomComponent[];
+  variableCosts: ProductionVariableCostItem[];
+  dynamicsOverrides: UnitCostDynamicsOverrides;
+}
+
+export interface TimeSlotsProcessResult {
+  id: string;
+  name: string;
+  hoursAvailablePerDay: number;       // Excel R29: numberOfWorkstreams * employeesPerWorkstream * shiftHours * shiftsPerDay
+  sessionTimeMinutes: number;         // Excel R32: productionTimeMinutes + travelOrSetupTimeMinutes
+  sessionTimeHours: number;           // sessionTimeMinutes / 60
+  sessionsPerDay: number;             // Excel R33: floor(hoursAvailablePerDay / sessionTimeHours)
+  clientsPerSession: number;          // Excel R34
+  clientOpportunitiesPerDay: number;  // Excel R35: sessionsPerDay * clientsPerSession
+  clientOpportunitiesPerMonth: number;// Excel R36: productionDaysPerMonth * clientOpportunitiesPerDay
+  effectiveOccupancyPct: number;      // Excel R37: IF(occupancyPct=0, 100%, occupancyPct)
+  clientsPerDay: number;              // clientOpportunitiesPerDay * (effectiveOccupancyPct / 100)
+  clientsPerMonth: number;            // Excel R38: clientOpportunitiesPerMonth * (effectiveOccupancyPct / 100)
+  clientsPerAnnum: number;            // productionDaysPerAnnum * clientsPerDay
+  employeesRequiredStandard: number;  // Excel R39: numberOfWorkstreams * employeesPerWorkstream * shiftsPerDay
+  isBottleneck: boolean;
+  spareDailyClients: number;
+}
+
+export interface TimeSlotsProductionSummaryResult {
+  clientLabel: string;
+  processes: TimeSlotsProcessResult[];
+  capacityMode: TimeSlotsCapacityMode;
+  effectiveHoursPerDay: number;
+  effectiveSessionsPerDay: number;
+  effectiveSessionTimeMinutes: number;
+  dailyClientOpportunities: number;   // Excel R35 (combined SUM or bottleneck MIN) -> Variable Costs batch qty (Excel R53)
+  monthlyClientOpportunities: number; // Excel R36
+  effectiveOccupancyPct: number;      // Weighted average (sum) or constraining occupancy % (bottleneck)
+  dailyClientsCapacity: number;       // Effective booked clients/day transferred to Results tab (e.g. 40)
+  monthlyClientsCapacity: number;     // Excel R38: clients per month (e.g. 760)
+  annualClientsCapacity: number;
+  bottleneckProcessIds: string[];
+  bottleneckProcessNames: string[];
+  totalEmployeesStandard: number;     // Sum of standard staff across processes (Excel R39)
+  productionDaysPerMonth: number;
+  productionDaysPerAnnum: number;
+}
+
+export interface TimeSlotsFullResult {
+  timeSlotsProduction: TimeSlotsProductionSummaryResult;
+  productionBridge: ProductionSummaryResult; // Adapter so shared Employee / BOM / Variable / Dynamics panels work natively
+  employees: EmployeeCalcResult;
+  bom: BomSummaryResult;
+  packaging: PackagingSummaryResult;         // Empty summary (R0.00) for Dynamics compatibility
+  variableCosts: VariableCostSummaryResult;
+  dynamics: UnitCostDynamicsResult;
+}

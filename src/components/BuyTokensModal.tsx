@@ -3,6 +3,7 @@ import { X, Coins, Check, Sparkles, ShieldCheck, CreditCard, Zap, ArrowRight, Lo
 import { BizzbeanLogoIcon } from './BizzbeanLogoIcon';
 import { initiatePayfastCheckout } from '../services/payfastService';
 import { trackBeginCheckout, trackAddPaymentInfo } from '../utils/analytics';
+import { formatTokenBalance } from '../services/tokenBalanceService';
 
 interface BuyTokensModalProps {
   isOpen: boolean;
@@ -185,7 +186,7 @@ export const BuyTokensModal: React.FC<BuyTokensModalProps> = ({
               <div className="text-xs font-mono text-[#9A7B4F] dark:text-[#D4A373] lowercase mt-0.5 flex items-center gap-2">
                 <span>the illuminated sandbox</span>
                 <span>·</span>
-                <span>current balance: <strong className="text-slate-900 dark:text-white font-bold">{tokenBalance} tokens</strong></span>
+                <span>current balance: <strong className="text-slate-900 dark:text-white font-bold">{formatTokenBalance(tokenBalance)} tokens</strong></span>
               </div>
             </div>
           </div>
@@ -206,10 +207,10 @@ export const BuyTokensModal: React.FC<BuyTokensModalProps> = ({
               <Check className="h-8 w-8 stroke-[3]" />
             </div>
             <h3 className="text-xl font-bold font-mono text-slate-900 dark:text-white uppercase">
-              +{addedAmount} Tokens Added!
+              +{formatTokenBalance(addedAmount)} Tokens Added!
             </h3>
             <p className="text-sm font-mono text-slate-500 dark:text-slate-400 mt-1">
-              New Balance: <span className="font-bold text-[#5584B4]">{tokenBalance} tokens</span>
+              New Balance: <span className="font-bold text-[#5584B4]">{formatTokenBalance(tokenBalance)} tokens</span>
             </p>
             <p className="text-xs font-mono text-[#9A7B4F] mt-3">
               Your sandbox runway and calculation engine have been updated immediately.
@@ -404,7 +405,7 @@ export const BuyTokensModal: React.FC<BuyTokensModalProps> = ({
                 </div>
                 <div className="text-xs font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
                   Balance will become:{' '}
-                  <strong>{tokenBalance + effectiveTokens} tokens</strong>
+                  <strong>{formatTokenBalance(tokenBalance + effectiveTokens)} tokens</strong>
                 </div>
               </div>
 

@@ -127,6 +127,12 @@ import {
   saveManualTransactionToJournal,
   upsertClientProfile,
 } from '../services/transactionJournalService';
+import {
+  deriveTokensFromTransactions,
+  formatTokenBalance,
+  normalizeTokenAmount,
+  persistUserTokenBalance,
+} from '../services/tokenBalanceService';
 
 interface AdministrationCentreProps {
   theme: 'light' | 'dark';
@@ -298,6 +304,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
   const [newClientCountry, setNewClientCountry] = useState('South Africa');
   const [newClientNotes, setNewClientNotes] = useState('');
   const [newClientRole, setNewClientRole] = useState<'member' | 'admin'>('member');
+  const [newClientTokens, setNewClientTokens] = useState<string>('0');
 
   // Administrator Management State
   const [adminEmailsList, setAdminEmailsList] = useState<string[]>(() => {
@@ -506,6 +513,7 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
     setNewClientCountry('South Africa');
     setNewClientNotes('');
     setNewClientRole('member');
+    setNewClientTokens('0');
     setIsNewClientModalOpen(true);
   };
 
@@ -520,6 +528,11 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
     setNewClientCountry(client.country || 'South Africa');
     setNewClientNotes(client.notes || '');
     setNewClientRole(client.role || (determineUserRole(client.email) === 'admin' ? 'admin' : 'member'));
+    const resolvedTokens =
+      typeof client.tokens === 'number' && Number.isFinite(client.tokens)
+        ? normalizeTokenAmount(client.tokens)
+        : deriveTokensFromTransactions(client.email, transactions || []);
+    setNewClientTokens(String(resolvedTokens));
     setIsNewClientModalOpen(true);
   };
 
@@ -586,6 +599,8 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
       setAdminEmailsList(updatedAdmins);
     }
 
+    const parsedTokens = normalizeTokenAmount(Number(newClientTokens));
+
     if (editingClient) {
       const updatedProfile: ClientProfile = {
         ...editingClient,
@@ -598,15 +613,20 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
         country: newClientCountry.trim() || 'South Africa',
         notes: newClientNotes.trim() || undefined,
         role: newClientRole,
+        tokens: parsedTokens,
       };
       const updated = clientProfiles.map((c) =>
         c.id === editingClient.id ? updatedProfile : c
       );
       setClientProfiles(updated);
       saveAllClientProfilesToCloud(updated).catch(() => {});
+      persistUserTokenBalance(updatedProfile.email, parsedTokens, {
+        uid: updatedProfile.uid,
+        skipProfileUpsert: true,
+      }).catch(() => {});
       setIsNewClientModalOpen(false);
       setEditingClient(null);
-      showToast(`Client profile for ${newClientName} updated & synced to cloud (${newClientRole === 'admin' ? 'Administrator' : 'Member'}).`);
+      showToast(`Client profile for ${newClientName} updated & synced to cloud (${formatTokenBalance(parsedTokens)} tokens).`);
     } else {
       const newClient: ClientProfile = {
         id: `cli-${Date.now().toString().slice(-4)}`,
@@ -619,14 +639,18 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
         country: newClientCountry.trim() || 'South Africa',
         notes: newClientNotes.trim() || undefined,
         role: newClientRole,
+        tokens: parsedTokens,
         registeredAt: new Date().toISOString(),
       };
       upsertClientProfile(newClient)
         .then((merged) => setClientProfiles(merged))
         .catch(() => {});
+      persistUserTokenBalance(newClient.email, parsedTokens, {
+        skipProfileUpsert: true,
+      }).catch(() => {});
       setClientProfiles([newClient, ...clientProfiles]);
       setIsNewClientModalOpen(false);
-      showToast(`Client profile for ${newClient.name} established & synced to cloud (${newClientRole === 'admin' ? 'Administrator' : 'Member'}).`);
+      showToast(`Client profile for ${newClient.name} established & synced to cloud (${formatTokenBalance(parsedTokens)} tokens).`);
     }
   };
 
@@ -2163,12 +2187,24 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                           </p>
                         </div>
 
-                        {/* Card Footer: Invoice Total & Action Buttons */}
+                        {/* Card Footer: Invoice Total, Token Balance & Action Buttons */}
                         <div className="pt-3 border-t border-[#1D2644] flex flex-wrap items-center justify-between gap-2">
-                          <div className="text-xs">
-                            <span className="text-slate-400">Invoices: </span>
-                            <span className="text-slate-500"> • </span>
-                            <span className="text-emerald-400 font-bold">R {(Number(clientTotalZar) || 0).toFixed(2)}</span>
+                          <div className="text-xs flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span>
+                              <span className="text-slate-400">Invoices: </span>
+                              <span className="text-emerald-400 font-bold">R {(Number(clientTotalZar) || 0).toFixed(2)}</span>
+                            </span>
+                            <span className="text-slate-600">•</span>
+                            <span>
+                              <span className="text-slate-400">Tokens: </span>
+                              <span className="text-[#5584B4] font-bold">
+                                {formatTokenBalance(
+                                  typeof client.tokens === 'number' && Number.isFinite(client.tokens)
+                                    ? client.tokens
+                                    : deriveTokensFromTransactions(client.email, transactions || [])
+                                )}
+                              </span>
+                            </span>
                           </div>
 
                           <div className="flex items-center gap-1.5">
@@ -2774,25 +2810,45 @@ export const AdministrationCentre: React.FC<AdministrationCentreProps> = ({
                       </div>
                     </div>
 
-                    {/* Role & Access Privileges */}
-                    <div className="p-3.5 rounded-xl bg-[#0B0F19] border border-amber-500/25 space-y-1.5">
-                      <label className="block text-slate-200 font-bold uppercase text-[11px] flex items-center gap-1.5">
-                        <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
-                        <span>ROLE & ACCESS PRIVILEGES</span>
-                      </label>
-                      <select
-                        value={newClientRole}
-                        onChange={(e) => setNewClientRole(e.target.value as 'member' | 'admin')}
-                        className="w-full p-2.5 rounded-xl bg-[#0E1220] border border-[#2B3452] text-white focus:outline-hidden focus:border-amber-400"
-                      >
-                        <option value="member">Client Member (Standard Client Portal Access)</option>
-                        <option value="admin">Administrator (Full Administration Centre, CMS & Ledger Access)</option>
-                      </select>
-                      <p className="text-[10px] text-slate-400 leading-relaxed">
-                        {newClientRole === 'admin'
-                          ? '🛡️ This user is granted Administrator status and can access all transaction journals, CMS controls, and client directories.'
-                          : 'Standard member account for venture tools, modeling, and client slips.'}
-                      </p>
+                    {/* Role & Access Privileges + Token Balance */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="md:col-span-2 p-3.5 rounded-xl bg-[#0B0F19] border border-amber-500/25 space-y-1.5">
+                        <label className="block text-slate-200 font-bold uppercase text-[11px] flex items-center gap-1.5">
+                          <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
+                          <span>ROLE & ACCESS PRIVILEGES</span>
+                        </label>
+                        <select
+                          value={newClientRole}
+                          onChange={(e) => setNewClientRole(e.target.value as 'member' | 'admin')}
+                          className="w-full p-2.5 rounded-xl bg-[#0E1220] border border-[#2B3452] text-white focus:outline-hidden focus:border-amber-400"
+                        >
+                          <option value="member">Client Member (Standard Client Portal Access)</option>
+                          <option value="admin">Administrator (Full Administration Centre, CMS & Ledger Access)</option>
+                        </select>
+                        <p className="text-[10px] text-slate-400 leading-relaxed">
+                          {newClientRole === 'admin'
+                            ? '🛡️ This user is granted Administrator status and can access all transaction journals, CMS controls, and client directories.'
+                            : 'Standard member account for venture tools, modeling, and client slips.'}
+                        </p>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-[#0B0F19] border border-[#5584B4]/35 space-y-1.5">
+                        <label className="block text-slate-200 font-bold uppercase text-[11px]">
+                          TOKEN BALANCE
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.1"
+                          value={newClientTokens}
+                          onChange={(e) => setNewClientTokens(e.target.value)}
+                          placeholder="0"
+                          className="w-full p-2.5 rounded-xl bg-[#0E1220] border border-[#2B3452] text-white font-bold tabular-nums focus:outline-hidden focus:border-[#5584B4]"
+                        />
+                        <p className="text-[10px] text-slate-400 leading-relaxed">
+                          Synced per-user to Cloud Firestore &amp; displayed in their workstation header.
+                        </p>
+                      </div>
                     </div>
 
                     {/* Row 4: Internal Billing Notes */}

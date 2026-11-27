@@ -14,6 +14,8 @@ import {
   InstallationServicesProductConfig,
   MeasuredUnitsProductConfig,
   LaundryProductConfig,
+  DrycleanerProductConfig,
+  TimeSlotsProductConfig,
 } from './components/modelsets/modelSetTypes';
 import { BizzOptimizerState, DEFAULT_BIZZOPTIMIZER_STATE } from './data/bizzoptimizerDefaults';
 
@@ -124,8 +126,8 @@ export const ALL_MODEL_SETS: ModelSetCategory[] = [
       { id: 'measured-units', name: 'measured units', isAvailable: true, statusLabel: 'Available' },
       { id: 'printing', name: 'printing', isAvailable: false, statusLabel: 'coming soon' },
       { id: 'laundry', name: 'laundry', isAvailable: true, statusLabel: 'Available' },
-      { id: 'drycleaning', name: 'drycleaning', isAvailable: false, statusLabel: 'coming soon' },
-      { id: 'time-slots', name: 'time slots', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'drycleaning', name: 'drycleaner', isAvailable: true, statusLabel: 'Available' },
+      { id: 'time-slots', name: 'time slots', isAvailable: true, statusLabel: 'Available' },
       { id: 'time-slot-rentals', name: 'time slot rentals', isAvailable: false, statusLabel: 'coming soon' },
       { id: 'guarding', name: 'guarding', isAvailable: false, statusLabel: 'coming soon' },
     ],
@@ -272,6 +274,8 @@ export interface RevenueItem {
   installationServicesConfig?: InstallationServicesProductConfig;
   measuredUnitsConfig?: MeasuredUnitsProductConfig;
   laundryConfig?: LaundryProductConfig;
+  drycleanerConfig?: DrycleanerProductConfig;
+  timeSlotsConfig?: TimeSlotsProductConfig;
 }
 
 export interface EmploymentCategory {
@@ -788,7 +792,7 @@ export interface EmploymentImportMeta {
 
 export interface BizzModelState {
   appMode?: PlatformForecastAppId;
-  activeModelSet?: 'unit-sales' | 'value-sales' | 'commission' | 'revenue-share' | 'batch-lots' | 'continuous-production' | 'fabrication' | 'family-restaurant' | 'time-units' | 'installation-services' | 'measured-units' | 'laundry';
+  activeModelSet?: 'unit-sales' | 'value-sales' | 'commission' | 'revenue-share' | 'batch-lots' | 'continuous-production' | 'fabrication' | 'family-restaurant' | 'time-units' | 'installation-services' | 'measured-units' | 'laundry' | 'drycleaning' | 'time-slots';
   businessDetails: BusinessDetails;
   valueSalesCategories?: ValueSalesCategory[];
   commissionCategories?: CommissionCategory[];

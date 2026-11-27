@@ -9,7 +9,7 @@ import {
 } from 'firebase/auth';
 import { auth, db, isFirestoreQuotaExceeded, setFirestoreQuotaExceeded } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { upsertClientProfile } from './transactionJournalService';
+import { upsertClientProfile, safeEmailDocId } from './transactionJournalService';
 
 export interface AuthProfileData {
   uid: string;
@@ -297,13 +297,15 @@ export async function signInUser(email: string, password: string): Promise<{ use
       : [],
     googleWalletAllocation: 15,
     googleWalletBalance: role === 'admin' ? 325.50 : 25.00,
-    tokens: role === 'admin' ? 15000 : 500,
+    tokens: 0,
     phone: role === 'admin' ? '+27 82 123 4567' : '',
     companyName: role === 'admin' ? 'BizzBean Admin Headquarters' : '',
     city: role === 'admin' ? 'Cape Town' : 'Johannesburg',
   };
 
-  // Synchronize with Firestore users collection if available and quota allows
+  let existingCloudTokens: number | undefined = undefined;
+
+  // Synchronize with Firestore users & client_profiles collections if available and quota allows
   try {
     if (!isFirestoreQuotaExceeded()) {
       const userDocRef = doc(db, 'users', fbUser.uid);
@@ -311,7 +313,28 @@ export async function signInUser(email: string, password: string): Promise<{ use
       if (snap.exists()) {
         const data = snap.data();
         Object.assign(profile, data);
-      } else {
+        if (typeof data?.tokens === 'number' && Number.isFinite(data.tokens) && data.tokens >= 0) {
+          existingCloudTokens = Math.round(data.tokens * 10) / 10;
+        }
+      }
+
+      // Check authoritative client_profiles/{email} for token balance as well
+      const emailNorm = (profile.email || '').trim().toLowerCase();
+      if (emailNorm) {
+        const cpSnap = await getDoc(doc(db, 'client_profiles', safeEmailDocId(emailNorm)));
+        if (cpSnap.exists()) {
+          const cpData = cpSnap.data();
+          if (typeof cpData?.tokens === 'number' && Number.isFinite(cpData.tokens) && cpData.tokens >= 0) {
+            existingCloudTokens = Math.round(cpData.tokens * 10) / 10;
+          }
+        }
+      }
+
+      if (existingCloudTokens !== undefined) {
+        profile.tokens = existingCloudTokens;
+      }
+
+      if (!snap.exists()) {
         await setDoc(userDocRef, {
           uid: profile.uid,
           email: profile.email,
@@ -320,6 +343,7 @@ export async function signInUser(email: string, password: string): Promise<{ use
           isPro: profile.isPro,
           purchasedApps: profile.purchasedApps,
           purchasedCourses: profile.purchasedCourses,
+          ...(existingCloudTokens !== undefined ? { tokens: existingCloudTokens } : {}),
           companyName: profile.companyName || null,
           phone: profile.phone || null,
           city: profile.city || null,
@@ -336,7 +360,7 @@ export async function signInUser(email: string, password: string): Promise<{ use
     console.info('User Firestore profile sync notice (offline/local fallback):', dbErr);
   }
 
-  // Ensure signed-in user is synced in the Client Profiles directory
+  // Ensure signed-in user is synced in the Client Profiles directory (preserving existing tokens if stored)
   if (profile.email) {
     upsertClientProfile({
       uid: profile.uid,
@@ -351,6 +375,7 @@ export async function signInUser(email: string, password: string): Promise<{ use
       role: profile.role === 'admin' ? 'admin' : 'member',
       associate: profile.associate || undefined,
       registeredAt: profile.registeredAt || undefined,
+      ...(existingCloudTokens !== undefined ? { tokens: existingCloudTokens } : {}),
       purchasedApps: profile.purchasedApps,
       purchasedCourses: profile.purchasedCourses,
     }).catch(() => {});
@@ -378,6 +403,11 @@ export async function registerUser(
     await updateProfile(fbUser, { displayName: finalName });
   } catch {}
 
+  const initialTokens =
+    typeof extraProfileData?.tokens === 'number' && Number.isFinite(extraProfileData.tokens) && extraProfileData.tokens >= 0
+      ? Math.round(extraProfileData.tokens * 10) / 10
+      : 0;
+
   const profile: AuthProfileData = {
     uid: fbUser.uid,
     email: fbUser.email || email.trim(),
@@ -388,8 +418,8 @@ export async function registerUser(
     purchasedCourses: [],
     googleWalletAllocation: 15,
     googleWalletBalance: role === 'admin' ? 325.50 : 25.00,
-    tokens: role === 'admin' ? 15000 : 500,
-    ...extraProfileData
+    ...extraProfileData,
+    tokens: initialTokens,
   };
 
   const nowIso = new Date().toISOString();
@@ -403,6 +433,7 @@ export async function registerUser(
         name: profile.name,
         role: profile.role,
         isPro: profile.isPro,
+        tokens: profile.tokens,
         purchasedApps: profile.purchasedApps,
         purchasedCourses: profile.purchasedCourses,
         companyName: profile.companyName || null,
@@ -438,6 +469,7 @@ export async function registerUser(
       notes: profile.notes || 'Active bizzbean platform member and growing entrepreneur.',
       role: profile.role === 'admin' ? 'admin' : 'member',
       registeredAt: profile.registeredAt || nowIso,
+      tokens: profile.tokens,
       purchasedApps: profile.purchasedApps,
       purchasedCourses: profile.purchasedCourses,
     }).catch(() => {});

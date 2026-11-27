@@ -63,7 +63,16 @@ import {
   evaluateOnboardingDecision,
   markWelcomeEmailDispatched,
 } from './services/onboardingAuditService';
-import { recordTransactionToJournal, upsertClientProfile } from './services/transactionJournalService';
+import { auth } from './lib/firebase';
+import { recordTransactionToJournal, upsertClientProfile, normalizeEmail } from './services/transactionJournalService';
+import {
+  adjustUserTokenBalance,
+  getCachedUserTokenBalance,
+  loadAuthoritativeUserTokenBalance,
+  normalizeTokenAmount,
+  purgeLegacySharedTokenKeys,
+  USER_TOKEN_BALANCE_EVENT,
+} from './services/tokenBalanceService';
 import {
   parseDeepLinkFromLocation,
   buildCleanPathUrl,
@@ -157,30 +166,94 @@ export default function App() {
   const [mobileActivePanel, setMobileActivePanel] = useState<'solutions' | 'workarea' | 'knowledge'>('workarea');
   const [solutionsPanelMode, setSolutionsPanelMode] = useState<'solutions' | 'knowledge'>('solutions');
   const [isMobileAppsDrawerOpen, setIsMobileAppsDrawerOpen] = useState<boolean>(false);
+  const [activeAuthUid, setActiveAuthUid] = useState<string | undefined>(() => auth.currentUser?.uid || undefined);
   const [tokenBalance, setTokenBalance] = useState<number>(() => {
+    purgeLegacySharedTokenKeys();
     try {
-      const saved = localStorage.getItem('bizzdesk_token_balance_v1');
-      if (saved) {
-        const parsed = parseInt(saved, 10);
-        if (!isNaN(parsed)) return parsed;
-      }
-    } catch (e) {}
-    return 250;
+      const memberFlag = localStorage.getItem('bizz_is_member') === 'true';
+      const storedEmail = localStorage.getItem('bizz_user_email') || '';
+      if (!memberFlag || !storedEmail.trim()) return 0;
+      return getCachedUserTokenBalance(storedEmail) ?? 0;
+    } catch {
+      return 0;
+    }
   });
 
+  // Load authoritative per-user token balance from Cloud Firestore whenever active member or email changes
   useEffect(() => {
-    try {
-      localStorage.setItem('bizzdesk_token_balance_v1', tokenBalance.toString());
-      window.dispatchEvent(new CustomEvent('bizz-token-balance-updated', { detail: tokenBalance }));
-    } catch (e) {}
-  }, [tokenBalance]);
+    purgeLegacySharedTokenKeys();
+    const cleanEmail = normalizeEmail(userEmail);
+    if (!isMember || !cleanEmail) {
+      setTokenBalance(0);
+      return;
+    }
+
+    let cancelled = false;
+    // Immediately reflect this specific user's cached balance (never another user's balance or a hardcoded 250)
+    const cached = getCachedUserTokenBalance(cleanEmail);
+    setTokenBalance(cached ?? 0);
+
+    loadAuthoritativeUserTokenBalance(cleanEmail, activeAuthUid)
+      .then((authoritativeBalance) => {
+        if (!cancelled) {
+          setTokenBalance(authoritativeBalance);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isMember, userEmail, activeAuthUid]);
+
+  // Keep header synchronized if an Admin or another component updates this user's token balance
+  useEffect(() => {
+    const cleanActiveEmail = normalizeEmail(userEmail);
+    const handleExternalBalanceUpdate = (e: Event) => {
+      const detail = (e as CustomEvent<any>).detail;
+      if (!isMember || !cleanActiveEmail) return;
+      if (detail && typeof detail === 'object' && typeof detail.balance === 'number') {
+        if (normalizeEmail(detail.email) === cleanActiveEmail) {
+          setTokenBalance(normalizeTokenAmount(detail.balance));
+        }
+      }
+    };
+    window.addEventListener(USER_TOKEN_BALANCE_EVENT, handleExternalBalanceUpdate);
+    return () => {
+      window.removeEventListener(USER_TOKEN_BALANCE_EVENT, handleExternalBalanceUpdate);
+    };
+  }, [isMember, userEmail]);
+
+  const applyTokenDelta = useCallback(
+    (delta: number, explicitEmail?: string) => {
+      if (!Number.isFinite(delta) || delta === 0) return;
+      const targetEmail = normalizeEmail(explicitEmail || (isMember ? userEmail : ''));
+      const activeNorm = normalizeEmail(userEmail);
+
+      if (isMember && targetEmail && targetEmail === activeNorm) {
+        setTokenBalance((prev) => {
+          const next = normalizeTokenAmount(Math.max(0, prev + delta));
+          adjustUserTokenBalance(targetEmail, delta, {
+            uid: activeAuthUid || auth.currentUser?.uid || undefined,
+            currentKnownBalance: prev,
+          }).catch(() => {});
+          return next;
+        });
+      } else if (targetEmail) {
+        adjustUserTokenBalance(targetEmail, delta, {
+          uid: targetEmail === activeNorm ? activeAuthUid || auth.currentUser?.uid || undefined : undefined,
+        }).catch(() => {});
+      }
+    },
+    [isMember, userEmail, activeAuthUid]
+  );
 
   useEffect(() => {
     const handleTokenDeduction = (e: Event) => {
       const customEvent = e as CustomEvent<{ amount?: number; description?: string }>;
       const amount = Number(customEvent.detail?.amount || 0);
-      if (amount > 0) {
-        setTokenBalance((prev) => Math.max(0, prev - amount));
+      if (amount > 0 && isMember && normalizeEmail(userEmail)) {
+        applyTokenDelta(-amount);
       }
     };
     const handleOpenBuyTokens = () => {
@@ -192,7 +265,7 @@ export default function App() {
       window.removeEventListener('bizz-token-deduction', handleTokenDeduction);
       window.removeEventListener('bizz-open-buy-tokens', handleOpenBuyTokens);
     };
-  }, []);
+  }, [isMember, userEmail, applyTokenDelta]);
 
   // Theme state: Default to 'light' (black & grey on white) with instant dark theme toggle
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -254,6 +327,7 @@ export default function App() {
     const unsubscribe = listenToAuthChanges((fbUser) => {
       if (fbUser) {
         const cleanEmail = (fbUser.email || '').trim();
+        setActiveAuthUid(fbUser.uid);
         setUserEmail(cleanEmail);
         setIsMember(true);
         try {
@@ -265,6 +339,8 @@ export default function App() {
           founderName: resolvedName,
           email: cleanEmail,
         }));
+      } else {
+        setActiveAuthUid(undefined);
       }
     });
     return () => unsubscribe();
@@ -305,8 +381,21 @@ export default function App() {
         if (pfPaymentId && pfPaymentId.startsWith('TOKEN_')) {
           const parts = pfPaymentId.split('_');
           const tokensToAdd = parseInt(parts[1], 10);
-          if (!isNaN(tokensToAdd) && tokensToAdd > 0) {
-            setTokenBalance((prev) => prev + tokensToAdd);
+          const idempotencyKey = `bizzdesk_pf_credited_${pfPaymentId}`;
+          const alreadyCredited = Boolean(localStorage.getItem(idempotencyKey));
+          if (!isNaN(tokensToAdd) && tokensToAdd > 0 && !alreadyCredited) {
+            try {
+              localStorage.setItem(idempotencyKey, '1');
+            } catch {}
+            adjustUserTokenBalance(storedEmail, tokensToAdd, {
+              uid: auth.currentUser?.uid || undefined,
+            })
+              .then((updatedBalance) => {
+                if (normalizeEmail(storedEmail) === normalizeEmail(userEmail)) {
+                  setTokenBalance(updatedBalance);
+                }
+              })
+              .catch(() => {});
             recordTransactionToJournal({
               sku: 'bizztokens',
               productName: `BizzTokens Pack (${tokensToAdd} Tokens)`,
@@ -359,11 +448,22 @@ export default function App() {
                 ? Number(matchedProd.tokensAllocated)
                 : Math.round(sellingPriceZAR * 0.2 * 10) / 10;
 
-            setTokenBalance((prev) => {
-              const newBal = prev + earnedTokens;
-              safeSaveStorage('bizzdesk_token_balance', newBal);
-              return newBal;
-            });
+            const idempotencyKey = `bizzdesk_pf_credited_${pfPaymentId}`;
+            const alreadyCredited = Boolean(localStorage.getItem(idempotencyKey));
+            if (earnedTokens > 0 && !alreadyCredited) {
+              try {
+                localStorage.setItem(idempotencyKey, '1');
+              } catch {}
+              adjustUserTokenBalance(storedEmail, earnedTokens, {
+                uid: auth.currentUser?.uid || undefined,
+              })
+                .then((updatedBalance) => {
+                  if (normalizeEmail(storedEmail) === normalizeEmail(userEmail)) {
+                    setTokenBalance(updatedBalance);
+                  }
+                })
+                .catch(() => {});
+            }
 
             const isCourse =
               matchedProd?.type === 'course' ||
@@ -1417,6 +1517,8 @@ export default function App() {
   const handleConfirmCloseShop = () => {
     signOutUser().catch(() => {});
     setIsMember(false);
+    setActiveAuthUid(undefined);
+    setTokenBalance(0);
     try {
       localStorage.setItem('bizz_is_member', 'false');
     } catch (e) {}
@@ -1858,11 +1960,16 @@ export default function App() {
         ? Number(sol.tokensAllocated)
         : Math.round(grossPrice * 0.2 * 10) / 10;
 
-    setTokenBalance((prev) => {
-      const newBal = prev + earnedTokens;
-      safeSaveStorage('bizzdesk_token_balance', newBal);
-      return newBal;
-    });
+    const buyerEmail =
+      userProfile?.email ||
+      userEmail ||
+      (typeof window !== 'undefined' ? localStorage.getItem('bizzbean_sandbox_email') || '' : '') ||
+      'member@bizzbean.co.za';
+    const buyerName = userProfile?.founderName || resolveDisplayName(buyerEmail) || 'Entrepreneur';
+
+    if (earnedTokens > 0) {
+      applyTokenDelta(earnedTokens, buyerEmail);
+    }
 
     const isCourse =
       sol.type === 'course' ||
@@ -1871,13 +1978,6 @@ export default function App() {
       sol.id.includes('capital') ||
       sol.id.includes('calculator') ||
       ['cost-recovery-calculator', 'learn-earn-capital', 'how-to-bizzcalc', 'profit-optimizer', 'financial-reports', 'your-first-hire', 'financial-scenario-planning', 'annual-business-planning-cycle'].includes(sol.id);
-
-    const buyerEmail =
-      userProfile?.email ||
-      userEmail ||
-      (typeof window !== 'undefined' ? localStorage.getItem('bizzbean_sandbox_email') || '' : '') ||
-      'member@bizzbean.co.za';
-    const buyerName = userProfile?.founderName || resolveDisplayName(buyerEmail) || 'Entrepreneur';
 
     recordTransactionToJournal({
       sku: sol.sku || sol.stageCode || sol.id,
@@ -2174,6 +2274,10 @@ export default function App() {
           role: determineUserRole(cleanEmail),
           registeredAt: existingCheck?.existingProfile?.registeredAt || new Date().toISOString(),
           notes: existingCheck?.existingProfile?.notes || 'Registered via Sandbox Sign-Up modal.',
+          tokens:
+            typeof existingCheck?.existingProfile?.tokens === 'number'
+              ? existingCheck.existingProfile.tokens
+              : undefined,
         }).catch(() => {});
       }
 
@@ -3320,7 +3424,11 @@ export default function App() {
         tokenBalance={tokenBalance}
         theme={theme}
         onClose={() => setIsBuyTokensModalOpen(false)}
-        onAddTokens={(amount) => setTokenBalance((prev) => prev + amount)}
+        onAddTokens={(amount) => {
+          if (amount > 0 && isMember && normalizeEmail(userEmail)) {
+            applyTokenDelta(amount, userEmail);
+          }
+        }}
         userEmail={userEmail}
       />
 

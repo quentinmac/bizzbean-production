@@ -33,6 +33,7 @@ import { validateCouponCode, redeemCouponCode } from '../services/promotionServi
 import { PromotionCoupon } from '../types';
 import { sendWelcomeEmail } from '../services/emailService';
 import { upsertClientProfile } from '../services/transactionJournalService';
+import { getCachedUserTokenBalance, persistUserTokenBalance } from '../services/tokenBalanceService';
 import {
   checkClientExists,
   evaluateOnboardingDecision,
@@ -291,6 +292,11 @@ export default function AuthGateway({ onAuthenticated, onClose, initialMode }: A
         localStorage.setItem('bizzbean_sandbox_email', cleanRegEmail);
         localStorage.setItem(`bizzbean_registered_name_${cleanRegEmail.toLowerCase()}`, fullName);
 
+        const preservedTokens =
+          typeof preCheck.existingProfile?.tokens === 'number'
+            ? preCheck.existingProfile.tokens
+            : newProfile.tokens;
+
         await upsertClientProfile({
           id: newProfile.id,
           name: newProfile.name,
@@ -304,9 +310,11 @@ export default function AuthGateway({ onAuthenticated, onClose, initialMode }: A
           registeredAt: preCheck.existingProfile?.registeredAt || newProfile.registeredAt,
           notes: preCheck.existingProfile?.notes || newProfile.notes,
           role: newProfile.role,
+          tokens: preservedTokens,
           purchasedApps: newProfile.purchasedApps,
           purchasedCourses: newProfile.purchasedCourses,
         });
+        await persistUserTokenBalance(newProfile.email, preservedTokens, { skipProfileUpsert: true });
       } catch (err) {
         console.error('Error logging registered sandbox profile:', err);
       }
@@ -386,11 +394,13 @@ export default function AuthGateway({ onAuthenticated, onClose, initialMode }: A
   };
 
   const handleContinueAsSandboxUser = () => {
-    const role = determineUserRole(loginEmail);
-    const resolvedName = resolveDisplayName(loginEmail);
+    const cleanEmail = loginEmail.trim() || 'founder@bizzbean.com';
+    const role = determineUserRole(cleanEmail);
+    const resolvedName = resolveDisplayName(cleanEmail);
+    const cachedBalance = getCachedUserTokenBalance(cleanEmail) ?? 0;
     const profile: AuthProfileData = {
       uid: 'sandbox_' + Date.now(),
-      email: loginEmail.trim() || 'founder@bizzbean.com',
+      email: cleanEmail,
       name: resolvedName,
       role: role,
       isPro: true,
@@ -400,7 +410,7 @@ export default function AuthGateway({ onAuthenticated, onClose, initialMode }: A
         : [],
       googleWalletAllocation: 15,
       googleWalletBalance: role === 'admin' ? 325.50 : 25.00,
-      tokens: role === 'admin' ? 15000 : 500,
+      tokens: cachedBalance,
       companyName: role === 'admin' ? 'BizzBean Admin Headquarters' : 'Apex Cloud Dynamics',
       city: role === 'admin' ? 'Cape Town' : 'Johannesburg',
     };
@@ -436,6 +446,11 @@ export default function AuthGateway({ onAuthenticated, onClose, initialMode }: A
 
       const { user: fbUser, profile } = await registerUser(cleanEmail, loginPassword, defaultName);
       localStorage.setItem('bizzbean_last_login_email', cleanEmail);
+      const preservedTokens =
+        typeof preCheck.existingProfile?.tokens === 'number'
+          ? preCheck.existingProfile.tokens
+          : profile.tokens;
+
       await upsertClientProfile({
         uid: fbUser.uid,
         name: profile.name,
@@ -446,6 +461,11 @@ export default function AuthGateway({ onAuthenticated, onClose, initialMode }: A
         role: profile.role === 'admin' ? 'admin' : 'member',
         registeredAt: preCheck.existingProfile?.registeredAt || new Date().toISOString(),
         notes: preCheck.existingProfile?.notes || 'Registered via Quick Registration.',
+        tokens: preservedTokens,
+      }).catch(() => {});
+      await persistUserTokenBalance(profile.email, preservedTokens, {
+        uid: fbUser.uid,
+        skipProfileUpsert: true,
       }).catch(() => {});
 
       if (decision.shouldDispatchWelcomeEmail) {

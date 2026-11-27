@@ -104,6 +104,11 @@ export function mergeClientProfiles(...lists: ClientProfile[][]): ClientProfile[
       const key = emailNorm || `id:${raw.id || nameTrim.toLowerCase()}`;
       const existing = byKey.get(key);
 
+      const rawTokens =
+        typeof raw.tokens === 'number' && Number.isFinite(raw.tokens) && raw.tokens >= 0
+          ? Math.round(raw.tokens * 10) / 10
+          : undefined;
+
       if (!existing) {
         byKey.set(key, {
           id: raw.id || `cli-${Date.now().toString().slice(-4)}-${Math.random().toString(36).slice(2, 5)}`,
@@ -119,6 +124,7 @@ export function mergeClientProfiles(...lists: ClientProfile[][]): ClientProfile[
           associate: raw.associate || undefined,
           registeredAt: raw.registeredAt || undefined,
           uid: raw.uid || undefined,
+          tokens: rawTokens,
           purchasedApps: Array.isArray(raw.purchasedApps) ? raw.purchasedApps : undefined,
           purchasedCourses: Array.isArray(raw.purchasedCourses) ? raw.purchasedCourses : undefined,
         });
@@ -143,6 +149,7 @@ export function mergeClientProfiles(...lists: ClientProfile[][]): ClientProfile[
           associate: raw.associate || existing.associate,
           registeredAt: raw.registeredAt || existing.registeredAt,
           uid: raw.uid || existing.uid,
+          tokens: rawTokens !== undefined ? rawTokens : existing.tokens,
           purchasedApps: mergedApps.length > 0 ? mergedApps : undefined,
           purchasedCourses: mergedCourses.length > 0 ? mergedCourses : undefined,
         });
@@ -209,6 +216,10 @@ export async function loadMergedClientProfilesFromCloud(): Promise<ClientProfile
           associate: data.associate || undefined,
           registeredAt: data.registeredAt || data.updatedAt || undefined,
           uid: data.uid || undefined,
+          tokens:
+            typeof data.tokens === 'number' && Number.isFinite(data.tokens) && data.tokens >= 0
+              ? Math.round(data.tokens * 10) / 10
+              : undefined,
           purchasedApps: Array.isArray(data.purchasedApps) ? data.purchasedApps : undefined,
           purchasedCourses: Array.isArray(data.purchasedCourses) ? data.purchasedCourses : undefined,
         });
@@ -241,6 +252,10 @@ export async function loadMergedClientProfilesFromCloud(): Promise<ClientProfile
           role: data.role === 'admin' ? 'admin' : 'member',
           associate: data.associate || undefined,
           registeredAt: data.registeredAt || data.updatedAt || undefined,
+          tokens:
+            typeof data.tokens === 'number' && Number.isFinite(data.tokens) && data.tokens >= 0
+              ? Math.round(data.tokens * 10) / 10
+              : undefined,
           purchasedApps: Array.isArray(data.purchasedApps) ? data.purchasedApps : undefined,
           purchasedCourses: Array.isArray(data.purchasedCourses) ? data.purchasedCourses : undefined,
         });
@@ -252,9 +267,9 @@ export async function loadMergedClientProfilesFromCloud(): Promise<ClientProfile
 
   const merged = mergeClientProfiles(
     INITIAL_CLIENT_PROFILES,
+    localMerged,
     cloudUsersProfiles,
-    cloudClientProfiles,
-    localMerged
+    cloudClientProfiles
   );
   writeClientProfilesToLocalCaches(merged);
   return merged;
@@ -299,6 +314,10 @@ export async function upsertClientProfile(
       profileInput.registeredAt ||
       new Date().toISOString(),
     uid: profileInput.uid || existingMatch?.uid,
+    tokens:
+      typeof profileInput.tokens === 'number' && Number.isFinite(profileInput.tokens) && profileInput.tokens >= 0
+        ? Math.round(profileInput.tokens * 10) / 10
+        : existingMatch?.tokens,
     purchasedApps: Array.from(
       new Set([
         ...(existingMatch?.purchasedApps || []),

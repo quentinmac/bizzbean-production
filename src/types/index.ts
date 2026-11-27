@@ -212,6 +212,7 @@ export interface ClientProfile {
   associate?: string;
   registeredAt?: string;
   uid?: string;
+  tokens?: number;
   purchasedApps?: string[];
   purchasedCourses?: string[];
 }

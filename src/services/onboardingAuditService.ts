@@ -157,6 +157,10 @@ export async function checkClientExists(email: string): Promise<ClientExistenceC
           associate: data.associate || undefined,
           registeredAt: data.registeredAt || undefined,
           uid: data.uid || undefined,
+          tokens:
+            typeof data.tokens === 'number' && Number.isFinite(data.tokens) && data.tokens >= 0
+              ? Math.round(data.tokens * 10) / 10
+              : undefined,
           purchasedApps: Array.isArray(data.purchasedApps) ? data.purchasedApps : undefined,
           purchasedCourses: Array.isArray(data.purchasedCourses) ? data.purchasedCourses : undefined,
           welcomeEmailSent: Boolean(data.welcomeEmailSent),

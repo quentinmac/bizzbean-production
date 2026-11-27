@@ -155,7 +155,7 @@ export const SignUpModal: React.FC<SignUpModalProps> = ({
             >
               <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
                 <Check className="h-3.5 w-3.5 text-[#5584B4]" />
-                <span>250 initial sandbox tokens & financial modeling simulations</span>
+                <span>Personal token wallet &amp; financial modeling simulations</span>
               </div>
               <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
                 <Check className="h-3.5 w-3.5 text-[#5584B4]" />

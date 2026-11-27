@@ -30,6 +30,7 @@ import {
 import { BIZZ_SOLUTIONS } from '../data/bizzdeskData';
 import { CmsProduct } from '../data/cmsConsoleData';
 import { BizzbeanLogoIcon } from './BizzbeanLogoIcon';
+import { formatTokenBalance } from '../services/tokenBalanceService';
 import { getCanonicalCourseId, findMatchingCourse } from '../utils/imageStorage';
 
 interface BizzDeskHeaderProps {
@@ -735,7 +736,7 @@ export const BizzDeskHeader: React.FC<BizzDeskHeaderProps> = ({
           }`}
         >
           <Coins className="h-3.5 w-3.5 text-[#5584B4] shrink-0" />
-          <span className="font-bold tabular-nums text-slate-900 dark:text-white">{tokenBalance}</span>
+          <span className="font-bold tabular-nums text-slate-900 dark:text-white">{formatTokenBalance(tokenBalance)}</span>
           <span className="text-slate-400 text-[10px] hidden xl:inline lowercase">tokens</span>
         </div>
 

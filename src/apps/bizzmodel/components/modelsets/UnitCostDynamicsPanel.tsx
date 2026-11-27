@@ -25,6 +25,7 @@ interface UnitCostDynamicsPanelProps {
   stepNumber?: number;
   capacitySubtitle?: string;
   hideEmployeeMetric?: boolean;
+  hidePackaging?: boolean;
   productName: string;
   fullResult: UnitCostDynamicsSource;
   overrides: UnitCostDynamicsOverrides;
@@ -38,6 +39,7 @@ export const UnitCostDynamicsPanel: React.FC<UnitCostDynamicsPanelProps> = ({
   stepNumber = 6,
   capacitySubtitle,
   hideEmployeeMetric = false,
+  hidePackaging = false,
   productName,
   fullResult,
   overrides,
@@ -48,7 +50,7 @@ export const UnitCostDynamicsPanel: React.FC<UnitCostDynamicsPanelProps> = ({
   const isDark = theme === 'dark';
   const { dynamics, production, employees } = fullResult;
 
-  const costStreams = [
+  const allCostStreams = [
     {
       key: 'bom' as const,
       label: 'materials — bill of materials',
@@ -74,6 +76,10 @@ export const UnitCostDynamicsPanel: React.FC<UnitCostDynamicsPanelProps> = ({
       detail: `${fullResult.variableCosts.items.length} variable ${fullResult.variableCosts.items.length === 1 ? 'stream' : 'streams'}`,
     },
   ];
+
+  const costStreams = hidePackaging
+    ? allCostStreams.filter((s) => s.key !== 'packaging')
+    : allCostStreams;
 
   return (
     <div className="space-y-4">
@@ -137,10 +143,14 @@ export const UnitCostDynamicsPanel: React.FC<UnitCostDynamicsPanelProps> = ({
               <span className="tabular-nums">
                 Materials: <strong>{dynamics.materialsSharePct.toFixed(1)}%</strong>
               </span>
-              <span>·</span>
-              <span className="tabular-nums">
-                Packaging: <strong>{dynamics.packagingSharePct.toFixed(1)}%</strong>
-              </span>
+              {!hidePackaging && (
+                <>
+                  <span>·</span>
+                  <span className="tabular-nums">
+                    Packaging: <strong>{dynamics.packagingSharePct.toFixed(1)}%</strong>
+                  </span>
+                </>
+              )}
               <span>·</span>
               <span className="tabular-nums">
                 Variable: <strong>{dynamics.variableSharePct.toFixed(1)}%</strong>
@@ -236,6 +246,8 @@ export const UnitCostDynamicsPanel: React.FC<UnitCostDynamicsPanelProps> = ({
               <span className="text-[10px] text-slate-500 dark:text-slate-400">
                 {dynamics.isUsingEstimatedOverride
                   ? 'using manual estimated override'
+                  : hidePackaging
+                  ? 'derived dynamically from BOM + variable costs'
                   : 'derived dynamically from BOM + packaging + variable costs'}
               </span>
             </div>
@@ -328,7 +340,9 @@ export const UnitCostDynamicsPanel: React.FC<UnitCostDynamicsPanelProps> = ({
           </div>
 
           <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed pt-2 border-t border-slate-200 dark:border-[#222F4C]">
-            Changes in Production, Bill of Materials, Packaging, or Variable Costs update the 60-month Trading Account, Cash Flow, and Financial Statements in real time.
+            {hidePackaging
+              ? 'Changes in Production, Bill of Materials, or Variable Costs update the 60-month Trading Account, Cash Flow, and Financial Statements in real time.'
+              : 'Changes in Production, Bill of Materials, Packaging, or Variable Costs update the 60-month Trading Account, Cash Flow, and Financial Statements in real time.'}
           </p>
         </div>
       </div>
