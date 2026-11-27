@@ -1,6 +1,6 @@
 // =============================================================================
 // BIZZBEAN CMS MASTER REPOSITORY DATA (AUTO-GENERATED VIA CMS CONSOLE EXPORT)
-// Generated at: 2026-11-27T09:27:18.300Z
+// Generated at: 2026-11-27T10:03:59.495Z
 //
 // INSTRUCTIONS FOR GITHUB DEPLOYMENT:
 // 1. Commit/upload this file directly to: src/data/cmsConsoleData.ts
@@ -11,7 +11,7 @@
 
 import { TransactionRecord, ClientProfile, ClientNotification } from '../types';
 
-export const CMS_BUNDLE_GENERATED_AT = '2026-11-27T09:27:18.300Z';
+export const CMS_BUNDLE_GENERATED_AT = '2026-11-27T10:03:59.495Z';
 
 export interface CmsCourseLesson {
   id: string;
@@ -230,8 +230,8 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
       {
         "id": "cl-1-1",
         "youtubeUrl": "https://youtu.be/eJ_8N_NfGBI",
-        "name": "Lesson 01: LEARN HOW TO EARN ACCESS TO CAPITAL",
-        "duration": "4:57"
+        "duration": "4:57",
+        "name": "Lesson 01: LEARN HOW TO EARN ACCESS TO CAPITAL"
       }
     ],
     "companionMaterialFilename": "Framework_Templates.zip",
@@ -286,18 +286,18 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "challengeText": "Most startup ideas fail on unit economics, not passion. Before signing a lease or buying stock, test your selling price, fixed overheads, staffing cost, and monthly break-even volume across 4 risk scenarios in under 15 minutes.",
     "engineSteps": [
       {
-        "desc": "business name, scenario selection, working days",
-        "outputs": [
-          "calculate the number of working days"
-        ],
+        "step": 1,
         "inputs": [
           "business name",
           "calendar start month",
           "working days allocation (Mon-Sun)",
           "public holiday deduction flag"
         ],
-        "title": "business details & scenario selection",
-        "step": 1
+        "desc": "business name, scenario selection, working days",
+        "outputs": [
+          "calculate the number of working days"
+        ],
+        "title": "business details & scenario selection"
       },
       {
         "step": 2,
@@ -306,75 +306,71 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "gross profit margin",
           "monthly growth in daily sales"
         ],
+        "desc": "calculates revenue and gross profit forecasts",
+        "title": "Revenue Calculator",
         "outputs": [
           "annual revenue",
           "annual gross profit"
-        ],
-        "desc": "calculates revenue and gross profit forecasts",
-        "title": "Revenue Calculator"
+        ]
       },
       {
+        "step": 3,
         "outputs": [
           "annual employment expense"
         ],
         "desc": "calculates employment expenses",
-        "title": "employment",
-        "step": 3,
         "inputs": [
           "job title and head count",
           "base monthly salary (cost to company)",
           "annual review month and review rate"
-        ]
+        ],
+        "title": "employment"
       },
       {
         "step": 4,
-        "inputs": [
-          "monthly expense base from listed expenses",
-          "annual review month and review rate"
+        "outputs": [
+          "annual operating expenses"
         ],
         "title": "operating expenses",
         "desc": "calculates operating expenses",
-        "outputs": [
-          "annual operating expenses"
+        "inputs": [
+          "monthly expense base from listed expenses",
+          "annual review month and review rate"
         ]
       },
       {
-        "title": "fixed assets and capital depreciation",
+        "desc": "calculates fixed assets balance sheet value and depreciation expenses",
+        "inputs": [
+          "fixed asset description and month purchased",
+          "allocation to asset category"
+        ],
         "outputs": [
           "original cost of fixed assets",
           "annual depreciation",
           "net value - balance sheet value"
         ],
-        "desc": "calculates fixed assets balance sheet value and depreciation expenses",
         "step": 5,
-        "inputs": [
-          "fixed asset description and month purchased",
-          "allocation to asset category"
-        ]
+        "title": "fixed assets and capital depreciation"
       },
       {
-        "desc": "calculates balance sheet values for receivables, inventory, payables and other assets",
-        "inputs": [
-          "days debtors",
-          "days inventory",
-          "days creditors",
-          "other asst values"
-        ],
-        "title": "funding calculator",
-        "step": 6,
         "outputs": [
           "year end debtors value",
           "year end inventory value",
           "year end crditors value",
           "other assets value"
+        ],
+        "step": 6,
+        "desc": "calculates balance sheet values for receivables, inventory, payables and other assets",
+        "title": "funding calculator",
+        "inputs": [
+          "days debtors",
+          "days inventory",
+          "days creditors",
+          "other asst values"
         ]
       },
       {
-        "inputs": [
-          "no inputs"
-        ],
-        "title": "reports",
-        "step": 7,
+        "desc": "creates downloadable reports for an income statement, balance sheet, cash flow and schedule of expenses",
         "outputs": [
           "income statement",
           "balance sheet",
@@ -383,7 +379,11 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "cashflow - monthly chart",
           "schedule of expenses"
         ],
-        "desc": "creates downloadable reports for an income statement, balance sheet, cash flow and schedule of expenses"
+        "step": 7,
+        "title": "reports",
+        "inputs": [
+          "no inputs"
+        ]
       }
     ],
     "whatYouGet": [
@@ -422,10 +422,10 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
+        "youtubeUrl": "https://youtu.be/MG1rOrFyz6M",
         "duration": "5:31",
-        "name": "Lesson 01: HOW TO USE BIZZCALC",
         "id": "cl-2-1",
-        "youtubeUrl": "https://youtu.be/MG1rOrFyz6M"
+        "name": "Lesson 01: HOW TO USE BIZZCALC"
       }
     ],
     "companionMaterialFilename": "Framework_Templates.zip",
@@ -482,63 +482,63 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "courseLessons": [
       {
         "youtubeUrl": "https://youtu.be/YG6tmrBWG5E",
-        "id": "crc-1",
         "duration": "2:58",
-        "name": "Lesson 01: INTRODUCTION"
+        "name": "Lesson 01: INTRODUCTION",
+        "id": "crc-1"
       },
       {
-        "id": "crc-2",
-        "name": "Lesson 02: PRODUCTION CALCULATOR",
         "duration": "6:30",
-        "youtubeUrl": "https://youtu.be/UxtwQBhP-WE"
+        "youtubeUrl": "https://youtu.be/UxtwQBhP-WE",
+        "name": "Lesson 02: PRODUCTION CALCULATOR",
+        "id": "crc-2"
       },
       {
         "youtubeUrl": "https://youtu.be/R8ucx0JnLYM",
+        "duration": "3:32",
         "id": "crc-3",
-        "name": "Lesson 03: EMPLOYEE CALCULATOR",
-        "duration": "3:32"
+        "name": "Lesson 03: EMPLOYEE CALCULATOR"
       },
       {
         "name": "Lesson 04: MATERIALS COSTING",
+        "youtubeUrl": "https://youtu.be/pf8sABLgYjc",
         "duration": "6:54",
-        "id": "crc-4",
-        "youtubeUrl": "https://youtu.be/pf8sABLgYjc"
+        "id": "crc-4"
       },
       {
-        "youtubeUrl": "https://youtu.be/jh1N0JjJ2G0",
-        "name": "Lesson 05: EXPENSE DYNAMICS",
         "duration": "5:21",
-        "id": "crc-5"
+        "youtubeUrl": "https://youtu.be/jh1N0JjJ2G0",
+        "id": "crc-5",
+        "name": "Lesson 05: EXPENSE DYNAMICS"
       },
       {
-        "id": "crc-6",
         "youtubeUrl": "https://youtu.be/LJdLgozkhNQ",
-        "name": "Lesson 06: FIXED ASSETS",
-        "duration": "2:44"
+        "id": "crc-6",
+        "duration": "2:44",
+        "name": "Lesson 06: FIXED ASSETS"
       },
       {
-        "id": "crc-7",
+        "name": "Lesson 07: EMPLOYMENT EXPENSES",
         "youtubeUrl": "https://youtu.be/EJLJqsw1FZQ",
-        "duration": "1:20",
-        "name": "Lesson 07: EMPLOYMENT EXPENSES"
+        "id": "crc-7",
+        "duration": "1:20"
       },
       {
-        "youtubeUrl": "https://youtu.be/2GvmMzT4lKM",
         "id": "lesson-1793180554556-2geo",
         "duration": "1:29",
-        "name": "Lesson 08: OPERATING EXPENSES"
+        "name": "Lesson 08: OPERATING EXPENSES",
+        "youtubeUrl": "https://youtu.be/2GvmMzT4lKM"
       },
       {
+        "youtubeUrl": "https://youtu.be/iG7CUhBa3o8",
         "name": "Lesson 09: REVENUE CALCULATOR",
         "id": "lesson-1793180555666-9o4n",
-        "youtubeUrl": "https://youtu.be/iG7CUhBa3o8",
         "duration": "4:42"
       },
       {
-        "id": "lesson-1793180556806-gy5r",
         "youtubeUrl": "https://youtu.be/uIZ-99CWFYU",
-        "name": "Lesson 10: CALCULATORS",
-        "duration": "12:47"
+        "duration": "12:47",
+        "id": "lesson-1793180556806-gy5r",
+        "name": "Lesson 10: CALCULATORS"
       }
     ],
     "companionMaterialFilename": "Cost_Recovery_Calculator_Workbook.zip",
@@ -578,10 +578,10 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "name": "Lesson 01: FOLLOW THE MONEY",
-        "id": "ftm-1",
         "youtubeUrl": "https://youtu.be/4L5XhVPZFsc",
-        "duration": "16:47"
+        "id": "ftm-1",
+        "duration": "16:47",
+        "name": "Lesson 01: FOLLOW THE MONEY"
       }
     ],
     "companionMaterialFilename": "Follow_The_Money_Workbook.zip",
@@ -623,8 +623,8 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "duration": "16:47",
         "id": "fr-1",
+        "duration": "16:47",
         "name": "Lesson 01: FINANCIAL REPORTS",
         "youtubeUrl": "https://youtu.be/4L5XhVPZFsc"
       }
@@ -673,45 +673,45 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "youtubeUrl": "https://youtu.be/a2DjjxI7puk",
-        "duration": "3:23",
         "id": "fsp-1",
-        "name": "Lesson 01: INTRODUCTION"
+        "duration": "3:23",
+        "name": "Lesson 01: INTRODUCTION",
+        "youtubeUrl": "https://youtu.be/a2DjjxI7puk"
       },
       {
-        "name": "Lesson 02: SCENARIO",
         "id": "lesson-1793184760523-nx4w",
         "duration": "7:12",
+        "name": "Lesson 02: SCENARIO",
         "youtubeUrl": "https://youtu.be/PaDEQocDW3M"
       },
       {
-        "youtubeUrl": "https://youtu.be/_cHu1JnVDNE",
         "name": "Lesson 03: FORECASTING",
+        "youtubeUrl": "https://youtu.be/_cHu1JnVDNE",
         "id": "lesson-1793184761317-1ggr",
         "duration": "7:51"
       },
       {
         "youtubeUrl": "https://youtu.be/cc2h9zu5Qik",
+        "name": "Lesson 04: CALCULATORS",
         "duration": "12:57",
-        "id": "lesson-1793184761917-yhnc",
-        "name": "Lesson 04: CALCULATORS"
+        "id": "lesson-1793184761917-yhnc"
       },
       {
-        "name": "Lesson 05: DOC",
-        "youtubeUrl": "https://youtu.be/yXdvOm6p0Hk",
         "duration": "1:47",
-        "id": "lesson-1793184762497-01yf"
+        "id": "lesson-1793184762497-01yf",
+        "youtubeUrl": "https://youtu.be/yXdvOm6p0Hk",
+        "name": "Lesson 05: DOC"
       },
       {
-        "name": "Lesson 06: MANAGENENT ACCOUNTS",
+        "id": "lesson-1793184763182-je6u",
         "youtubeUrl": "https://youtu.be/tH_dBZ8oFaE",
-        "duration": "1:42",
-        "id": "lesson-1793184763182-je6u"
+        "name": "Lesson 06: MANAGENENT ACCOUNTS",
+        "duration": "1:42"
       },
       {
         "youtubeUrl": "https://youtu.be/ZRLbNo84Odw",
-        "duration": "4:19",
         "id": "lesson-1793184763846-kwof",
+        "duration": "4:19",
         "name": "Lesson 07: BCG MODEL"
       }
     ],
@@ -761,49 +761,49 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "courseLessons": [
       {
         "name": "Lesson 01: INTRODUCTION",
-        "duration": "4:54",
         "id": "abp-1",
-        "youtubeUrl": "https://youtu.be/Ryoyo1W6P6s"
+        "youtubeUrl": "https://youtu.be/Ryoyo1W6P6s",
+        "duration": "4:54"
       },
       {
-        "youtubeUrl": "https://youtu.be/o43azAxA3ok",
-        "name": "Lesson 02: INNOVATION LABRATORY",
         "id": "lesson-1793185140382-crm0",
-        "duration": "3:09"
+        "duration": "3:09",
+        "youtubeUrl": "https://youtu.be/o43azAxA3ok",
+        "name": "Lesson 02: INNOVATION LABRATORY"
       },
       {
+        "id": "lesson-1793185141022-f89k",
         "name": "Lesson 03: PREPARATION CHECKLIST",
         "duration": "5:07",
-        "id": "lesson-1793185141022-f89k",
         "youtubeUrl": "https://youtu.be/HqQ3PSOm_wA"
       },
       {
-        "youtubeUrl": "https://youtu.be/v6S7G1IAAn0",
-        "id": "lesson-1793185141625-xd9g",
+        "name": "Lesson 04: PLANNING WORKSHOP",
         "duration": "9:24",
-        "name": "Lesson 04: PLANNING WORKSHOP"
+        "youtubeUrl": "https://youtu.be/v6S7G1IAAn0",
+        "id": "lesson-1793185141625-xd9g"
       },
       {
+        "youtubeUrl": "https://youtu.be/NcUv9k_Sfzc",
         "duration": "6:51",
-        "name": "Lesson 05: BUDGET",
         "id": "lesson-1793185142230-dz8u",
-        "youtubeUrl": "https://youtu.be/NcUv9k_Sfzc"
+        "name": "Lesson 05: BUDGET"
       },
       {
         "name": "Lesson 06: OPERATIONAL PLAN",
-        "id": "lesson-1793185142869-gemk",
         "youtubeUrl": "https://youtu.be/zrqNV4V9lTw",
-        "duration": "5:04"
+        "duration": "5:04",
+        "id": "lesson-1793185142869-gemk"
       },
       {
-        "id": "lesson-1793185143534-j2kp",
-        "name": "Lesson 07: FINANCIAL YEAREND",
+        "youtubeUrl": "https://youtu.be/IH3ZnMkn0sQ",
         "duration": "2:49",
-        "youtubeUrl": "https://youtu.be/IH3ZnMkn0sQ"
+        "id": "lesson-1793185143534-j2kp",
+        "name": "Lesson 07: FINANCIAL YEAREND"
       },
       {
-        "id": "lesson-1793185144592-eq4m",
         "name": "Lesson 08: REVIEW AND REACT",
+        "id": "lesson-1793185144592-eq4m",
         "duration": "9:45",
         "youtubeUrl": "https://youtu.be/nGjXbsH7BwE"
       }
@@ -851,22 +851,22 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "duration": "4:46",
-        "youtubeUrl": "https://youtu.be/M7njKIEELaA",
+        "id": "lesson-1793181449109-1",
         "name": "Lesson 01: INTRODUCTION",
-        "id": "lesson-1793181449109-1"
+        "duration": "4:46",
+        "youtubeUrl": "https://youtu.be/M7njKIEELaA"
       },
       {
-        "youtubeUrl": "https://youtu.be/Q8scvMewr9k",
-        "duration": "16:37",
         "id": "lesson-1793181539055-gmlk",
-        "name": "Lesson 02: OUR VALUES"
+        "name": "Lesson 02: OUR VALUES",
+        "duration": "16:37",
+        "youtubeUrl": "https://youtu.be/Q8scvMewr9k"
       },
       {
-        "youtubeUrl": "https://youtu.be/lrfZ9Er1iRs",
-        "id": "lesson-1793181540046-37tt",
         "name": "Lesson 03: HUMAN RESOURCE POLICY",
-        "duration": "8:22"
+        "id": "lesson-1793181540046-37tt",
+        "duration": "8:22",
+        "youtubeUrl": "https://youtu.be/lrfZ9Er1iRs"
       },
       {
         "name": "Lesson 04: THE JOB",
@@ -875,16 +875,16 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
         "youtubeUrl": "https://youtu.be/2mTlqkiyTF0"
       },
       {
-        "youtubeUrl": "https://youtu.be/iqBWHggcArk",
-        "name": "Lesson 05: TALENT DEVELOPMENT",
         "id": "lesson-1793181541999-4ylu",
+        "name": "Lesson 05: TALENT DEVELOPMENT",
+        "youtubeUrl": "https://youtu.be/iqBWHggcArk",
         "duration": "10:58"
       },
       {
-        "name": "Lesson 06: THE INTERVIEW",
         "youtubeUrl": "https://youtu.be/p7sER_g71Is",
         "id": "lesson-1793181543187-654g",
-        "duration": "8:46"
+        "duration": "8:46",
+        "name": "Lesson 06: THE INTERVIEW"
       }
     ],
     "companionMaterialFilename": "your first hire.zip",
@@ -986,7 +986,6 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "whatYouGet": [
       "Interactive financial model"
     ],
-    "challengeText": "Spreadsheets tell you what happened last year; simulations teach you why cash moves. Experiment hands-on with pricing, volume, debtor days, and debt leverage to see how every operational lever hit profit and cash flow in real time.",
     "engineSteps": [
       {
         "step": 1,
@@ -999,45 +998,45 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "tax rate assumption",
           "vat rate assumption"
         ],
-        "title": "business details and operating calander",
+        "desc": "business name and working days",
         "outputs": [
           "base adjustment data"
         ],
-        "desc": "business name and working days"
+        "title": "business details and operating calander"
       },
       {
+        "step": 2,
         "outputs": [
           "assumptions – adjustment slider",
           "results – revenue and gross profit",
           "charts – operational results"
         ],
-        "desc": "calculates revenue and gross profit forecasts",
-        "step": 2,
-        "title": "revenue calculator",
         "inputs": [
           "3 product simulators",
           "daily sales forecast",
           "gross profit margin"
-        ]
+        ],
+        "desc": "calculates revenue and gross profit forecasts",
+        "title": "revenue calculator"
       },
       {
-        "title": "employment",
-        "desc": "calculates employment expenses",
         "outputs": [
           "assumptions – adjustment slider",
           "results – employment expenses",
           "charts – employment dynamics"
         ],
         "step": 3,
+        "title": "employment",
         "inputs": [
           "job title and head count",
           "base monthly salary (cost to company)",
           "annual review month and review rate"
-        ]
+        ],
+        "desc": "calculates employment expenses"
       },
       {
-        "title": "operating expenses",
         "desc": "calculates operating expenses",
+        "title": "operating expenses",
         "outputs": [
           "assumptions – adjustment slider",
           "results – operating expenses",
@@ -1054,24 +1053,17 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "results – fixed assets",
           "charts – fixed assets dynamics"
         ],
-        "title": "fixed assets and capital depreciation",
-        "step": 5,
         "desc": "calculates fixed assets balance sheet value and depreciation expenses",
+        "title": "fixed assets and capital depreciation",
         "inputs": [
           "fixed asset description",
           "month purchased",
           "allocation to asset category"
-        ]
+        ],
+        "step": 5
       },
       {
         "step": 6,
-        "title": "funding calculator",
-        "outputs": [
-          "assmptions – adjustment slider",
-          "results – fixed assets",
-          "charts – funding dynamics",
-          "what if scenario"
-        ],
         "inputs": [
           "days debtors",
           "days inventory",
@@ -1082,11 +1074,16 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "term-loans",
           "dividend calculator"
         ],
-        "desc": "calculates balance sheet values for receivables, inventory, payables, other assets, share capital, equity loan, term-loan"
+        "desc": "calculates balance sheet values for receivables, inventory, payables, other assets, share capital, equity loan, term-loan",
+        "outputs": [
+          "assmptions – adjustment slider",
+          "results – fixed assets",
+          "charts – funding dynamics",
+          "what if scenario"
+        ],
+        "title": "funding calculator"
       },
       {
-        "inputs": [],
-        "title": "reports",
         "step": 7,
         "outputs": [
           "trading account",
@@ -1096,10 +1093,13 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "balance sheet",
           "cashflow"
         ],
-        "desc": "non-downloadable reports for trading account, trading distribution, breakeven, income statement, balance sheet and cash flow"
+        "desc": "non-downloadable reports for trading account, trading distribution, breakeven, income statement, balance sheet and cash flow",
+        "inputs": [],
+        "title": "reports"
       }
     ],
-    "targetProfile": "Pre-Seed to Series A Founders, Financial Directors, Advisory Teams"
+    "targetProfile": "Pre-Seed to Series A Founders, Financial Directors, Advisory Teams",
+    "challengeText": "Spreadsheets tell you what happened last year; simulations teach you why cash moves. Experiment hands-on with pricing, volume, debtor days, and debt leverage to see how every operational lever hit profit and cash flow in real time."
   },
   {
     "id": "bizzmodel",
@@ -1126,17 +1126,17 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "coursePromoVideoUrl": "",
     "syllabusLessonsCount": 0,
     "lessonTitles": [],
-    "modules": [
-      "5-year base rate adjustment engine",
-      "voice-activated monthly schedule controls",
-      "redacted foundational core for speed of learning",
-      "authentic financial reports suite",
-      "what if cash flow simulator",
-      "business plan"
-    ],
-    "assignedStep": "Stage 2 · Step 1",
+    "targetProfile": "pre-seed capital seekers, advisory teams",
+    "challengeText": "Banks and investors reject vague projections. Build a lender-ready 5-year 3-statement financial model (Income Statement, Balance Sheet & Cash Flow) paired with bizzplan's structured business plan checklist — without paying R25,000+ in consulting fees.",
+    "journeyMilestone": "Institutional Model Ready",
     "engineSteps": [
       {
+        "desc": "business name and working days",
+        "outputs": [
+          "base adjustment data"
+        ],
+        "step": 1,
+        "title": "business details and operating calander",
         "inputs": [
           "business name",
           "calendar start month",
@@ -1145,58 +1145,52 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "interest rate assumption",
           "tax rate assumption",
           "vat rate assumption"
-        ],
-        "desc": "business name and working days",
-        "step": 1,
-        "title": "business details and operating calander",
-        "outputs": [
-          "base adjustment data"
         ]
       },
       {
+        "step": 2,
+        "title": "revenue calculator",
         "outputs": [
           "assumptions – adjustment slider",
           "results – revenue and gross profit",
           "charts – operational results"
         ],
-        "step": 2,
+        "desc": "calculates revenue and gross profit with over 40 model-sets covering over 400 business types",
         "inputs": [
           "unlimited product simulators",
           "daily sales forecast",
           "and gross profit",
           "gross profit margin"
-        ],
-        "title": "revenue calculator",
-        "desc": "calculates revenue and gross profit with over 40 model-sets covering over 400 business types"
+        ]
       },
       {
+        "inputs": [
+          "job title and head count",
+          "base monthly salary (cost to company)",
+          "annual review month and review rate"
+        ],
+        "step": 3,
         "title": "employment",
-        "desc": "calculates employment expenses",
         "outputs": [
           "assumptions – adjustment slider",
           "results – employment expenses",
           "charts – employment dynamics"
         ],
-        "step": 3,
-        "inputs": [
-          "job title and head count",
-          "base monthly salary (cost to company)",
-          "annual review month and review rate"
-        ]
+        "desc": "calculates employment expenses"
       },
       {
-        "title": "operating expenses",
-        "outputs": [
-          "assumptions – adjustment slider",
-          "results – operating expenses",
-          "charts – operating expense dynamics"
-        ],
+        "step": 4,
         "inputs": [
           "monthly expense base from listed expenses",
           "annual review month and review rate"
         ],
         "desc": "calculates operating expenses",
-        "step": 4
+        "outputs": [
+          "assumptions – adjustment slider",
+          "results – operating expenses",
+          "charts – operating expense dynamics"
+        ],
+        "title": "operating expenses"
       },
       {
         "inputs": [
@@ -1205,21 +1199,22 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "allocation to asset category"
         ],
         "step": 5,
-        "desc": "calculates fixed assets balance sheet value and depreciation expenses",
         "title": "fixed assets and capital depreciation",
+        "desc": "calculates fixed assets balance sheet value and depreciation expenses",
         "outputs": [
           "results – fixed assets",
           "charts – fixed assets dynamics"
         ]
       },
       {
-        "step": 6,
+        "desc": "calculates balance sheet values for receivables, inventory, payables, other assets, share capital, equity loan, term-loan",
         "outputs": [
           "assumptions – adjustment slider",
           "results – fixed assets",
           "charts – funding dynamics",
           "what if scenario"
         ],
+        "step": 6,
         "title": "funding calculator",
         "inputs": [
           "days debtors",
@@ -1230,12 +1225,12 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "equity loans",
           "term-loans",
           "dividend calculator"
-        ],
-        "desc": "calculates balance sheet values for receivables, inventory, payables, other assets, share capital, equity loan, term-loan"
+        ]
       },
       {
+        "title": "reports",
         "inputs": [],
-        "step": 7,
+        "desc": "downloadable reports for trading account, trading distribution, breakeven, income statement, balance sheet, cash flow and business plan",
         "outputs": [
           "trading account",
           "trading account distribution",
@@ -1244,17 +1239,22 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "balance sheet",
           "cashflow"
         ],
-        "desc": "downloadable reports for trading account, trading distribution, breakeven, income statement, balance sheet, cash flow and business plan",
-        "title": "reports"
+        "step": 7
       }
+    ],
+    "modules": [
+      "5-year base rate adjustment engine",
+      "voice-activated monthly schedule controls",
+      "redacted foundational core for speed of learning",
+      "authentic financial reports suite",
+      "what if cash flow simulator",
+      "business plan"
     ],
     "whatYouGet": [
       "interactive financial model",
       "business plan"
     ],
-    "targetProfile": "pre-seed capital seekers, advisory teams",
-    "journeyMilestone": "Institutional Model Ready",
-    "challengeText": "Banks and investors reject vague projections. Build a lender-ready 5-year 3-statement financial model (Income Statement, Balance Sheet & Cash Flow) paired with bizzplan's structured business plan checklist — without paying R25,000+ in consulting fees."
+    "assignedStep": "Stage 2 · Step 1"
   },
   {
     "id": "bizzcalculators",
@@ -1295,14 +1295,11 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
       "working capital dynamics",
       "bill of materials (BOM)"
     ],
-    "challengeText": "Ingredient costs jump on Monday, leftovers pile up by Friday, and you still aren't sure if each burger, batch, or job actually made cash. bizzcalculators gives small business owners and food traders 12 instant financial calculators — led by a dynamic Bill of Materials (BOM) calculator — right on their phone.",
-    "whatYouGet": [
-      "Small business owners, informal & independent food traders, artisans, and founders who need fast daily pricing, BOM costing, and margin decisions."
-    ],
     "targetProfile": "Small business owners, informal & independent food traders, artisans, and founders who need fast daily pricing, BOM costing, and margin decisions.",
+    "challengeText": "Ingredient costs jump on Monday, leftovers pile up by Friday, and you still aren't sure if each burger, batch, or job actually made cash. bizzcalculators gives small business owners and food traders 12 instant financial calculators — led by a dynamic Bill of Materials (BOM) calculator — right on their phone.",
     "engineSteps": [
       {
-        "title": "Breakeven Point",
+        "step": 1,
         "inputs": [
           "Fixed cost of sales & overheads",
           "Unit selling price",
@@ -1313,63 +1310,63 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "Unit contribution & GP margin %",
           "Exact breakeven sales units"
         ],
-        "step": 1,
-        "desc": "Calculate the exact unit sales volume required to cover fixed expenses and variable unit costs."
+        "desc": "Calculate the exact unit sales volume required to cover fixed expenses and variable unit costs.",
+        "title": "Breakeven Point"
       },
       {
-        "inputs": [
-          "Purchase price, accessories, VAT & deposit",
-          "Asset lifespan (years) & residual value",
-          "Lease interest rate %, term & annual payments"
-        ],
-        "desc": "Compare buying an asset outright versus leasing across VAT, deposits, depreciation, and lifetime cashflow.",
         "outputs": [
           "Amount financed & lease base",
           "Monthly depreciation & lease cashflow",
           "Lifetime buy vs. lease cash outlay"
         ],
         "step": 2,
-        "title": "Buy vs Lease"
+        "inputs": [
+          "Purchase price, accessories, VAT & deposit",
+          "Asset lifespan (years) & residual value",
+          "Lease interest rate %, term & annual payments"
+        ],
+        "title": "Buy vs Lease",
+        "desc": "Compare buying an asset outright versus leasing across VAT, deposits, depreciation, and lifetime cashflow."
       },
       {
+        "step": 3,
         "inputs": [
           "Initial investment, recovery & scrap value",
           "Annual savings & evaluation horizon (up to 10 years)",
           "Discount rate %"
         ],
-        "step": 3,
         "outputs": [
           "Year-by-year cashflow schedule",
           "Discounted cash flow (NPV) & PV ratios",
           "Payback period (PB) & Savings Return Index (SRI)"
         ],
-        "desc": "Test project or capital investment viability using discounted cash flow (NPV), payback period, and SRI.",
-        "title": "Cost Benefit Analysis"
+        "title": "Cost Benefit Analysis",
+        "desc": "Test project or capital investment viability using discounted cash flow (NPV), payback period, and SRI."
       },
       {
+        "step": 4,
         "outputs": [
           "Monthly & annual depreciation charge",
           "Cumulative period depreciation",
           "Remaining balance sheet book value"
         ],
-        "step": 4,
         "title": "Depreciation",
+        "desc": "Calculate straight-line monthly, period, and annual asset depreciation and net balance sheet value.",
         "inputs": [
           "Asset purchase cost",
           "Annual depreciation rate % & depreciation months",
           "Evaluation period (months)"
-        ],
-        "desc": "Calculate straight-line monthly, period, and annual asset depreciation and net balance sheet value."
+        ]
       },
       {
+        "step": 5,
+        "title": "Funding Calculator",
+        "desc": "Optimize Net Operating Assets (NOA) funding across equity, non-interest-bearing debt, and target debt/equity ratios.",
         "outputs": [
           "Net Operating Assets (NOA) & current DE ratio",
           "Current vs. target asset funding mix %",
           "Revised balance sheet capital structure"
         ],
-        "desc": "Optimize Net Operating Assets (NOA) funding across equity, non-interest-bearing debt, and target debt/equity ratios.",
-        "step": 5,
-        "title": "Funding Calculator",
         "inputs": [
           "Total assets, NIBD & equity",
           "Target NIBD % of total assets",
@@ -1377,7 +1374,9 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
         ]
       },
       {
+        "step": 6,
         "desc": "Set an item selling price accurately by comparing Gross Profit Margin against a Markup factor (excl. & incl. VAT).",
+        "title": "Margin vs Markup",
         "inputs": [
           "Unit item cost (or import directly from BOM)",
           "Target margin / markup % factor",
@@ -1387,77 +1386,75 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "Selling price excl. & incl. VAT (Margin vs. Markup)",
           "Gross profit per unit & effective GP %",
           "Revenue factor multiplier"
-        ],
-        "title": "Margin vs Markup",
-        "step": 6
+        ]
       },
       {
+        "inputs": [
+          "Revenue & cost of sales",
+          "Variable expenses & fixed overheads"
+        ],
+        "step": 7,
+        "desc": "Calculate the additional sales revenue required to recover a new expense while protecting target profit margins.",
         "title": "Revenue Factor",
         "outputs": [
           "Gross profit, net margin & net operating profit",
           "Full margin % breakdown",
           "Revenue factor multiplier"
-        ],
-        "desc": "Calculate the additional sales revenue required to recover a new expense while protecting target profit margins.",
-        "step": 7,
-        "inputs": [
-          "Revenue & cost of sales",
-          "Variable expenses & fixed overheads"
         ]
       },
       {
-        "step": 8,
         "outputs": [
           "Current vs. required NOP & NOA",
           "Adjusted trading account & balance sheet",
           "Adjusted ROS, Asset Turn (AT) & ROA %"
         ],
-        "title": "ROA Dynamics",
-        "desc": "Model the profit, margin, and working capital adjustments required to achieve a target Return on Net Operating Assets.",
         "inputs": [
           "Trading account & balance sheet figures",
           "Target ROS % & target ROA %",
           "Percentage adjustments & target working capital days"
-        ]
+        ],
+        "step": 8,
+        "title": "ROA Dynamics",
+        "desc": "Model the profit, margin, and working capital adjustments required to achieve a target Return on Net Operating Assets."
       },
       {
+        "desc": "Optimize business efficiency by linking Return on Sales (ROS) and Asset Turn (AT) to Return on Net Operating Assets.",
         "outputs": [
           "Net Operating Profit (NOP) & Net Operating Assets (NOA)",
           "ROS %, Asset Turn & ROA %",
           "Verified ROS × AT = ROA check formula"
         ],
+        "title": "ROS x AT = ROA",
         "step": 9,
-        "desc": "Optimize business efficiency by linking Return on Sales (ROS) and Asset Turn (AT) to Return on Net Operating Assets.",
         "inputs": [
           "Annual revenue, cost of sales & operating expenses",
           "Fixed assets, inventory, receivables & payables"
-        ],
-        "title": "ROS x AT = ROA"
+        ]
       },
       {
         "title": "Term Loan",
-        "desc": "Calculate fixed-term loan repayments, total interest cost, and total value repaid over the life of a loan.",
-        "step": 10,
+        "inputs": [
+          "Loan advance amount",
+          "Annual interest rate %",
+          "Loan term (years) & annual payment frequency"
+        ],
         "outputs": [
           "Total number of payments",
           "Monthly / periodic repayment amount",
           "Total interest paid & total value repaid"
         ],
-        "inputs": [
-          "Loan advance amount",
-          "Annual interest rate %",
-          "Loan term (years) & annual payment frequency"
-        ]
+        "desc": "Calculate fixed-term loan repayments, total interest cost, and total value repaid over the life of a loan.",
+        "step": 10
       },
       {
-        "title": "Working Capital Dynamics",
-        "desc": "Measure the cash released or absorbed when adjusting inventory, receivables, and payables turnaround days.",
+        "step": 11,
         "outputs": [
           "Current calculated working capital days",
           "Adjusted working capital balances",
           "Net cash change in working capital"
         ],
-        "step": 11,
+        "desc": "Measure the cash released or absorbed when adjusting inventory, receivables, and payables turnaround days.",
+        "title": "Working Capital Dynamics",
         "inputs": [
           "Revenue, variable/fixed cost of sales & VAT %",
           "Current inventory, receivables & payables",
@@ -1465,142 +1462,145 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
         ]
       },
       {
-        "step": 12,
-        "title": "Bill of Materials (BOM)",
-        "outputs": [
-          "Packs/day & surplus tracking per ingredient",
-          "Materials, packaging & variable unit cost breakdown",
-          "One-tap transfer to Margin vs Markup & Breakeven Point"
-        ],
         "inputs": [
           "Product cost book (units/batch & batches/day)",
           "Ingredients: qty/batch, pack size, pack cost, consumables & waste toggle",
           "Multi-level packaging & per-batch / per-unit variable costs"
         ],
-        "desc": "Maintain multi-product recipes and unit costs right on your phone — covering ingredients, multi-level packaging, variable costs, and unit cost dynamics."
+        "step": 12,
+        "title": "Bill of Materials (BOM)",
+        "desc": "Maintain multi-product recipes and unit costs right on your phone — covering ingredients, multi-level packaging, variable costs, and unit cost dynamics.",
+        "outputs": [
+          "Packs/day & surplus tracking per ingredient",
+          "Materials, packaging & variable unit cost breakdown",
+          "One-tap transfer to Margin vs Markup & Breakeven Point"
+        ]
       }
+    ],
+    "whatYouGet": [
+      "Small business owners, informal & independent food traders, artisans, and founders who need fast daily pricing, BOM costing, and margin decisions."
     ]
   },
   {
-    "tokensAllocated": 68,
-    "vatZAR": 44.35,
-    "isPurchased": false,
-    "youtubeDemoUrl": "",
-    "billingModel": "monthly subscription",
-    "exclusivePriceZAR": 295.65,
-    "lessonTitles": [],
-    "name": "bizzmoney",
-    "courseLessons": [],
-    "assignedStep": "Operations · Core",
-    "description": "Automated SARS small-business corporation tax tracker with integrated invoice generator.",
-    "activeInSync": true,
-    "subtitle": "Zero-Overhead Bookkeeping & Tax Compliance Tracker",
-    "sku": "BA-006",
-    "syllabusLessonsCount": 0,
-    "type": "app",
+    "sellingPriceZAR": 340,
     "canonicalCoverUrl": "https://images.unsplash.com/photo-1556742049-0a67c5574f73?auto=format&fit=crop&w=1200&q=80",
+    "sku": "BA-006",
+    "seq": 6,
+    "tokensAllocated": 68,
+    "name": "bizzmoney",
+    "isPurchased": false,
     "purpose": "Eliminate accounting friction and maintain audit-proof books.",
+    "id": "bizzmoney",
+    "lessonTitles": [],
+    "billingModel": "monthly subscription",
+    "subtitle": "Zero-Overhead Bookkeeping & Tax Compliance Tracker",
+    "description": "Automated SARS small-business corporation tax tracker with integrated invoice generator.",
+    "youtubeDemoUrl": "",
+    "exclusivePriceZAR": 295.65,
+    "stage": "operations-sandbox",
+    "assignedStep": "Operations · Core",
+    "type": "app",
+    "vatZAR": 44.35,
+    "activeInSync": true,
     "modules": [
       "62-Account General Ledger",
       "Voice-to-Transaction Input",
       "VAT 15% Automated Accrual",
       "Google Sheets Bridge"
     ],
-    "id": "bizzmoney",
-    "seq": 6,
-    "sellingPriceZAR": 340,
-    "stage": "operations-sandbox",
-    "ticketPriceZAR": 408
+    "ticketPriceZAR": 408,
+    "courseLessons": [],
+    "syllabusLessonsCount": 0
   },
   {
-    "type": "app",
-    "sellingPriceZAR": 399,
-    "id": "bizzplan",
     "seq": 7,
-    "billingModel": "once-off",
-    "ticketPriceZAR": 478.8,
     "exclusivePriceZAR": 346.96,
-    "courseLessons": [],
-    "lessonTitles": [],
-    "sku": "BA-003",
     "activeInSync": true,
-    "stage": "operations-sandbox",
+    "sku": "BA-003",
+    "name": "bizzplan",
     "assignedStep": "Stage 2 · Step 7",
-    "subtitle": "Executive Memorandums & Investment Pitch Synthesis",
-    "vatZAR": 52.04,
-    "isPurchased": false,
+    "courseLessons": [],
+    "youtubeDemoUrl": "",
+    "stage": "operations-sandbox",
     "modules": [
       "Venture Memo Generator",
       "Cap Table Snapshot Exporter",
       "Risk Matrix Builder"
     ],
-    "purpose": "Bridge numbers with story so investors understand market moats and capital allocation efficiency.",
+    "syllabusLessonsCount": 0,
     "canonicalCoverUrl": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80",
-    "description": "Structured narrative builder translating quantitative models into institutional executive memorandums and pitch decks.",
-    "youtubeDemoUrl": "",
+    "sellingPriceZAR": 399,
+    "vatZAR": 52.04,
+    "id": "bizzplan",
+    "type": "app",
     "tokensAllocated": 80,
-    "name": "bizzplan",
-    "syllabusLessonsCount": 0
+    "description": "Structured narrative builder translating quantitative models into institutional executive memorandums and pitch decks.",
+    "subtitle": "Executive Memorandums & Investment Pitch Synthesis",
+    "purpose": "Bridge numbers with story so investors understand market moats and capital allocation efficiency.",
+    "ticketPriceZAR": 478.8,
+    "isPurchased": false,
+    "lessonTitles": [],
+    "billingModel": "once-off"
   },
   {
-    "description": "Dynamic cash runway calculator modeling debtor lag, inventory drag, and emergency burn trimmer scenarios.",
-    "id": "sustain-runway",
-    "billingModel": "once-off",
-    "name": "sustain-runway",
-    "courseLessons": [],
-    "lessonTitles": [],
-    "vatZAR": 48.91,
-    "youtubeDemoUrl": "",
-    "isPurchased": false,
-    "sellingPriceZAR": 375,
-    "assignedStep": "Stage 3 · Step 3",
-    "canonicalCoverUrl": "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1200&q=80",
-    "activeInSync": true,
-    "tokensAllocated": 75,
-    "exclusivePriceZAR": 326.09,
-    "seq": 8,
-    "ticketPriceZAR": 450,
     "purpose": "Safeguard startup solvency with weekly cash conversion analytics.",
+    "description": "Dynamic cash runway calculator modeling debtor lag, inventory drag, and emergency burn trimmer scenarios.",
+    "exclusivePriceZAR": 326.09,
+    "vatZAR": 48.91,
+    "type": "app",
+    "billingModel": "once-off",
+    "subtitle": "Cash Burn, Debtor Lag & Working Capital Recovery Simulator",
+    "lessonTitles": [],
+    "isPurchased": false,
+    "youtubeDemoUrl": "",
+    "sku": "BA-004",
+    "activeInSync": true,
     "modules": [
       "Working Capital Leakage Auditor",
       "Vendor Terms Re-negotiation Assistant",
       "Overhead Benchmarks"
     ],
-    "type": "app",
-    "sku": "BA-004",
+    "assignedStep": "Stage 3 · Step 3",
     "stage": "operations-sandbox",
+    "name": "sustain-runway",
+    "canonicalCoverUrl": "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1200&q=80",
+    "seq": 8,
     "syllabusLessonsCount": 0,
-    "subtitle": "Cash Burn, Debtor Lag & Working Capital Recovery Simulator"
+    "sellingPriceZAR": 375,
+    "courseLessons": [],
+    "ticketPriceZAR": 450,
+    "tokensAllocated": 75,
+    "id": "sustain-runway"
   },
   {
-    "vatZAR": 84.78,
-    "ticketPriceZAR": 780,
-    "tokensAllocated": 130,
-    "courseLessons": [],
-    "canonicalCoverUrl": "https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=1200&q=80",
-    "stage": "operations-sandbox",
-    "type": "app",
+    "lessonTitles": [],
     "billingModel": "once-off",
-    "isPurchased": false,
-    "id": "invest-vdr",
-    "name": "invest-ability vdr",
-    "syllabusLessonsCount": 0,
-    "sku": "BA-005",
-    "exclusivePriceZAR": 565.22,
+    "description": "Structured Virtual Data Room architecture with pre-indexed folder structures, cap table waterfalls, and audit checklist.",
+    "courseLessons": [],
     "sellingPriceZAR": 650,
-    "subtitle": "40-Point Due Diligence Virtual Data Room Matrix",
-    "youtubeDemoUrl": "",
+    "syllabusLessonsCount": 0,
     "purpose": "Pass venture audits with zero governance friction and complete transaction closing 3x faster.",
+    "ticketPriceZAR": 780,
+    "isPurchased": false,
+    "tokensAllocated": 130,
+    "name": "invest-ability vdr",
+    "exclusivePriceZAR": 565.22,
+    "sku": "BA-005",
+    "seq": 9,
+    "vatZAR": 84.78,
+    "subtitle": "40-Point Due Diligence Virtual Data Room Matrix",
+    "stage": "operations-sandbox",
     "modules": [
       "40-Point VDR Folder Hierarchy",
       "Cap Table Dilution Simulator",
       "Term Sheet Checklist"
     ],
-    "activeInSync": true,
+    "id": "invest-vdr",
     "assignedStep": "Stage 4 · Step 1",
-    "seq": 9,
-    "description": "Structured Virtual Data Room architecture with pre-indexed folder structures, cap table waterfalls, and audit checklist.",
-    "lessonTitles": []
+    "activeInSync": true,
+    "youtubeDemoUrl": "",
+    "canonicalCoverUrl": "https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=1200&q=80",
+    "type": "app"
   },
   {
     "id": "bizzoptimizer",
@@ -1635,34 +1635,34 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "assignedStep": "Operations · Margins"
   },
   {
+    "canonicalCoverUrl": "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80",
+    "assignedStep": "Growth · Step 1",
+    "sellingPriceZAR": 800,
     "courseLessons": [],
-    "purpose": "Test scaling assumptions before deploying expansion capital.",
+    "activeInSync": true,
     "modules": [
       "Channel Economics Modeler",
       "Pricing Elasticity Curve",
       "Competitive Moat Heatmap"
     ],
-    "seq": 11,
+    "tokensAllocated": 160,
+    "name": "growth-strategy",
+    "youtubeDemoUrl": "",
     "exclusivePriceZAR": 695.65,
+    "description": "High-level scenario forecasting engine for market sizing, customer acquisition expansion, and scaling bottlenecks.",
+    "id": "growth-strategy",
+    "syllabusLessonsCount": 0,
+    "purpose": "Test scaling assumptions before deploying expansion capital.",
     "vatZAR": 104.35,
+    "lessonTitles": [],
+    "subtitle": "Market Expansion & Unit Economics Stress Modeler",
+    "billingModel": "once-off",
+    "type": "app",
+    "isPurchased": false,
+    "seq": 11,
     "stage": "operations-sandbox",
     "sku": "BA-009",
-    "name": "growth-strategy",
-    "subtitle": "Market Expansion & Unit Economics Stress Modeler",
-    "youtubeDemoUrl": "",
-    "tokensAllocated": 160,
-    "assignedStep": "Growth · Step 1",
-    "syllabusLessonsCount": 0,
-    "description": "High-level scenario forecasting engine for market sizing, customer acquisition expansion, and scaling bottlenecks.",
-    "type": "app",
-    "activeInSync": true,
-    "ticketPriceZAR": 960,
-    "sellingPriceZAR": 800,
-    "lessonTitles": [],
-    "canonicalCoverUrl": "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80",
-    "billingModel": "once-off",
-    "isPurchased": false,
-    "id": "growth-strategy"
+    "ticketPriceZAR": 960
   },
   {
     "id": "budget",
@@ -1798,88 +1798,88 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "name": "Lesson 01: INTRODUCTION",
-        "youtubeUrl": "https://youtu.be/TbTj8_-Op7k",
         "id": "po-1",
-        "duration": "3:18"
+        "duration": "3:18",
+        "youtubeUrl": "https://youtu.be/TbTj8_-Op7k",
+        "name": "Lesson 01: INTRODUCTION"
       },
       {
-        "name": "Lesson 02: PRODUCTION CALCULATOR",
         "id": "po-2",
+        "youtubeUrl": "https://youtu.be/00H9IiTvIaQ",
         "duration": "6:30",
-        "youtubeUrl": "https://youtu.be/00H9IiTvIaQ"
+        "name": "Lesson 02: PRODUCTION CALCULATOR"
       },
       {
-        "name": "Lesson 03: EMPLOYEE CALCULATOR",
+        "youtubeUrl": "https://youtu.be/k2jLXZrNTJ4",
         "duration": "3:32",
         "id": "po-3",
-        "youtubeUrl": "https://youtu.be/k2jLXZrNTJ4"
+        "name": "Lesson 03: EMPLOYEE CALCULATOR"
       },
       {
-        "name": "Lesson 04: MATERIALS COSTING",
         "youtubeUrl": "https://youtu.be/P7lFx_epDMc",
         "id": "lesson-1793181908239-2dgk",
-        "duration": "6:54"
+        "duration": "6:54",
+        "name": "Lesson 04: MATERIALS COSTING"
       },
       {
-        "id": "lesson-1793181909031-r2qw",
         "name": "Lesson 05: EXPENSE DYNAMICS",
+        "duration": "5:21",
         "youtubeUrl": "https://youtu.be/bcN9Zgqy5IQ",
-        "duration": "5:21"
+        "id": "lesson-1793181909031-r2qw"
       },
       {
+        "duration": "2:44",
         "name": "Lesson 06: FIXED ASSETS",
         "id": "lesson-1793181909694-nqtz",
-        "youtubeUrl": "https://youtu.be/cjdxQCRztPM",
-        "duration": "2:44"
+        "youtubeUrl": "https://youtu.be/cjdxQCRztPM"
       },
       {
-        "id": "lesson-1793181910448-37ye",
-        "youtubeUrl": "https://youtu.be/UrGJBhdjp-Q",
         "duration": "1:20",
-        "name": "Lesson 07: EMPLOYMENT EXPENSES"
+        "name": "Lesson 07: EMPLOYMENT EXPENSES",
+        "youtubeUrl": "https://youtu.be/UrGJBhdjp-Q",
+        "id": "lesson-1793181910448-37ye"
       },
       {
         "duration": "1:29",
-        "youtubeUrl": "https://youtu.be/IoF2xtDLANk",
         "name": "Lesson 08: OPERATING EXPENSES",
-        "id": "lesson-1793181911094-rvyg"
+        "id": "lesson-1793181911094-rvyg",
+        "youtubeUrl": "https://youtu.be/IoF2xtDLANk"
       },
       {
-        "name": "Lesson 09: REVENUE CALCULATOR",
-        "id": "lesson-1793181911845-jlep",
+        "youtubeUrl": "https://youtu.be/XauZ0jyrHEY",
         "duration": "4:42",
-        "youtubeUrl": "https://youtu.be/XauZ0jyrHEY"
+        "id": "lesson-1793181911845-jlep",
+        "name": "Lesson 09: REVENUE CALCULATOR"
       },
       {
-        "id": "lesson-1793181912587-tvkg",
+        "name": "Lesson 10: CALCULATORS",
         "duration": "12:46",
-        "youtubeUrl": "https://youtu.be/o7Zq4rOzNeU",
-        "name": "Lesson 10: CALCULATORS"
+        "id": "lesson-1793181912587-tvkg",
+        "youtubeUrl": "https://youtu.be/o7Zq4rOzNeU"
       },
       {
+        "duration": "12:13",
         "id": "lesson-1793181913368-yolw",
         "youtubeUrl": "https://youtu.be/6PC1i1VvXJk",
-        "duration": "12:13",
         "name": "Lesson 11: REPORTS"
       },
       {
-        "id": "lesson-1793181914165-qhjm",
-        "youtubeUrl": "https://youtu.be/tTvj-IeN7-o",
+        "name": "Lesson 12: BACKSOLVE STRUCTURE",
         "duration": "1:42",
-        "name": "Lesson 12: BACKSOLVE STRUCTURE"
+        "id": "lesson-1793181914165-qhjm",
+        "youtubeUrl": "https://youtu.be/tTvj-IeN7-o"
       },
       {
+        "duration": "5:41",
         "id": "lesson-1793181915023-8u7y",
         "youtubeUrl": "https://youtu.be/57xL2ILxyk4",
-        "name": "Lesson 13: TARGET OPTIMIZATION",
-        "duration": "5:41"
+        "name": "Lesson 13: TARGET OPTIMIZATION"
       },
       {
-        "id": "lesson-1793181915953-cbee",
-        "youtubeUrl": "https://youtu.be/57xL2ILxyk4",
         "name": "Lesson 14: TARGET SETTING",
-        "duration": "3:48"
+        "duration": "3:48",
+        "id": "lesson-1793181915953-cbee",
+        "youtubeUrl": "https://youtu.be/57xL2ILxyk4"
       },
       {
         "name": "Lesson 15: WORKING CAPITAL MANAGEMENT",
@@ -1888,15 +1888,15 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
         "youtubeUrl": "https://youtu.be/mABCvgQB1-E"
       },
       {
-        "name": "Lesson 16: FUNDING CALCULATOR",
-        "duration": "3:25",
+        "id": "lesson-1793181918010-2k46",
         "youtubeUrl": "https://youtu.be/OFvzXblBRs8",
-        "id": "lesson-1793181918010-2k46"
+        "name": "Lesson 16: FUNDING CALCULATOR",
+        "duration": "3:25"
       },
       {
-        "name": "Lesson 17: NO QUICK FIX",
-        "duration": "8:45",
         "id": "lesson-1793181918988-w3to",
+        "duration": "8:45",
+        "name": "Lesson 17: NO QUICK FIX",
         "youtubeUrl": "https://youtu.be/GL_Wcgcg9jA"
       }
     ],
@@ -1919,204 +1919,204 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
 // =============================================================================
 export const INITIAL_CMS_VIDEOS: CmsVideo[] = [
   {
+    "author": "Rich Mulholland",
+    "id": "vid-1793102512275",
     "isMustWatch": true,
     "duration": "5:32",
-    "id": "vid-1793102512275",
-    "author": "Rich Mulholland",
-    "youtubeUrl": "https://youtu.be/P3S4s5fJ70s",
     "linked": true,
-    "category": "masterclass",
-    "title": "how to write the perfect elevator pitch"
+    "youtubeUrl": "https://youtu.be/P3S4s5fJ70s",
+    "title": "how to write the perfect elevator pitch",
+    "category": "masterclass"
   },
   {
+    "title": "changing world order",
+    "linked": true,
     "isMustWatch": true,
-    "category": "masterclass",
+    "duration": "42:28",
     "author": "Ray Dalio",
     "id": "vid-1793102484225",
-    "title": "changing world order",
     "youtubeUrl": "https://youtu.be/Pc66lnxaixs",
-    "linked": true,
-    "duration": "42:28"
+    "category": "masterclass"
   },
   {
-    "duration": "16:02",
-    "linked": true,
-    "youtubeUrl": "https://youtu.be/9M_uxnkMtE8",
+    "category": "masterclass",
     "isMustWatch": false,
+    "youtubeUrl": "https://youtu.be/9M_uxnkMtE8",
     "title": "warren buffett's value investing formula",
-    "author": "Benjamin Graham",
-    "category": "masterclass",
-    "id": "vid-1793102460048"
+    "id": "vid-1793102460048",
+    "linked": true,
+    "duration": "16:02",
+    "author": "Benjamin Graham"
   },
   {
-    "linked": true,
-    "isMustWatch": true,
-    "duration": "30:52",
-    "id": "vid-1793102433404",
-    "category": "masterclass",
     "youtubeUrl": "https://youtu.be/cU1Lg52VeFI",
     "author": "Ray Dalio",
-    "title": "how the economic machine works"
+    "linked": true,
+    "duration": "30:52",
+    "title": "how the economic machine works",
+    "category": "masterclass",
+    "id": "vid-1793102433404",
+    "isMustWatch": true
   },
   {
-    "isMustWatch": false,
+    "category": "masterclass",
     "youtubeUrl": "https://youtu.be/c7sWFPRRXcM",
-    "linked": true,
-    "category": "masterclass",
     "id": "vid-1793102402911",
-    "duration": "4:41",
+    "title": "breaking business bottlenecks – theory of constraints",
+    "isMustWatch": false,
     "author": "avimarketing",
-    "title": "breaking business bottlenecks – theory of constraints"
+    "linked": true,
+    "duration": "4:41"
   },
   {
-    "title": "what the future holds",
     "isMustWatch": false,
-    "id": "vid-1793102375746",
-    "linked": true,
     "duration": "30:53",
-    "author": "Clem Sunter",
+    "id": "vid-1793102375746",
+    "title": "what the future holds",
     "category": "masterclass",
-    "youtubeUrl": "https://youtu.be/6C15PryTfio"
+    "youtubeUrl": "https://youtu.be/6C15PryTfio",
+    "linked": true,
+    "author": "Clem Sunter"
   },
   {
-    "isMustWatch": true,
-    "category": "masterclass",
-    "linked": true,
-    "title": "what is product market fit",
     "id": "vid-1793102352705",
+    "youtubeUrl": "https://youtu.be/0IuXz1uAIJI",
     "duration": "3:28",
+    "title": "what is product market fit",
     "author": "Marketing Business Network",
-    "youtubeUrl": "https://youtu.be/0IuXz1uAIJI"
+    "linked": true,
+    "category": "masterclass",
+    "isMustWatch": true
   },
   {
-    "id": "vid-1793102328476",
-    "author": "Elon Musk",
-    "youtubeUrl": "https://youtu.be/TSoaIlbDVLU",
-    "category": "masterclass",
+    "isMustWatch": false,
     "duration": "4:36",
-    "isMustWatch": false,
+    "youtubeUrl": "https://youtu.be/TSoaIlbDVLU",
+    "author": "Elon Musk",
+    "id": "vid-1793102328476",
+    "title": "how to create a company",
     "linked": true,
-    "title": "how to create a company"
-  },
-  {
-    "author": "Ian Bremmer",
-    "duration": "15:00",
-    "category": "masterclass",
-    "youtubeUrl": "https://youtu.be/5kbdL0ACbBQ",
-    "linked": true,
-    "title": "the next global superpower is not who you think",
-    "isMustWatch": false,
-    "id": "vid-1793102258740"
-  },
-  {
-    "duration": "2:47",
-    "isMustWatch": false,
-    "id": "vid-1793102233913",
-    "youtubeUrl": "https://youtu.be/Ta6PYt80HKw",
-    "linked": true,
-    "title": "kindness",
-    "author": "unknown",
     "category": "masterclass"
   },
   {
+    "youtubeUrl": "https://youtu.be/5kbdL0ACbBQ",
+    "duration": "15:00",
+    "isMustWatch": false,
+    "id": "vid-1793102258740",
+    "author": "Ian Bremmer",
+    "title": "the next global superpower is not who you think",
+    "category": "masterclass",
+    "linked": true
+  },
+  {
     "category": "masterclass",
     "isMustWatch": false,
+    "linked": true,
+    "author": "unknown",
+    "title": "kindness",
+    "youtubeUrl": "https://youtu.be/Ta6PYt80HKw",
+    "duration": "2:47",
+    "id": "vid-1793102233913"
+  },
+  {
     "linked": true,
     "id": "vid-1793102204748",
-    "title": "branding & marketing In the age of AI",
-    "author": "Seth Godin",
     "duration": "41:00",
-    "youtubeUrl": "https://youtu.be/HNfTboNtQIg"
-  },
-  {
-    "youtubeUrl": "https://youtu.be/JS79sfYgfdo",
-    "linked": true,
-    "title": "a plan is not a strategy",
-    "duration": "9:31",
-    "id": "vid-1793102172365",
-    "author": "Harvard Business Review",
-    "isMustWatch": true,
+    "title": "branding & marketing In the age of AI",
+    "youtubeUrl": "https://youtu.be/HNfTboNtQIg",
+    "author": "Seth Godin",
+    "isMustWatch": false,
     "category": "masterclass"
   },
   {
+    "author": "Harvard Business Review",
+    "category": "masterclass",
+    "linked": true,
+    "isMustWatch": true,
+    "youtubeUrl": "https://youtu.be/JS79sfYgfdo",
+    "duration": "9:31",
+    "id": "vid-1793102172365",
+    "title": "a plan is not a strategy"
+  },
+  {
+    "duration": "2:28",
+    "youtubeUrl": "https://youtu.be/L0neEsxf4No",
+    "linked": true,
     "id": "vid-1793102142382",
     "author": "eisenhower.me",
     "title": "the eisenhower matrix",
     "isMustWatch": false,
-    "category": "masterclass",
-    "duration": "2:28",
-    "linked": true,
-    "youtubeUrl": "https://youtu.be/L0neEsxf4No"
+    "category": "masterclass"
   },
   {
-    "category": "masterclass",
-    "isMustWatch": false,
-    "author": "Improvement Pill",
-    "id": "vid-1793102108978",
+    "youtubeUrl": "https://youtu.be/oJ9a4uzm3cE",
     "linked": true,
-    "title": "how kindergartnerd outperformed the ceos",
+    "author": "Improvement Pill",
     "duration": "3:59",
-    "youtubeUrl": "https://youtu.be/oJ9a4uzm3cE"
+    "isMustWatch": false,
+    "title": "how kindergartnerd outperformed the ceos",
+    "id": "vid-1793102108978",
+    "category": "masterclass"
   },
   {
     "category": "pitching",
-    "youtubeUrl": "https://www.youtube.com/watch?v=vUT8lZLZpKg",
-    "isMustWatch": true,
-    "author": "Rich Mulholland",
-    "id": "vid-1",
     "title": "How to write a perfect elevator pitch",
+    "isMustWatch": true,
+    "id": "vid-1",
     "linked": true,
-    "duration": "5:32"
+    "duration": "5:32",
+    "author": "Rich Mulholland",
+    "youtubeUrl": "https://www.youtube.com/watch?v=vUT8lZLZpKg"
   },
   {
-    "duration": "8:45",
-    "linked": true,
-    "youtubeUrl": "https://www.youtube.com/watch?v=9dwqCG-vnVA",
     "title": "Unit economics and contribution margin in venture startups",
-    "isMustWatch": true,
     "id": "vid-2",
-    "author": "Elena Vance",
-    "category": "finance"
-  },
-  {
-    "id": "vid-3",
+    "duration": "8:45",
+    "youtubeUrl": "https://www.youtube.com/watch?v=9dwqCG-vnVA",
     "linked": true,
-    "category": "investing",
-    "youtubeUrl": "https://www.youtube.com/watch?v=5L0wwsNFads",
-    "isMustWatch": false,
-    "duration": "16:02",
-    "author": "Benjamin Graham",
-    "title": "Warren Buffett's value investing formula"
-  },
-  {
-    "duration": "11:20",
-    "author": "Quentin McCullough",
-    "id": "vid-4",
-    "youtubeUrl": "https://www.youtube.com/watch?v=xbasHzq2fL0",
-    "linked": true,
-    "category": "operations",
-    "title": "Understanding working capital and debtor lag",
-    "isMustWatch": true
-  },
-  {
-    "youtubeUrl": "https://www.youtube.com/watch?v=YiUirHhqBoc",
+    "category": "finance",
     "isMustWatch": true,
-    "author": "GIM Coach",
-    "duration": "14:15",
-    "category": "capital",
-    "title": "Cap table waterfalls and venture dilution scenarios",
-    "id": "vid-5",
+    "author": "Elena Vance"
+  },
+  {
+    "category": "investing",
+    "title": "Warren Buffett's value investing formula",
+    "youtubeUrl": "https://www.youtube.com/watch?v=5L0wwsNFads",
+    "author": "Benjamin Graham",
+    "duration": "16:02",
+    "linked": true,
+    "id": "vid-3",
+    "isMustWatch": false
+  },
+  {
+    "id": "vid-4",
+    "category": "operations",
+    "youtubeUrl": "https://www.youtube.com/watch?v=xbasHzq2fL0",
+    "isMustWatch": true,
+    "author": "Quentin McCullough",
+    "duration": "11:20",
+    "title": "Understanding working capital and debtor lag",
     "linked": true
   },
   {
-    "author": "Bizzbean Team",
+    "title": "Cap table waterfalls and venture dilution scenarios",
+    "isMustWatch": true,
+    "youtubeUrl": "https://www.youtube.com/watch?v=YiUirHhqBoc",
+    "duration": "14:15",
+    "linked": true,
+    "category": "capital",
+    "id": "vid-5",
+    "author": "GIM Coach"
+  },
+  {
+    "duration": "7:50",
     "title": "The illuminated sandbox: Why simulation prevents enterprise failure",
-    "category": "sandbox",
     "id": "vid-6",
     "isMustWatch": false,
-    "duration": "7:50",
     "linked": true,
-    "youtubeUrl": "https://www.youtube.com/watch?v=3wyZYsk8OTY"
+    "youtubeUrl": "https://www.youtube.com/watch?v=3wyZYsk8OTY",
+    "category": "sandbox",
+    "author": "Bizzbean Team"
   }
 ];
 
@@ -2586,23 +2586,23 @@ export const INITIAL_CMS_TRANSACTIONS: CmsTransactionRecord[] = [
 
 export const INITIAL_V1_TRANSACTIONS: TransactionRecord[] = [
   {
-    "customerEmail": "qgmccullough@gmail.com",
-    "sku": "OPERATIONS",
-    "createdAt": "2026-11-17T15:40:51.618Z",
     "country": "South Africa",
-    "invoiceValue": 340,
-    "associate": "Direct Online (Sandbox Grant)",
-    "unitPrice": 295.65,
-    "productType": "app",
-    "productName": "bizzmoney",
-    "vatRate": 0.15,
-    "transactionDate": "2026-11-17",
-    "vatAmount": 44.35,
-    "quantity": 1,
-    "invoiceNumber": "INV-2026-0001",
     "lineValue": 295.65,
+    "vatAmount": 44.35,
+    "vatRate": 0.15,
+    "quantity": 1,
+    "associate": "Direct Online (Sandbox Grant)",
+    "customerEmail": "qgmccullough@gmail.com",
+    "createdAt": "2026-11-17T15:40:51.618Z",
+    "transactionDate": "2026-11-17",
+    "productType": "app",
+    "customer": "Quentin McCullough",
     "paymentRef": "GRANT_bizzmoney_1794930051618",
-    "customer": "Quentin McCullough"
+    "sku": "OPERATIONS",
+    "unitPrice": 295.65,
+    "invoiceValue": 340,
+    "invoiceNumber": "INV-2026-0001",
+    "productName": "bizzmoney"
   }
 ];
 
