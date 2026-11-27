@@ -1,6 +1,6 @@
 // =============================================================================
 // BIZZBEAN CMS MASTER REPOSITORY DATA (AUTO-GENERATED VIA CMS CONSOLE EXPORT)
-// Generated at: 2026-11-27T10:16:05.927Z
+// Generated at: 2026-11-27T10:28:15.139Z
 //
 // INSTRUCTIONS FOR GITHUB DEPLOYMENT:
 // 1. Commit/upload this file directly to: src/data/cmsConsoleData.ts
@@ -11,7 +11,7 @@
 
 import { TransactionRecord, ClientProfile, ClientNotification } from '../types';
 
-export const CMS_BUNDLE_GENERATED_AT = '2026-11-27T10:16:05.927Z';
+export const CMS_BUNDLE_GENERATED_AT = '2026-11-27T10:28:15.139Z';
 
 export interface CmsCourseLesson {
   id: string;
@@ -229,8 +229,8 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "courseLessons": [
       {
         "id": "cl-1-1",
-        "youtubeUrl": "https://youtu.be/eJ_8N_NfGBI",
         "duration": "4:57",
+        "youtubeUrl": "https://youtu.be/eJ_8N_NfGBI",
         "name": "Lesson 01: LEARN HOW TO EARN ACCESS TO CAPITAL"
       }
     ],
@@ -286,57 +286,57 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "challengeText": "Most startup ideas fail on unit economics, not passion. Before signing a lease or buying stock, test your selling price, fixed overheads, staffing cost, and monthly break-even volume across 4 risk scenarios in under 15 minutes.",
     "engineSteps": [
       {
-        "step": 1,
+        "outputs": [
+          "calculate the number of working days"
+        ],
+        "desc": "business name, scenario selection, working days",
+        "title": "business details & scenario selection",
         "inputs": [
           "business name",
           "calendar start month",
           "working days allocation (Mon-Sun)",
           "public holiday deduction flag"
         ],
-        "desc": "business name, scenario selection, working days",
-        "outputs": [
-          "calculate the number of working days"
-        ],
-        "title": "business details & scenario selection"
+        "step": 1
       },
       {
+        "outputs": [
+          "annual revenue",
+          "annual gross profit"
+        ],
         "step": 2,
         "inputs": [
           "daily sales forecast",
           "gross profit margin",
           "monthly growth in daily sales"
         ],
-        "desc": "calculates revenue and gross profit forecasts",
         "title": "Revenue Calculator",
-        "outputs": [
-          "annual revenue",
-          "annual gross profit"
-        ]
+        "desc": "calculates revenue and gross profit forecasts"
       },
       {
-        "step": 3,
+        "title": "employment",
         "outputs": [
           "annual employment expense"
         ],
-        "desc": "calculates employment expenses",
+        "step": 3,
         "inputs": [
           "job title and head count",
           "base monthly salary (cost to company)",
           "annual review month and review rate"
         ],
-        "title": "employment"
+        "desc": "calculates employment expenses"
       },
       {
-        "step": 4,
         "outputs": [
           "annual operating expenses"
         ],
-        "title": "operating expenses",
         "desc": "calculates operating expenses",
+        "step": 4,
         "inputs": [
           "monthly expense base from listed expenses",
           "annual review month and review rate"
-        ]
+        ],
+        "title": "operating expenses"
       },
       {
         "desc": "calculates fixed assets balance sheet value and depreciation expenses",
@@ -353,24 +353,29 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
         "title": "fixed assets and capital depreciation"
       },
       {
+        "desc": "calculates balance sheet values for receivables, inventory, payables and other assets",
         "outputs": [
           "year end debtors value",
           "year end inventory value",
           "year end crditors value",
           "other assets value"
         ],
-        "step": 6,
-        "desc": "calculates balance sheet values for receivables, inventory, payables and other assets",
-        "title": "funding calculator",
         "inputs": [
           "days debtors",
           "days inventory",
           "days creditors",
           "other asst values"
-        ]
+        ],
+        "title": "funding calculator",
+        "step": 6
       },
       {
         "desc": "creates downloadable reports for an income statement, balance sheet, cash flow and schedule of expenses",
+        "title": "reports",
+        "step": 7,
+        "inputs": [
+          "no inputs"
+        ],
         "outputs": [
           "income statement",
           "balance sheet",
@@ -378,11 +383,6 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "cashflow - annual",
           "cashflow - monthly chart",
           "schedule of expenses"
-        ],
-        "step": 7,
-        "title": "reports",
-        "inputs": [
-          "no inputs"
         ]
       }
     ],
@@ -422,10 +422,10 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "youtubeUrl": "https://youtu.be/MG1rOrFyz6M",
         "duration": "5:31",
-        "id": "cl-2-1",
-        "name": "Lesson 01: HOW TO USE BIZZCALC"
+        "youtubeUrl": "https://youtu.be/MG1rOrFyz6M",
+        "name": "Lesson 01: HOW TO USE BIZZCALC",
+        "id": "cl-2-1"
       }
     ],
     "companionMaterialFilename": "Framework_Templates.zip",
@@ -483,62 +483,62 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
       {
         "youtubeUrl": "https://youtu.be/YG6tmrBWG5E",
         "duration": "2:58",
-        "name": "Lesson 01: INTRODUCTION",
-        "id": "crc-1"
+        "id": "crc-1",
+        "name": "Lesson 01: INTRODUCTION"
       },
       {
+        "id": "crc-2",
         "duration": "6:30",
-        "youtubeUrl": "https://youtu.be/UxtwQBhP-WE",
         "name": "Lesson 02: PRODUCTION CALCULATOR",
-        "id": "crc-2"
+        "youtubeUrl": "https://youtu.be/UxtwQBhP-WE"
       },
       {
-        "youtubeUrl": "https://youtu.be/R8ucx0JnLYM",
-        "duration": "3:32",
+        "name": "Lesson 03: EMPLOYEE CALCULATOR",
         "id": "crc-3",
-        "name": "Lesson 03: EMPLOYEE CALCULATOR"
+        "youtubeUrl": "https://youtu.be/R8ucx0JnLYM",
+        "duration": "3:32"
       },
       {
-        "name": "Lesson 04: MATERIALS COSTING",
-        "youtubeUrl": "https://youtu.be/pf8sABLgYjc",
         "duration": "6:54",
-        "id": "crc-4"
+        "youtubeUrl": "https://youtu.be/pf8sABLgYjc",
+        "id": "crc-4",
+        "name": "Lesson 04: MATERIALS COSTING"
       },
       {
+        "id": "crc-5",
         "duration": "5:21",
         "youtubeUrl": "https://youtu.be/jh1N0JjJ2G0",
-        "id": "crc-5",
         "name": "Lesson 05: EXPENSE DYNAMICS"
       },
       {
-        "youtubeUrl": "https://youtu.be/LJdLgozkhNQ",
+        "name": "Lesson 06: FIXED ASSETS",
         "id": "crc-6",
         "duration": "2:44",
-        "name": "Lesson 06: FIXED ASSETS"
+        "youtubeUrl": "https://youtu.be/LJdLgozkhNQ"
       },
       {
-        "name": "Lesson 07: EMPLOYMENT EXPENSES",
         "youtubeUrl": "https://youtu.be/EJLJqsw1FZQ",
-        "id": "crc-7",
-        "duration": "1:20"
+        "name": "Lesson 07: EMPLOYMENT EXPENSES",
+        "duration": "1:20",
+        "id": "crc-7"
       },
       {
+        "youtubeUrl": "https://youtu.be/2GvmMzT4lKM",
         "id": "lesson-1793180554556-2geo",
-        "duration": "1:29",
         "name": "Lesson 08: OPERATING EXPENSES",
-        "youtubeUrl": "https://youtu.be/2GvmMzT4lKM"
+        "duration": "1:29"
       },
       {
-        "youtubeUrl": "https://youtu.be/iG7CUhBa3o8",
-        "name": "Lesson 09: REVENUE CALCULATOR",
+        "duration": "4:42",
         "id": "lesson-1793180555666-9o4n",
-        "duration": "4:42"
+        "name": "Lesson 09: REVENUE CALCULATOR",
+        "youtubeUrl": "https://youtu.be/iG7CUhBa3o8"
       },
       {
-        "youtubeUrl": "https://youtu.be/uIZ-99CWFYU",
-        "duration": "12:47",
         "id": "lesson-1793180556806-gy5r",
-        "name": "Lesson 10: CALCULATORS"
+        "duration": "12:47",
+        "name": "Lesson 10: CALCULATORS",
+        "youtubeUrl": "https://youtu.be/uIZ-99CWFYU"
       }
     ],
     "companionMaterialFilename": "Cost_Recovery_Calculator_Workbook.zip",
@@ -580,8 +580,8 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
       {
         "youtubeUrl": "https://youtu.be/4L5XhVPZFsc",
         "id": "ftm-1",
-        "duration": "16:47",
-        "name": "Lesson 01: FOLLOW THE MONEY"
+        "name": "Lesson 01: FOLLOW THE MONEY",
+        "duration": "16:47"
       }
     ],
     "companionMaterialFilename": "Follow_The_Money_Workbook.zip",
@@ -623,10 +623,10 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
+        "youtubeUrl": "https://youtu.be/4L5XhVPZFsc",
         "id": "fr-1",
         "duration": "16:47",
-        "name": "Lesson 01: FINANCIAL REPORTS",
-        "youtubeUrl": "https://youtu.be/4L5XhVPZFsc"
+        "name": "Lesson 01: FINANCIAL REPORTS"
       }
     ],
     "companionMaterialFilename": "Financial_Reports_Model.zip",
@@ -673,46 +673,46 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "id": "fsp-1",
-        "duration": "3:23",
         "name": "Lesson 01: INTRODUCTION",
-        "youtubeUrl": "https://youtu.be/a2DjjxI7puk"
+        "id": "fsp-1",
+        "youtubeUrl": "https://youtu.be/a2DjjxI7puk",
+        "duration": "3:23"
       },
       {
-        "id": "lesson-1793184760523-nx4w",
+        "youtubeUrl": "https://youtu.be/PaDEQocDW3M",
         "duration": "7:12",
         "name": "Lesson 02: SCENARIO",
-        "youtubeUrl": "https://youtu.be/PaDEQocDW3M"
+        "id": "lesson-1793184760523-nx4w"
       },
       {
-        "name": "Lesson 03: FORECASTING",
-        "youtubeUrl": "https://youtu.be/_cHu1JnVDNE",
         "id": "lesson-1793184761317-1ggr",
-        "duration": "7:51"
+        "duration": "7:51",
+        "youtubeUrl": "https://youtu.be/_cHu1JnVDNE",
+        "name": "Lesson 03: FORECASTING"
       },
       {
+        "id": "lesson-1793184761917-yhnc",
         "youtubeUrl": "https://youtu.be/cc2h9zu5Qik",
         "name": "Lesson 04: CALCULATORS",
-        "duration": "12:57",
-        "id": "lesson-1793184761917-yhnc"
+        "duration": "12:57"
       },
       {
-        "duration": "1:47",
-        "id": "lesson-1793184762497-01yf",
         "youtubeUrl": "https://youtu.be/yXdvOm6p0Hk",
-        "name": "Lesson 05: DOC"
+        "name": "Lesson 05: DOC",
+        "id": "lesson-1793184762497-01yf",
+        "duration": "1:47"
       },
       {
-        "id": "lesson-1793184763182-je6u",
-        "youtubeUrl": "https://youtu.be/tH_dBZ8oFaE",
         "name": "Lesson 06: MANAGENENT ACCOUNTS",
-        "duration": "1:42"
+        "duration": "1:42",
+        "youtubeUrl": "https://youtu.be/tH_dBZ8oFaE",
+        "id": "lesson-1793184763182-je6u"
       },
       {
+        "name": "Lesson 07: BCG MODEL",
         "youtubeUrl": "https://youtu.be/ZRLbNo84Odw",
         "id": "lesson-1793184763846-kwof",
-        "duration": "4:19",
-        "name": "Lesson 07: BCG MODEL"
+        "duration": "4:19"
       }
     ],
     "companionMaterialFilename": "Financial_Scenario_Modeler.zip",
@@ -760,40 +760,40 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "name": "Lesson 01: INTRODUCTION",
         "id": "abp-1",
-        "youtubeUrl": "https://youtu.be/Ryoyo1W6P6s",
-        "duration": "4:54"
+        "name": "Lesson 01: INTRODUCTION",
+        "duration": "4:54",
+        "youtubeUrl": "https://youtu.be/Ryoyo1W6P6s"
       },
       {
+        "name": "Lesson 02: INNOVATION LABRATORY",
         "id": "lesson-1793185140382-crm0",
         "duration": "3:09",
-        "youtubeUrl": "https://youtu.be/o43azAxA3ok",
-        "name": "Lesson 02: INNOVATION LABRATORY"
+        "youtubeUrl": "https://youtu.be/o43azAxA3ok"
       },
       {
-        "id": "lesson-1793185141022-f89k",
-        "name": "Lesson 03: PREPARATION CHECKLIST",
         "duration": "5:07",
+        "name": "Lesson 03: PREPARATION CHECKLIST",
+        "id": "lesson-1793185141022-f89k",
         "youtubeUrl": "https://youtu.be/HqQ3PSOm_wA"
       },
       {
-        "name": "Lesson 04: PLANNING WORKSHOP",
-        "duration": "9:24",
         "youtubeUrl": "https://youtu.be/v6S7G1IAAn0",
-        "id": "lesson-1793185141625-xd9g"
+        "id": "lesson-1793185141625-xd9g",
+        "duration": "9:24",
+        "name": "Lesson 04: PLANNING WORKSHOP"
       },
       {
+        "name": "Lesson 05: BUDGET",
         "youtubeUrl": "https://youtu.be/NcUv9k_Sfzc",
         "duration": "6:51",
-        "id": "lesson-1793185142230-dz8u",
-        "name": "Lesson 05: BUDGET"
+        "id": "lesson-1793185142230-dz8u"
       },
       {
-        "name": "Lesson 06: OPERATIONAL PLAN",
-        "youtubeUrl": "https://youtu.be/zrqNV4V9lTw",
         "duration": "5:04",
-        "id": "lesson-1793185142869-gemk"
+        "youtubeUrl": "https://youtu.be/zrqNV4V9lTw",
+        "id": "lesson-1793185142869-gemk",
+        "name": "Lesson 06: OPERATIONAL PLAN"
       },
       {
         "youtubeUrl": "https://youtu.be/IH3ZnMkn0sQ",
@@ -802,10 +802,10 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
         "name": "Lesson 07: FINANCIAL YEAREND"
       },
       {
-        "name": "Lesson 08: REVIEW AND REACT",
-        "id": "lesson-1793185144592-eq4m",
+        "youtubeUrl": "https://youtu.be/nGjXbsH7BwE",
         "duration": "9:45",
-        "youtubeUrl": "https://youtu.be/nGjXbsH7BwE"
+        "id": "lesson-1793185144592-eq4m",
+        "name": "Lesson 08: REVIEW AND REACT"
       }
     ],
     "companionMaterialFilename": "Annual_Planning_Cycle_Playbook.zip",
@@ -858,33 +858,33 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
       },
       {
         "id": "lesson-1793181539055-gmlk",
-        "name": "Lesson 02: OUR VALUES",
         "duration": "16:37",
+        "name": "Lesson 02: OUR VALUES",
         "youtubeUrl": "https://youtu.be/Q8scvMewr9k"
       },
       {
+        "youtubeUrl": "https://youtu.be/lrfZ9Er1iRs",
         "name": "Lesson 03: HUMAN RESOURCE POLICY",
-        "id": "lesson-1793181540046-37tt",
         "duration": "8:22",
-        "youtubeUrl": "https://youtu.be/lrfZ9Er1iRs"
+        "id": "lesson-1793181540046-37tt"
       },
       {
+        "youtubeUrl": "https://youtu.be/2mTlqkiyTF0",
         "name": "Lesson 04: THE JOB",
-        "duration": "7:20",
         "id": "lesson-1793181540910-a8uu",
-        "youtubeUrl": "https://youtu.be/2mTlqkiyTF0"
+        "duration": "7:20"
       },
       {
-        "id": "lesson-1793181541999-4ylu",
         "name": "Lesson 05: TALENT DEVELOPMENT",
         "youtubeUrl": "https://youtu.be/iqBWHggcArk",
+        "id": "lesson-1793181541999-4ylu",
         "duration": "10:58"
       },
       {
         "youtubeUrl": "https://youtu.be/p7sER_g71Is",
+        "name": "Lesson 06: THE INTERVIEW",
         "id": "lesson-1793181543187-654g",
-        "duration": "8:46",
-        "name": "Lesson 06: THE INTERVIEW"
+        "duration": "8:46"
       }
     ],
     "companionMaterialFilename": "your first hire.zip",
@@ -988,7 +988,11 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "engineSteps": [
       {
-        "step": 1,
+        "desc": "business name and working days",
+        "outputs": [
+          "base adjustment data"
+        ],
+        "title": "business details and operating calander",
         "inputs": [
           "business name",
           "calendar start month",
@@ -998,71 +1002,75 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "tax rate assumption",
           "vat rate assumption"
         ],
-        "desc": "business name and working days",
-        "outputs": [
-          "base adjustment data"
-        ],
-        "title": "business details and operating calander"
+        "step": 1
       },
       {
         "step": 2,
-        "outputs": [
-          "assumptions – adjustment slider",
-          "results – revenue and gross profit",
-          "charts – operational results"
-        ],
         "inputs": [
           "3 product simulators",
           "daily sales forecast",
           "gross profit margin"
         ],
+        "title": "revenue calculator",
         "desc": "calculates revenue and gross profit forecasts",
-        "title": "revenue calculator"
+        "outputs": [
+          "assumptions – adjustment slider",
+          "results – revenue and gross profit",
+          "charts – operational results"
+        ]
       },
       {
+        "desc": "calculates employment expenses",
+        "title": "employment",
+        "step": 3,
         "outputs": [
           "assumptions – adjustment slider",
           "results – employment expenses",
           "charts – employment dynamics"
         ],
-        "step": 3,
-        "title": "employment",
         "inputs": [
           "job title and head count",
           "base monthly salary (cost to company)",
           "annual review month and review rate"
-        ],
-        "desc": "calculates employment expenses"
+        ]
       },
       {
-        "desc": "calculates operating expenses",
-        "title": "operating expenses",
+        "step": 4,
+        "inputs": [
+          "monthly expense base from listed expenses",
+          "annual review month and review rate"
+        ],
         "outputs": [
           "assumptions – adjustment slider",
           "results – operating expenses",
           "charts – operating expense dynamics"
         ],
-        "inputs": [
-          "monthly expense base from listed expenses",
-          "annual review month and review rate"
-        ],
-        "step": 4
+        "title": "operating expenses",
+        "desc": "calculates operating expenses"
       },
       {
+        "step": 5,
         "outputs": [
           "results – fixed assets",
           "charts – fixed assets dynamics"
         ],
-        "desc": "calculates fixed assets balance sheet value and depreciation expenses",
         "title": "fixed assets and capital depreciation",
         "inputs": [
           "fixed asset description",
           "month purchased",
           "allocation to asset category"
         ],
-        "step": 5
+        "desc": "calculates fixed assets balance sheet value and depreciation expenses"
       },
       {
+        "desc": "calculates balance sheet values for receivables, inventory, payables, other assets, share capital, equity loan, term-loan",
+        "title": "funding calculator",
+        "outputs": [
+          "assmptions – adjustment slider",
+          "results – fixed assets",
+          "charts – funding dynamics",
+          "what if scenario"
+        ],
         "step": 6,
         "inputs": [
           "days debtors",
@@ -1073,18 +1081,11 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "equity loans",
           "term-loans",
           "dividend calculator"
-        ],
-        "desc": "calculates balance sheet values for receivables, inventory, payables, other assets, share capital, equity loan, term-loan",
-        "outputs": [
-          "assmptions – adjustment slider",
-          "results – fixed assets",
-          "charts – funding dynamics",
-          "what if scenario"
-        ],
-        "title": "funding calculator"
+        ]
       },
       {
-        "step": 7,
+        "desc": "non-downloadable reports for trading account, trading distribution, breakeven, income statement, balance sheet and cash flow",
+        "title": "reports",
         "outputs": [
           "trading account",
           "trading account distribution",
@@ -1093,9 +1094,8 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "balance sheet",
           "cashflow"
         ],
-        "desc": "non-downloadable reports for trading account, trading distribution, breakeven, income statement, balance sheet and cash flow",
         "inputs": [],
-        "title": "reports"
+        "step": 7
       }
     ],
     "targetProfile": "Pre-Seed to Series A Founders, Financial Directors, Advisory Teams",
@@ -1136,7 +1136,6 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "base adjustment data"
         ],
         "step": 1,
-        "title": "business details and operating calander",
         "inputs": [
           "business name",
           "calendar start month",
@@ -1145,16 +1144,17 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "interest rate assumption",
           "tax rate assumption",
           "vat rate assumption"
-        ]
+        ],
+        "title": "business details and operating calander"
       },
       {
-        "step": 2,
         "title": "revenue calculator",
         "outputs": [
           "assumptions – adjustment slider",
           "results – revenue and gross profit",
           "charts – operational results"
         ],
+        "step": 2,
         "desc": "calculates revenue and gross profit with over 40 model-sets covering over 400 business types",
         "inputs": [
           "unlimited product simulators",
@@ -1164,33 +1164,33 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
         ]
       },
       {
-        "inputs": [
-          "job title and head count",
-          "base monthly salary (cost to company)",
-          "annual review month and review rate"
-        ],
-        "step": 3,
-        "title": "employment",
+        "desc": "calculates employment expenses",
         "outputs": [
           "assumptions – adjustment slider",
           "results – employment expenses",
           "charts – employment dynamics"
         ],
-        "desc": "calculates employment expenses"
-      },
-      {
-        "step": 4,
+        "title": "employment",
         "inputs": [
-          "monthly expense base from listed expenses",
+          "job title and head count",
+          "base monthly salary (cost to company)",
           "annual review month and review rate"
         ],
-        "desc": "calculates operating expenses",
+        "step": 3
+      },
+      {
         "outputs": [
           "assumptions – adjustment slider",
           "results – operating expenses",
           "charts – operating expense dynamics"
         ],
-        "title": "operating expenses"
+        "step": 4,
+        "inputs": [
+          "monthly expense base from listed expenses",
+          "annual review month and review rate"
+        ],
+        "title": "operating expenses",
+        "desc": "calculates operating expenses"
       },
       {
         "inputs": [
@@ -1198,24 +1198,24 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "month purchased",
           "allocation to asset category"
         ],
-        "step": 5,
-        "title": "fixed assets and capital depreciation",
         "desc": "calculates fixed assets balance sheet value and depreciation expenses",
+        "title": "fixed assets and capital depreciation",
+        "step": 5,
         "outputs": [
           "results – fixed assets",
           "charts – fixed assets dynamics"
         ]
       },
       {
-        "desc": "calculates balance sheet values for receivables, inventory, payables, other assets, share capital, equity loan, term-loan",
         "outputs": [
           "assumptions – adjustment slider",
           "results – fixed assets",
           "charts – funding dynamics",
           "what if scenario"
         ],
-        "step": 6,
+        "desc": "calculates balance sheet values for receivables, inventory, payables, other assets, share capital, equity loan, term-loan",
         "title": "funding calculator",
+        "step": 6,
         "inputs": [
           "days debtors",
           "days inventory",
@@ -1229,8 +1229,8 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
       },
       {
         "title": "reports",
+        "step": 7,
         "inputs": [],
-        "desc": "downloadable reports for trading account, trading distribution, breakeven, income statement, balance sheet, cash flow and business plan",
         "outputs": [
           "trading account",
           "trading account distribution",
@@ -1239,7 +1239,7 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "balance sheet",
           "cashflow"
         ],
-        "step": 7
+        "desc": "downloadable reports for trading account, trading distribution, breakeven, income statement, balance sheet, cash flow and business plan"
       }
     ],
     "modules": [
@@ -1299,83 +1299,82 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "challengeText": "Ingredient costs jump on Monday, leftovers pile up by Friday, and you still aren't sure if each burger, batch, or job actually made cash. bizzcalculators gives small business owners and food traders 12 instant financial calculators — led by a dynamic Bill of Materials (BOM) calculator — right on their phone.",
     "engineSteps": [
       {
-        "step": 1,
-        "inputs": [
-          "Fixed cost of sales & overheads",
-          "Unit selling price",
-          "Unit material, production & variable overhead costs"
-        ],
         "outputs": [
           "Total fixed expenses",
           "Unit contribution & GP margin %",
           "Exact breakeven sales units"
         ],
+        "step": 1,
         "desc": "Calculate the exact unit sales volume required to cover fixed expenses and variable unit costs.",
-        "title": "Breakeven Point"
+        "title": "Breakeven Point",
+        "inputs": [
+          "Fixed cost of sales & overheads",
+          "Unit selling price",
+          "Unit material, production & variable overhead costs"
+        ]
       },
       {
-        "outputs": [
-          "Amount financed & lease base",
-          "Monthly depreciation & lease cashflow",
-          "Lifetime buy vs. lease cash outlay"
-        ],
-        "step": 2,
+        "desc": "Compare buying an asset outright versus leasing across VAT, deposits, depreciation, and lifetime cashflow.",
         "inputs": [
           "Purchase price, accessories, VAT & deposit",
           "Asset lifespan (years) & residual value",
           "Lease interest rate %, term & annual payments"
         ],
         "title": "Buy vs Lease",
-        "desc": "Compare buying an asset outright versus leasing across VAT, deposits, depreciation, and lifetime cashflow."
+        "step": 2,
+        "outputs": [
+          "Amount financed & lease base",
+          "Monthly depreciation & lease cashflow",
+          "Lifetime buy vs. lease cash outlay"
+        ]
       },
       {
-        "step": 3,
-        "inputs": [
-          "Initial investment, recovery & scrap value",
-          "Annual savings & evaluation horizon (up to 10 years)",
-          "Discount rate %"
-        ],
         "outputs": [
           "Year-by-year cashflow schedule",
           "Discounted cash flow (NPV) & PV ratios",
           "Payback period (PB) & Savings Return Index (SRI)"
         ],
         "title": "Cost Benefit Analysis",
-        "desc": "Test project or capital investment viability using discounted cash flow (NPV), payback period, and SRI."
+        "step": 3,
+        "desc": "Test project or capital investment viability using discounted cash flow (NPV), payback period, and SRI.",
+        "inputs": [
+          "Initial investment, recovery & scrap value",
+          "Annual savings & evaluation horizon (up to 10 years)",
+          "Discount rate %"
+        ]
       },
       {
-        "step": 4,
-        "outputs": [
-          "Monthly & annual depreciation charge",
-          "Cumulative period depreciation",
-          "Remaining balance sheet book value"
-        ],
         "title": "Depreciation",
-        "desc": "Calculate straight-line monthly, period, and annual asset depreciation and net balance sheet value.",
         "inputs": [
           "Asset purchase cost",
           "Annual depreciation rate % & depreciation months",
           "Evaluation period (months)"
+        ],
+        "step": 4,
+        "desc": "Calculate straight-line monthly, period, and annual asset depreciation and net balance sheet value.",
+        "outputs": [
+          "Monthly & annual depreciation charge",
+          "Cumulative period depreciation",
+          "Remaining balance sheet book value"
         ]
       },
       {
-        "step": 5,
-        "title": "Funding Calculator",
         "desc": "Optimize Net Operating Assets (NOA) funding across equity, non-interest-bearing debt, and target debt/equity ratios.",
+        "step": 5,
+        "inputs": [
+          "Total assets, NIBD & equity",
+          "Target NIBD % of total assets",
+          "Target Debt-to-Equity (DE) ratio"
+        ],
         "outputs": [
           "Net Operating Assets (NOA) & current DE ratio",
           "Current vs. target asset funding mix %",
           "Revised balance sheet capital structure"
         ],
-        "inputs": [
-          "Total assets, NIBD & equity",
-          "Target NIBD % of total assets",
-          "Target Debt-to-Equity (DE) ratio"
-        ]
+        "title": "Funding Calculator"
       },
       {
         "step": 6,
-        "desc": "Set an item selling price accurately by comparing Gross Profit Margin against a Markup factor (excl. & incl. VAT).",
         "title": "Margin vs Markup",
         "inputs": [
           "Unit item cost (or import directly from BOM)",
@@ -1386,21 +1385,22 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "Selling price excl. & incl. VAT (Margin vs. Markup)",
           "Gross profit per unit & effective GP %",
           "Revenue factor multiplier"
-        ]
+        ],
+        "desc": "Set an item selling price accurately by comparing Gross Profit Margin against a Markup factor (excl. & incl. VAT)."
       },
       {
+        "title": "Revenue Factor",
         "inputs": [
           "Revenue & cost of sales",
           "Variable expenses & fixed overheads"
         ],
         "step": 7,
-        "desc": "Calculate the additional sales revenue required to recover a new expense while protecting target profit margins.",
-        "title": "Revenue Factor",
         "outputs": [
           "Gross profit, net margin & net operating profit",
           "Full margin % breakdown",
           "Revenue factor multiplier"
-        ]
+        ],
+        "desc": "Calculate the additional sales revenue required to recover a new expense while protecting target profit margins."
       },
       {
         "outputs": [
@@ -1408,45 +1408,50 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "Adjusted trading account & balance sheet",
           "Adjusted ROS, Asset Turn (AT) & ROA %"
         ],
+        "desc": "Model the profit, margin, and working capital adjustments required to achieve a target Return on Net Operating Assets.",
         "inputs": [
           "Trading account & balance sheet figures",
           "Target ROS % & target ROA %",
           "Percentage adjustments & target working capital days"
         ],
-        "step": 8,
         "title": "ROA Dynamics",
-        "desc": "Model the profit, margin, and working capital adjustments required to achieve a target Return on Net Operating Assets."
+        "step": 8
       },
       {
-        "desc": "Optimize business efficiency by linking Return on Sales (ROS) and Asset Turn (AT) to Return on Net Operating Assets.",
         "outputs": [
           "Net Operating Profit (NOP) & Net Operating Assets (NOA)",
           "ROS %, Asset Turn & ROA %",
           "Verified ROS × AT = ROA check formula"
         ],
-        "title": "ROS x AT = ROA",
+        "desc": "Optimize business efficiency by linking Return on Sales (ROS) and Asset Turn (AT) to Return on Net Operating Assets.",
         "step": 9,
         "inputs": [
           "Annual revenue, cost of sales & operating expenses",
           "Fixed assets, inventory, receivables & payables"
-        ]
+        ],
+        "title": "ROS x AT = ROA"
       },
       {
-        "title": "Term Loan",
         "inputs": [
           "Loan advance amount",
           "Annual interest rate %",
           "Loan term (years) & annual payment frequency"
         ],
+        "desc": "Calculate fixed-term loan repayments, total interest cost, and total value repaid over the life of a loan.",
+        "step": 10,
         "outputs": [
           "Total number of payments",
           "Monthly / periodic repayment amount",
           "Total interest paid & total value repaid"
         ],
-        "desc": "Calculate fixed-term loan repayments, total interest cost, and total value repaid over the life of a loan.",
-        "step": 10
+        "title": "Term Loan"
       },
       {
+        "inputs": [
+          "Revenue, variable/fixed cost of sales & VAT %",
+          "Current inventory, receivables & payables",
+          "Forecast target days for inventory, receivables & payables"
+        ],
         "step": 11,
         "outputs": [
           "Current calculated working capital days",
@@ -1454,22 +1459,17 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
           "Net cash change in working capital"
         ],
         "desc": "Measure the cash released or absorbed when adjusting inventory, receivables, and payables turnaround days.",
-        "title": "Working Capital Dynamics",
-        "inputs": [
-          "Revenue, variable/fixed cost of sales & VAT %",
-          "Current inventory, receivables & payables",
-          "Forecast target days for inventory, receivables & payables"
-        ]
+        "title": "Working Capital Dynamics"
       },
       {
+        "desc": "Maintain multi-product recipes and unit costs right on your phone — covering ingredients, multi-level packaging, variable costs, and unit cost dynamics.",
+        "step": 12,
         "inputs": [
           "Product cost book (units/batch & batches/day)",
           "Ingredients: qty/batch, pack size, pack cost, consumables & waste toggle",
           "Multi-level packaging & per-batch / per-unit variable costs"
         ],
-        "step": 12,
         "title": "Bill of Materials (BOM)",
-        "desc": "Maintain multi-product recipes and unit costs right on your phone — covering ingredients, multi-level packaging, variable costs, and unit cost dynamics.",
         "outputs": [
           "Packs/day & surplus tracking per ingredient",
           "Materials, packaging & variable unit cost breakdown",
@@ -1682,17 +1682,18 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     "ticketPriceZAR": 312,
     "isPurchased": false,
     "activeInSync": true,
-    "canonicalCoverUrl": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1200&q=80",
+    "canonicalCoverUrl": "data:image/jpeg;base64,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",
     "youtubeDemoUrl": "",
     "courseLessons": [],
     "syllabusLessonsCount": 0,
     "lessonTitles": [],
+    "coursePromoVideoUrl": "",
+    "assignedStep": "Operations · Rolling",
     "modules": [
       "Rolling 13-Week Cash Horizon",
       "Variance Tracking Alert Engine",
       "Departmental Cost Centers"
-    ],
-    "assignedStep": "Operations · Rolling"
+    ]
   },
   {
     "id": "prod-1795257919111",
@@ -1725,7 +1726,8 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
       "voic-activateted",
       "monthly controls",
       "redacted foundational core for speed"
-    ]
+    ],
+    "assignedStep": "Operations · Margins"
   },
   {
     "id": "prod-1795604374010",
@@ -1798,40 +1800,40 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
     ],
     "courseLessons": [
       {
-        "id": "po-1",
+        "name": "Lesson 01: INTRODUCTION",
         "duration": "3:18",
-        "youtubeUrl": "https://youtu.be/TbTj8_-Op7k",
-        "name": "Lesson 01: INTRODUCTION"
+        "id": "po-1",
+        "youtubeUrl": "https://youtu.be/TbTj8_-Op7k"
       },
       {
+        "name": "Lesson 02: PRODUCTION CALCULATOR",
         "id": "po-2",
         "youtubeUrl": "https://youtu.be/00H9IiTvIaQ",
-        "duration": "6:30",
-        "name": "Lesson 02: PRODUCTION CALCULATOR"
+        "duration": "6:30"
       },
       {
+        "name": "Lesson 03: EMPLOYEE CALCULATOR",
         "youtubeUrl": "https://youtu.be/k2jLXZrNTJ4",
         "duration": "3:32",
-        "id": "po-3",
-        "name": "Lesson 03: EMPLOYEE CALCULATOR"
+        "id": "po-3"
       },
       {
-        "youtubeUrl": "https://youtu.be/P7lFx_epDMc",
         "id": "lesson-1793181908239-2dgk",
-        "duration": "6:54",
-        "name": "Lesson 04: MATERIALS COSTING"
+        "name": "Lesson 04: MATERIALS COSTING",
+        "youtubeUrl": "https://youtu.be/P7lFx_epDMc",
+        "duration": "6:54"
       },
       {
+        "id": "lesson-1793181909031-r2qw",
         "name": "Lesson 05: EXPENSE DYNAMICS",
-        "duration": "5:21",
         "youtubeUrl": "https://youtu.be/bcN9Zgqy5IQ",
-        "id": "lesson-1793181909031-r2qw"
+        "duration": "5:21"
       },
       {
-        "duration": "2:44",
         "name": "Lesson 06: FIXED ASSETS",
-        "id": "lesson-1793181909694-nqtz",
-        "youtubeUrl": "https://youtu.be/cjdxQCRztPM"
+        "youtubeUrl": "https://youtu.be/cjdxQCRztPM",
+        "duration": "2:44",
+        "id": "lesson-1793181909694-nqtz"
       },
       {
         "duration": "1:20",
@@ -1840,22 +1842,22 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
         "id": "lesson-1793181910448-37ye"
       },
       {
-        "duration": "1:29",
-        "name": "Lesson 08: OPERATING EXPENSES",
         "id": "lesson-1793181911094-rvyg",
-        "youtubeUrl": "https://youtu.be/IoF2xtDLANk"
+        "youtubeUrl": "https://youtu.be/IoF2xtDLANk",
+        "duration": "1:29",
+        "name": "Lesson 08: OPERATING EXPENSES"
       },
       {
-        "youtubeUrl": "https://youtu.be/XauZ0jyrHEY",
         "duration": "4:42",
         "id": "lesson-1793181911845-jlep",
+        "youtubeUrl": "https://youtu.be/XauZ0jyrHEY",
         "name": "Lesson 09: REVENUE CALCULATOR"
       },
       {
-        "name": "Lesson 10: CALCULATORS",
         "duration": "12:46",
-        "id": "lesson-1793181912587-tvkg",
-        "youtubeUrl": "https://youtu.be/o7Zq4rOzNeU"
+        "name": "Lesson 10: CALCULATORS",
+        "youtubeUrl": "https://youtu.be/o7Zq4rOzNeU",
+        "id": "lesson-1793181912587-tvkg"
       },
       {
         "duration": "12:13",
@@ -1871,33 +1873,33 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
       },
       {
         "duration": "5:41",
-        "id": "lesson-1793181915023-8u7y",
         "youtubeUrl": "https://youtu.be/57xL2ILxyk4",
-        "name": "Lesson 13: TARGET OPTIMIZATION"
+        "name": "Lesson 13: TARGET OPTIMIZATION",
+        "id": "lesson-1793181915023-8u7y"
       },
       {
-        "name": "Lesson 14: TARGET SETTING",
+        "youtubeUrl": "https://youtu.be/57xL2ILxyk4",
         "duration": "3:48",
-        "id": "lesson-1793181915953-cbee",
-        "youtubeUrl": "https://youtu.be/57xL2ILxyk4"
+        "name": "Lesson 14: TARGET SETTING",
+        "id": "lesson-1793181915953-cbee"
       },
       {
         "name": "Lesson 15: WORKING CAPITAL MANAGEMENT",
-        "id": "lesson-1793181916926-sadv",
+        "youtubeUrl": "https://youtu.be/mABCvgQB1-E",
         "duration": "4:38",
-        "youtubeUrl": "https://youtu.be/mABCvgQB1-E"
+        "id": "lesson-1793181916926-sadv"
       },
       {
-        "id": "lesson-1793181918010-2k46",
         "youtubeUrl": "https://youtu.be/OFvzXblBRs8",
+        "duration": "3:25",
         "name": "Lesson 16: FUNDING CALCULATOR",
-        "duration": "3:25"
+        "id": "lesson-1793181918010-2k46"
       },
       {
-        "id": "lesson-1793181918988-w3to",
         "duration": "8:45",
         "name": "Lesson 17: NO QUICK FIX",
-        "youtubeUrl": "https://youtu.be/GL_Wcgcg9jA"
+        "youtubeUrl": "https://youtu.be/GL_Wcgcg9jA",
+        "id": "lesson-1793181918988-w3to"
       }
     ],
     "companionMaterialFilename": "Profit_Optimizer_Worksheet.zip",
@@ -1919,203 +1921,203 @@ export const INITIAL_CMS_PRODUCTS: CmsProduct[] = [
 // =============================================================================
 export const INITIAL_CMS_VIDEOS: CmsVideo[] = [
   {
-    "author": "Rich Mulholland",
     "id": "vid-1793102512275",
-    "isMustWatch": true,
-    "duration": "5:32",
-    "linked": true,
+    "author": "Rich Mulholland",
     "youtubeUrl": "https://youtu.be/P3S4s5fJ70s",
     "title": "how to write the perfect elevator pitch",
-    "category": "masterclass"
-  },
-  {
-    "title": "changing world order",
-    "linked": true,
-    "isMustWatch": true,
-    "duration": "42:28",
-    "author": "Ray Dalio",
-    "id": "vid-1793102484225",
-    "youtubeUrl": "https://youtu.be/Pc66lnxaixs",
-    "category": "masterclass"
-  },
-  {
+    "duration": "5:32",
     "category": "masterclass",
-    "isMustWatch": false,
-    "youtubeUrl": "https://youtu.be/9M_uxnkMtE8",
-    "title": "warren buffett's value investing formula",
-    "id": "vid-1793102460048",
     "linked": true,
-    "duration": "16:02",
-    "author": "Benjamin Graham"
-  },
-  {
-    "youtubeUrl": "https://youtu.be/cU1Lg52VeFI",
-    "author": "Ray Dalio",
-    "linked": true,
-    "duration": "30:52",
-    "title": "how the economic machine works",
-    "category": "masterclass",
-    "id": "vid-1793102433404",
     "isMustWatch": true
   },
   {
+    "isMustWatch": true,
+    "author": "Ray Dalio",
+    "duration": "42:28",
     "category": "masterclass",
+    "title": "changing world order",
+    "id": "vid-1793102484225",
+    "linked": true,
+    "youtubeUrl": "https://youtu.be/Pc66lnxaixs"
+  },
+  {
+    "category": "masterclass",
+    "youtubeUrl": "https://youtu.be/9M_uxnkMtE8",
+    "duration": "16:02",
+    "linked": true,
+    "isMustWatch": false,
+    "author": "Benjamin Graham",
+    "title": "warren buffett's value investing formula",
+    "id": "vid-1793102460048"
+  },
+  {
+    "author": "Ray Dalio",
+    "duration": "30:52",
+    "youtubeUrl": "https://youtu.be/cU1Lg52VeFI",
+    "category": "masterclass",
+    "title": "how the economic machine works",
+    "id": "vid-1793102433404",
+    "linked": true,
+    "isMustWatch": true
+  },
+  {
+    "linked": true,
     "youtubeUrl": "https://youtu.be/c7sWFPRRXcM",
     "id": "vid-1793102402911",
     "title": "breaking business bottlenecks – theory of constraints",
-    "isMustWatch": false,
     "author": "avimarketing",
-    "linked": true,
+    "category": "masterclass",
+    "isMustWatch": false,
     "duration": "4:41"
   },
   {
-    "isMustWatch": false,
-    "duration": "30:53",
-    "id": "vid-1793102375746",
-    "title": "what the future holds",
+    "linked": true,
     "category": "masterclass",
     "youtubeUrl": "https://youtu.be/6C15PryTfio",
-    "linked": true,
-    "author": "Clem Sunter"
+    "duration": "30:53",
+    "title": "what the future holds",
+    "author": "Clem Sunter",
+    "id": "vid-1793102375746",
+    "isMustWatch": false
   },
   {
-    "id": "vid-1793102352705",
-    "youtubeUrl": "https://youtu.be/0IuXz1uAIJI",
-    "duration": "3:28",
-    "title": "what is product market fit",
     "author": "Marketing Business Network",
+    "isMustWatch": true,
+    "title": "what is product market fit",
+    "duration": "3:28",
     "linked": true,
+    "youtubeUrl": "https://youtu.be/0IuXz1uAIJI",
     "category": "masterclass",
-    "isMustWatch": true
+    "id": "vid-1793102352705"
   },
   {
-    "isMustWatch": false,
-    "duration": "4:36",
-    "youtubeUrl": "https://youtu.be/TSoaIlbDVLU",
-    "author": "Elon Musk",
     "id": "vid-1793102328476",
+    "isMustWatch": false,
+    "category": "masterclass",
+    "linked": true,
+    "duration": "4:36",
     "title": "how to create a company",
+    "youtubeUrl": "https://youtu.be/TSoaIlbDVLU",
+    "author": "Elon Musk"
+  },
+  {
+    "author": "Ian Bremmer",
+    "youtubeUrl": "https://youtu.be/5kbdL0ACbBQ",
+    "isMustWatch": false,
+    "title": "the next global superpower is not who you think",
+    "duration": "15:00",
+    "id": "vid-1793102258740",
     "linked": true,
     "category": "masterclass"
   },
   {
-    "youtubeUrl": "https://youtu.be/5kbdL0ACbBQ",
-    "duration": "15:00",
-    "isMustWatch": false,
-    "id": "vid-1793102258740",
-    "author": "Ian Bremmer",
-    "title": "the next global superpower is not who you think",
+    "title": "kindness",
+    "duration": "2:47",
+    "author": "unknown",
     "category": "masterclass",
+    "id": "vid-1793102233913",
+    "isMustWatch": false,
+    "youtubeUrl": "https://youtu.be/Ta6PYt80HKw",
     "linked": true
   },
   {
     "category": "masterclass",
-    "isMustWatch": false,
     "linked": true,
-    "author": "unknown",
-    "title": "kindness",
-    "youtubeUrl": "https://youtu.be/Ta6PYt80HKw",
-    "duration": "2:47",
-    "id": "vid-1793102233913"
-  },
-  {
-    "linked": true,
-    "id": "vid-1793102204748",
     "duration": "41:00",
-    "title": "branding & marketing In the age of AI",
-    "youtubeUrl": "https://youtu.be/HNfTboNtQIg",
-    "author": "Seth Godin",
+    "id": "vid-1793102204748",
     "isMustWatch": false,
-    "category": "masterclass"
+    "author": "Seth Godin",
+    "youtubeUrl": "https://youtu.be/HNfTboNtQIg",
+    "title": "branding & marketing In the age of AI"
   },
   {
+    "linked": true,
+    "id": "vid-1793102172365",
+    "isMustWatch": true,
+    "title": "a plan is not a strategy",
     "author": "Harvard Business Review",
     "category": "masterclass",
-    "linked": true,
-    "isMustWatch": true,
-    "youtubeUrl": "https://youtu.be/JS79sfYgfdo",
     "duration": "9:31",
-    "id": "vid-1793102172365",
-    "title": "a plan is not a strategy"
+    "youtubeUrl": "https://youtu.be/JS79sfYgfdo"
   },
   {
-    "duration": "2:28",
-    "youtubeUrl": "https://youtu.be/L0neEsxf4No",
-    "linked": true,
+    "isMustWatch": false,
     "id": "vid-1793102142382",
-    "author": "eisenhower.me",
+    "linked": true,
+    "category": "masterclass",
     "title": "the eisenhower matrix",
-    "isMustWatch": false,
-    "category": "masterclass"
+    "duration": "2:28",
+    "author": "eisenhower.me",
+    "youtubeUrl": "https://youtu.be/L0neEsxf4No"
   },
   {
-    "youtubeUrl": "https://youtu.be/oJ9a4uzm3cE",
-    "linked": true,
-    "author": "Improvement Pill",
-    "duration": "3:59",
     "isMustWatch": false,
+    "category": "masterclass",
+    "duration": "3:59",
+    "linked": true,
+    "youtubeUrl": "https://youtu.be/oJ9a4uzm3cE",
     "title": "how kindergartnerd outperformed the ceos",
     "id": "vid-1793102108978",
-    "category": "masterclass"
+    "author": "Improvement Pill"
   },
   {
-    "category": "pitching",
-    "title": "How to write a perfect elevator pitch",
-    "isMustWatch": true,
     "id": "vid-1",
+    "isMustWatch": true,
+    "title": "How to write a perfect elevator pitch",
     "linked": true,
+    "category": "pitching",
     "duration": "5:32",
     "author": "Rich Mulholland",
     "youtubeUrl": "https://www.youtube.com/watch?v=vUT8lZLZpKg"
   },
   {
     "title": "Unit economics and contribution margin in venture startups",
-    "id": "vid-2",
-    "duration": "8:45",
-    "youtubeUrl": "https://www.youtube.com/watch?v=9dwqCG-vnVA",
-    "linked": true,
-    "category": "finance",
     "isMustWatch": true,
-    "author": "Elena Vance"
+    "linked": true,
+    "id": "vid-2",
+    "author": "Elena Vance",
+    "category": "finance",
+    "duration": "8:45",
+    "youtubeUrl": "https://www.youtube.com/watch?v=9dwqCG-vnVA"
   },
   {
-    "category": "investing",
-    "title": "Warren Buffett's value investing formula",
     "youtubeUrl": "https://www.youtube.com/watch?v=5L0wwsNFads",
-    "author": "Benjamin Graham",
-    "duration": "16:02",
-    "linked": true,
     "id": "vid-3",
+    "linked": true,
+    "category": "investing",
+    "duration": "16:02",
+    "author": "Benjamin Graham",
+    "title": "Warren Buffett's value investing formula",
     "isMustWatch": false
   },
   {
-    "id": "vid-4",
     "category": "operations",
+    "linked": true,
     "youtubeUrl": "https://www.youtube.com/watch?v=xbasHzq2fL0",
-    "isMustWatch": true,
-    "author": "Quentin McCullough",
     "duration": "11:20",
+    "isMustWatch": true,
     "title": "Understanding working capital and debtor lag",
-    "linked": true
+    "id": "vid-4",
+    "author": "Quentin McCullough"
   },
   {
-    "title": "Cap table waterfalls and venture dilution scenarios",
+    "linked": true,
     "isMustWatch": true,
     "youtubeUrl": "https://www.youtube.com/watch?v=YiUirHhqBoc",
-    "duration": "14:15",
-    "linked": true,
-    "category": "capital",
     "id": "vid-5",
-    "author": "GIM Coach"
+    "author": "GIM Coach",
+    "category": "capital",
+    "title": "Cap table waterfalls and venture dilution scenarios",
+    "duration": "14:15"
   },
   {
-    "duration": "7:50",
-    "title": "The illuminated sandbox: Why simulation prevents enterprise failure",
-    "id": "vid-6",
-    "isMustWatch": false,
     "linked": true,
     "youtubeUrl": "https://www.youtube.com/watch?v=3wyZYsk8OTY",
+    "id": "vid-6",
+    "title": "The illuminated sandbox: Why simulation prevents enterprise failure",
     "category": "sandbox",
+    "duration": "7:50",
+    "isMustWatch": false,
     "author": "Bizzbean Team"
   }
 ];
@@ -2586,23 +2588,23 @@ export const INITIAL_CMS_TRANSACTIONS: CmsTransactionRecord[] = [
 
 export const INITIAL_V1_TRANSACTIONS: TransactionRecord[] = [
   {
-    "country": "South Africa",
-    "lineValue": 295.65,
-    "vatAmount": 44.35,
     "vatRate": 0.15,
-    "quantity": 1,
-    "associate": "Direct Online (Sandbox Grant)",
-    "customerEmail": "qgmccullough@gmail.com",
-    "createdAt": "2026-11-17T15:40:51.618Z",
-    "transactionDate": "2026-11-17",
-    "productType": "app",
-    "customer": "Quentin McCullough",
-    "paymentRef": "GRANT_bizzmoney_1794930051618",
-    "sku": "OPERATIONS",
-    "unitPrice": 295.65,
-    "invoiceValue": 340,
     "invoiceNumber": "INV-2026-0001",
-    "productName": "bizzmoney"
+    "createdAt": "2026-11-17T15:40:51.618Z",
+    "quantity": 1,
+    "country": "South Africa",
+    "unitPrice": 295.65,
+    "productName": "bizzmoney",
+    "vatAmount": 44.35,
+    "associate": "Direct Online (Sandbox Grant)",
+    "productType": "app",
+    "lineValue": 295.65,
+    "sku": "OPERATIONS",
+    "customerEmail": "qgmccullough@gmail.com",
+    "paymentRef": "GRANT_bizzmoney_1794930051618",
+    "invoiceValue": 340,
+    "customer": "Quentin McCullough",
+    "transactionDate": "2026-11-17"
   }
 ];
 
