@@ -62,7 +62,7 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
   initialAppId,
   cmsProducts = [],
   userProfile,
-  tokenBalance = 250,
+  tokenBalance = 0,
   onBackToWorkstation,
   onNavigateToStage,
   onBuySolution,
@@ -79,6 +79,7 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
     if (matchingCms) {
       const cmsName = (matchingCms.name || '').toLowerCase();
       const cmsSub = (matchingCms.subtitle || '').toLowerCase();
+      if (cmsName.includes('forecasta') || cmsSub.includes('forecasta')) return 'bizzforecasta';
       if (cmsName.includes('budget') || cmsSub.includes('bizzbudget')) return 'bizzbudget';
       if (cmsName.includes('dynamics') || cmsSub.includes('dynamics')) return 'bizzdynamics';
       if (cmsName.includes('calculators') || cmsSub.includes('calculators')) return 'bizzcalculators';
@@ -89,6 +90,7 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
       if (cmsName.includes('calc')) return 'bizzcalc';
     }
 
+    if (lower.includes('forecasta')) return 'bizzforecasta';
     if (lower.includes('budget')) return 'bizzbudget';
 
     if (lower.includes('calculators')) return 'bizzcalculators';
@@ -185,6 +187,17 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
       badge: 'includes hi-level forecast',
       icon: TrendingUp,
       hasCompanion: true,
+      desktopOnly: true,
+    },
+    {
+      id: 'bizzforecasta',
+      name: 'bizzforecasta',
+      sku: 'BA-BFA',
+      stage: 'fund-ability',
+      stageCode: 'Stage 02',
+      subtitle: 'Single-Operation Growth Capital Modeler & Scripted Investor Business Plan',
+      badge: 'growth capital',
+      icon: TrendingUp,
       desktopOnly: true,
     },
     {
@@ -320,11 +333,12 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
     );
   }
 
-  // Standalone BizzModel Suite Direct Experience (rolling forecast, bizzmodel)
+  // Standalone BizzModel Suite Direct Experience (rolling forecast, bizzmodel, bizzforecasta)
   // Guarantees identical unified single-card styling, zero redundant outer headers, and full-width work area
   if (
     activeApp === 'rolling-forecast' ||
-    activeApp === 'bizzmodel'
+    activeApp === 'bizzmodel' ||
+    activeApp === 'bizzforecasta'
   ) {
     return (
       <div className="w-full max-w-full min-w-0 h-full min-h-0 flex-1 flex flex-col overflow-hidden">
@@ -333,6 +347,7 @@ export const PlatformAppPresenter: React.FC<PlatformAppPresenterProps> = ({
           theme={theme}
           mode={activeApp as any}
           initialAppTab={activeApp as any}
+          tokenBalance={tokenBalance}
           onClose={onBackToWorkstation}
           onContextSwitch={(app) => setActiveApp(normalizeAppId(app))}
         />

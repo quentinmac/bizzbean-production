@@ -6,12 +6,17 @@ import html2canvas from 'html2canvas';
 import { ScorecardTable, ScorecardActions } from './ScorecardReport';
 import AssumptionsReport from './AssumptionsReport';
 import { getYearlyFinancialValues } from '../utils/simAdapter';
+import { BizzModelState } from '../../bizzmodel/constants';
+import { computeBizzForecastaMetrics } from '../bizzforecastaConstants';
+import { computeHistoricalYearMetrics } from '../../bizzmodel/components/HistoricalPerformanceTable';
 
 interface PrintReviewProps {
   planData: BizzPlanData;
   modelData: BizzModelData | null;
   activeSectionId?: string;
   theme?: 'light' | 'dark';
+  variant?: 'bizzmodel' | 'bizzforecasta';
+  bizzModelState?: BizzModelState;
 }
 
 const formatValue = (num: number, isPercent: boolean = false) => {
@@ -108,6 +113,9 @@ const A4Page = ({
   generatedDate,
   pageNumber,
   totalPages,
+  brandTitle = 'bizzplan',
+  documentLabel = 'business plan (a4)',
+  sourceLabel = 'bizzmodel',
 }: {
   children: React.ReactNode;
   id?: string;
@@ -116,6 +124,9 @@ const A4Page = ({
   generatedDate: string;
   pageNumber: number;
   totalPages: number;
+  brandTitle?: string;
+  documentLabel?: string;
+  sourceLabel?: string;
 }) => (
   <div
     id={id}
@@ -127,13 +138,13 @@ const A4Page = ({
         <div className="h-8 w-8 rounded-md overflow-hidden border border-[#D8CEBC] bg-white shrink-0">
           <img
             src="/bizzbean-favicon.jpg"
-            alt="bizzplan"
+            alt={brandTitle}
             className="w-full h-full object-cover"
           />
         </div>
         <div className="min-w-0">
           <div className="text-[11px] leading-[16px] font-bold lowercase text-[#2E5E88] tracking-tight">
-            bizzplan
+            {brandTitle}
           </div>
           <div className="text-[9px] leading-[16px] text-[#6E7887] lowercase truncate">
             business name: {businessName}  ·  start: {startDateLabel}
@@ -143,7 +154,7 @@ const A4Page = ({
 
       <div className="text-right text-[9px] leading-[16px] text-[#505A69] lowercase shrink-0">
         <div>generated: {generatedDate}</div>
-        <div>document: business plan (a4)</div>
+        <div>document: {documentLabel}</div>
       </div>
     </div>
 
@@ -154,7 +165,7 @@ const A4Page = ({
 
     {/* BizzCalc-Matched Footer Banner */}
     <div className="mx-6 mb-4 pt-2 border-t border-[#DCD7CD] flex items-center justify-between gap-4 text-[9px] leading-[16px] text-[#788291] lowercase shrink-0">
-      <span className="truncate">{businessName}  ·  data integrated from bizzmodel</span>
+      <span className="truncate">{businessName}  ·  data integrated from {sourceLabel}</span>
       <span className="shrink-0 tabular-nums">
         page {pageNumber} of {totalPages}
       </span>
@@ -202,9 +213,17 @@ export default function PrintReview({
   modelData,
   activeSectionId = 'formation',
   theme = 'light',
+  variant = 'bizzmodel',
+  bizzModelState,
 }: PrintReviewProps) {
   const isDark = theme === 'dark';
+  const isBizzForecasta = variant === 'bizzforecasta';
   const getSection = (id: string) => planData.sections.find((s) => s.id === id);
+
+  const forecastaMetrics = useMemo(
+    () => (isBizzForecasta ? computeBizzForecastaMetrics(bizzModelState, modelData) : null),
+    [isBizzForecasta, bizzModelState, modelData]
+  );
 
   const years = [1, 2, 3, 4, 5];
 
@@ -661,187 +680,672 @@ export default function PrintReview({
     ),
   });
 
-  // 5. Financial Reports
-  orderedPages.push({
-    id: 'print-section-financial_reports',
-    sectionKey: 'financial_reports',
-    content: (
-      <div className="space-y-3">
-        {[
-          {
-            title: 'income statement',
-            rows: [
-              { label: 'total revenue', mode: 'rev' },
-              { label: 'cost of sales', mode: 'cos', isNegativeRow: true },
-              { label: 'gross profit', mode: 'gp', isTotal: true },
-              { label: 'operating expenses', mode: 'opex', isNegativeRow: true },
-              { label: 'net operating profit', mode: 'nop', isTotal: true },
-              { label: 'taxation', mode: 'tax', isNegativeRow: true },
-              { label: 'net profit', mode: 'np', isTotal: true },
-            ],
-          },
-          {
-            title: 'key ratios',
-            rows: [
-              { label: 'gross profit margin', mode: 'gp-margin', isPercent: true },
-              { label: 'return on assets', mode: 'roa', isPercent: true },
-              { label: 'debt:equity ratio', mode: 'debt-equity' },
-            ],
-          },
-          {
-            title: 'balance sheet',
-            rows: [
-              { label: 'total assets', mode: 'assets', isTotal: true },
-              { label: 'total liabilities', mode: 'liabilities' },
-              { label: 'total equity', mode: 'equity', isTotal: true },
-              { label: 'bank balance', mode: 'bank', isTotal: true },
-            ],
-          },
-          {
-            title: 'cash flow statement',
-            rows: [
-              { label: 'cash from operations', mode: 'cash-ops', isTotal: true },
-              { label: 'cash from investment', mode: 'cash-inv' },
-              { label: 'cash from financing', mode: 'cash-fin' },
-              { label: 'closing bank balance', mode: 'bank', isTotal: true },
-            ],
-          },
-        ].map((report, idx) => (
-          <ReportCard
-            key={idx}
-            businessName={businessDisplayLower}
-            cardTitle={report.title}
-          >
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-[#D8CEBC] bg-[#F2EEE6]">
-                  <th className="py-1 px-2.5 text-left font-bold text-[#505A69] lowercase text-[9px] leading-[16px] w-1/3 border-r border-[#ECE7DE]">
-                    consolidated figures
-                  </th>
-                  {years.map((y) => (
-                    <th
-                      key={y}
-                      className="py-1 px-2 text-right font-bold text-[#505A69] lowercase text-[9px] leading-[16px]"
-                    >
-                      yr {y}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#ECE7DE]">
-                {report.rows.map((rowRef: any, rIdx: number) => (
-                  <FinancialTableRow
-                    key={rIdx}
-                    label={rowRef.label}
-                    values={getYearlyValues(rowRef.mode)}
-                    isTotal={rowRef.isTotal}
-                    isPercent={rowRef.isPercent}
-                    isNegativeRow={rowRef.isNegativeRow}
-                    isAlt={rIdx % 2 === 1}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </ReportCard>
-        ))}
-      </div>
-    ),
-  });
+  if (isBizzForecasta && forecastaMetrics) {
+    // BIZZFORECASTA: Render each included scripted growth-capital page in exact BizzPlan A4 styling
+    const scriptedSections = planData.sections.filter(
+      (s) => s.type === 'scripted' && s.isIncluded !== false
+    );
 
-  // 6. Strategic Touchpoints with "Keep With Next" A4 Page Packing
-  const PAGE_HEIGHT_BUDGET = 840;
-  const CARD_GAP = 12;
+    scriptedSections.forEach((sec) => {
+      const cm = sec.customMetrics || {};
 
-  const estimateCategoryHeight = (cat: any): number => {
-    let height = 64; // card header + table header + vertical border buffer
-    for (const item of cat.items || []) {
-      const len = (item.item || '').length;
-      const lines = Math.max(1, Math.ceil(len / 72));
-      height += lines * 16 + 5;
-    }
-    return height;
-  };
+      // Page 6 (Financial Projections & Unit Economics) packs cleanly across 2 A4 pages so Historical IS/BS/CF never clips
+      if (sec.autoSyncBlock === 'financial_projections_unit_econ') {
+        const ltvCac = cm.cac && cm.cac > 0 ? (cm.ltv || 0) / cm.cac : 0;
 
-  const estimateSummaryHeight = (text: string): number => {
-    const paragraphs = (text || '').split('\n');
-    let lines = 0;
-    for (const p of paragraphs) {
-      lines += Math.max(1, Math.ceil(p.length / 82));
-    }
-    return 54 + Math.max(2, lines) * 16;
-  };
-
-  ['environment', 'products', 'customers', 'suppliers', 'employees', 'infrastructure', 'systems'].forEach(
-    (sectionId) => {
-      const section = getSection(sectionId);
-      if (!section) return;
-
-      const allCategories = section.categories || [];
-      const summaryText =
-        section.content ||
-        `Business plan and operational planning for ${section.title} focus areas.`;
-      const summaryHeight = estimateSummaryHeight(summaryText);
-
-      // Group categories atomically so each sub-header + table stays together ("keep with next")
-      const pagesCats: Array<{ cats: any[]; includeSummary: boolean }> = [];
-      let currentCats: any[] = [];
-      let currentHeight = 0;
-
-      allCategories.forEach((cat) => {
-        const catHeight = estimateCategoryHeight(cat);
-        const gap = currentCats.length > 0 ? CARD_GAP : 0;
-
-        if (currentCats.length > 0 && currentHeight + gap + catHeight > PAGE_HEIGHT_BUDGET) {
-          pagesCats.push({ cats: currentCats, includeSummary: false });
-          currentCats = [cat];
-          currentHeight = catHeight;
-        } else {
-          currentCats.push(cat);
-          currentHeight += gap + catHeight;
-        }
-      });
-
-      if (currentCats.length > 0) {
-        if (currentHeight + CARD_GAP + summaryHeight <= PAGE_HEIGHT_BUDGET) {
-          pagesCats.push({ cats: currentCats, includeSummary: true });
-        } else {
-          pagesCats.push({ cats: currentCats, includeSummary: false });
-          pagesCats.push({ cats: [], includeSummary: true });
-        }
-      } else {
-        pagesCats.push({ cats: [], includeSummary: true });
-      }
-
-      pagesCats.forEach((pageGroup, pageIdx) => {
         orderedPages.push({
-          id:
-            pageIdx === 0
-              ? `print-section-${sectionId}`
-              : `print-section-${sectionId}_p${pageIdx + 1}`,
-          sectionKey: sectionId,
+          id: `print-section-${sec.id}`,
+          sectionKey: sec.id,
           content: (
             <div className="space-y-3">
-              {pageGroup.cats.map((cat, i) => renderCategory(cat, i))}
-              {pageGroup.includeSummary && renderTouchpointSummary(section)}
+              <ReportCard
+                businessName={businessDisplayLower}
+                cardTitle={sec.title.toLowerCase()}
+                badge="growth capital projections"
+              >
+                <div className="p-3 text-[9px] leading-[16px] text-[#3C4655] whitespace-pre-wrap">
+                  {sec.content ||
+                    'Financial forecast narrative, core unit economics commentary, and sensitivity analysis.'}
+                </div>
+              </ReportCard>
+
+              <ReportCard
+                businessName={businessDisplayLower}
+                cardTitle="3–5 year financial forecast (updated by bizzforecasta)"
+              >
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#D8CEBC] bg-[#F2EEE6]">
+                      <th className="py-1 px-2.5 text-left font-bold text-[#505A69] lowercase text-[9px] leading-[16px] border-r border-[#ECE7DE]">
+                        projected metric
+                      </th>
+                      {forecastaMetrics.yearlyForecast.map((y) => (
+                        <th
+                          key={y.year}
+                          className="py-1 px-2 text-right font-bold text-[#505A69] lowercase text-[9px] leading-[16px]"
+                        >
+                          {y.label.toLowerCase()}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#ECE7DE]">
+                    <FinancialTableRow
+                      label="revenue"
+                      values={forecastaMetrics.yearlyForecast.map((y) => y.revenue)}
+                      isTotal
+                    />
+                    <FinancialTableRow
+                      label="cost of sales"
+                      values={forecastaMetrics.yearlyForecast.map((y) => y.costOfSales)}
+                      isNegativeRow
+                      isAlt
+                    />
+                    <FinancialTableRow
+                      label="gross profit"
+                      values={forecastaMetrics.yearlyForecast.map((y) => y.grossProfit)}
+                      isTotal
+                    />
+                    <FinancialTableRow
+                      label="gross margin %"
+                      values={forecastaMetrics.yearlyForecast.map((y) => y.grossMarginPct)}
+                      isPercent
+                      isAlt
+                    />
+                    <FinancialTableRow
+                      label="operating expenses"
+                      values={forecastaMetrics.yearlyForecast.map((y) => y.opex)}
+                      isNegativeRow
+                    />
+                    <FinancialTableRow
+                      label="net operating profit"
+                      values={forecastaMetrics.yearlyForecast.map((y) => y.operatingProfit)}
+                      isTotal
+                      isAlt
+                    />
+                    <FinancialTableRow
+                      label="net profit after tax"
+                      values={forecastaMetrics.yearlyForecast.map((y) => y.netProfit)}
+                      isTotal
+                    />
+                    <FinancialTableRow
+                      label="operating cash flow"
+                      values={forecastaMetrics.yearlyForecast.map((y) => y.operatingCashFlow)}
+                      isAlt
+                    />
+                    <FinancialTableRow
+                      label="working capital needs"
+                      values={forecastaMetrics.yearlyForecast.map((y) => y.workingCapitalNeeds)}
+                    />
+                    <FinancialTableRow
+                      label="closing cash balance"
+                      values={forecastaMetrics.yearlyForecast.map((y) => y.closingCash)}
+                      isTotal
+                      isAlt
+                    />
+                  </tbody>
+                </table>
+              </ReportCard>
+
+              <ReportCard businessName={businessDisplayLower} cardTitle="core unit economics">
+                <div className="p-3 grid grid-cols-5 gap-3">
+                  {[
+                    { label: 'cac', value: cm.cac ? formatValue(cm.cac) : '—' },
+                    { label: 'ltv', value: cm.ltv ? formatValue(cm.ltv) : '—' },
+                    { label: 'ltv : cac', value: ltvCac > 0 ? `${ltvCac.toFixed(2)}x` : '—' },
+                    { label: 'payback (mts)', value: cm.paybackMonths ? `${cm.paybackMonths}m` : '—' },
+                    {
+                      label: 'contribution %',
+                      value: cm.contributionMarginPct ? `${cm.contributionMarginPct.toFixed(1)}%` : '—',
+                    },
+                  ].map((item) => (
+                    <div key={item.label} className="border-b border-[#ECE7DE] pb-1">
+                      <div className="text-[9px] leading-[16px] lowercase text-[#6E7887]">
+                        {item.label}
+                      </div>
+                      <div className="text-[9px] leading-[16px] font-bold tabular-nums text-[#2E5E88]">
+                        {item.value}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ReportCard>
+
+              <ReportCard
+                businessName={businessDisplayLower}
+                cardTitle="scenario sensitivities (base · upside · downside)"
+              >
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#D8CEBC] bg-[#F2EEE6]">
+                      <th className="py-1 px-2.5 text-left font-bold text-[#505A69] lowercase text-[9px] leading-[16px] border-r border-[#ECE7DE]">
+                        scenario case
+                      </th>
+                      <th className="py-1 px-2 text-right font-bold text-[#505A69] lowercase text-[9px] leading-[16px]">
+                        yr 1 rev
+                      </th>
+                      <th className="py-1 px-2 text-right font-bold text-[#505A69] lowercase text-[9px] leading-[16px]">
+                        yr 3 rev
+                      </th>
+                      <th className="py-1 px-2 text-right font-bold text-[#505A69] lowercase text-[9px] leading-[16px]">
+                        yr 3 nop
+                      </th>
+                      <th className="py-1 px-2 text-right font-bold text-[#505A69] lowercase text-[9px] leading-[16px]">
+                        yr 3 cash
+                      </th>
+                      <th className="py-1 px-2 text-right font-bold text-[#505A69] lowercase text-[9px] leading-[16px]">
+                        yr 5 cash
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#ECE7DE]">
+                    {forecastaMetrics.scenarios.map((s, idx) => (
+                      <tr key={s.scenario} className={idx % 2 === 1 ? 'bg-[#FCFBF8]' : 'bg-white'}>
+                        <td className="py-0.5 px-2.5 border-r border-[#ECE7DE] text-[9px] leading-[16px] font-bold text-[#182234] lowercase">
+                          {s.scenario.toLowerCase()}
+                        </td>
+                        <td className="py-0.5 px-2 text-right tabular-nums text-[9px] leading-[16px]">
+                          {formatValue(s.yr1Revenue)}
+                        </td>
+                        <td className="py-0.5 px-2 text-right tabular-nums text-[9px] leading-[16px]">
+                          {formatValue(s.yr3Revenue)}
+                        </td>
+                        <td className="py-0.5 px-2 text-right tabular-nums text-[9px] leading-[16px]">
+                          {formatValue(s.yr3Nop)}
+                        </td>
+                        <td
+                          className={`py-0.5 px-2 text-right tabular-nums text-[9px] leading-[16px] font-bold ${
+                            s.yr3ClosingCash < 0 ? 'text-[#E12D4B]' : 'text-[#2E5E88]'
+                          }`}
+                        >
+                          {formatValue(s.yr3ClosingCash)}
+                        </td>
+                        <td
+                          className={`py-0.5 px-2 text-right tabular-nums text-[9px] leading-[16px] font-bold ${
+                            s.yr5ClosingCash < 0 ? 'text-[#E12D4B]' : 'text-[#2E5E88]'
+                          }`}
+                        >
+                          {formatValue(s.yr5ClosingCash)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </ReportCard>
             </div>
           ),
         });
+
+        // Second A4 page for Page 6: Full 3–5 Year Historical Performance (IS, BS, CF)
+        const histYears = forecastaMetrics.historicalYears;
+        orderedPages.push({
+          id: `print-section-${sec.id}_historical`,
+          sectionKey: sec.id,
+          content: (
+            <div className="space-y-3">
+              <ReportCard
+                businessName={businessDisplayLower}
+                cardTitle={`${sec.title.toLowerCase()} — historical income statement (${histYears.length}-year)`}
+              >
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#D8CEBC] bg-[#F2EEE6]">
+                      <th className="py-1 px-2.5 text-left font-bold text-[#505A69] lowercase text-[9px] leading-[16px] w-2/5 border-r border-[#ECE7DE]">
+                        income statement line
+                      </th>
+                      {histYears.map((y) => (
+                        <th
+                          key={y.id}
+                          className="py-1 px-2 text-right font-bold text-[#505A69] lowercase text-[9px] leading-[16px]"
+                        >
+                          {y.yearLabel.toLowerCase()}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#ECE7DE]">
+                    <FinancialTableRow label="revenue" values={histYears.map((y) => y.revenue)} isTotal />
+                    <FinancialTableRow label="cost of sales" values={histYears.map((y) => y.costOfSales)} isNegativeRow isAlt />
+                    <FinancialTableRow label="gross profit" values={histYears.map((y) => computeHistoricalYearMetrics(y).grossProfit)} isTotal />
+                    <FinancialTableRow label="gross margin %" values={histYears.map((y) => computeHistoricalYearMetrics(y).grossMarginPct)} isPercent isAlt />
+                    <FinancialTableRow label="operating expenses" values={histYears.map((y) => y.operatingExpenses)} isNegativeRow />
+                    <FinancialTableRow label="ebitda" values={histYears.map((y) => computeHistoricalYearMetrics(y).ebitda)} isTotal isAlt />
+                    <FinancialTableRow label="depreciation & amortisation" values={histYears.map((y) => y.depreciationAndAmortisation)} isNegativeRow />
+                    <FinancialTableRow label="operating profit (ebit)" values={histYears.map((y) => computeHistoricalYearMetrics(y).ebit)} isTotal isAlt />
+                    <FinancialTableRow label="interest & finance costs" values={histYears.map((y) => y.interestAndFinance)} isNegativeRow />
+                    <FinancialTableRow label="taxation" values={histYears.map((y) => y.taxation)} isNegativeRow isAlt />
+                    <FinancialTableRow label="net profit after tax" values={histYears.map((y) => computeHistoricalYearMetrics(y).netProfit)} isTotal />
+                  </tbody>
+                </table>
+              </ReportCard>
+
+              <ReportCard
+                businessName={businessDisplayLower}
+                cardTitle={`historical balance sheet (${histYears.length}-year)`}
+              >
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#D8CEBC] bg-[#F2EEE6]">
+                      <th className="py-1 px-2.5 text-left font-bold text-[#505A69] lowercase text-[9px] leading-[16px] w-2/5 border-r border-[#ECE7DE]">
+                        balance sheet line
+                      </th>
+                      {histYears.map((y) => (
+                        <th
+                          key={y.id}
+                          className="py-1 px-2 text-right font-bold text-[#505A69] lowercase text-[9px] leading-[16px]"
+                        >
+                          {y.yearLabel.toLowerCase()}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#ECE7DE]">
+                    <FinancialTableRow label="fixed & non-current assets" values={histYears.map((y) => y.fixedAssets)} />
+                    <FinancialTableRow label="current assets (excl. cash)" values={histYears.map((y) => y.currentAssets)} isAlt />
+                    <FinancialTableRow label="cash & bank balances" values={histYears.map((y) => y.cashAndBank)} />
+                    <FinancialTableRow label="total assets" values={histYears.map((y) => computeHistoricalYearMetrics(y).totalAssets)} isTotal isAlt />
+                    <FinancialTableRow label="shareholders equity" values={histYears.map((y) => y.equity)} isTotal />
+                    <FinancialTableRow label="long-term debt" values={histYears.map((y) => y.longTermDebt)} isAlt />
+                    <FinancialTableRow label="current liabilities" values={histYears.map((y) => y.currentLiabilities)} />
+                    <FinancialTableRow label="total equity & liabilities" values={histYears.map((y) => computeHistoricalYearMetrics(y).totalEquityAndLiabilities)} isTotal isAlt />
+                  </tbody>
+                </table>
+              </ReportCard>
+
+              <ReportCard
+                businessName={businessDisplayLower}
+                cardTitle={`historical cash flow statement (${histYears.length}-year)`}
+              >
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#D8CEBC] bg-[#F2EEE6]">
+                      <th className="py-1 px-2.5 text-left font-bold text-[#505A69] lowercase text-[9px] leading-[16px] w-2/5 border-r border-[#ECE7DE]">
+                        cash flow line
+                      </th>
+                      {histYears.map((y) => (
+                        <th
+                          key={y.id}
+                          className="py-1 px-2 text-right font-bold text-[#505A69] lowercase text-[9px] leading-[16px]"
+                        >
+                          {y.yearLabel.toLowerCase()}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#ECE7DE]">
+                    <FinancialTableRow label="operating cash flow" values={histYears.map((y) => y.operatingCashFlow)} />
+                    <FinancialTableRow label="investing cash flow (capex)" values={histYears.map((y) => y.investingCashFlow)} isAlt />
+                    <FinancialTableRow label="financing cash flow" values={histYears.map((y) => y.financingCashFlow)} />
+                    <FinancialTableRow label="net cash movement" values={histYears.map((y) => computeHistoricalYearMetrics(y).netCashMovement)} isTotal isAlt />
+                    <FinancialTableRow label="closing cash balance" values={histYears.map((y) => y.closingCashBalance)} isTotal />
+                  </tbody>
+                </table>
+                {forecastaMetrics.historicalNotes && (
+                  <div className="px-3 py-1.5 border-t border-[#ECE7DE] text-[9px] text-[#6E7887]">
+                    basis: {forecastaMetrics.historicalNotes}
+                  </div>
+                )}
+              </ReportCard>
+            </div>
+          ),
+        });
+        return;
+      }
+
+      // Standard Scripted Growth-Capital Page (Pages 1, 2, 3, 4, 5, 7, 8)
+      orderedPages.push({
+        id: `print-section-${sec.id}`,
+        sectionKey: sec.id,
+        content: (
+          <div className="space-y-3">
+            {/* Capital Ask Summary Strip on Page 1 */}
+            {sec.id === 'exec_summary_ask' && (cm.capitalRequested || cm.instrumentPreference || cm.targetTimeline) && (
+              <ReportCard businessName={businessDisplayLower} cardTitle="the ask · capital summary">
+                <div className="p-3 grid grid-cols-3 gap-4">
+                  <div className="border-b border-[#ECE7DE] pb-1">
+                    <div className="text-[9px] leading-[16px] lowercase text-[#6E7887]">capital requested</div>
+                    <div className="text-[10px] leading-[16px] font-bold text-[#2E5E88] tabular-nums">
+                      {cm.capitalRequested ? formatValue(cm.capitalRequested) : formatValue(forecastaMetrics.totalFundingConfigured)}
+                    </div>
+                  </div>
+                  <div className="border-b border-[#ECE7DE] pb-1">
+                    <div className="text-[9px] leading-[16px] lowercase text-[#6E7887]">instrument preference</div>
+                    <div className="text-[10px] leading-[16px] font-bold text-[#141E2D] lowercase">
+                      {cm.instrumentPreference || 'equity'}
+                    </div>
+                  </div>
+                  <div className="border-b border-[#ECE7DE] pb-1">
+                    <div className="text-[9px] leading-[16px] lowercase text-[#6E7887]">target timeline</div>
+                    <div className="text-[10px] leading-[16px] font-bold text-[#141E2D] lowercase">
+                      {cm.targetTimeline || '3–6 months'}
+                    </div>
+                  </div>
+                </div>
+              </ReportCard>
+            )}
+
+            {/* Main User Narrative Card */}
+            <ReportCard
+              businessName={businessDisplayLower}
+              cardTitle={sec.title.toLowerCase()}
+              badge={sec.importedDocName ? `source: ${sec.importedDocName}` : undefined}
+            >
+              <div className="p-3 text-[9px] leading-[16px] text-[#3C4655] whitespace-pre-wrap">
+                {sec.content ||
+                  `Motivation and investor justification for ${sec.title.toLowerCase()} will appear here as drafted.`}
+              </div>
+            </ReportCard>
+
+            {/* Page 2: Auto-synced Historical Revenue & Profit Trajectory + Customer Proof */}
+            {sec.autoSyncBlock === 'historical_traction' && (
+              <>
+                <ReportCard
+                  businessName={businessDisplayLower}
+                  cardTitle="historical revenue & profit trajectory (auto-synced from bizzforecasta)"
+                >
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b border-[#D8CEBC] bg-[#F2EEE6]">
+                        <th className="py-1 px-2.5 text-left font-bold text-[#505A69] lowercase text-[9px] leading-[16px] border-r border-[#ECE7DE]">
+                          historical metric
+                        </th>
+                        {forecastaMetrics.historicalYears.map((y) => (
+                          <th
+                            key={y.id}
+                            className="py-1 px-2 text-right font-bold text-[#505A69] lowercase text-[9px] leading-[16px]"
+                          >
+                            {y.yearLabel.toLowerCase()}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#ECE7DE]">
+                      <FinancialTableRow label="revenue" values={forecastaMetrics.historicalYears.map((y) => y.revenue)} isTotal />
+                      <FinancialTableRow label="gross profit" values={forecastaMetrics.historicalYears.map((y) => computeHistoricalYearMetrics(y).grossProfit)} isAlt />
+                      <FinancialTableRow label="gross margin %" values={forecastaMetrics.historicalYears.map((y) => computeHistoricalYearMetrics(y).grossMarginPct)} isPercent />
+                      <FinancialTableRow label="ebitda" values={forecastaMetrics.historicalYears.map((y) => computeHistoricalYearMetrics(y).ebitda)} isTotal isAlt />
+                      <FinancialTableRow label="operating cash flow" values={forecastaMetrics.historicalYears.map((y) => y.operatingCashFlow)} />
+                    </tbody>
+                  </table>
+                </ReportCard>
+
+                {(cm.retentionRatePct || cm.churnRatePct || cm.netDollarRetentionPct || cm.contractedPipeline) ? (
+                  <ReportCard businessName={businessDisplayLower} cardTitle="customer proof metrics">
+                    <div className="p-3 grid grid-cols-4 gap-3">
+                      {[
+                        { label: 'retention rate', value: cm.retentionRatePct ? `${cm.retentionRatePct}%` : '—' },
+                        { label: 'annual churn', value: cm.churnRatePct ? `${cm.churnRatePct}%` : '—' },
+                        { label: 'net dollar retention', value: cm.netDollarRetentionPct ? `${cm.netDollarRetentionPct}%` : '—' },
+                        { label: 'contracted pipeline', value: cm.contractedPipeline ? formatValue(cm.contractedPipeline) : '—' },
+                      ].map((item) => (
+                        <div key={item.label} className="border-b border-[#ECE7DE] pb-1">
+                          <div className="text-[9px] leading-[16px] lowercase text-[#6E7887]">{item.label}</div>
+                          <div className="text-[9px] leading-[16px] font-bold text-[#2E5E88] tabular-nums">{item.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </ReportCard>
+                ) : null}
+              </>
+            )}
+
+            {/* Page 4: Auto-synced Quarterly Targets (12–24 Months: Q1–Q8) */}
+            {sec.autoSyncBlock === 'quarterly_kpis' && (
+              <ReportCard
+                businessName={businessDisplayLower}
+                cardTitle="quarterly targets & kpis (next 12–24 months · updated from bizzforecasta)"
+              >
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#D8CEBC] bg-[#F2EEE6]">
+                      <th className="py-1 px-2.5 text-left font-bold text-[#505A69] lowercase text-[9px] leading-[16px] border-r border-[#ECE7DE]">
+                        quarter
+                      </th>
+                      <th className="py-1 px-2 text-right font-bold text-[#505A69] lowercase text-[9px] leading-[16px]">
+                        revenue
+                      </th>
+                      <th className="py-1 px-2 text-right font-bold text-[#505A69] lowercase text-[9px] leading-[16px]">
+                        gross profit
+                      </th>
+                      <th className="py-1 px-2 text-right font-bold text-[#505A69] lowercase text-[9px] leading-[16px]">
+                        gp %
+                      </th>
+                      <th className="py-1 px-2 text-right font-bold text-[#505A69] lowercase text-[9px] leading-[16px]">
+                        opex
+                      </th>
+                      <th className="py-1 px-2 text-right font-bold text-[#505A69] lowercase text-[9px] leading-[16px]">
+                        operating profit
+                      </th>
+                      <th className="py-1 px-2 text-right font-bold text-[#505A69] lowercase text-[9px] leading-[16px]">
+                        closing cash
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#ECE7DE]">
+                    {forecastaMetrics.quarterlyTargets.map((q, idx) => (
+                      <tr key={q.quarterLabel} className={idx % 2 === 1 ? 'bg-[#FCFBF8]' : 'bg-white'}>
+                        <td className="py-0.5 px-2.5 border-r border-[#ECE7DE] text-[9px] leading-[16px] font-bold text-[#182234] lowercase">
+                          {q.quarterLabel.toLowerCase()} ({q.monthsRange.toLowerCase()})
+                        </td>
+                        <td className="py-0.5 px-2 text-right tabular-nums text-[9px] leading-[16px]">
+                          {formatValue(q.revenue)}
+                        </td>
+                        <td className="py-0.5 px-2 text-right tabular-nums text-[9px] leading-[16px]">
+                          {formatValue(q.grossProfit)}
+                        </td>
+                        <td className="py-0.5 px-2 text-right tabular-nums text-[9px] leading-[16px]">
+                          {formatValue(q.grossMarginPct, true)}
+                        </td>
+                        <td className="py-0.5 px-2 text-right tabular-nums text-[9px] leading-[16px]">
+                          {formatValue(q.opex)}
+                        </td>
+                        <td
+                          className={`py-0.5 px-2 text-right tabular-nums text-[9px] leading-[16px] font-bold ${
+                            q.operatingProfit < 0 ? 'text-[#E12D4B]' : 'text-[#2E5E88]'
+                          }`}
+                        >
+                          {formatValue(q.operatingProfit)}
+                        </td>
+                        <td
+                          className={`py-0.5 px-2 text-right tabular-nums text-[9px] leading-[16px] ${
+                            q.closingCash < 0 ? 'text-[#E12D4B]' : 'text-[#141E2D]'
+                          }`}
+                        >
+                          {formatValue(q.closingCash)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </ReportCard>
+            )}
+          </div>
+        ),
       });
-    }
-  );
+    });
+  } else {
+    // 5. Financial Reports (standard bizzmodel bizzplan)
+    orderedPages.push({
+      id: 'print-section-financial_reports',
+      sectionKey: 'financial_reports',
+      content: (
+        <div className="space-y-3">
+          {[
+            {
+              title: 'income statement',
+              rows: [
+                { label: 'total revenue', mode: 'rev' },
+                { label: 'cost of sales', mode: 'cos', isNegativeRow: true },
+                { label: 'gross profit', mode: 'gp', isTotal: true },
+                { label: 'operating expenses', mode: 'opex', isNegativeRow: true },
+                { label: 'net operating profit', mode: 'nop', isTotal: true },
+                { label: 'taxation', mode: 'tax', isNegativeRow: true },
+                { label: 'net profit', mode: 'np', isTotal: true },
+              ],
+            },
+            {
+              title: 'key ratios',
+              rows: [
+                { label: 'gross profit margin', mode: 'gp-margin', isPercent: true },
+                { label: 'return on assets', mode: 'roa', isPercent: true },
+                { label: 'debt:equity ratio', mode: 'debt-equity' },
+              ],
+            },
+            {
+              title: 'balance sheet',
+              rows: [
+                { label: 'total assets', mode: 'assets', isTotal: true },
+                { label: 'total liabilities', mode: 'liabilities' },
+                { label: 'total equity', mode: 'equity', isTotal: true },
+                { label: 'bank balance', mode: 'bank', isTotal: true },
+              ],
+            },
+            {
+              title: 'cash flow statement',
+              rows: [
+                { label: 'cash from operations', mode: 'cash-ops', isTotal: true },
+                { label: 'cash from investment', mode: 'cash-inv' },
+                { label: 'cash from financing', mode: 'cash-fin' },
+                { label: 'closing bank balance', mode: 'bank', isTotal: true },
+              ],
+            },
+          ].map((report, idx) => (
+            <ReportCard
+              key={idx}
+              businessName={businessDisplayLower}
+              cardTitle={report.title}
+            >
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-[#D8CEBC] bg-[#F2EEE6]">
+                    <th className="py-1 px-2.5 text-left font-bold text-[#505A69] lowercase text-[9px] leading-[16px] w-1/3 border-r border-[#ECE7DE]">
+                      consolidated figures
+                    </th>
+                    {years.map((y) => (
+                      <th
+                        key={y}
+                        className="py-1 px-2 text-right font-bold text-[#505A69] lowercase text-[9px] leading-[16px]"
+                      >
+                        yr {y}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#ECE7DE]">
+                  {report.rows.map((rowRef: any, rIdx: number) => (
+                    <FinancialTableRow
+                      key={rIdx}
+                      label={rowRef.label}
+                      values={getYearlyValues(rowRef.mode)}
+                      isTotal={rowRef.isTotal}
+                      isPercent={rowRef.isPercent}
+                      isNegativeRow={rowRef.isNegativeRow}
+                      isAlt={rIdx % 2 === 1}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </ReportCard>
+          ))}
+        </div>
+      ),
+    });
 
-  // 7. Viability Scorecard
-  orderedPages.push({
-    id: 'print-section-viability_scorecard',
-    sectionKey: 'viability_scorecard',
-    content: <ScorecardTable data={planData} variant="print" />,
-  });
+    // 6. Strategic Touchpoints with "Keep With Next" A4 Page Packing
+    const PAGE_HEIGHT_BUDGET = 840;
+    const CARD_GAP = 12;
 
-  orderedPages.push({
-    id: 'print-section-viability_scorecard_2',
-    sectionKey: 'viability_scorecard',
-    content: <ScorecardActions data={planData} variant="print" />,
-  });
+    const estimateCategoryHeight = (cat: any): number => {
+      let height = 64; // card header + table header + vertical border buffer
+      for (const item of cat.items || []) {
+        const len = (item.item || '').length;
+        const lines = Math.max(1, Math.ceil(len / 72));
+        height += lines * 16 + 5;
+      }
+      return height;
+    };
+
+    const estimateSummaryHeight = (text: string): number => {
+      const paragraphs = (text || '').split('\n');
+      let lines = 0;
+      for (const p of paragraphs) {
+        lines += Math.max(1, Math.ceil(p.length / 82));
+      }
+      return 54 + Math.max(2, lines) * 16;
+    };
+
+    ['environment', 'products', 'customers', 'suppliers', 'employees', 'infrastructure', 'systems'].forEach(
+      (sectionId) => {
+        const section = getSection(sectionId);
+        if (!section) return;
+
+        const allCategories = section.categories || [];
+        const summaryText =
+          section.content ||
+          `Business plan and operational planning for ${section.title} focus areas.`;
+        const summaryHeight = estimateSummaryHeight(summaryText);
+
+        // Group categories atomically so each sub-header + table stays together ("keep with next")
+        const pagesCats: Array<{ cats: any[]; includeSummary: boolean }> = [];
+        let currentCats: any[] = [];
+        let currentHeight = 0;
+
+        allCategories.forEach((cat) => {
+          const catHeight = estimateCategoryHeight(cat);
+          const gap = currentCats.length > 0 ? CARD_GAP : 0;
+
+          if (currentCats.length > 0 && currentHeight + gap + catHeight > PAGE_HEIGHT_BUDGET) {
+            pagesCats.push({ cats: currentCats, includeSummary: false });
+            currentCats = [cat];
+            currentHeight = catHeight;
+          } else {
+            currentCats.push(cat);
+            currentHeight += gap + catHeight;
+          }
+        });
+
+        if (currentCats.length > 0) {
+          if (currentHeight + CARD_GAP + summaryHeight <= PAGE_HEIGHT_BUDGET) {
+            pagesCats.push({ cats: currentCats, includeSummary: true });
+          } else {
+            pagesCats.push({ cats: currentCats, includeSummary: false });
+            pagesCats.push({ cats: [], includeSummary: true });
+          }
+        } else {
+          pagesCats.push({ cats: [], includeSummary: true });
+        }
+
+        pagesCats.forEach((pageGroup, pageIdx) => {
+          orderedPages.push({
+            id:
+              pageIdx === 0
+                ? `print-section-${sectionId}`
+                : `print-section-${sectionId}_p${pageIdx + 1}`,
+            sectionKey: sectionId,
+            content: (
+              <div className="space-y-3">
+                {pageGroup.cats.map((cat, i) => renderCategory(cat, i))}
+                {pageGroup.includeSummary && renderTouchpointSummary(section)}
+              </div>
+            ),
+          });
+        });
+      }
+    );
+
+    // 7. Viability Scorecard
+    orderedPages.push({
+      id: 'print-section-viability_scorecard',
+      sectionKey: 'viability_scorecard',
+      content: <ScorecardTable data={planData} variant="print" />,
+    });
+
+    orderedPages.push({
+      id: 'print-section-viability_scorecard_2',
+      sectionKey: 'viability_scorecard',
+      content: <ScorecardActions data={planData} variant="print" />,
+    });
+  }
 
   const totalPages = orderedPages.length;
 
@@ -917,6 +1421,9 @@ export default function PrintReview({
               generatedDate={generatedDate}
               pageNumber={idx + 1}
               totalPages={totalPages}
+              brandTitle={isBizzForecasta ? 'bizzforecasta' : 'bizzplan'}
+              documentLabel={isBizzForecasta ? 'growth capital business plan (a4)' : 'business plan (a4)'}
+              sourceLabel={isBizzForecasta ? 'bizzforecasta' : 'bizzmodel'}
             >
               {page.content}
             </A4Page>

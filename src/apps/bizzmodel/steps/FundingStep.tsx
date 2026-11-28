@@ -32,6 +32,7 @@ import { calculateFinancialModelProjections } from '../utils/revenueCalc';
 import { LiquidityVsDebtChart, LiquidityDataPoint } from '../../bizzdynamics/components/LiquidityVsDebtChart';
 import { calculateTermLoanMetrics } from '../utils/loanCalc';
 import { ActionsToImprovePanel } from '../components/ActionsToImprovePanel';
+import { HistoricalPerformanceTable } from '../components/HistoricalPerformanceTable';
 
 interface FundingStepProps {
   theme?: 'light' | 'dark';
@@ -3119,6 +3120,21 @@ export const FundingStep: React.FC<FundingStepProps> = ({
               </div>
             )}
           </div>
+
+          {mode === 'bizzforecasta' && (
+            <HistoricalPerformanceTable
+              data={state.historicalPerformance}
+              forecastStartYear={state.businessDetails?.startDateYear || 2026}
+              theme={theme}
+              contextLabel="Synced to Business Plan Page 2 & Page 6"
+              onChange={(historicalPerformance) =>
+                onUpdateState((prev) => ({
+                  ...prev,
+                  historicalPerformance,
+                }))
+              }
+            />
+          )}
         </div>
       )}
     </div>

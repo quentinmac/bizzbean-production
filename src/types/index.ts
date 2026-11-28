@@ -259,14 +259,44 @@ export interface BizzPlanTouchPointCategory {
   comment?: string;
 }
 
+export interface BizzPlanScriptedHint {
+  heading: string;
+  detail: string;
+  autoSyncTag?: string;
+}
+
+export interface BizzForecastaCustomMetrics {
+  // Executive Summary & Ask
+  capitalRequested?: number;
+  instrumentPreference?: string;
+  targetTimeline?: string;
+  // Proven Traction Customer Proof
+  retentionRatePct?: number;
+  churnRatePct?: number;
+  netDollarRetentionPct?: number;
+  contractedPipeline?: number;
+  // Core Unit Economics (Page 6)
+  cac?: number;
+  ltv?: number;
+  paybackMonths?: number;
+  contributionMarginPct?: number;
+}
+
 export interface BizzPlanSection {
   id: string;
   title: string;
+  defaultTitle?: string;
   content: string;
   isCompleted: boolean;
   checkpoints: string[];
-  type?: 'narrative' | 'touchpoint' | 'scorecard';
+  type?: 'narrative' | 'touchpoint' | 'scorecard' | 'scripted';
   categories?: BizzPlanTouchPointCategory[];
+  hints?: BizzPlanScriptedHint[];
+  isOptional?: boolean;
+  isIncluded?: boolean;
+  autoSyncBlock?: 'historical_traction' | 'quarterly_kpis' | 'financial_projections_unit_econ';
+  importedDocName?: string;
+  customMetrics?: BizzForecastaCustomMetrics;
 }
 
 export interface BizzPlanCoverPage {

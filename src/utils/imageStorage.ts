@@ -903,11 +903,32 @@ export function cleanLegacyProducts(products: CmsProduct[]): CmsProduct[] {
   });
 
   // Guarantee all canonical initial products (all 19 courses and apps) are present
+  // without re-injecting deleted apps or duplicating an app that already exists under another ID (e.g. bizzbudget BA-005 vs legacy BA-007)
+  const existingAppNames = new Set<string>();
+  byId.forEach((existingProd) => {
+    if (existingProd.type === 'app' && existingProd.name) {
+      existingAppNames.add(existingProd.name.trim().toLowerCase());
+    }
+  });
+
   INITIAL_CMS_PRODUCTS.forEach((ip) => {
     if (ip && ip.id) {
       const canonicalId = ip.type === 'course' ? (getCanonicalCourseId(ip.id) || ip.id) : ip.id;
+      const isMasterCourse =
+        CANONICAL_MASTER_COURSE_IDS.has(ip.id) ||
+        CANONICAL_MASTER_COURSE_IDS.has(canonicalId);
+      if (!isMasterCourse && (deletedIds.has(ip.id) || deletedIds.has(canonicalId))) {
+        return;
+      }
+      const normName = (ip.name || '').trim().toLowerCase();
+      if (ip.type === 'app' && normName && existingAppNames.has(normName)) {
+        return;
+      }
       if (!byId.has(ip.id) && !byId.has(canonicalId)) {
         byId.set(canonicalId, { ...ip, id: canonicalId });
+        if (ip.type === 'app' && normName) {
+          existingAppNames.add(normName);
+        }
       }
     }
   });
@@ -1041,13 +1062,38 @@ export function cleanLegacyProducts(products: CmsProduct[]): CmsProduct[] {
     };
   });
 
-  return cleanedList.filter((p) => {
+  const filtered = cleanedList.filter((p) => {
     const isMaster =
       CANONICAL_MASTER_COURSE_IDS.has(p.id) ||
       CANONICAL_MASTER_COURSE_IDS.has(getCanonicalCourseId(p.id) || '');
     if (isMaster) return true;
     return !deletedIds.has(p.id);
   });
+
+  // Deduplicate legacy hardcoded bizzbudget (BA-007 / R260) if an active bizzbudget (e.g. BA-005 / R790.83) is already present
+  const bizzbudgetApps = filtered.filter(
+    (p) => (p.name || '').trim().toLowerCase() === 'bizzbudget' && p.type === 'app'
+  );
+  if (bizzbudgetApps.length > 1) {
+    const hasNonLegacy = bizzbudgetApps.some(
+      (p) =>
+        (p.sku || '').trim().toUpperCase() !== 'BA-007' &&
+        Math.abs(Number(p.sellingPriceZAR ?? 0) - 260) > 0.05
+    );
+    if (hasNonLegacy) {
+      return filtered.filter((p) => {
+        if ((p.name || '').trim().toLowerCase() !== 'bizzbudget' || p.type !== 'app') {
+          return true;
+        }
+        const isLegacyDuplicate =
+          (p.sku || '').trim().toUpperCase() === 'BA-007' ||
+          Math.abs(Number(p.sellingPriceZAR ?? 0) - 260) <= 0.05;
+        return !isLegacyDuplicate;
+      });
+    }
+  }
+
+  return filtered;
 }
 
 /**

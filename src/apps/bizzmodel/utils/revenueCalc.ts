@@ -14,6 +14,8 @@ import {
   resolveRevenueShareCategory,
 } from '../components/modelsets/revenueShareEngine';
 import { calculateTimeUnitsMonthMetrics } from '../components/modelsets/timeUnitsEngine';
+import { calculateTimeSlotRentalsMonthMetrics } from '../components/modelsets/timeSlotRentalsEngine';
+import { calculateGuardingMonthMetrics } from '../components/modelsets/guardingEngine';
 
 /**
  * Excel PMT Formula for lease calculations:
@@ -907,6 +909,40 @@ export function calculateFinancialModelProjections(
           revenue += tu.revenue;
           // Pure time-units service has zero variable COS (fixed COS from Employment, Overheads, Assets)
           gpAdjustmentsCommission += tu.gpAdjustmentsCommissionPositive;
+          return;
+        }
+
+        const isTimeSlotRentalsItem =
+          state.activeModelSet === 'time-slot-rentals' ||
+          item.modelType === 'time slot rentals';
+
+        if (isTimeSlotRentalsItem) {
+          const tsr = calculateTimeSlotRentalsMonthMetrics(item, absIdx, daysWorked);
+          otherIncomeTotal += tsr.otherIncome;
+          if (!tsr.isLaunched) return;
+
+          unitSales += tsr.rentalsPerMonth;
+          revenue += tsr.revenue;
+          // Pure time-slot rentals service has zero variable COS (fixed COS from Employment, Overheads, Assets)
+          gpAdjustmentsCommission += tsr.gpAdjustmentsCommissionPositive;
+          return;
+        }
+
+        const isGuardingItem =
+          state.activeModelSet === 'guarding' ||
+          item.modelType === 'guarding' ||
+          item.modelType === 'guarding services';
+
+        if (isGuardingItem) {
+          const grd = calculateGuardingMonthMetrics(item, absIdx, daysWorked);
+          otherIncomeTotal += grd.otherIncome;
+          if (!grd.isLaunched) return;
+
+          unitSales += grd.guardsSold;
+          revenue += grd.revenue;
+          // Direct guard employment cost flows to Trading Account Variable Cost of Sales (R62 = guardsSold * unitCostPerGuard)
+          cogs += grd.variableCostOfSalesPositive;
+          gpAdjustmentsCommission += grd.gpAdjustmentsCommissionPositive;
           return;
         }
 

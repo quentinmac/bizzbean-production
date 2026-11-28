@@ -16,6 +16,9 @@ import {
   LaundryProductConfig,
   DrycleanerProductConfig,
   TimeSlotsProductConfig,
+  TimeSlotRentalsProductConfig,
+  GuardingProductConfig,
+  PrintingProductConfig,
 } from './components/modelsets/modelSetTypes';
 import { BizzOptimizerState, DEFAULT_BIZZOPTIMIZER_STATE } from './data/bizzoptimizerDefaults';
 
@@ -30,7 +33,7 @@ export type BusinessType = typeof BUSINESS_TYPES[number];
 export const BUSINESS_MODELS: Record<string, string[]> = {
   'trading': ['unit sales', 'value sales', 'commission', 'revenue share'],
   'manufacturing': ['batch lots', 'continuous production', 'fabrication'],
-  'services': ['time units', 'installation services', 'measured units', 'printing', 'laundry', 'drycleaner', 'time slots', 'guarding services'],
+  'services': ['time units', 'installation services', 'measured units', 'printing', 'laundry', 'drycleaner', 'time slots', 'time slot rentals', 'guarding services'],
   'mobility': ['taxi operator', 'tractor', 'driving school', 'truck operator'],
   'hospitality': ['family restaurant', 'guest house', 'events organizer'],
   'education': ['classroom facility'],
@@ -124,12 +127,12 @@ export const ALL_MODEL_SETS: ModelSetCategory[] = [
       { id: 'time-units', name: 'time units', isAvailable: true, statusLabel: 'Available' },
       { id: 'installation-services', name: 'installation services', isAvailable: true, statusLabel: 'Available' },
       { id: 'measured-units', name: 'measured units', isAvailable: true, statusLabel: 'Available' },
-      { id: 'printing', name: 'printing', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'printing', name: 'printing', isAvailable: true, statusLabel: 'Available' },
       { id: 'laundry', name: 'laundry', isAvailable: true, statusLabel: 'Available' },
       { id: 'drycleaning', name: 'drycleaner', isAvailable: true, statusLabel: 'Available' },
       { id: 'time-slots', name: 'time slots', isAvailable: true, statusLabel: 'Available' },
-      { id: 'time-slot-rentals', name: 'time slot rentals', isAvailable: false, statusLabel: 'coming soon' },
-      { id: 'guarding', name: 'guarding', isAvailable: false, statusLabel: 'coming soon' },
+      { id: 'time-slot-rentals', name: 'time slot rentals', isAvailable: true, statusLabel: 'Available' },
+      { id: 'guarding', name: 'guarding', isAvailable: true, statusLabel: 'Available' },
     ],
   },
   {
@@ -276,6 +279,9 @@ export interface RevenueItem {
   laundryConfig?: LaundryProductConfig;
   drycleanerConfig?: DrycleanerProductConfig;
   timeSlotsConfig?: TimeSlotsProductConfig;
+  timeSlotRentalsConfig?: TimeSlotRentalsProductConfig;
+  guardingConfig?: GuardingProductConfig;
+  printingConfig?: PrintingProductConfig;
 }
 
 export interface EmploymentCategory {
@@ -790,9 +796,73 @@ export interface EmploymentImportMeta {
   totalHeadcount: number;
 }
 
+export interface HistoricalPerformanceYear {
+  id: string;
+  yearLabel: string; // e.g. 'FY2023', 'FY2024', 'FY2025'
+  // Hi-Level Income Statement
+  revenue: number;
+  costOfSales: number;
+  operatingExpenses: number;
+  depreciationAndAmortisation: number;
+  interestAndFinance: number;
+  taxation: number;
+  // Hi-Level Balance Sheet
+  fixedAssets: number;
+  currentAssets: number;
+  cashAndBank: number;
+  equity: number;
+  longTermDebt: number;
+  currentLiabilities: number;
+  // Hi-Level Cash Flow Statement
+  operatingCashFlow: number;
+  investingCashFlow: number;
+  financingCashFlow: number;
+  closingCashBalance: number;
+}
+
+export interface HistoricalPerformanceData {
+  yearsCount: 3 | 4 | 5;
+  notes?: string;
+  years: HistoricalPerformanceYear[];
+}
+
+export function createDefaultHistoricalPerformanceData(
+  forecastStartYear: number = 2026,
+  yearsCount: 3 | 4 | 5 = 3
+): HistoricalPerformanceData {
+  const years: HistoricalPerformanceYear[] = Array.from({ length: 5 }, (_, idx) => {
+    const fy = forecastStartYear - 5 + idx;
+    return {
+      id: `hist-yr-${idx + 1}`,
+      yearLabel: `FY${fy}`,
+      revenue: 0,
+      costOfSales: 0,
+      operatingExpenses: 0,
+      depreciationAndAmortisation: 0,
+      interestAndFinance: 0,
+      taxation: 0,
+      fixedAssets: 0,
+      currentAssets: 0,
+      cashAndBank: 0,
+      equity: 0,
+      longTermDebt: 0,
+      currentLiabilities: 0,
+      operatingCashFlow: 0,
+      investingCashFlow: 0,
+      financingCashFlow: 0,
+      closingCashBalance: 0,
+    };
+  });
+  return {
+    yearsCount,
+    notes: '',
+    years,
+  };
+}
+
 export interface BizzModelState {
   appMode?: PlatformForecastAppId;
-  activeModelSet?: 'unit-sales' | 'value-sales' | 'commission' | 'revenue-share' | 'batch-lots' | 'continuous-production' | 'fabrication' | 'family-restaurant' | 'time-units' | 'installation-services' | 'measured-units' | 'laundry' | 'drycleaning' | 'time-slots';
+  activeModelSet?: 'unit-sales' | 'value-sales' | 'commission' | 'revenue-share' | 'batch-lots' | 'continuous-production' | 'fabrication' | 'family-restaurant' | 'time-units' | 'installation-services' | 'measured-units' | 'printing' | 'laundry' | 'drycleaning' | 'time-slots' | 'time-slot-rentals' | 'guarding';
   businessDetails: BusinessDetails;
   valueSalesCategories?: ValueSalesCategory[];
   commissionCategories?: CommissionCategory[];
@@ -810,6 +880,7 @@ export interface BizzModelState {
   highLevelForecast: HighLevelForecastData;
   hiLevelActuals?: HiLevelYtdActuals;
   bizzOptimizer?: BizzOptimizerState;
+  historicalPerformance?: HistoricalPerformanceData;
 }
 
 export const DEFAULT_BUSINESS_STATE: BizzModelState = {
@@ -910,7 +981,25 @@ export const DEFAULT_BUSINESS_STATE: BizzModelState = {
   },
 };
 
-export type PlatformForecastAppId = 'bizzdynamics' | 'rolling-forecast' | 'hi-level-forecast' | 'bizzmodel' | 'bizzbudget';
+export type PlatformForecastAppId = 'bizzdynamics' | 'rolling-forecast' | 'hi-level-forecast' | 'bizzmodel' | 'bizzbudget' | 'bizzforecasta';
+
+export function createDefaultBizzForecastaState(): BizzModelState {
+  const startYr = DEFAULT_BUSINESS_STATE.businessDetails.startDateYear || 2026;
+  return {
+    ...DEFAULT_BUSINESS_STATE,
+    appMode: 'bizzforecasta',
+    businessDetails: {
+      ...DEFAULT_BUSINESS_STATE.businessDetails,
+      businessName: 'Growth Capital Venture',
+      scenario: 'Growth Capital Investor Forecast (Single Operation)',
+      setupAssumptions: DEFAULT_SETUP_ASSUMPTIONS.map((a) => ({
+        ...a,
+        monthlyValues: [...a.monthlyValues],
+      })),
+    },
+    historicalPerformance: createDefaultHistoricalPerformanceData(startYr, 3),
+  };
+}
 
 export const DEFAULT_SETUP_ASSUMPTIONS: AssumptionRateItem[] = [
   {

@@ -13,6 +13,9 @@ export * from './measuredUnitsEngine';
 export * from './laundryEngine';
 export * from './drycleanerEngine';
 export * from './timeSlotsEngine';
+export * from './printingEngine';
+export * from './timeSlotRentalsEngine';
+export * from './guardingEngine';
 export { ProductionCalculatorPanel } from './ProductionCalculatorPanel';
 export { ContinuousProductionCalculatorPanel } from './ContinuousProductionCalculatorPanel';
 export { FabricationProductionCalculatorPanel } from './FabricationProductionCalculatorPanel';
@@ -23,6 +26,9 @@ export { MeasuredUnitsProductionCalculatorPanel } from './MeasuredUnitsProductio
 export { LaundryProductionCalculatorPanel } from './LaundryProductionCalculatorPanel';
 export { DrycleanerProductionCalculatorPanel } from './DrycleanerProductionCalculatorPanel';
 export { TimeSlotsProductionCalculatorPanel } from './TimeSlotsProductionCalculatorPanel';
+export { PrintingProductionCalculatorPanel } from './PrintingProductionCalculatorPanel';
+export { TimeSlotRentalsProductionCalculatorPanel } from './TimeSlotRentalsProductionCalculatorPanel';
+export { GuardingProductionCalculatorPanel } from './GuardingProductionCalculatorPanel';
 export { EmployeeCalculatorPanel } from './EmployeeCalculatorPanel';
 export { BillOfMaterialsPanel } from './BillOfMaterialsPanel';
 export { ContinuousBillOfMaterialsPanel } from './ContinuousBillOfMaterialsPanel';
@@ -40,6 +46,9 @@ export { ServicesMeasuredUnitsWorkbench } from './ServicesMeasuredUnitsWorkbench
 export { ServicesLaundryWorkbench } from './ServicesLaundryWorkbench';
 export { ServicesDrycleanerWorkbench } from './ServicesDrycleanerWorkbench';
 export { ServicesTimeSlotsWorkbench } from './ServicesTimeSlotsWorkbench';
+export { ServicesPrintingWorkbench } from './ServicesPrintingWorkbench';
+export { ServicesTimeSlotRentalsWorkbench } from './ServicesTimeSlotRentalsWorkbench';
+export { ServicesGuardingWorkbench } from './ServicesGuardingWorkbench';
 export { TradingValueSalesWorkbench } from './TradingValueSalesWorkbench';
 export { ValueSalesResultsView, ValueSalesChartsView } from './ValueSalesResultsAndCharts';
 export { TradingCommissionWorkbench } from './TradingCommissionWorkbench';
@@ -47,6 +56,14 @@ export { CommissionResultsView, CommissionChartsView } from './CommissionResults
 export { TradingRevenueShareWorkbench } from './TradingRevenueShareWorkbench';
 export { RevenueShareResultsView, RevenueShareChartsView } from './RevenueShareResultsAndCharts';
 export { TimeUnitsResultsView, TimeUnitsChartsView } from './TimeUnitsResultsAndCharts';
+export {
+  TimeSlotRentalsResultsView,
+  TimeSlotRentalsChartsView,
+} from './TimeSlotRentalsResultsAndCharts';
+export {
+  GuardingResultsView,
+  GuardingChartsView,
+} from './GuardingResultsAndCharts';
 export type { BatchLotsCalculatorTabId } from './ManufacturingBatchLotsWorkbench';
 export type { ContinuousProductionCalculatorTabId } from './ManufacturingContinuousWorkbench';
 export type { FabricationCalculatorTabId } from './ManufacturingFabricationWorkbench';
@@ -57,3 +74,6 @@ export type { MeasuredUnitsCalculatorTabId } from './ServicesMeasuredUnitsWorkbe
 export type { LaundryCalculatorTabId } from './ServicesLaundryWorkbench';
 export type { DrycleanerCalculatorTabId } from './ServicesDrycleanerWorkbench';
 export type { TimeSlotsCalculatorTabId } from './ServicesTimeSlotsWorkbench';
+export type { PrintingCalculatorTabId } from './ServicesPrintingWorkbench';
+export type { TimeSlotRentalsCalculatorTabId } from './ServicesTimeSlotRentalsWorkbench';
+export type { GuardingCalculatorTabId } from './ServicesGuardingWorkbench';

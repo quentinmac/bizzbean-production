@@ -32,6 +32,7 @@ interface BizzPlanLayoutProps {
 }
 
 export default function BizzPlanLayout({
+  appName = 'bizzplan',
   currentStepId,
   steps,
   onStepChange,
@@ -205,7 +206,7 @@ export default function BizzPlanLayout({
             />
           </div>
           <span className="text-xs font-bold lowercase text-[#2E5E88] dark:text-[#5584B4] truncate">
-            bizzplan
+            {appName}
           </span>
           {businessName && (
             <>

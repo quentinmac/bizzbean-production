@@ -2,6 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import BizzPlanLayout from './components/BizzPlanLayout';
 import { BizzPlanData, BizzModelData, BizzModelStep, TouchPointAnswer } from '../../types';
 import { INITIAL_PLAN_DATA } from './constants';
+import {
+  INITIAL_BIZZFORECASTA_PLAN_DATA,
+  computeBizzForecastaMetrics,
+} from './bizzforecastaConstants';
 import { sanitizeBizzModelData } from '../bizzmodel/BizzModel';
 import { BizzModelState } from '../bizzmodel/constants';
 import { FileText, Sparkles, ArrowDown } from 'lucide-react';
@@ -16,6 +20,7 @@ import AssumptionsReport from './components/AssumptionsReport';
 import FinancialReports from './components/FinancialReports';
 import CoachGimAdvice from './components/CoachGimAdvice';
 import PitchDeckStudio from './components/PitchDeckStudio';
+import ScriptedPlanPageEditor from './components/ScriptedPlanPageEditor';
 
 interface BizzPlanProps {
   theme?: 'light' | 'dark';
@@ -27,6 +32,8 @@ interface BizzPlanProps {
   embeddedInModel?: boolean;
   onBackToModel?: () => void;
   backToModelLabel?: string;
+  variant?: 'bizzmodel' | 'bizzforecasta';
+  tokenBalance?: number;
 }
 
 export function BizzPlan({
@@ -38,42 +45,57 @@ export function BizzPlan({
   embeddedInModel = false,
   onBackToModel,
   backToModelLabel,
+  variant = 'bizzmodel',
+  tokenBalance = 0,
 }: BizzPlanProps) {
   const isDark = theme === 'dark';
+  const isBizzForecasta = variant === 'bizzforecasta';
+  const planStorageKey = isBizzForecasta ? 'bizzforecasta_plan_data' : 'bizzplan_data';
+  const initialTemplate = isBizzForecasta ? INITIAL_BIZZFORECASTA_PLAN_DATA : INITIAL_PLAN_DATA;
+
   const [data, setData] = useState<BizzPlanData>(() => {
-    const saved = localStorage.getItem('bizzplan_data');
+    const saved = localStorage.getItem(planStorageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.sections && Array.isArray(parsed.sections)) {
-          const mergedSections = INITIAL_PLAN_DATA.sections.map((initSec) => {
+          const mergedSections = initialTemplate.sections.map((initSec) => {
             const savedSec = parsed.sections.find((s: any) => s.id === initSec.id);
             if (!savedSec) return initSec;
             if (initSec.categories && (!savedSec.categories || savedSec.categories.length === 0)) {
               return { ...initSec, content: savedSec.content || '', isCompleted: savedSec.isCompleted };
             }
-            return { ...initSec, ...savedSec };
+            return {
+              ...initSec,
+              ...savedSec,
+              hints: initSec.hints,
+              autoSyncBlock: initSec.autoSyncBlock,
+              defaultTitle: initSec.defaultTitle || initSec.title,
+              customMetrics: initSec.customMetrics
+                ? { ...initSec.customMetrics, ...(savedSec.customMetrics || {}) }
+                : savedSec.customMetrics,
+            };
           });
           return {
-            ...INITIAL_PLAN_DATA,
+            ...initialTemplate,
             ...parsed,
-            coverPage: { ...INITIAL_PLAN_DATA.coverPage, ...(parsed.coverPage || {}) },
-            pitch: { ...INITIAL_PLAN_DATA.pitch, ...(parsed.pitch || {}) },
+            coverPage: { ...initialTemplate.coverPage, ...(parsed.coverPage || {}) },
+            pitch: { ...initialTemplate.pitch, ...(parsed.pitch || {}) },
             governance: {
-              corporate: { ...INITIAL_PLAN_DATA.governance!.corporate, ...(parsed.governance?.corporate || {}) },
-              boardMembers: parsed.governance?.boardMembers || INITIAL_PLAN_DATA.governance!.boardMembers,
-              keyPersonnel: parsed.governance?.keyPersonnel || INITIAL_PLAN_DATA.governance!.keyPersonnel,
-              professionalSupport: parsed.governance?.professionalSupport || INITIAL_PLAN_DATA.governance!.professionalSupport,
+              corporate: { ...initialTemplate.governance!.corporate, ...(parsed.governance?.corporate || {}) },
+              boardMembers: parsed.governance?.boardMembers || initialTemplate.governance!.boardMembers,
+              keyPersonnel: parsed.governance?.keyPersonnel || initialTemplate.governance!.keyPersonnel,
+              professionalSupport: parsed.governance?.professionalSupport || initialTemplate.governance!.professionalSupport,
             },
             sections: mergedSections,
           };
         }
         return parsed;
       } catch (e) {
-        console.error('Failed to parse bizzplan_data', e);
+        console.error(`Failed to parse ${planStorageKey}`, e);
       }
     }
-    return INITIAL_PLAN_DATA;
+    return initialTemplate;
   });
 
   const [currentSectionId, setCurrentSectionId] = useState<string>(initialSectionId || 'formation');
@@ -91,13 +113,18 @@ export function BizzPlan({
       if (bizzModelState) {
         return sanitizeBizzModelData(bizzModelState);
       }
-      const candidates = [
-        localStorage.getItem('bizzmodel_platform_data'),
-        localStorage.getItem('bizzdynamics_platform_data'),
-        localStorage.getItem('rolling_forecast_platform_data'),
-        localStorage.getItem('bizzdynamics_data'),
-        localStorage.getItem('bizzmodel_data'),
-      ];
+      const candidates = isBizzForecasta
+        ? [
+            localStorage.getItem('bizzforecasta_platform_data'),
+            localStorage.getItem('bizzmodel_platform_data'),
+          ]
+        : [
+            localStorage.getItem('bizzmodel_platform_data'),
+            localStorage.getItem('bizzdynamics_platform_data'),
+            localStorage.getItem('rolling_forecast_platform_data'),
+            localStorage.getItem('bizzdynamics_data'),
+            localStorage.getItem('bizzmodel_data'),
+          ];
       for (const rawStr of candidates) {
         if (rawStr) {
           return sanitizeBizzModelData(JSON.parse(rawStr));
@@ -133,6 +160,7 @@ export function BizzPlan({
 
     const handleStorage = (e: StorageEvent) => {
       if (
+        e.key === 'bizzforecasta_platform_data' ||
         e.key === 'bizzmodel_platform_data' ||
         e.key === 'bizzdynamics_platform_data' ||
         e.key === 'rolling_forecast_platform_data' ||
@@ -148,19 +176,24 @@ export function BizzPlan({
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('bizzmodel-data-updated', syncModelData);
     };
-  }, [bizzModelState]);
+  }, [bizzModelState, isBizzForecasta]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('bizzplan_data', JSON.stringify(data));
+      localStorage.setItem(planStorageKey, JSON.stringify(data));
     } catch (e) {
-      console.error('Failed to persist bizzplan_data', e);
+      console.error(`Failed to persist ${planStorageKey}`, e);
     }
-  }, [data]);
+  }, [data, planStorageKey]);
 
   const activeSection = useMemo(() => {
     return data.sections.find((s) => s.id === currentSectionId) || data.sections[0];
   }, [data.sections, currentSectionId]);
+
+  const forecastaMetrics = useMemo(
+    () => (isBizzForecasta ? computeBizzForecastaMetrics(bizzModelState, modelData) : null),
+    [isBizzForecasta, bizzModelState, modelData]
+  );
 
   const STEPS: BizzModelStep[] = useMemo(() => {
     const list: BizzModelStep[] = [];
@@ -168,12 +201,21 @@ export function BizzPlan({
       list.push({
         id: s.id,
         label: s.title,
-        title: s.title,
-        subtitle: s.type === 'touchpoint' ? 'touchpoint check' : s.type === 'scorecard' ? 'scorecard' : 'narrative',
+        title: s.isIncluded === false ? `${s.title} (excluded)` : s.title,
+        subtitle:
+          s.type === 'scripted'
+            ? s.isOptional
+              ? 'scripted guide · optional'
+              : 'scripted page'
+            : s.type === 'touchpoint'
+            ? 'touchpoint check'
+            : s.type === 'scorecard'
+            ? 'scorecard'
+            : 'core page',
         isCompleted: s.isCompleted,
         isValid: true,
       });
-      if (s.id === 'assumptions') {
+      if (!isBizzForecasta && s.id === 'assumptions') {
         list.push({
           id: 'financial_reports',
           label: 'financial reports',
@@ -185,7 +227,7 @@ export function BizzPlan({
       }
     });
     return list;
-  }, [data.sections]);
+  }, [data.sections, isBizzForecasta]);
 
   const updateSectionContent = (content: string) => {
     setData((prev) => ({
@@ -194,6 +236,15 @@ export function BizzPlan({
         s.id === currentSectionId
           ? { ...s, content, isCompleted: content.trim().length > 20 || s.isCompleted }
           : s
+      ),
+    }));
+  };
+
+  const updateActiveSection = (patch: Partial<typeof activeSection>) => {
+    setData((prev) => ({
+      ...prev,
+      sections: prev.sections.map((s) =>
+        s.id === currentSectionId ? { ...s, ...patch } : s
       ),
     }));
   };
@@ -245,7 +296,7 @@ export function BizzPlan({
 
   const handleSavePlan = () => {
     try {
-      localStorage.setItem('bizzplan_data', JSON.stringify(data));
+      localStorage.setItem(planStorageKey, JSON.stringify(data));
       setSavedNotice(true);
       setTimeout(() => setSavedNotice(false), 2000);
     } catch {}
@@ -329,8 +380,21 @@ export function BizzPlan({
       );
     }
 
-    if (currentSectionId === 'financial_reports') {
+    if (currentSectionId === 'financial_reports' && !isBizzForecasta) {
       return <FinancialReports data={data} modelData={modelData} theme={theme} />;
+    }
+
+    if (activeSection.type === 'scripted' && forecastaMetrics) {
+      return (
+        <ScriptedPlanPageEditor
+          section={activeSection}
+          planData={data}
+          metrics={forecastaMetrics}
+          theme={theme}
+          tokenBalance={tokenBalance}
+          onUpdateSection={updateActiveSection}
+        />
+      );
     }
 
     if (activeSection.type === 'touchpoint' && activeSection.categories) {
@@ -391,7 +455,7 @@ export function BizzPlan({
     <div className="relative w-full h-full flex flex-col">
       <BizzPlanLayout
         theme={theme}
-        appName="bizzplan"
+        appName={isBizzForecasta ? 'bizzforecasta plan' : 'bizzplan'}
         currentStepId={currentSectionId}
         steps={STEPS}
         onStepChange={(id) => setCurrentSectionId(id)}
@@ -411,6 +475,8 @@ export function BizzPlan({
             modelData={modelData}
             activeSectionId={currentSectionId}
             theme={theme}
+            variant={variant}
+            bizzModelState={bizzModelState}
           />
         }
       >
@@ -433,11 +499,11 @@ export function BizzPlan({
               <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
                 <FileText size={12} className="text-[#2E5E88] dark:text-[#5584B4]" />
                 <span>
-                  bizzplan workspace · section {currentStepIdx + 1} of {STEPS.length}
+                  {isBizzForecasta ? 'bizzforecasta growth capital plan' : 'bizzplan workspace'} · section {currentStepIdx + 1} of {STEPS.length}
                 </span>
               </div>
               <h2 className="text-lg sm:text-xl font-bold lowercase text-[#2E5E88] dark:text-[#7FAADC]">
-                {STEPS[currentStepIdx]?.title || activeSection.title}
+                {activeSection.title}
               </h2>
             </div>
 

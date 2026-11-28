@@ -6,9 +6,9 @@ import { PlatformHelpStepId } from '../../services/platformHelpService';
 
 interface BizzModelLayoutProps {
   theme?: 'light' | 'dark';
-  mode: 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzbudget';
-  activeAppTab: 'bizzcalc' | 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzbudget' | 'bizzplan' | 'reports';
-  onSelectAppTab: (tab: 'bizzcalc' | 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzbudget' | 'bizzplan' | 'reports') => void;
+  mode: 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzbudget' | 'bizzforecasta';
+  activeAppTab: 'bizzcalc' | 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzbudget' | 'bizzforecasta' | 'bizzplan' | 'reports';
+  onSelectAppTab: (tab: 'bizzcalc' | 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzbudget' | 'bizzforecasta' | 'bizzplan' | 'reports') => void;
   activeStep: string;
   onSelectStep: (step: string) => void;
   setupTab?: 'assumptions' | 'results' | 'charts';
@@ -105,8 +105,11 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
   // Resolve lowercase display name & mode
   const isRollingForecast = mode === 'rolling-forecast' || activeAppTab === 'rolling-forecast';
   const isBizzBudget = mode === 'bizzbudget' || activeAppTab === 'bizzbudget';
+  const isBizzForecasta = mode === 'bizzforecasta' || activeAppTab === 'bizzforecasta';
   const showBizzPlanTab = Boolean(onSelectBizzPlanTab) && !isRollingForecast && !isBizzBudget;
-  const appDisplayName = isBizzBudget
+  const appDisplayName = isBizzForecasta
+    ? 'bizzforecasta'
+    : isBizzBudget
     ? 'bizzbudget'
     : isRollingForecast
     ? 'bizzoptimizer'
@@ -143,13 +146,13 @@ export const BizzModelLayout: React.FC<BizzModelLayoutProps> = ({
         { id: 'reports', num: 5, name: 'reports', icon: '/reports.jpg', description: '60-month 3-statement financial reports' },
       ]
     : [
-        { id: 'setup', num: 1, name: 'business details', icon: '/business details.jpg', description: 'business details & operating rhythms' },
+        { id: 'setup', num: 1, name: 'business details', icon: '/business details.jpg', description: isBizzForecasta ? 'single-operation details & operating rhythms' : 'business details & operating rhythms' },
         { id: 'revenue', num: 2, name: 'revenue calculator', icon: '/revenue calculator.jpg', description: 'revenue calculator & pricing dynamics' },
         { id: 'employment', num: 3, name: 'employment', icon: '/employment.jpg', description: 'key organizational team' },
         { id: 'opex', num: 4, name: 'operating expenses', icon: '/operating expenses.jpg', description: 'operating overheads & distribution' },
         { id: 'fixed-assets', num: 5, name: 'fixed assets', icon: '/fixed assets.jpg', description: 'capital expenditure & depreciation' },
-        { id: 'funding', num: 6, name: 'funding calculator', icon: '/funding calculator.jpg', description: 'capital structure & working capital' },
-        { id: 'reports', num: 7, name: 'reports', icon: '/reports.jpg', description: 'authentic v1 financial reports' },
+        { id: 'funding', num: 6, name: 'funding calculator', icon: '/funding calculator.jpg', description: isBizzForecasta ? 'capital structure, working capital & historical performance' : 'capital structure & working capital' },
+        { id: 'reports', num: 7, name: 'reports', icon: '/reports.jpg', description: isBizzForecasta ? 'executive summary, historical table & 3-statement reports' : 'authentic v1 financial reports' },
       ];
 
   const currentStepDef = STEPS.find((s) => s.id === activeStep) || STEPS[0];

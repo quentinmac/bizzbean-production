@@ -2650,7 +2650,7 @@ export const CmsConsoleModal: React.FC<CmsConsoleModalProps> = ({
                       { id: 'bizzmodel', label: 'bizzmodel', sku: 'BA-002' },
                       { id: 'hi-level-forecast', label: 'Hi Level Forecast', sku: 'BA-HLF' },
                       { id: 'bizzforecasta', label: 'bizzforecasta', sku: 'BA-BFA' },
-                      { id: 'bizzbudget', label: 'bizzbudget', sku: 'BA-007' },
+                      { id: 'bizzbudget', label: 'bizzbudget', sku: 'BA-005' },
                       { id: 'bizzmoney', label: 'bizzmoney', sku: 'BA-006' },
                     ].map((app) => (
                       <button

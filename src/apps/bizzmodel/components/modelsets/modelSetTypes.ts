@@ -1131,3 +1131,320 @@ export interface TimeSlotsFullResult {
   variableCosts: VariableCostSummaryResult;
   dynamics: UnitCostDynamicsResult;
 }
+
+// ============================================================================
+// SERVICES: PRINTING MODEL-SET TYPES (printing.xlsx)
+// ============================================================================
+
+export type PrintingCapacityMode = 'bottleneck' | 'sum';
+
+export interface PrintingProcess {
+  id: string;
+  name: string;
+  numberOfWorkstreams: number;          // Excel R25: number of workstreams / presses (e.g. 2)
+  employeesPerLine: number;             // Excel R27: employees per production line (e.g. 1)
+  shiftHours: number;                   // Excel R28: shift hours (e.g. 8 = 08:00)
+  shiftsPerDay: number;                 // Excel R29: shifts per day (e.g. 1)
+  unitsPerBatch: number;                // Excel R32: units / sheets per batch (e.g. 20,000)
+  productionTimeAllocationPct: number;  // Excel R33: production time allocation % (0 defaults to 100%)
+  batchRunTimeMinutes: number;          // Excel R35: batch run time in minutes (e.g. 55 = 00:55)
+  batchSetupTimeMinutes: number;        // Excel R36: batch set up / make-ready time in minutes (e.g. 5 = 00:05)
+  shrinkagePct: number;                 // Excel R40: shrinkage / spoilage % (e.g. 10%)
+}
+
+export interface PrintingProductConfig {
+  outputUnit?: string;                  // e.g. 'sheets', 'impressions', 'copies', 'flyers', 'units'
+  processes: PrintingProcess[];
+  capacityMode: PrintingCapacityMode;   // 'bottleneck' (sequential stages) or 'sum' (parallel presses)
+  employeeAssumptions: EmployeeCalcAssumptions;
+  bomComponents: BomComponent[];
+  packagingLevels: PackagingLevel[];
+  variableCosts: ProductionVariableCostItem[];
+  dynamicsOverrides: UnitCostDynamicsOverrides;
+}
+
+export interface PrintingProcessResult {
+  id: string;
+  name: string;
+  productionHoursPerDay: number;        // Excel R31: workstreams * shiftHours * shiftsPerDay
+  effectiveAllocationPct: number;       // Excel R33: IF(alloc=0, 100%, alloc)
+  allocatedUnitsPerBatch: number;       // Excel R34: unitsPerBatch * (effectiveAllocationPct / 100)
+  batchTotalTimeMinutes: number;        // Excel R37: batchRunTimeMinutes + batchSetupTimeMinutes
+  batchTotalTimeHours: number;          // batchTotalTimeMinutes / 60
+  batchesPerDay: number;                // Excel R38: IF(batchTime=0, prodHrs, prodHrs / batchTimeHours)
+  grossUnitsPerDay: number;             // Excel R39: allocatedUnitsPerBatch * batchesPerDay
+  shrinkagePct: number;                 // Excel R40
+  outputPerDay: number;                 // Excel R41: ROUNDDOWN(grossUnitsPerDay * (1 - shrinkagePct/100), 0)
+  outputPerMonth: number;               // Excel R42: productionDaysPerMonth * outputPerDay
+  outputPerAnnum: number;               // productionDaysPerAnnum * outputPerDay
+  employeesRequiredStandard: number;    // Excel R43: workstreams * employeesPerLine * shiftsPerDay
+  isBottleneck: boolean;
+  spareDailyOutput: number;
+}
+
+export interface PrintingProductionSummaryResult {
+  outputUnit: string;
+  processes: PrintingProcessResult[];
+  capacityMode: PrintingCapacityMode;
+  effectiveHoursPerDay: number;
+  effectiveUnitsPerBatch: number;       // Batch quantity for variable cost allocation
+  effectiveBatchesPerDay: number;
+  grossDailyUnits: number;              // Excel R39 (drives BOM units required per day, Excel R58)
+  effectiveShrinkagePct: number;
+  dailyOutputCapacity: number;          // Excel R41 (net saleable output/day transferred to Results tab)
+  monthlyOutputCapacity: number;        // Excel R42
+  annualOutputCapacity: number;
+  bottleneckProcessIds: string[];
+  bottleneckProcessNames: string[];
+  totalEmployeesStandard: number;       // Sum of standard employees across processes (Excel R43)
+  productionDaysPerMonth: number;
+  productionDaysPerAnnum: number;
+}
+
+export interface PrintingFullResult {
+  printingProduction: PrintingProductionSummaryResult;
+  productionBridge: ProductionSummaryResult; // Adapter for shared Employee / BOM / Variable / Dynamics panels
+  employees: EmployeeCalcResult;
+  bom: BomSummaryResult;
+  packaging: PackagingSummaryResult;
+  variableCosts: VariableCostSummaryResult;
+  dynamics: UnitCostDynamicsResult;
+}
+
+// ============================================================================
+// SERVICES: TIME SLOT RENTALS MODEL-SET TYPES (time slot rentals.xlsx)
+// ============================================================================
+
+export type TimeSlotRentalsCapacityMode = 'sum' | 'bottleneck';
+
+export interface TimeSlotRentalsProcess {
+  id: string;
+  name: string;
+  numberOfWorkstreams: number;          // Excel R25: number of workstreams / rental groups (e.g. 10)
+  workstreamsPerEmployee: number;       // Excel R26: workstreams per employee (e.g. 10)
+  shiftHours: number;                   // Excel R27: shift hours (e.g. 8 = 08:00)
+  shiftsPerDay: number;                 // Excel R28: shifts per day (e.g. 2)
+  workstreamRentalTimeMinutes: number;  // Excel R30: rental slot duration in minutes (e.g. 60 = 01:00)
+  utilizationPct: number;               // Excel R32: utilization % (e.g. 90%)
+}
+
+export interface TimeSlotRentalsProductConfig {
+  rentalLabel?: string;                 // e.g. 'rentals', 'slots', 'desks', 'stations', 'bays'
+  processes: TimeSlotRentalsProcess[];
+  capacityMode: TimeSlotRentalsCapacityMode; // 'sum' (parallel rental zones/stations) or 'bottleneck' (sequential)
+  employeeAssumptions: EmployeeCalcAssumptions;
+  unitSellingPriceBase: number;         // Excel R52: base price per rental slot (e.g. 20)
+  unitSellingPriceMonthly: number[];    // 60-month selling price series (adjusted via slider)
+  productionFactorBasePct: number;      // Excel R49: base production factor % (e.g. 100%)
+  productionFactorMonthly: number[];    // 60-month production factor % series (adjusted via slider)
+  commissionOnSalesPct: number;         // Excel R57: commission on sales % (e.g. 1.00%)
+  otherIncomeMonthlyBase: number;       // Excel R60: base monthly other income (e.g. 1,000)
+}
+
+export interface TimeSlotRentalsProcessResult {
+  id: string;
+  name: string;
+  workstreamHoursAvailablePerDay: number; // Excel R29: numberOfWorkstreams * workstreamsPerEmployee * shiftHours * shiftsPerDay
+  rentalTimeMinutes: number;              // Excel R30 (minutes)
+  rentalTimeHours: number;                // rentalTimeMinutes / 60
+  grossRentalsPerDay: number;             // Excel R31: workstreamHoursAvailablePerDay / rentalTimeHours
+  utilizationPct: number;                 // Excel R32 input %
+  effectiveRentalsPerDay: number;         // Excel R32 calc: grossRentalsPerDay * (utilizationPct / 100)
+  rentalsPerMonth: number;                // Excel R33: effectiveRentalsPerDay * productionDaysPerMonth
+  rentalsPerAnnum: number;                // effectiveRentalsPerDay * productionDaysPerAnnum
+  employeesRequiredStandard: number;      // Excel R34: workstreamsPerEmployee * shiftsPerDay
+  isBottleneck: boolean;
+  spareDailyRentals: number;
+}
+
+export interface TimeSlotRentalsProductionSummaryResult {
+  rentalLabel: string;
+  processes: TimeSlotRentalsProcessResult[];
+  capacityMode: TimeSlotRentalsCapacityMode;
+  totalWorkstreamHoursAvailablePerDay: number;
+  effectiveRentalTimeMinutes: number;
+  grossDailyRentalsCapacity: number;      // Combined SUM or Bottleneck MIN of grossRentalsPerDay (Excel R31)
+  effectiveUtilizationPct: number;        // Effective blended utilization %
+  dailyRentalsCapacity: number;           // Combined SUM or Bottleneck MIN of effectiveRentalsPerDay (Excel R32)
+  monthlyRentalsCapacity: number;         // Excel R33: dailyRentalsCapacity * productionDaysPerMonth
+  annualRentalsCapacity: number;
+  bottleneckProcessIds: string[];
+  bottleneckProcessNames: string[];
+  totalEmployeesStandard: number;         // Sum of standard staff across processes (Excel R34)
+  productionDaysPerMonth: number;
+  productionDaysPerAnnum: number;
+}
+
+export interface TimeSlotRentalsFullResult {
+  production: TimeSlotRentalsProductionSummaryResult;
+  productionBridge: ProductionSummaryResult; // Adapter so shared EmployeeCalculatorPanel works natively
+  employees: EmployeeCalcResult;
+}
+
+export interface TimeSlotRentalsMonthResult {
+  monthNum: number;                    // 1..12 within active year
+  absMonth: number;                    // 1..60
+  daysWorked: number;
+  isLaunched: boolean;
+  dailyRentalsCapacity: number;        // From Production Calculator (effective rentals/day)
+  monthlyRentalsCapacity: number;      // daysWorked * dailyRentalsCapacity
+  productionFactorPct: number;         // Adjustable via slider (e.g. 100%)
+  productionGrowthFactorPct: number;   // MoM percentage-point delta vs previous active month
+  rentalsPerMonth: number;             // monthlyRentalsCapacity * (productionFactorPct / 100) -> unit sales
+  unitSellingPrice: number;            // Adjustable via slider (rate per rental slot)
+  sellingPriceAdjustment: number;      // MoM value delta vs previous active month
+  unitCostPrice: number;               // 0 for pure time-slot rentals (fixed COS from Steps 3-5)
+  unitGrossProfit: number;             // unitSellingPrice + unitCostPrice
+  revenue: number;                     // rentalsPerMonth * unitSellingPrice
+  variableCostOfSales: number;         // 0
+  grossProfit: number;                 // revenue
+  commissionOnSalesPct: number;        // Adjustable via slider
+  grossProfitAdjustments: number;      // negative (-revenue * commissionOnSalesPct / 100)
+  otherIncome: number;                 // Adjustable via slider
+  otherIncomeAdjustmentPct: number;    // MoM % change in other income
+}
+
+export interface TimeSlotRentalsYearGridResult {
+  rentalLabel: string;
+  dailyRentalsCapacity: number;
+  grossDailyRentalsCapacity: number;
+  effectiveUtilizationPct: number;
+  employeesStandard: number;
+  employeesAdjusted: number;
+  months: TimeSlotRentalsMonthResult[];
+  totals: {
+    totalDaysWorked: number;
+    sumCapacityRentals: number;
+    avgProductionFactorPct: number;
+    sumRentalsSold: number;
+    avgUnitSellingPrice: number;
+    sumRevenue: number;
+    sumVariableCos: number;
+    sumGrossProfit: number;
+    avgCommissionPct: number;
+    sumGrossProfitAdjustments: number;
+    sumOtherIncome: number;
+    utilizationOfCapacityPct: number;
+  };
+}
+
+// ============================================================================
+// SERVICES: GUARDING MODEL-SET TYPES (guarding.xlsx)
+// ============================================================================
+
+export interface GuardingProcess {
+  id: string;
+  name: string;                        // e.g. 'Site Guard Post', 'Gate Access', 'Night Patrol'
+  numberOfWorkstreams: number;         // R25: baseline workstreams per site template (default 1)
+  guardsPerWorkstream: number;         // R26: guards on duty per shift per workstream (default 1)
+  shiftHours: number;                  // R27: shift length in hours (default 8 = 08:00)
+  shiftsPerDay: number;                // R28: shifts per day (default 1, e.g. 2 for 24h 12h shifts)
+}
+
+export interface GuardingProductConfig {
+  guardUnitLabel?: string;             // e.g. 'guards', 'officers', 'patrols', 'handlers' (default 'guards')
+  siteUnitLabel?: string;              // e.g. 'workstreams', 'sites', 'posts', 'contracts' (default 'workstreams')
+  processes: GuardingProcess[];        // Multi-post staffing per contracted site/workstream
+  employeeCalc: EmployeeCalcAssumptions; // R30-R41: LIVE RELIEF GUARD DRIVER (default efficiency 85%, tolerance 0%)
+  workstreamsBase: number;             // R43: active contracted workstreams/sites (default 20)
+  workstreamsMonthly?: number[];       // 60-month adjustable active workstreams series
+  guardSellingPriceBase: number;       // R47: monthly billing rate per guard (default 12,000)
+  guardSellingPriceMonthly?: number[]; // 60-month adjustable guard selling price series
+  unitCostPerGuardBase: number;        // R49: direct monthly cost per guard (default 7,500)
+  unitCostPerGuardMonthly?: number[];  // 60-month adjustable direct unit cost per guard series
+  commissionOnSalesPct: number;        // R53: % of revenue -> gross profit adjustments (default 1.00%)
+  otherIncomeMonthlyBase: number;      // R56: monthly ancillary other income (default 2,000)
+}
+
+export interface GuardingProcessResult {
+  id: string;
+  name: string;
+  numberOfWorkstreams: number;
+  guardsPerWorkstream: number;
+  shiftHours: number;
+  shiftsPerDay: number;
+  guardsPerDay: number;                // R29: numberOfWorkstreams * guardsPerWorkstream * shiftsPerDay
+  dailyCoverageHours: number;          // guardsPerDay * shiftHours
+}
+
+export interface GuardingProductionSummaryResult {
+  guardLabel: string;
+  siteLabel: string;
+  processes: GuardingProcessResult[];
+  standardGuardsPerWorkstream: number; // Sum of R29 across configured posts (default 1)
+  totalDailyCoverageHours: number;     // Sum of dailyCoverageHours
+  productionDaysPerMonth: number;
+  productionDaysPerAnnum: number;
+}
+
+export interface GuardingFullResult {
+  production: GuardingProductionSummaryResult;
+  productionBridge: ProductionSummaryResult; // Adapter so shared EmployeeCalculatorPanel works natively
+  employees: EmployeeCalcResult;             // R30-R41: employeesAdjusted -> R45 guardsPerWorkstream!
+  guardsPerWorkstreamAdjusted: number;       // R45 = R41 (default 1 + 1 relief = 2)
+  baseWorkstreams: number;                   // R43 (default 20)
+  baseGuardsSold: number;                    // R46 = R43 * R45 (default 40)
+  baseMonthlyRevenue: number;                // R60 = 40 * 12,000 = 480,000
+  baseMonthlyVariableCos: number;            // R62 = 40 * 7,500 = 300,000
+  baseUnitGrossProfit: number;               // R51 = 12,000 - 7,500 = 4,500
+  baseGrossProfitMarginPct: number;          // 37.50%
+  baseMonthlyGrossProfit: number;            // 180,000
+  baseMonthlyCommission: number;             // 4,800
+  baseMonthlyOtherIncome: number;            // 2,000
+}
+
+export interface GuardingMonthResult {
+  monthNum: number;                    // 1..12 within active year
+  absMonth: number;                    // 1..60
+  daysWorked: number;
+  isLaunched: boolean;
+  workstreams: number;                 // R43: active sites/workstreams (slider-adjustable)
+  workstreamsDelta: number;            // R44: MoM change in active workstreams
+  guardsPerWorkstream: number;         // R45 = R41: adjusted guards per site (standard + relief)
+  guardsSold: number;                  // R46 = R43 * R45 -> R59 unit sales
+  guardSellingPrice: number;           // R47: monthly billing rate per guard (slider-adjustable)
+  sellingPriceDelta: number;           // R48: MoM value delta
+  unitCostPerGuard: number;            // R49: direct monthly cost per guard (slider-adjustable)
+  unitCostAdjustmentPct: number;       // R50: MoM % change in guard unit cost
+  unitGrossProfit: number;             // R51 = R47 - R49
+  unitGrossProfitMarginPct: number;    // unitGrossProfit / guardSellingPrice * 100
+  revenue: number;                     // R60 = guardsSold * guardSellingPrice
+  variableCostOfSales: number;         // R62 = guardsSold * unitCostPerGuard (positive magnitude; shown negative in trading table)
+  variableGrossProfit: number;         // revenue - variableCostOfSales
+  commissionOnSalesPct: number;        // R53 (slider-adjustable)
+  grossProfitAdjustments: number;      // R54/R69 negative (-revenue * commissionPct / 100)
+  remainingGrossProfit: number;        // variableGrossProfit + grossProfitAdjustments
+  otherIncome: number;                 // R56/R71 (slider-adjustable)
+  otherIncomeAdjustmentPct: number;    // R57: MoM % change
+  netTradingContribution: number;      // remainingGrossProfit + otherIncome
+}
+
+export interface GuardingYearGridResult {
+  guardLabel: string;
+  siteLabel: string;
+  standardGuardsPerWorkstream: number;
+  reliefGuardsPerWorkstream: number;
+  guardsPerWorkstreamAdjusted: number;
+  months: GuardingMonthResult[];
+  totals: {
+    totalDaysWorked: number;
+    avgWorkstreams: number;
+    endWorkstreams: number;
+    avgGuardsSold: number;
+    sumGuardMonthsSold: number;        // R59 annual total (e.g. 480)
+    avgGuardSellingPrice: number;
+    avgUnitCostPerGuard: number;
+    avgUnitGrossProfit: number;
+    avgGrossProfitMarginPct: number;
+    sumRevenue: number;                // R60 annual total (e.g. 5,760,000)
+    sumVariableCos: number;            // R62 annual total (e.g. 3,600,000)
+    sumVariableGrossProfit: number;    // e.g. 2,160,000
+    avgCommissionPct: number;
+    sumGrossProfitAdjustments: number; // negative (e.g. -57,600)
+    sumRemainingGrossProfit: number;
+    sumOtherIncome: number;            // e.g. 24,000
+    sumNetTradingContribution: number;
+  };
+}
+
+

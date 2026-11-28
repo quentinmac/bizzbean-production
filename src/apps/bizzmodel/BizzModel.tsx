@@ -4,6 +4,8 @@ import {
   DEFAULT_BUSINESS_STATE,
   BizzModelState,
   createDefaultRollingForecastState,
+  createDefaultBizzForecastaState,
+  createDefaultHistoricalPerformanceData,
 } from './constants';
 import { SetupStep } from './steps/SetupStep';
 import { HiLevelActualsStep } from './steps/HiLevelActualsStep';
@@ -265,6 +267,16 @@ const STEP_TO_BIZZPLAN_SECTION: Record<string, string> = {
   reports: 'financial_reports',
 };
 
+const BIZZFORECASTA_STEP_TO_PLAN_SECTION: Record<string, string> = {
+  setup: 'formation',
+  revenue: 'market_opportunity',
+  employment: 'leadership_governance',
+  opex: 'growth_strategy',
+  'fixed-assets': 'use_of_funds',
+  funding: 'use_of_funds',
+  reports: 'financial_projections',
+};
+
 const STEP_DISPLAY_LABELS: Record<string, string> = {
   setup: 'business details',
   revenue: 'revenue calculator',
@@ -277,9 +289,10 @@ const STEP_DISPLAY_LABELS: Record<string, string> = {
 
 export interface BizzModelProps {
   theme?: 'light' | 'dark';
-  mode?: 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel';
+  mode?: 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzforecasta';
   initialStep?: string;
-  initialAppTab?: 'bizzcalc' | 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzplan' | 'reports';
+  initialAppTab?: 'bizzcalc' | 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzforecasta' | 'bizzplan' | 'reports';
+  tokenBalance?: number;
   onClose: () => void;
   onContextSwitch?: (appId: string, step?: string) => void;
 }
@@ -289,13 +302,23 @@ export const BizzModel: React.FC<BizzModelProps> = ({
   mode = 'bizzmodel',
   initialStep = 'setup',
   initialAppTab,
+  tokenBalance = 0,
   onClose,
   onContextSwitch,
 }) => {
-  const [currentMode, setCurrentMode] = useState<'bizzdynamics' | 'rolling-forecast' | 'bizzmodel'>(mode);
+  const [currentMode, setCurrentMode] = useState<'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzforecasta'>(mode);
   const [activeAppTab, setActiveAppTab] = useState<
-    'bizzcalc' | 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzplan' | 'reports'
-  >(initialAppTab || (mode === 'bizzdynamics' ? 'bizzdynamics' : mode === 'rolling-forecast' ? 'rolling-forecast' : 'bizzmodel'));
+    'bizzcalc' | 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzforecasta' | 'bizzplan' | 'reports'
+  >(
+    initialAppTab ||
+      (mode === 'bizzdynamics'
+        ? 'bizzdynamics'
+        : mode === 'rolling-forecast'
+        ? 'rolling-forecast'
+        : mode === 'bizzforecasta'
+        ? 'bizzforecasta'
+        : 'bizzmodel')
+  );
 
   const [activeStep, setActiveStep] = useState<string>(initialStep);
   const [isStepBizzPlanActive, setIsStepBizzPlanActive] = useState<boolean>(false);
@@ -340,13 +363,57 @@ export const BizzModel: React.FC<BizzModelProps> = ({
 
   // Storage key based on mode
   const storageKey =
-    currentMode === 'bizzdynamics'
+    currentMode === 'bizzforecasta'
+      ? 'bizzforecasta_platform_data'
+      : currentMode === 'bizzdynamics'
       ? 'bizzdynamics_platform_data'
       : currentMode === 'rolling-forecast'
       ? 'rolling_forecast_platform_data'
       : 'bizzmodel_platform_data';
 
   const [state, setState] = useState<BizzModelState>(() => {
+    if (currentMode === 'bizzforecasta') {
+      const fallback = createDefaultBizzForecastaState();
+      try {
+        const saved = localStorage.getItem('bizzforecasta_platform_data');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          const defaultHist = createDefaultHistoricalPerformanceData();
+          return {
+            ...fallback,
+            ...parsed,
+            appMode: 'bizzforecasta',
+            businessDetails: {
+              ...fallback.businessDetails,
+              ...(parsed.businessDetails || {}),
+              setupAssumptions:
+                parsed.businessDetails?.setupAssumptions?.length > 0
+                  ? parsed.businessDetails.setupAssumptions
+                  : fallback.businessDetails.setupAssumptions,
+            },
+            revenueItems: Array.isArray(parsed.revenueItems) ? parsed.revenueItems : fallback.revenueItems,
+            employmentItems: Array.isArray(parsed.employmentItems) ? parsed.employmentItems : fallback.employmentItems,
+            expenses: Array.isArray(parsed.expenses) ? parsed.expenses : fallback.expenses,
+            fixedAssets: Array.isArray(parsed.fixedAssets) ? parsed.fixedAssets : fallback.fixedAssets,
+            funding: parsed.funding ? { ...fallback.funding, ...parsed.funding } : fallback.funding,
+            historicalPerformance: parsed.historicalPerformance
+              ? {
+                  ...defaultHist,
+                  ...parsed.historicalPerformance,
+                  years:
+                    Array.isArray(parsed.historicalPerformance.years) && parsed.historicalPerformance.years.length > 0
+                      ? parsed.historicalPerformance.years
+                      : defaultHist.years,
+                }
+              : defaultHist,
+          };
+        }
+      } catch (e) {
+        // ignore
+      }
+      return fallback;
+    }
+
     if (currentMode === 'rolling-forecast') {
       try {
         const saved = localStorage.getItem('rolling_forecast_platform_data');
@@ -446,7 +513,7 @@ export const BizzModel: React.FC<BizzModelProps> = ({
 
   // Handle switching tabs along the top header bar
   const handleSelectAppTab = (
-    tab: 'bizzcalc' | 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzbudget' | 'bizzplan' | 'reports'
+    tab: 'bizzcalc' | 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzbudget' | 'bizzforecasta' | 'bizzplan' | 'reports'
   ) => {
     if (tab === 'bizzbudget') {
       if (onContextSwitch) {
@@ -460,6 +527,8 @@ export const BizzModel: React.FC<BizzModelProps> = ({
     } else if (tab === 'rolling-forecast') {
       setCurrentMode('rolling-forecast');
       setIsStepBizzPlanActive(false);
+    } else if (tab === 'bizzforecasta') {
+      setCurrentMode('bizzforecasta');
     } else if (tab === 'bizzmodel') {
       setCurrentMode('bizzmodel');
     }
@@ -495,6 +564,8 @@ export const BizzModel: React.FC<BizzModelProps> = ({
     return (
       <BizzPlan
         theme={theme}
+        variant={currentMode === 'bizzforecasta' ? 'bizzforecasta' : 'bizzmodel'}
+        tokenBalance={tokenBalance}
         onClose={onClose}
         onContextSwitch={(tab) => handleSelectAppTab(tab as any)}
         bizzModelState={state}
@@ -524,8 +595,8 @@ export const BizzModel: React.FC<BizzModelProps> = ({
       onSelectBizzBoxTab={activeStep === 'revenue' ? setIsStepBizzBoxActive : undefined}
       onClose={onClose}
     >
-      {/* 1. PLATFORM FORECAST APP STEPS (bizzmodel, rolling-forecast) */}
-      {(activeAppTab === 'bizzmodel' || activeAppTab === 'rolling-forecast') && (
+      {/* 1. PLATFORM FORECAST APP STEPS (bizzmodel, bizzforecasta, rolling-forecast) */}
+      {(activeAppTab === 'bizzmodel' || activeAppTab === 'bizzforecasta' || activeAppTab === 'rolling-forecast') && (
         isStepPitchDeckActive && currentMode !== 'rolling-forecast' && activeAppTab !== 'rolling-forecast' ? (
           <PitchDeckStudio
             theme={theme}
@@ -536,10 +607,16 @@ export const BizzModel: React.FC<BizzModelProps> = ({
         ) : isStepBizzPlanActive && currentMode !== 'rolling-forecast' && activeAppTab !== 'rolling-forecast' ? (
           <BizzPlan
             theme={theme}
+            variant={currentMode === 'bizzforecasta' ? 'bizzforecasta' : 'bizzmodel'}
+            tokenBalance={tokenBalance}
             onClose={onClose}
             onContextSwitch={(tab) => handleSelectAppTab(tab as any)}
             bizzModelState={state}
-            initialSectionId={STEP_TO_BIZZPLAN_SECTION[activeStep] || 'formation'}
+            initialSectionId={
+              (currentMode === 'bizzforecasta'
+                ? BIZZFORECASTA_STEP_TO_PLAN_SECTION[activeStep]
+                : STEP_TO_BIZZPLAN_SECTION[activeStep]) || 'formation'
+            }
             embeddedInModel={true}
             onBackToModel={() => setIsStepBizzPlanActive(false)}
             backToModelLabel={`back to ${STEP_DISPLAY_LABELS[activeStep] || activeStep}`}

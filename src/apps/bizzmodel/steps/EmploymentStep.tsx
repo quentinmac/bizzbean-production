@@ -120,10 +120,10 @@ export const EmploymentStep: React.FC<EmploymentStepProps> = ({
   // • bizzdynamics: limit 5 categories, limit 5 employees
   // • rolling forecast: no categories, 2 preset titles
   // • hi-level forecast: no categories, 2 preset titles
-  // • bizzmodel / bizzbudget: unlimited categories, unlimited employees
-  const categoryLimit = mode === 'bizzdynamics' ? 5 : (mode === 'bizzmodel' || mode === 'bizzbudget') ? Infinity : 0;
+  // • bizzmodel / bizzforecasta / bizzbudget: unlimited categories, unlimited employees
+  const categoryLimit = mode === 'bizzdynamics' ? 5 : (mode === 'bizzmodel' || mode === 'bizzforecasta' || mode === 'bizzbudget') ? Infinity : 0;
   const employeeLimit = mode === 'bizzdynamics' ? 5 : (mode === 'rolling-forecast' || mode === 'hi-level-forecast') ? 2 : Infinity;
-  const supportsCategories = mode === 'bizzdynamics' || mode === 'bizzmodel' || mode === 'bizzbudget';
+  const supportsCategories = mode === 'bizzdynamics' || mode === 'bizzmodel' || mode === 'bizzforecasta' || mode === 'bizzbudget';
 
   // Category map for quick lookup
   const categoryMap = useMemo(() => {

@@ -52,7 +52,10 @@ export const BizzBoxPanel: React.FC<BizzBoxPanelProps> = ({
     const live = new Set<string>();
     for (const cat of ALL_MODEL_SETS) {
       for (const ms of cat.modelSets) {
-        if (ms.isAvailable && (ms.id === 'unit-sales' || mode === 'bizzmodel')) {
+        if (
+          ms.isAvailable &&
+          (ms.id === 'unit-sales' || mode === 'bizzmodel' || mode === 'bizzforecasta' || mode === 'bizzbudget')
+        ) {
           live.add(ms.id);
         }
       }

@@ -28,6 +28,7 @@ import {
   BizzTableCellClass,
   BizzTableContainerClass,
 } from '../components/BizzUI';
+import { HistoricalPerformanceTable } from '../components/HistoricalPerformanceTable';
 
 /**
  * Underlying Simulation Engine alias for V1 Navigation Map
@@ -45,6 +46,7 @@ export const ReportsStep: React.FC<ReportsStepProps> = ({
   theme = 'light',
   mode,
   state,
+  onUpdateState,
 }) => {
   const isDark = theme === 'dark';
 
@@ -1033,6 +1035,22 @@ export const ReportsStep: React.FC<ReportsStepProps> = ({
               rows={executiveSummaryRows}
               isDark={isDark}
             />
+
+            {/* BizzForecasta: Editable 3–5 Year Historical Performance (Synced to Business Plan Page 6) */}
+            {mode === 'bizzforecasta' && (
+              <HistoricalPerformanceTable
+                data={state.historicalPerformance}
+                forecastStartYear={state.businessDetails?.startDateYear || 2026}
+                theme={theme}
+                contextLabel="Included in Page 6: Financial Projections & Unit Economics"
+                onChange={(historicalPerformance) =>
+                  onUpdateState((prev) => ({
+                    ...prev,
+                    historicalPerformance,
+                  }))
+                }
+              />
+            )}
           </div>
         );
       })()}

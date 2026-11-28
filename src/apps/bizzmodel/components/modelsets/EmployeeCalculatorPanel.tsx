@@ -12,6 +12,7 @@ interface EmployeeCalculatorPanelProps {
   result: EmployeeCalcResult;
   production: ProductionSummaryResult;
   onChange: (updated: EmployeeCalcAssumptions) => void;
+  mode?: 'advisory' | 'guarding-driver';
 }
 
 export const EmployeeCalculatorPanel: React.FC<EmployeeCalculatorPanelProps> = ({
@@ -20,8 +21,10 @@ export const EmployeeCalculatorPanel: React.FC<EmployeeCalculatorPanelProps> = (
   result,
   production,
   onChange,
+  mode = 'advisory',
 }) => {
   const isDark = theme === 'dark';
+  const isGuardingDriver = mode === 'guarding-driver';
 
   const inputCls = `w-full px-3 py-2 rounded-lg border text-xs font-bold text-right tabular-nums focus:outline-none focus:ring-1 focus:ring-[#2E5E88] ${
     isDark
@@ -34,26 +37,59 @@ export const EmployeeCalculatorPanel: React.FC<EmployeeCalculatorPanelProps> = (
       {/* Header */}
       <div>
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
-          2. Employee Calculator
+          {isGuardingDriver
+            ? '2. Relief Guard & Employee Calculator'
+            : '2. Employee Calculator'}
         </h3>
         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-          Estimates how many productive employees are required to sustain the configured production lines at your expected labour efficiency.
+          {isGuardingDriver
+            ? 'Calculates relief cover required per guarded workstream based on labour efficiency and tolerance %. Directly sets adjusted guards per workstream.'
+            : 'Estimates how many productive employees are required to sustain the configured production lines at your expected labour efficiency.'}
         </p>
       </div>
 
-      {/* Explicit Non-Impact Notice (clean hairline box, no thick left bar) */}
+      {/* Explicit Impact / Non-Impact Notice (clean hairline box, no thick left bar) */}
       <div
         className={`flex items-start gap-2.5 p-3 rounded-xl border text-[11px] ${
-          isDark
+          isGuardingDriver
+            ? isDark
+              ? 'bg-emerald-950/25 border-emerald-800/60 text-emerald-200'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+            : isDark
             ? 'bg-[#0C111E] border-[#222F4C] text-slate-300'
             : 'bg-[#FAF8F5] border-[#D8CEBC] text-slate-700'
         }`}
       >
-        <Info className="h-4 w-4 text-[#2E5E88] dark:text-[#6BA3D6] shrink-0 mt-0.5" />
-        <p className="leading-relaxed">
-          <strong className="text-slate-900 dark:text-white">Advisory staffing guide only:</strong>{' '}
-          This calculator has <strong>no impact</strong> on daily production capacity or direct product unit cost. Use the indicated headcount as a reference when adding productive staff in the <em>Employment</em> step.
-        </p>
+        <Info
+          className={`h-4 w-4 shrink-0 mt-0.5 ${
+            isGuardingDriver
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : 'text-[#2E5E88] dark:text-[#6BA3D6]'
+          }`}
+        />
+        {isGuardingDriver ? (
+          <p className="leading-relaxed">
+            <strong className="text-emerald-900 dark:text-emerald-200">
+              Live Guarding Relief Driver:
+            </strong>{' '}
+            In Guarding Services, <strong>employees required - adjusted</strong>{' '}
+            ({result.employeesAdjusted} per workstream) flows directly into{' '}
+            <em>Trading Dynamics</em> as <strong>guards per workstream</strong> —
+            determining total <strong>Guards Sold (Revenue)</strong> and{' '}
+            <strong>Direct Guard Cost of Sales</strong>. Leave tolerance at{' '}
+            <strong>0.00%</strong> so any shift shortfall automatically provisions
+            relief cover.
+          </p>
+        ) : (
+          <p className="leading-relaxed">
+            <strong className="text-slate-900 dark:text-white">
+              Advisory staffing guide only:
+            </strong>{' '}
+            This calculator has <strong>no impact</strong> on daily production
+            capacity or direct product unit cost. Use the indicated headcount as a
+            reference when adding productive staff in the <em>Employment</em> step.
+          </p>
+        )}
       </div>
 
       {/* Two-Column Split: Inputs vs Hours & Headcount Ledger */}

@@ -292,6 +292,194 @@ OUTPUT REQUIREMENTS:
     }
   });
 
+  // BIZZFORECASTA: Gemini Writing Assistance for Growth Capital Scripted Business Plan Pages
+  app.post('/api/gemini/bizzforecasta-assist', async (req, res) => {
+    try {
+      const {
+        pageId,
+        pageTitle,
+        hints,
+        existingDraft,
+        userPrompt,
+        mode = 'draft',
+        businessContext,
+      } = req.body || {};
+
+      if (!pageId || typeof pageId !== 'string' || pageId.length > 100) {
+        return res.status(400).json({ error: 'A valid pageId is required.' });
+      }
+      if (!pageTitle || typeof pageTitle !== 'string' || pageTitle.length > 200) {
+        return res.status(400).json({ error: 'A valid pageTitle is required.' });
+      }
+      const allowedModes = new Set(['draft', 'improve', 'expand']);
+      if (typeof mode !== 'string' || !allowedModes.has(mode)) {
+        return res.status(400).json({ error: 'Mode must be draft, improve, or expand.' });
+      }
+
+      const safeDraft = typeof existingDraft === 'string' ? existingDraft.slice(0, 30000) : '';
+      const safePrompt = typeof userPrompt === 'string' ? userPrompt.slice(0, 4000) : '';
+      const safeHints: Array<{ heading: string; detail: string }> = Array.isArray(hints)
+        ? hints
+            .slice(0, 12)
+            .map((h: any) => ({
+              heading: String(h?.heading || '').slice(0, 160),
+              detail: String(h?.detail || '').slice(0, 600),
+            }))
+        : [];
+      const safeContextStr =
+        businessContext && typeof businessContext === 'object'
+          ? JSON.stringify(businessContext).slice(0, 12000)
+          : '';
+
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.status(503).json({
+          error: 'Gemini writing service is not configured on the server (missing GEMINI_API_KEY).',
+        });
+      }
+
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+      });
+
+      const hintsText = safeHints
+        .map((h, i) => `${i + 1}. ${h.heading}: ${h.detail}`)
+        .join('\n');
+
+      const actionDirective =
+        mode === 'improve'
+          ? 'Refine, sharpen, and elevate the founder draft below into crisp, investor-grade prose while preserving all factual claims and numbers.'
+          : mode === 'expand'
+          ? 'Expand and deepen the founder draft below with thorough strategic motivations, investor justifications, and explicit links to the financial forecast and historical performance.'
+          : 'Draft a complete, persuasive, investor-ready narrative for this section covering every required guide element below.';
+
+      const systemInstruction = `You are a senior growth-capital investment banker and strategic business plan author helping a single-operation business owner prepare a compelling investor / capital-provider memorandum inside bizzforecasta.
+Rules:
+- Write authoritative, clear, concrete, investor-ready prose (no fluff, no placeholder brackets like [insert X] unless strictly unavailable in context — where figures exist in the provided live financial data, cite them accurately).
+- Structure the response cleanly using plain-text subheadings (matching the guide points) and concise paragraphs or bullet points using "• ". Avoid raw markdown code fences or excessive markdown symbols so the text looks clean both in a plain-text editor and in a formal printed A4 investment memorandum.
+- Focus exclusively on a single operating business (do not invent regional branches or multi-branch structures).
+- Keep the tone disciplined, transparent, and aligned with institutional growth-capital due diligence.`;
+
+      const promptParts = [
+        `SECTION TITLE: ${pageTitle}`,
+        `TASK: ${actionDirective}`,
+        hintsText ? `REQUIRED GUIDE ELEMENTS TO ADDRESS:\n${hintsText}` : '',
+        safeContextStr ? `LIVE BIZZFORECASTA BUSINESS & FINANCIAL CONTEXT (JSON):\n${safeContextStr}` : '',
+        safeDraft ? `EXISTING FOUNDER DRAFT:\n${safeDraft}` : '',
+        safePrompt ? `FOUNDER SPECIFIC INSTRUCTIONS:\n${safePrompt}` : '',
+      ].filter(Boolean);
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-4-hydrogen',
+        contents: promptParts.join('\n\n'),
+        config: {
+          systemInstruction,
+        },
+      });
+
+      const generatedText = (response.text || '').trim();
+      if (!generatedText) {
+        return res.status(502).json({ error: 'Gemini returned an empty response. Please retry.' });
+      }
+
+      return res.json({ text: generatedText });
+    } catch (error: any) {
+      console.error('[BizzForecasta Gemini Assist Error]:', error?.message || error);
+      return res.status(502).json({
+        error: error?.message || 'Failed to generate writing assistance from Gemini.',
+      });
+    }
+  });
+
+  // BIZZFORECASTA: Electronic Document Import & Extraction (PDF / Images / Text)
+  app.post('/api/gemini/bizzforecasta-parse-doc', async (req, res) => {
+    try {
+      const { fileName, mimeType, base64Data, pageTitle, hints } = req.body || {};
+
+      if (!fileName || typeof fileName !== 'string' || fileName.length > 260) {
+        return res.status(400).json({ error: 'A valid fileName is required.' });
+      }
+      if (!base64Data || typeof base64Data !== 'string') {
+        return res.status(400).json({ error: 'Document payload is required.' });
+      }
+      // Enforce ~12MB base64 ceiling (~9MB binary)
+      if (base64Data.length > 12 * 1024 * 1024) {
+        return res.status(413).json({ error: 'Uploaded file exceeds the 9 MB document limit.' });
+      }
+
+      const allowedMimeTypes = new Set([
+        'application/pdf',
+        'image/png',
+        'image/jpeg',
+        'image/webp',
+        'text/plain',
+        'text/markdown',
+        'text/csv',
+      ]);
+      const normalizedMime = typeof mimeType === 'string' ? mimeType.toLowerCase().trim() : '';
+      if (!allowedMimeTypes.has(normalizedMime)) {
+        return res.status(400).json({
+          error: 'Unsupported file format for AI extraction. Upload PDF, PNG, JPG, TXT, MD, CSV, XLSX, or DOCX.',
+        });
+      }
+
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.status(503).json({
+          error: 'Document extraction service requires GEMINI_API_KEY on the server.',
+        });
+      }
+
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+      });
+
+      const safeTitle = typeof pageTitle === 'string' ? pageTitle.slice(0, 200) : 'Business Plan Section';
+      const safeHints = Array.isArray(hints)
+        ? hints
+            .slice(0, 10)
+            .map((h: any) => `- ${String(h?.heading || '').slice(0, 120)}: ${String(h?.detail || '').slice(0, 300)}`)
+            .join('\n')
+        : '';
+
+      const prompt = `Extract and structure the relevant business text, facts, and figures from this electronic document ("${fileName}") for the business plan section "${safeTitle}".
+${safeHints ? `Focus on information relevant to:\n${safeHints}\n` : ''}
+Return clean, well-organized plain text paragraphs and "• " bullet points without markdown code fences. Preserve exact numbers, dates, customer metrics, and motivations from the source document without inventing facts.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-4-hydrogen',
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: prompt },
+              {
+                inlineData: {
+                  mimeType: normalizedMime,
+                  data: base64Data,
+                },
+              },
+            ],
+          },
+        ],
+      });
+
+      const extractedText = (response.text || '').trim();
+      if (!extractedText) {
+        return res.status(502).json({ error: 'Could not extract readable text from the uploaded document.' });
+      }
+
+      return res.json({ text: extractedText, fileName });
+    } catch (error: any) {
+      console.error('[BizzForecasta Document Parse Error]:', error?.message || error);
+      return res.status(502).json({
+        error: error?.message || 'Failed to extract content from electronic document.',
+      });
+    }
+  });
+
   // CLIENT AI PITCH DECK STUDIO (Notebook-grade structured 10-slide investor/lender deck)
   app.post('/api/gemini/pitch-deck', async (req, res) => {
     try {

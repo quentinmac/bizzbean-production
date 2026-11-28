@@ -239,8 +239,10 @@ export const OperatingExpensesStep: React.FC<OperatingExpensesStepProps> = ({
     }));
   };
 
+  const isFullModelMode = mode === 'bizzmodel' || mode === 'bizzforecasta' || mode === 'bizzbudget';
+
   const handleRemoveExpense = (expId: string) => {
-    if (mode !== 'bizzmodel' && expenses.length <= 1) return;
+    if (!isFullModelMode && expenses.length <= 1) return;
     onUpdateState((prev) => ({
       ...prev,
       expenses: (prev.expenses && prev.expenses.length > 0 ? prev.expenses : DEFAULT_EXPENSE_ITEMS).filter((e) => e.id !== expId),
@@ -572,7 +574,7 @@ export const OperatingExpensesStep: React.FC<OperatingExpensesStepProps> = ({
                 <p className="text-[11px] text-slate-500">
                   {isPresetMode
                     ? 'Preset operating expenses calculated as a percentage of revenue for high-level forecasting.'
-                    : mode === 'bizzmodel'
+                    : isFullModelMode
                     ? 'Complete Chart of Accounts (COA) listing with unlimited operating expense items, annuity cycles, and variable allocations.'
                     : 'Select up to 5 expenses from the Chart of Accounts (COA) master catalog. Set launch start months, annuity recurrence, and variable revenue allocations.'}
                 </p>
@@ -584,7 +586,7 @@ export const OperatingExpensesStep: React.FC<OperatingExpensesStepProps> = ({
                     {expenses.length} of 5 items
                   </span>
                 )}
-                {mode === 'bizzmodel' && (
+                {isFullModelMode && (
                   <>
                     <button
                       type="button"
@@ -921,7 +923,7 @@ export const OperatingExpensesStep: React.FC<OperatingExpensesStepProps> = ({
 
                         {/* Action Delete */}
                         <td className="py-2.5 px-2 text-center">
-                          {(mode === 'bizzmodel' || expenses.length > 1) && (
+                          {(isFullModelMode || expenses.length > 1) && (
                             <button
                               type="button"
                               onClick={() => handleRemoveExpense(exp.id)}

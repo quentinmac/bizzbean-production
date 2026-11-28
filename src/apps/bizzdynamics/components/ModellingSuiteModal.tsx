@@ -18,7 +18,7 @@ interface ModellingSuiteModalProps {
   theme?: 'light' | 'dark';
   isOpen: boolean;
   onClose: () => void;
-  onSelectApp: (appId: 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzbudget' | 'bizzplan') => void;
+  onSelectApp: (appId: 'bizzdynamics' | 'rolling-forecast' | 'bizzmodel' | 'bizzforecasta' | 'bizzbudget' | 'bizzplan') => void;
   currentApp: string;
 }
 
@@ -96,6 +96,22 @@ export const ModellingSuiteModal: React.FC<ModellingSuiteModalProps> = ({
       icon: BookOpen,
       color: '#12172A',
       linkTarget: 'bizzmodel',
+    },
+    {
+      id: 'bizzforecasta',
+      name: 'bizzforecasta',
+      badge: 'growth capital raise',
+      headline: 'single-operation growth capital & investor plan',
+      bullets: [
+        'single-operation 5-year 3-statement financial model',
+        '3–5 year historical performance table in funding & reports',
+        '8 scripted investor plan pages with editable titles & hints',
+        'electronic document import & token-powered gemini writing assist',
+        'auto-synced quarterly targets, unit economics & scenario cases',
+      ],
+      icon: Sparkles,
+      color: '#2E5E88',
+      linkTarget: 'bizzforecasta',
     },
     {
       id: 'bizzplan',

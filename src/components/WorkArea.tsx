@@ -1209,7 +1209,9 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
     const solName = (activeSolution?.name || '').toLowerCase();
     const solId = (activeSolution?.id || '').toLowerCase();
     const effectiveAppId =
-      solName.includes('calculators') || solId.includes('calculators')
+      solName.includes('forecasta') || solId.includes('forecasta')
+        ? 'bizzforecasta'
+        : solName.includes('calculators') || solId.includes('calculators')
         ? 'bizzcalculators'
         : solName.includes('dynamics') || solId.includes('dynamics')
         ? 'bizzdynamics'
@@ -1504,6 +1506,22 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
         if (orderA !== orderB) return orderA - orderB;
       }
       return (a.seq || 0) - (b.seq || 0);
+    })
+    .filter((p: CmsProduct, _idx: number, arr: CmsProduct[]) => {
+      const normName = (p.name || '').trim().toLowerCase();
+      if (normName !== 'bizzbudget' || p.type !== 'app') return true;
+      const matches = arr.filter(
+        (x) => (x.name || '').trim().toLowerCase() === 'bizzbudget' && x.type === 'app'
+      );
+      if (matches.length <= 1) return true;
+      const isLegacy = (x: CmsProduct) =>
+        (x.sku || '').trim().toUpperCase() === 'BA-007' ||
+        Math.abs(Number(x.sellingPriceZAR ?? 0) - 260) <= 0.05;
+      const nonLegacyMatches = matches.filter((x) => !isLegacy(x));
+      if (nonLegacyMatches.length > 0) {
+        return p === nonLegacyMatches[0];
+      }
+      return p === matches[0];
     });
 
   // Helper to determine whether a product/course is owned by the current user
@@ -2275,7 +2293,9 @@ export const WorkArea: React.FC<WorkAreaProps> = ({
                     const handleLaunchApp = () => {
                       const nameCheck = `${currentProd?.name || ''} ${currentProd?.id || ''} ${matchingCms?.name || ''} ${activeSolution?.id || ''}`.toLowerCase();
                       const targetId =
-                        nameCheck.includes('calculators')
+                        nameCheck.includes('forecasta')
+                          ? 'bizzforecasta'
+                          : nameCheck.includes('calculators')
                           ? 'bizzcalculators'
                           : nameCheck.includes('dynamics')
                           ? 'bizzdynamics'
